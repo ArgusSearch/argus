@@ -1,6 +1,112 @@
 // Plain words for the first level of the workspace. Internal terms (|z|, LMDI, edge tests, series-hours, holdout)
-// stay out of labels; the glossary below explains each one, and the sidebar shows it as a tooltip.
-// Pure: no React, no DOM.
+// stay out of headings, tiles and buttons; they live in the glossary and in the tooltips that open from it.
+// Pure: no React, no DOM, so the wording is tested once and reused by every page.
+
+import { segmentEntries } from "../../lib/format";
+import type { Graph, IncidentState, Segment, Verdict } from "../../lib/types";
+
+export type Tone = "ok" | "watch" | "alarm" | "probe" | "muted";
+
+/** Short names for the metrics the dashboard lists; the graph's own label is the fallback. */
+const METRIC: Record<string, string> = {
+  sessions: "Visits",
+  orders: "Orders",
+  gmv: "Revenue (GMV)",
+  payment_success_rate: "Payment success",
+  cvr: "Conversion",
+  ad_spend: "Ad spend",
+  cpa: "Cost per order",
+  aov: "Order value",
+  impressions_per_session: "Ads per visit",
+  pacing_ratio: "Ad budget pacing",
+};
+
+export function metricName(graph: Graph | null, id: string): string {
+  return METRIC[id] ?? graph?.nodes.find((n) => n.id === id)?.label ?? id.replace(/_/g, " ");
+}
+
+/** What each verdict means to the person reading the incident. */
+export const VERDICT: Record<Verdict, { label: string; tone: Tone; help: string }> = {
+  SUPPORTED_CAUSE: { label: "Cause found", tone: "ok", help: "One logged change explains the drop, and every rival suspect was tested and ruled out." },
+  HYPOTHESIS: { label: "Likely cause", tone: "watch", help: "The best explanation so far; at least one check could not rule the alternatives out." },
+  EXPECTED: { label: "Planned change", tone: "ok", help: "A plan or calendar entry explains the move and delivery followed it, so nobody was woken." },
+  DATA_ISSUE: { label: "Late data", tone: "watch", help: "The data had not fully arrived; Argus waited instead of raising a false alarm." },
+  UNEXPLAINED: { label: "Checking", tone: "probe", help: "No explanation yet: the investigation is still running or found nothing it could prove." },
+};
+
+export const STATE: Record<IncidentState, { label: string; tone: Tone; help: string }> = {
+  open: { label: "New", tone: "alarm", help: "Just detected." },
+  investigating: { label: "Investigating", tone: "probe", help: "Argus is working through its checks." },
+  explained: { label: "Explained", tone: "watch", help: "The cause is known; the metric has not recovered yet." },
+  monitoring: { label: "Recovering", tone: "watch", help: "Back in its usual range; Argus waits for three normal hours before it closes the incident." },
+  resolved: { label: "Resolved", tone: "ok", help: "Three normal hours in a row: closed by Argus." },
+};
+
+/** Names for the dimensions a segment is cut by. */
+const DIMENSION: Record<string, string> = {
+  country: "Country",
+  platform: "Platform",
+  provider: "Payment provider",
+  channel: "Channel",
+  category: "Category",
+  advertiser_id: "Advertiser",
+};
+
+const COUNTRY: Record<string, string> = { DE: "Germany", FR: "France", UK: "United Kingdom", ES: "Spain", NL: "Netherlands", IT: "Italy", AT: "Austria" };
+const PLATFORM: Record<string, string> = { android: "Android", ios: "iOS", web: "Web" };
+
+export function dimensionName(dim: string): string {
+  return DIMENSION[dim] ?? dim.replace(/_/g, " ");
+}
+
+export function valueName(dim: string, value: string): string {
+  if (dim === "country") return COUNTRY[value] ?? value;
+  if (dim === "platform") return PLATFORM[value] ?? value;
+  return value;
+}
+
+export interface WhereCell {
+  dim: string;
+  /** "Country" */
+  name: string;
+  /** "Germany" */
+  value: string;
+}
+
+/** The segment as "where" cells, in the fixed dimension order of the reports. */
+export function whereCells(segment: Segment): WhereCell[] {
+  return segmentEntries(segment).map(([dim, value]) => ({ dim, name: dimensionName(dim), value: valueName(dim, value) }));
+}
+
+/** "Android in Germany via PayCo", or "the whole shop" for the empty segment. */
+export function wherePhrase(segment: Segment): string {
+  const cells = whereCells(segment);
+  if (!cells.length) return "the whole shop";
+  const by = Object.fromEntries(cells.map((c) => [c.dim, c.value]));
+  const parts: string[] = [];
+  if (by.platform) parts.push(by.platform);
+  if (by.country) parts.push(`${parts.length ? "in " : ""}${by.country}`);
+  if (by.provider) parts.push(`via ${by.provider}`);
+  for (const c of cells) if (!["platform", "country", "provider"].includes(c.dim)) parts.push(`${c.name.toLowerCase()} ${c.value}`);
+  return parts.join(" ");
+}
+
+/** "Payment success fell 33.6% for Android in Germany via PayCo" */
+export function storyHeadline(graph: Graph | null, node: string, changePct: number | null, segment: Segment): string {
+  const name = metricName(graph, node);
+  const where = wherePhrase(segment);
+  if (changePct === null || !Number.isFinite(changePct)) return `${name} moved for ${where}`;
+  const verb = changePct < 0 ? "fell" : "rose";
+  return `${name} ${verb} ${Math.abs(changePct).toFixed(1)}% for ${where}`;
+}
+
+/** How far a metric is off its usual level, in words; the lines are the watcher's own thresholds. */
+export function unusualness(z: number | null, wiggle: number, alarm: number): { word: string; tone: Tone } {
+  if (z === null) return { word: "not checked this hour", tone: "muted" };
+  if (z >= alarm) return { word: "far off usual", tone: "alarm" };
+  if (z >= wiggle) return { word: "a little off", tone: "watch" };
+  return { word: "as usual", tone: "ok" };
+}
 
 export interface GlossaryEntry {
   /** the term as the internal pages and the reports write it */
@@ -44,11 +150,11 @@ export const GLOSSARY: GlossaryEntry[] = [
     plain: "Evidence",
     meaning: "The SQL query behind a number, pinned to the moment it ran and hashed, so anyone can re-run it and get the same result.",
   },
-  { term: "SUPPORTED_CAUSE", plain: "Cause found", meaning: "One logged change explains the drop and every rival suspect was tested and ruled out." },
-  { term: "HYPOTHESIS", plain: "Likely cause", meaning: "The best explanation so far; at least one check could not rule the alternatives out." },
-  { term: "EXPECTED", plain: "Planned change", meaning: "A plan or calendar entry explains the move, and delivery followed it: nobody was woken." },
-  { term: "DATA_ISSUE", plain: "Late data", meaning: "The data had not fully arrived; Argus waited instead of raising a false alarm." },
-  { term: "PROBATION", plain: "On trial", meaning: "A new link in the metric map that is used but not yet trusted until the data supports it." },
+  { term: "SUPPORTED_CAUSE", plain: VERDICT.SUPPORTED_CAUSE.label, meaning: VERDICT.SUPPORTED_CAUSE.help },
+  { term: "HYPOTHESIS", plain: VERDICT.HYPOTHESIS.label, meaning: VERDICT.HYPOTHESIS.help },
+  { term: "EXPECTED", plain: VERDICT.EXPECTED.label, meaning: VERDICT.EXPECTED.help },
+  { term: "DATA_ISSUE", plain: VERDICT.DATA_ISSUE.label, meaning: VERDICT.DATA_ISSUE.help },
+  { term: "PROBATION", plain: "On trial", meaning: "A new link in the metric map that is used but not yet trusted, until the data supports it." },
   {
     term: "Symptom",
     plain: "Knock-on effect",
@@ -57,12 +163,23 @@ export const GLOSSARY: GlossaryEntry[] = [
   {
     term: "pass@1",
     plain: "Runs right",
-    meaning: "The share of sealed test runs Argus got right on its first and only try: the right page, the right cause, or rightly no page at all.",
+    meaning: "The share of sealed test runs Argus got right on its first and only try: the right page with the right cause, or rightly no page at all.",
+  },
+  {
+    term: "Health score",
+    plain: "Shop health",
+    meaning: "The average of four checks, each a share of things that passed: data delivered, key metrics in their usual range, formula checks holding, incidents closed. No weights, no model.",
   },
 ];
 
-/** The glossary entry for a term (case-insensitive), for tooltips. */
+/** The glossary entry for a term or its plain name (case-insensitive), for tooltips. */
 export function gloss(term: string): GlossaryEntry | undefined {
   const key = term.toLowerCase();
   return GLOSSARY.find((g) => g.term.toLowerCase() === key || g.plain.toLowerCase() === key);
+}
+
+/** A glossary tooltip: the plain meaning of an internal term ("LMDI: A standard way ..."). */
+export function tip(term: string): string | undefined {
+  const g = gloss(term);
+  return g ? `${g.term === g.plain ? g.plain : `${g.plain} (${g.term})`}: ${g.meaning}` : undefined;
 }

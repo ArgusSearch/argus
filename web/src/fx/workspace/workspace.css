@@ -1,5 +1,5 @@
 /* The Argus Ice workspace: Mission Control re-laid out as a dashboard app. A sidebar on the left, the header and
-   the ticker on top, the section in the middle (dashboard, graph with its investigation band, or a view of the
+   the section in the middle (dashboard, graph with its investigation band, or a view of the
    view host) and the activity feed on the right. The wrappers of the existing page (.vh, .vh-body, .vh-graph,
    .main, .left) become display: contents, so their panels are placed on the app's own grid without a change to
    their markup. All under :root[data-fx]; the section comes from <html data-fx-section> (nav.ts). */
@@ -8,7 +8,7 @@
   --fx-side-w: 224px;
   --fx-feed-w: 392px;
   grid-template-columns: var(--fx-side-w) minmax(0, 1fr) var(--fx-feed-w);
-  grid-template-rows: 52px 42px minmax(0, 1fr) auto;
+  grid-template-rows: 52px 0 minmax(0, 1fr) auto;
   grid-template-areas:
     "side head head"
     "side tick tick"
@@ -72,9 +72,18 @@
   margin: 0;
 }
 
-/* sections */
-:root[data-fx][data-fx-section="dashboard"] :is(.graph, .trail, .vh-view) {
+/* the ticker's counters are internal (series-hours, wiggles): the pages say the same in plain words */
+:root[data-fx] .ticker {
   display: none;
+}
+
+/* sections: the workspace's own pages take the body and the feed's column; the graph waits behind them */
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) :is(.graph, .trail, .vh-view, .rail) {
+  display: none;
+}
+
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) .fx-dash {
+  grid-column: 2 / 4;
 }
 
 :root[data-fx][data-fx-section="graph"] .vh-view {
@@ -95,16 +104,13 @@
   grid-column: 2 / 4;
 }
 
-/* the graph takes the ticker's row; on short windows (1536x735) the band gets shorter and the legend floats over
-   the bottom of the canvas, so the graph keeps most of the height */
-:root[data-fx][data-fx-section="graph"] .app {
-  grid-template-rows: 52px 0 minmax(0, 1fr) auto;
-}
-
-:root[data-fx][data-fx-section="graph"] .ticker {
+/* the visualization is the map alone: the investigation's steps have their own page (Live investigation) */
+:root[data-fx][data-fx-section="graph"] .trail {
   display: none;
 }
 
+/* on short windows (1536x735) the band gets shorter and the legend floats over the bottom of the canvas, so the
+   graph keeps most of the height */
 @media (max-height: 900px) {
 
   :root[data-fx][data-fx-section="graph"] .trail {
@@ -402,239 +408,6 @@
   animation: fx-view-in var(--fx-dur-move) var(--fx-ease-glide) both;
 }
 
-:root[data-fx] .fx-dash-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--fx-space-4);
-  padding: var(--fx-space-2) var(--fx-space-1) 0;
-}
-
-:root[data-fx] .fx-dash-kicker {
-  color: var(--fx-hud);
-  font-size: var(--fx-text-sm);
-}
-
-:root[data-fx] .fx-dash-head h1 {
-  margin: 6px 0 4px;
-  font: 600 var(--fx-text-2xl) / 1.1 var(--fx-font-sans);
-  letter-spacing: var(--fx-tracking-display);
-}
-
-:root[data-fx] .fx-dash-head p {
-  margin: 0;
-  max-width: 720px;
-  color: var(--fx-ink-1);
-}
-
-/* KPI cards of the north-star metrics */
-:root[data-fx] .fx-kpis {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: var(--fx-space-3);
-}
-
-:root[data-fx] .fx-kpi {
-  --tone: var(--ok);
-  --tone-bg: var(--ok-bg);
-  position: relative;
-  display: grid;
-  gap: var(--fx-space-2);
-  min-width: 0;
-  padding: var(--fx-space-3) var(--fx-space-3) var(--fx-space-2);
-  overflow: hidden;
-  border: var(--fx-hair) solid var(--fx-glass-border);
-  border-radius: var(--fx-radius-2);
-  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-1);
-  box-shadow: var(--fx-glass-shadow);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
-  transition:
-    border-color var(--fx-dur-fast) var(--fx-ease-out),
-    transform var(--fx-dur-fast) var(--fx-ease-out);
-}
-
-:root[data-fx] .fx-kpi::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: var(--tone);
-  opacity: 0.85;
-}
-
-:root[data-fx] .fx-kpi:hover {
-  border-color: var(--text-2);
-  transform: translateY(-1px);
-}
-
-:root[data-fx] .fx-kpi.t-watch {
-  --tone: var(--watch);
-  --tone-bg: var(--watch-bg);
-}
-
-:root[data-fx] .fx-kpi.t-alarm {
-  --tone: var(--alarm);
-  --tone-bg: var(--alarm-bg);
-  border-color: var(--alarm);
-  background: linear-gradient(180deg, var(--alarm-bg), transparent 70%), var(--fx-glass-1);
-}
-
-:root[data-fx] .fx-kpi.t-probe {
-  --tone: var(--probe);
-  --tone-bg: var(--probe-bg);
-  border-color: var(--probe);
-  box-shadow: var(--fx-focus-ring);
-}
-
-:root[data-fx] .fx-kpi.t-muted {
-  --tone: var(--fx-ink-4);
-  --tone-bg: var(--fx-well);
-}
-
-:root[data-fx] .fx-kpi:nth-child(2) {
-  animation-delay: calc(1 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi:nth-child(3) {
-  animation-delay: calc(2 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi:nth-child(4) {
-  animation-delay: calc(3 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi:nth-child(5) {
-  animation-delay: calc(4 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi:nth-child(6) {
-  animation-delay: calc(5 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi:nth-child(n + 7) {
-  animation-delay: calc(6 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-kpi-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--fx-space-2);
-  min-width: 0;
-}
-
-:root[data-fx] .fx-kpi-label {
-  overflow: hidden;
-  font: 600 13.5px / 1.25 var(--fx-font-sans);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:root[data-fx] .fx-kpi-unit {
-  display: none;
-  flex: none;
-  color: var(--fx-ink-3);
-  font: var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-}
-
-:root[data-fx] .fx-kpi-state {
-  flex: none;
-  max-width: 100%;
-  overflow: hidden;
-  margin-left: auto;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 2px 6px;
-  border-radius: var(--fx-radius-1);
-  background: var(--tone-bg);
-  color: var(--tone);
-  font: var(--fx-weight-medium) 9.5px / 1.2 var(--fx-font-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-:root[data-fx] .fx-kpi.t-muted .fx-kpi-state {
-  color: var(--fx-ink-2);
-}
-
-:root[data-fx] .fx-kpi-value {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-:root[data-fx] .fx-kpi-value b {
-  font: var(--fx-weight-medium) var(--fx-text-2xl) / 1 var(--fx-font-mono);
-  letter-spacing: -0.02em;
-}
-
-:root[data-fx] .fx-kpi.t-alarm .fx-kpi-value b,
-:root[data-fx] .fx-kpi.over .fx-kpi-value b {
-  color: var(--alarm);
-}
-
-:root[data-fx] .fx-kpi-value {
-  min-width: 0;
-}
-
-:root[data-fx] .fx-kpi-value span {
-  color: var(--fx-ink-2);
-  font-size: var(--fx-text-xs);
-  white-space: nowrap;
-}
-
-:root[data-fx] .fx-trend {
-  display: block;
-  width: 100%;
-  height: 40px;
-  overflow: visible;
-}
-
-:root[data-fx] .fx-trend-alarm {
-  stroke: var(--alarm);
-  stroke-dasharray: 2 3;
-  stroke-opacity: 0.5;
-  vector-effect: non-scaling-stroke;
-}
-
-:root[data-fx] .fx-trend-line {
-  fill: none;
-  stroke: var(--tone);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-:root[data-fx] .fx-trend-area {
-  fill: var(--tone-bg);
-}
-
-:root[data-fx] .fx-kpi-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fx-space-2);
-  color: var(--fx-ink-3);
-  font: var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-}
-
-:root[data-fx] .fx-kpi-foot span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* cards below the KPIs */
-:root[data-fx] .fx-dash-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: var(--fx-space-3);
-  align-items: start;
-}
-
 :root[data-fx] .fx-card {
   --panel: var(--fx-card);
   --panel-2: var(--fx-card-hover);
@@ -649,29 +422,6 @@
   box-shadow: var(--fx-glass-shadow);
   animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
   animation-delay: calc(4 * var(--fx-stagger-tight));
-}
-
-:root[data-fx] .fx-dash-col {
-  display: grid;
-  align-content: start;
-  gap: var(--fx-space-3);
-  min-width: 0;
-}
-
-/* the human-actions tile only fills the empty eighth slot of the four-column grid */
-:root[data-fx] .fx-kpi-human {
-  display: none;
-  cursor: default;
-}
-
-:root[data-fx] .fx-kpi-human .fx-kpi-value b {
-  color: var(--ok);
-}
-
-:root[data-fx] .fx-kpi-note {
-  color: var(--fx-ink-2);
-  font-size: var(--fx-text-xs);
-  line-height: 1.4;
 }
 
 :root[data-fx] .fx-card-head {
@@ -698,136 +448,6 @@
   font-size: var(--fx-text-xs);
 }
 
-/* incidents */
-:root[data-fx] .fx-running {
-  display: flex;
-  gap: var(--fx-space-3);
-  padding: var(--fx-space-3);
-  border: var(--fx-hair) solid var(--probe);
-  border-radius: var(--fx-radius-1);
-  background: var(--probe-bg);
-}
-
-:root[data-fx] .fx-running > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-:root[data-fx] .fx-running span {
-  color: var(--fx-ink-1);
-}
-
-:root[data-fx] .fx-running-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: var(--probe);
-  animation: pulse 1s ease-in-out infinite;
-}
-
-:root[data-fx] .fx-steps {
-  display: grid;
-  gap: 4px;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-:root[data-fx] .fx-steps li {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  column-gap: var(--fx-space-2);
-  color: var(--fx-ink-2);
-  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
-}
-
-:root[data-fx] .fx-steps li.now {
-  color: var(--fx-ink-0);
-}
-
-:root[data-fx] .fx-steps .mono {
-  color: var(--probe);
-  font-weight: var(--fx-weight-medium);
-}
-
-:root[data-fx] .fx-steps em {
-  grid-column: 2;
-  overflow: hidden;
-  color: var(--fx-ink-2);
-  font-size: var(--fx-text-sm);
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:root[data-fx] .fx-incidents {
-  display: grid;
-  gap: var(--fx-space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:root[data-fx] .fx-incident {
-  display: grid;
-  gap: var(--fx-space-2);
-  justify-items: start;
-  padding: var(--fx-space-3);
-  border: var(--fx-hair) solid var(--alarm);
-  border-radius: var(--fx-radius-1);
-  background: linear-gradient(180deg, var(--alarm-bg), var(--fx-card) 70%);
-}
-
-:root[data-fx] .fx-incident.s-resolved,
-:root[data-fx] .fx-incident.s-monitoring {
-  border-color: var(--ok);
-  background: linear-gradient(180deg, var(--ok-bg), var(--fx-card) 70%);
-}
-
-:root[data-fx] .fx-incident-head {
-  display: flex;
-  align-items: center;
-  gap: var(--fx-space-2);
-  width: 100%;
-}
-
-:root[data-fx] .fx-incident-eur {
-  margin-left: auto;
-  font: var(--fx-weight-medium) 15px / 1 var(--fx-font-mono);
-}
-
-:root[data-fx] .fx-incident-title {
-  margin: 0;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-:root[data-fx] .fx-path {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-:root[data-fx] .fx-path > * + *::before {
-  content: "›";
-  margin-right: 6px;
-  color: var(--fx-ink-3);
-}
-
-:root[data-fx] .fx-path-node {
-  font-weight: var(--fx-weight-medium);
-}
-
-:root[data-fx] .fx-path-cell {
-  display: inline-flex;
-  gap: 4px;
-  align-items: baseline;
-}
-
 /* the affected path at incident time: the 3D scene's preview in a well (the scene fills its positioned parent) */
 :root[data-fx] .fx-path-scene {
   position: relative;
@@ -843,202 +463,6 @@
   align-items: center;
   gap: var(--fx-space-3);
   min-width: 0;
-}
-
-:root[data-fx] .fx-path-state {
-  --tone: var(--alarm);
-  --tone-bg: var(--alarm-bg);
-  display: inline-flex;
-  gap: 6px;
-  align-items: baseline;
-  min-width: 0;
-  padding: 3px 7px;
-  overflow: hidden;
-  border-radius: var(--fx-radius-1);
-  background: var(--tone-bg);
-  color: var(--tone);
-  font: var(--fx-weight-medium) 9.5px / 1.2 var(--fx-font-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-:root[data-fx] .fx-path-state .mono {
-  font: inherit;
-  color: var(--fx-ink-1);
-}
-
-:root[data-fx] .fx-path-state.t-watch {
-  --tone: var(--watch);
-  --tone-bg: var(--watch-bg);
-}
-
-:root[data-fx] .fx-path-state.t-probe {
-  --tone: var(--probe);
-  --tone-bg: var(--probe-bg);
-}
-
-:root[data-fx] .fx-path-state.t-ok {
-  --tone: var(--ok);
-  --tone-bg: var(--ok-bg);
-}
-
-:root[data-fx] .fx-path-cell i {
-  color: var(--fx-ink-3);
-  font: var(--fx-text-2xs) / 1 var(--fx-font-mono);
-  font-style: normal;
-  text-transform: uppercase;
-}
-
-/* morning report */
-:root[data-fx] .fx-digest {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:root[data-fx] .fx-digest li {
-  display: grid;
-  grid-template-columns: 92px 150px minmax(0, 1fr);
-  gap: var(--fx-space-3);
-  align-items: baseline;
-  padding: 8px 0;
-  border-bottom: var(--fx-hair) solid var(--line);
-}
-
-:root[data-fx] .fx-digest li:last-child {
-  border-bottom: 0;
-}
-
-:root[data-fx] .fx-digest-label {
-  color: var(--fx-ink-2);
-  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.3 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud);
-  text-transform: uppercase;
-}
-
-:root[data-fx] .fx-digest b {
-  font: var(--fx-weight-medium) 13px / 1.3 var(--fx-font-mono);
-}
-
-:root[data-fx] .fx-digest .t-good b {
-  color: var(--ok);
-}
-
-:root[data-fx] .fx-digest .t-bad b {
-  color: var(--alarm);
-}
-
-:root[data-fx] .fx-digest .t-warn b {
-  color: var(--watch);
-}
-
-:root[data-fx] .fx-digest-detail {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--fx-ink-2);
-  font-size: var(--fx-text-sm);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-:root[data-fx] .fx-digest-detail .receipts {
-  display: inline-flex;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-/* autonomy */
-:root[data-fx] .fx-autonomy {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--fx-space-4);
-}
-
-:root[data-fx] .fx-autonomy h3 {
-  margin: 0 0 var(--fx-space-2);
-  color: var(--ok);
-  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud);
-  text-transform: uppercase;
-}
-
-:root[data-fx] .fx-autonomy > div + div h3 {
-  color: var(--watch);
-}
-
-:root[data-fx] .fx-autonomy ul {
-  display: grid;
-  gap: 5px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--fx-ink-1);
-  font-size: var(--fx-text-sm);
-}
-
-:root[data-fx] .fx-autonomy li {
-  display: flex;
-  gap: var(--fx-space-2);
-  align-items: baseline;
-}
-
-:root[data-fx] .fx-autonomy b {
-  min-width: 22px;
-  color: var(--fx-ink-0);
-  font: var(--fx-weight-medium) 13px / 1.3 var(--fx-font-mono);
-  text-align: right;
-}
-
-:root[data-fx] .fx-autonomy .human b {
-  color: var(--ok);
-}
-
-/* scorecard */
-:root[data-fx] .fx-score {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-:root[data-fx] .fx-score th,
-:root[data-fx] .fx-score td {
-  padding: 7px 0;
-  border-bottom: var(--fx-hair) solid var(--line);
-  text-align: left;
-}
-
-:root[data-fx] .fx-score thead th {
-  color: var(--fx-ink-2);
-  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud);
-  text-transform: uppercase;
-}
-
-:root[data-fx] .fx-score tbody th {
-  color: var(--fx-ink-1);
-  font-weight: 500;
-}
-
-:root[data-fx] .fx-score td {
-  font: var(--fx-weight-medium) 15px / 1.2 var(--fx-font-mono);
-}
-
-:root[data-fx] .fx-score .t-good {
-  color: var(--ok);
-}
-
-:root[data-fx] .fx-score .t-warn {
-  color: var(--watch);
-}
-
-:root[data-fx] .fx-score .t-bad {
-  color: var(--alarm);
-}
-
-/* a reference agent (Stage 1 alone, the threshold baseline) is context, never graded in Argus's colors */
-:root[data-fx] .fx-score .ref {
-  color: var(--fx-ink-2);
 }
 
 /* ---------------------------------------------------------------- feed: a footer that fills a short list */
@@ -1062,20 +486,6 @@
 }
 
 /* ---------------------------------------------------------------- narrower windows */
-
-@media (max-width: 1800px) {
-  :root[data-fx] .fx-kpis {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  :root[data-fx] .fx-kpi-human {
-    display: grid;
-  }
-
-  :root[data-fx] .fx-kpi-unit {
-    display: inline;
-  }
-}
 
 @media (max-width: 1600px) {
   :root[data-fx] .app {
@@ -1111,6 +521,7 @@
 
   :root[data-fx] .fx-side-brand div,
   :root[data-fx] .fx-side-item span,
+  :root[data-fx] .fx-side-group,
   :root[data-fx] .fx-side-foot {
     display: none;
   }
@@ -1138,9 +549,6 @@
     display: none;
   }
 
-  :root[data-fx] .fx-dash-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   :root[data-fx] .tabs {
     flex-wrap: wrap;

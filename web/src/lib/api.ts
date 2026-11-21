@@ -44,6 +44,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   digest: () => json<Digest>("/digest"),
+  incidents: () => json<Incident[]>("/incidents"),
 };
 
 export interface DigestLine {

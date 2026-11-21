@@ -7,6 +7,15 @@ import { Vector3, type PerspectiveCamera } from "three";
 import { BLOCK } from "./layout";
 import type { SceneNode } from "./model";
 import type { TraceMarker } from "./trace";
+import { DEFAULT_THRESHOLDS } from "../../lib/store";
+
+/** The plain word for a metric's |z|, on the watcher's own lines. */
+function unusualWord(z: number | null): string {
+  if (z === null) return "not checked";
+  if (z >= DEFAULT_THRESHOLDS.alarm_z) return "far off usual";
+  if (z >= DEFAULT_THRESHOLDS.wiggle_z) return "a little off";
+  return "as usual";
+}
 
 const BRACKETS = 4;
 
@@ -122,7 +131,9 @@ export class Labels {
       if (text !== item.text) {
         item.text = text;
         item.name.textContent = `${n.northStar ? "★ " : ""}${n.label}`;
-        item.value.textContent = n.kind === "metric" ? `z ${z}` : n.id;
+        // the block says how unusual the hour is in words; the score itself is in the tooltip (the glossary's |z|)
+        item.value.textContent = n.kind === "metric" ? unusualWord(n.z) : n.id;
+        item.el.title = n.kind === "metric" ? `${n.label}: how unusual ${z} (alarm at ${DEFAULT_THRESHOLDS.alarm_z})` : n.label;
         item.tag.textContent = tag ?? "";
       }
       const cls = `fxs-node ${n.kind} ${n.tone}${n.northStar ? " star" : ""}${n.focus ? " focus" : ""}${tag ? " tagged" : ""}${this.fresh.has(n.id) ? " fresh" : ""}${

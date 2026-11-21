@@ -8,7 +8,7 @@ import { AutonomyLegend, DigestModal } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
-import { FxWorkspace, GraphStage } from "./fx";
+import { FxWorkspace, fxOn, GraphStage, openIncidentPage } from "./fx";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -24,11 +24,11 @@ function Legend() {
     <div className="legend">
       <span className="legend-item">{line(undefined, "#6b7590")}formula</span>
       <span className="legend-item">{line("2 4", "#7a76b8")}evidence</span>
-      <span className="legend-item">{line("6 5", "#e3a63b")}cause (probation)</span>
-      <span className="legend-item">{line(undefined, "#f2585d")}broken</span>
+      <span className="legend-item">{line("6 5", "#e3a63b")}suspected cause (on trial)</span>
+      <span className="legend-item">{line(undefined, "#f2585d")}broken link</span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#e3a63b" }} />
-        wiggle
+        small move
       </span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#f2585d" }} />
@@ -115,8 +115,10 @@ export function App() {
   }, [toast]);
 
   const closeIncident = useCallback(() => setIncidentId(null), []);
+  // with the style layer an incident opens as its own page; without it, as the sheet over the graph
   const openIncident = useCallback((id: string) => {
-    setIncidentId(id);
+    if (fxOn()) openIncidentPage(id);
+    else setIncidentId(id);
     setToast(null);
   }, []);
   const closeDigest = useCallback(() => setDigestOpen(false), []);
@@ -141,9 +143,9 @@ export function App() {
           <div className="left">
             <section className="graph" aria-label="metric graph">
               <div className="graph-bar">
-                <span className="panel-title">Metric graph</span>
+                <span className="panel-title">Metric map</span>
                 <span className="sub">
-                  {graph ? `${graph.nodes.length} metrics · ${graph.edges.length} typed edges, each with a live test · ${graph.logs.length} logs` : "loading"}
+                  {graph ? `${graph.nodes.length} metrics · ${graph.edges.length} links, each re-checked against the data · ${graph.logs.length} change logs` : "loading"}
                 </span>
                 {latest && view.focus && (
                   <span className="checking">
@@ -182,10 +184,7 @@ export function App() {
           {toast.incident && (
             <button
               className="btn primary"
-              onClick={() => {
-                setIncidentId(toast.incident ?? null);
-                setToast(null);
-              }}
+              onClick={() => toast.incident && openIncident(toast.incident)}
             >
               Open report
             </button>
