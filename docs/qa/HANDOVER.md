@@ -13,7 +13,7 @@ This file is enough to continue the QA work without the chat.
 - **S3** holds back correctly, but the note does not name the broken identity (#5, #9).
 - **Scorecard on 260d499:** Argus pass@1 is 100% vs 17% for the threshold baseline.
 - **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
-- **`make check` on main** is green (335 passed); #27 is fixed.
+- **`make check` on main** is green on macOS (335 passed); #27 is fixed. **CI on main (Linux) is red:** 10 tests fail because the generated worlds and receipt hashes differ from the Mac-recorded fixtures. This is the same cause as #24 (Windows); the evidence is in a comment on #24. A demo on a Mac is safe. Every fix PR fails exactly those 10 and nothing else.
 - **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart or loop (#33; fix in PR #39). Until it merges, do not press Restart on stage.
 
 ## What is in this branch
