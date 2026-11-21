@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import pairwise
@@ -93,15 +94,11 @@ class AgentTimeline:
                         )
                     )
 
-        incidents = {
-            incident.id: incident
-            for part in parts
-            if not part.events or part.events[-1].seq <= state.through_seq
-            for incident in part.incidents
-            if incident_available_at(incident) <= state.sim_ts
-        }
+        incidents = _visible_incidents(
+            events, (incident for part in parts for incident in part.incidents), state.sim_ts
+        )
         questions = tuple(q for part in parts for q in part.questions if q.through_seq <= state.through_seq)
-        refs: list[BaseModel] = [self.graph, *events, *activity, *actions, *incidents.values()]
+        refs: list[BaseModel] = [self.graph, *events, *activity, *actions, *incidents]
         receipts = {key: proof for part in parts for key, proof in part.receipts.items()}
         # A recorded answer can be taken only when all of its evidence exists at this clock position.
         questions = tuple(
@@ -111,11 +108,25 @@ class AgentTimeline:
         )
         keys = {key for model in (*refs, *questions) for key in _links(model)}
         visible = {key: receipts[key] for key in keys if receipts[key].receipt.as_of <= state.sim_ts}
-        return AgentView(state, events, activity, actions, list(incidents.values()), visible, questions)
+        return AgentView(state, events, activity, actions, incidents, visible, questions)
 
 
 def _links(model: BaseModel) -> set[str]:
     return set(receipt_keys(model.model_dump(mode="json")))
+
+
+def _visible_incidents(events: tuple[Event, ...], snapshots: Iterable[Incident], as_of: datetime) -> list[Incident]:
+    published = {
+        (event.payload["id"], event.payload["state"], event.payload["verdict"]): event.sim_ts
+        for event in events
+        if event.type is EventType.INCIDENT_UPDATED
+    }
+    visible: dict[str, Incident] = {}
+    for incident in snapshots:
+        at = published.get((incident.id, incident.state.value, incident.verdict.value))
+        if at is not None and incident_available_at(incident) <= at <= as_of:
+            visible[incident.id] = incident
+    return list(visible.values())
 
 
 def _question_key(text: str) -> str:
@@ -332,22 +343,18 @@ def _cursor(activity: tuple[ActivityRecord, ...], at: datetime) -> int:
 def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> tuple[DemoReport, MorningReport]:
     assert bundle.approve is not None
     through = _seq(events, morning.sim_ts)
-    incidents = {
-        incident.id: incident
-        for part in (bundle.prefix, bundle.approve)
-        for incident in part.incidents
-        if incident_available_at(incident) <= morning.sim_ts
-    }
+    visible_events = tuple(event for event in events if event.seq <= through)
+    incidents = _visible_incidents(
+        visible_events, (*bundle.prefix.incidents, *bundle.approve.incidents), morning.sim_ts
+    )
     state = RunState(bundle.graph)
-    for event in events:
-        if event.seq > through:
-            break
+    for event in visible_events:
         state.apply(event)
     graph = state.current_graph()
     recording = Recording(
         list(events),
         graph,
-        [IncidentSnapshot(seq=through, incident=incident) for incident in incidents.values()],
+        [IncidentSnapshot(seq=through, incident=incident) for incident in incidents],
         [
             proof.receipt
             for part in (bundle.prefix, bundle.approve)
@@ -362,7 +369,7 @@ def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> 
         morning,
         agent_projection=lambda _: AgentMorning(actions=final_actions),
     )
-    return report, MorningReport(digest=build_digest(state, list(incidents.values()), graph), report=REPORT_PATH)
+    return report, MorningReport(digest=build_digest(state, incidents, graph), report=REPORT_PATH)
 
 
 def load_agent_timeline(scenario: Scenario) -> AgentTimeline:
