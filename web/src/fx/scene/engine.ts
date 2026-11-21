@@ -173,6 +173,7 @@ export class SceneEngine {
   private disposed = false;
   private frames = 0;
   private ready = false;
+  private announced = false;
   private readyAt = -1;
   private introStart = -1;
   private introDuration = 0;
@@ -254,8 +255,19 @@ export class SceneEngine {
     this.palette = makePalette(readPaletteHex());
     this.applyPalette();
     this.applyTier();
+    // a graph view that is not shown yet (another view is open) renders nothing and holds nobody up: the
+    // layer hears "ready" at once, and the intro waits for the first time the graph is on screen
+    this.mountVisible = opts.mount.getClientRects().length > 0;
     this.listen();
+    if (!this.mountVisible) this.announce();
     this.start();
+  }
+
+  /** Tells the style layer the graph area can be revealed (once per scene). */
+  private announce(): void {
+    if (this.announced || this.opts.preview) return;
+    this.announced = true;
+    window.dispatchEvent(new CustomEvent(SCENE_READY));
   }
 
   // ------------------------------------------------------------------ inputs
@@ -846,10 +858,8 @@ export class SceneEngine {
       this.ready = true;
       this.readyAt = this.time;
       this.canvas.classList.toggle("live", this.mountVisible);
-      if (!this.opts.preview) {
-        window.dispatchEvent(new CustomEvent(SCENE_READY));
-        this.emitQuality();
-      }
+      this.announce();
+      this.emitQuality();
     }
     this.measure(raw, performance.now() - cpu);
   }
