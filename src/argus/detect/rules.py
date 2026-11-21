@@ -1,7 +1,7 @@
 """Open, onset and resolve rules on a series of z-scores (index -1 is the scored hour).
 
-* open ``z_gt_4``: |z| > 4 in the scored hour.
-* open ``two_of_three_gt_3``: |z| > 3 in the scored hour and in at least one of the two hours before it,
+* open ``z_gt_open``: |z| > open_z (4) in the scored hour.
+* open ``two_of_three``: |z| > run_z (3) in the scored hour and in at least one of the two hours before it,
   on the same side (a Western Electric run rule: catches a smaller shift that persists).
 * onset: the first hour of the unbroken run with |z| > 2 on the anomaly's side that ends in the scored hour.
 * resolve: the last `calm_hours` scored hours all have |z| < 2.
@@ -10,8 +10,11 @@ Both open rules need the scored hour itself to be extreme, so every (series, hou
 an hour that was already passed over cannot open an anomaly later.
 
 A breakdown look tests m slices at once. `family_params` raises both thresholds (Bonferroni) so that the
-whole look has the false-alarm rate of a single series at 4 and 3: for m = 6 the slice thresholds are
-about 4.4 and 3.3. The rule names keep their contract meaning, "beyond 4 (family-wise)".
+whole look has the false-alarm rate of a single series at open_z and run_z: for m = 6 the slice thresholds
+are about 4.4 and 3.3.
+
+The defaults (4 and 3) are calibrated for this module's noise model (two-component variance with a Poisson
+floor, 14 days of residuals): z has a standard deviation of about 1.03 on quiet worlds.
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ import numpy as np
 
 from argus.contracts.findings import Direction
 
-Rule = Literal["z_gt_4", "two_of_three_gt_3"]
+Rule = Literal["z_gt_open", "two_of_three"]
 
 
 @dataclass(frozen=True)
@@ -91,12 +94,12 @@ def open_trigger(z: np.ndarray, params: RuleParams = RuleParams()) -> Trigger | 
     last = float(z[-1])
     direction = direction_of(last)
     if abs(last) > params.open_z:
-        return Trigger("z_gt_4", direction, onset_index(z, direction, params))
+        return Trigger("z_gt_open", direction, onset_index(z, direction, params))
     if abs(last) > params.run_z:
         previous = z[-3:-1]
         same_side = previous[np.isfinite(previous) & (np.sign(previous) == np.sign(last))]
         if np.any(np.abs(same_side) > params.run_z):
-            return Trigger("two_of_three_gt_3", direction, onset_index(z, direction, params))
+            return Trigger("two_of_three", direction, onset_index(z, direction, params))
     return None
 
 

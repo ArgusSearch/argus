@@ -14,14 +14,14 @@ def z(*values: float) -> np.ndarray:
     return np.array(values, dtype=float)
 
 
-def test_single_extreme_hour_opens_z_gt_4() -> None:
+def test_single_extreme_hour_opens_z_gt_open() -> None:
     trig = open_trigger(z(0.1, -0.5, 1.0, -4.5))
-    assert trig is not None and trig.rule == "z_gt_4" and trig.direction == "down"
+    assert trig is not None and trig.rule == "z_gt_open" and trig.direction == "down"
 
 
 def test_two_of_three_beyond_3_on_the_same_side() -> None:
     trig = open_trigger(z(0.2, 3.4, 0.5, 3.2))
-    assert trig is not None and trig.rule == "two_of_three_gt_3" and trig.direction == "up"
+    assert trig is not None and trig.rule == "two_of_three" and trig.direction == "up"
     assert open_trigger(z(0.2, -3.4, 0.5, 3.2)) is None  # opposite sides do not add up
     assert open_trigger(z(3.4, 0.1, 0.5, 3.2)) is None  # outside the last three hours
 

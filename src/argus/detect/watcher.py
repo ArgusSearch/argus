@@ -8,7 +8,7 @@ Per tick, with `as_of` on the hour and the scored hour `as_of - lag`:
    backlog left by a late table is caught up in order once it lands.
 3. Attention: every other unit (node totals and breakdowns) gets an attention score and the top `budget`
    units are looked at, scoring the current hour only (see `argus.detect.attention`).
-4. Rules: z_gt_4 and two_of_three_gt_3 on every looked-at series, the pacing rule on every budget line.
+4. Rules: z_gt_open and two_of_three on every looked-at series, the pacing rule on every budget line.
    At most one anomaly is open per (node, direction); a slice that fires while its node already has an
    open anomaly in that direction is the same problem seen from another angle, and the coarsest firing
    segment wins (the investigator finds the root segment).
