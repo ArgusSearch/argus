@@ -1,6 +1,6 @@
 """Every scenario end to end through the API: the recorded replays and the live runtime over a fresh world.
 
-`fixtures/` holds the S1 run and `fixtures/<scenario>/` the quiet, S2, S3 and S4 runs, all seed 1, recorded
+`fixtures/` holds the S1 run and `fixtures/<scenario>/` the quiet, S2, S3, S4 and S5 runs, all seed 1, recorded
 by `make fixtures`. Replay serves each one's story over REST and SSE; the live runtime over a newly generated
 world of the same seed streams the same story, so the recordings stay what the runtime does now.
 """
@@ -43,6 +43,11 @@ STORIES = {
     "s2": Story(incidents=[], notes=["expected"], anomalies=["ad_spend"]),
     "s3": Story(incidents=[], notes=["data_issue"], anomalies=[]),
     "s4": Story(incidents=[("SUPPORTED_CAUSE", "pacing_ratio", "explained")], notes=[], anomalies=["ad_spend"]),
+    "s5": Story(
+        incidents=[("SUPPORTED_CAUSE", "payment_success_rate", "resolved")],
+        notes=["expected", "expected", "expected"],
+        anomalies=["sessions", "orders", "gmv", "payment_success_rate"],
+    ),
 }
 SCENARIOS = sorted(STORIES)
 

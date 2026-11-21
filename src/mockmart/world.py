@@ -35,11 +35,13 @@ def generate(scenario: str, cfg: WorldConfig, out_dir: Path) -> WorldPaths:
 
     params = base_params(cfg, world_rng)
     add_background_logs(params, scenario_rng)
-    SCENARIOS[scenario](params, scenario_rng)
+    write_extension = SCENARIOS[scenario](params, scenario_rng)
     tables = sample(params, world_rng)
 
     paths = WorldPaths(out_dir / "world.duckdb", out_dir / "truth.duckdb", out_dir / "manifest.json")
     counts = write_world(paths.world, tables, params, delivery_rng)
+    if write_extension is not None:
+        counts.update(write_extension(paths.world))
     write_truth(paths.truth, scenario, cfg, params.truth)
     manifest = {
         "contract_version": CONTRACT_VERSION,
