@@ -1,6 +1,32 @@
 # Scenario matrix
 
-## Current: `main` @ `260d499` (Saturday 2026-11-21, ~20:30 CET)
+## Current: `main` @ `2c36e82` (Saturday 2026-11-21, ~21:00 CET)
+
+Argus's own code (`src/argus`, `src/bench`, `graph/`, `metrics/`) is identical to `260d499`. Commit 118a335 regenerated the MockMart worlds the same way on every platform, and the fixtures were re-recorded. CI on main is green again (run 44938516625).
+
+**Verdicts are unchanged from 260d499 on every run:**
+- S1, quiet, S2 and S5 pass.
+- S4 is mostly right: segment `{}` (#4).
+- S3 is partial: the note is freshness-only (#5, #9).
+
+**Checks:**
+- Live receipt re-runs: 45/45 give the same hash. Replay re-runs: 31/31 return 409, as designed.
+- 0 5xx, and no Traceback or ERROR in any server log.
+- New routes: same status codes as on 260d499.
+
+**Differences caused by the new worlds:**
+- S1 now explains 100% of the change on all three seeds (was 89–99%).
+- S5 explains 93.5% live and 97.1% replay (was 100%); replay S4 explains 95.9%.
+- The replay S2 note now cites the calendar plan `cal_adv_01_FR_push`.
+- Severities moved a little: S1 seed 7 is €91,125, S5 seed 7 €59,598.
+- S1 seed 11 resolves an hour earlier.
+- The segment order in titles depends on the run (#44).
+
+**Scorecard (`uv run argus-bench`):** Argus pass@1 100%, exact 67%, grade 3.83. The threshold baseline: pass@1 17%, precision 36%, 0.233 false alarms per day.
+
+**Blind seed 11:** drew s2 (the scenario is a random draw; the seed only fixes the world), EXPECTED note, grade 4, PASS. `verify`: the hash matches.
+
+## Earlier: `main` @ `260d499` (Saturday 2026-11-21, ~20:30 CET)
 
 New on main since `f35b00a`:
 - S5 (market control) with its recording;
