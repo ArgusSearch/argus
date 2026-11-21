@@ -168,9 +168,46 @@ export const SCENARIO_TEXT: Record<string, string> = {
   s2: "S2 · planned FR budget increase (harmless)",
   s3: "S3 · orders loader stalls (late data)",
   s4: "S4 · ad pacer 1.7 burns budgets by 10:00",
+  s5: "S5 · market-wide demand drop + checkout config fault",
 };
 
 export const AGENT_TEXT: Record<string, string> = {
   argus: "Argus",
+  "argus-stage1": "Stage 1 only",
   threshold: "Threshold baseline",
 };
+
+/** Argus first, then what it is measured against: its own Stage-1 fallback, then the BI-style threshold alert. */
+const AGENT_ORDER = ["argus", "argus-stage1", "threshold"];
+
+/** Every agent's summary in reading order: Argus, then its references; agents the order does not know go last. */
+export function orderedSummaries(card: Scorecard): AgentSummary[] {
+  const rank = (a: string) => (AGENT_ORDER.includes(a) ? AGENT_ORDER.indexOf(a) : AGENT_ORDER.length);
+  return [...card.summaries].sort((a, b) => rank(a.agent) - rank(b.agent));
+}
+
+export interface HeadlineRow {
+  key: string;
+  label: string;
+  hint: string;
+  /** One cell per agent in `orderedSummaries` order. */
+  cells: { agent: string; value: string; tone: Tone }[];
+}
+
+/**
+ * The dashboard's short table: the chosen measures, one column per agent. Only Argus keeps its tones; a
+ * reference agent's cells are neutral, so a baseline's or Stage 1's miss never reads as a miss of Argus.
+ */
+export function headlineRows(card: Scorecard, keys: string[]): HeadlineRow[] {
+  const agents = orderedSummaries(card).map((s) => ({ agent: s.agent, metrics: summaryMetrics(s) }));
+  const first = agents[0]?.metrics ?? [];
+  return keys.flatMap((key) => {
+    const m = first.find((x) => x.key === key);
+    if (!m) return [];
+    const cells = agents.map(({ agent, metrics }) => {
+      const cell = metrics.find((x) => x.key === key);
+      return { agent, value: cell?.value ?? "–", tone: agent === "argus" && cell ? cell.tone : ("neutral" as Tone) };
+    });
+    return [{ key, label: m.label, hint: m.hint, cells }];
+  });
+}
