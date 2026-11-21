@@ -18,6 +18,7 @@ from argus.contracts.graph import Graph
 from argus.counterfactual.models import CounterfactualResult
 from argus.counterfactual.replay import ReplayUnavailable
 from argus.demo.agent import AgentTimeline, load_agent_timeline
+from argus.demo.bundle import ReceiptProof
 from argus.demo.contracts import AgentDemoState, ControlDemo, DemoBeat, DemoState, Scenario, StartDemo
 from argus.demo.playback import ControlError, Playback, PlaybackRun
 from argus.demo.timeline import DemoReport, Timeline, load_counterfactual, load_timeline
@@ -92,13 +93,13 @@ def create_router(
     async def demo_graph(run_id: str | None = None) -> Graph:
         return active_run(run_id).timeline.graph
 
-    def released_receipt(receipt_id: str, run_id: str | None) -> Receipt:
+    def released_receipt(receipt_id: str, run_id: str | None) -> Receipt | ReceiptProof:
         run = active_run(run_id)
         if isinstance(run.timeline, AgentTimeline):
             proof = playback.agent_view(run.id).receipts.get(receipt_id)
             if proof is None or "/" in receipt_id:
                 raise HTTPException(404, f"no released demo receipt {receipt_id}")
-            return proof.receipt
+            return proof
         beat = run.state(playback.clock()).beat_index
         introduced = run.timeline.receipt_beats.get(receipt_id)
         receipt = run.timeline.receipts.get(receipt_id)
@@ -107,7 +108,7 @@ def create_router(
         return receipt
 
     @router.get("/receipts/{receipt_id}")
-    async def demo_receipt(receipt_id: str, run_id: str | None = None) -> Receipt:
+    async def demo_receipt(receipt_id: str, run_id: str | None = None) -> Receipt | ReceiptProof:
         return released_receipt(receipt_id, run_id)
 
     @router.post("/receipts/{receipt_id}/rerun", responses={404: {}, 409: {}})

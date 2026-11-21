@@ -55,7 +55,10 @@ class AskAnswer(_Strict):
     answer: str
     claims: list[VerifiedClaim]
     receipt_links: list[ReceiptLink]
-    activity_cursor: int
+    activity_cursor: int | None
+    run_id: str | None = None
+    reason: str | None = None
+    usd: float = Field(default=0, ge=0, allow_inf_nan=False)
 
 
 class RecordedAsk(_Strict):

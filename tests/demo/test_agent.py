@@ -152,9 +152,12 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
         "through_seq": prefix[-1].seq,
         "response": {
             "status": "answered",
+            "run_id": "ask",
             "answer": "The recorded check points to pacing.",
             "claims": [],
             "receipt_links": [_dump(investigation_proof)],
+            "reason": None,
+            "usd": 0.001,
             "activity_cursor": 2,
         },
     }
@@ -314,6 +317,9 @@ def test_http_deny_and_reconnect_stop_at_cut(recording_dir: tuple) -> None:
         held = client.get("/demo/snapshot", params=params).json()
         assert held["state"]["status"] == "awaiting_approval"
         assert held["events"][-1]["seq"] == held["state"]["through_seq"]
+        receipt_id = proposal.evidence_refs[0].receipt_id
+        proof = client.get(f"/demo/receipts/{receipt_id}", params=params).json()
+        assert proof["receipt"]["id"] == receipt_id and proof["verified_at_capture"] is False
         playback.decide(run_id, proposal.id, "deny", proposal.digest, "deny-click")
         now += 500
         assert playback.agent_view(run_id).actions[0].state == "DENIED"
