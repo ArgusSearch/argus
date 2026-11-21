@@ -550,7 +550,7 @@
 :root[data-fx] .fx-kpi-value {
   display: flex;
   align-items: center;
-  gap: var(--fx-space-2);
+  gap: 6px;
 }
 
 :root[data-fx] .fx-kpi-value b {
