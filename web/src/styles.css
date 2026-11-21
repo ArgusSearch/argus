@@ -468,10 +468,12 @@ button {
 
 .mnode-foot svg {
   flex: 1;
+  min-width: 0;
 }
 
 .mnode-kind {
-  width: 26px;
+  flex: none;
+  min-width: 26px;
   font-size: 9.5px;
   color: var(--faint);
   text-transform: uppercase;
