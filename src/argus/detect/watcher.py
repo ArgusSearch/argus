@@ -195,7 +195,8 @@ class Watcher:
         fresh = self.gate.check(as_of, hour)
         self.calendar.refresh(as_of)
         notes = self._freshness_notes(fresh)
-        pending = sorted(n for n in self.nodes if not fresh.complete(self._tables[n], hour))
+        # held: some hour up to the scored hour is still incomplete, so the node waits to stay in order
+        pending = sorted(n for n in self.nodes if min(fresh.settled_through[t] for t in self._tables[n]) < hour)
 
         # 1. always-on: north-star totals and open anomaly series, with backlog
         always = sorted(
