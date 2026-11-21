@@ -65,7 +65,9 @@ export function route(a: RoleId, b: RoleId): CatmullRomCurve3 {
     const back = toPlaza(b).reverse();
     // meet near the plaza, not at its centre, so two walkers do not cross through one point
     const meet = out[out.length - 1].clone().lerp(out[out.length - 2], 0.35).lerp(back[1], 0.35);
-    c = new CatmullRomCurve3([seatPoint(a), ...out.slice(0, -1), meet, ...back.slice(1), seatPoint(b)], false, "centripetal");
+    // the walk ends just inside the receiver's opening, in front of its desk, not on its seat
+    const handover = doorPoint(b).lerp(seatPoint(b), 0.3).add(new Vector3(-0.55, 0, 0));
+    c = new CatmullRomCurve3([seatPoint(a), ...out.slice(0, -1), meet, ...back.slice(1, -1), handover], false, "centripetal");
     curves.set(key, c);
   }
   return c;
