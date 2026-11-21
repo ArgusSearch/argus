@@ -1593,3 +1593,34 @@
 :root[data-fx][data-fx-story] .fxs-mark {
   opacity: 0 !important;
 }
+
+/* track record: Argus in its colors; its references (Stage 1 alone, the threshold alarm) are labelled
+   comparisons, so their numbers stay neutral instead of reading as Argus failures */
+:root[data-fx] .sc-agent:not(.a-argus) .sc-metric .sc-metric-value {
+  color: var(--fx-ink-2);
+}
+
+:root[data-fx] .sc-agent:not(.a-argus) {
+  background: var(--fx-well);
+}
+
+:root[data-fx] .sc-agent:not(.a-argus) .sc-agent-head::after {
+  content: "for comparison";
+  margin-left: var(--fx-space-2);
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .sc-table tbody td.sc-cell:nth-child(n + 3) {
+  box-shadow: inset 3px 0 0 var(--line-2);
+  background: none;
+  color: var(--fx-ink-2);
+}
+
+:root[data-fx] .sc-table tbody td.sc-cell:nth-child(n + 3) .sc-label {
+  border-color: var(--line);
+  background: var(--fx-well);
+  color: var(--fx-ink-2);
+}

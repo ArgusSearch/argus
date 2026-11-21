@@ -100,6 +100,24 @@ export function storyHeadline(graph: Graph | null, node: string, changePct: numb
   return `${name} ${verb} ${Math.abs(changePct).toFixed(1)}% for ${where}`;
 }
 
+/**
+ * Server-written lines (the digest) in the overview's words: "840 series-hours" becomes "840 metric checks",
+ * "payment_success_rate |z| 9.4" becomes "Payment success far off its usual level", verdict codes become their
+ * plain names. Numbers are kept as they are.
+ */
+export function plainWords(text: string, graph: Graph | null = null): string {
+  return text
+    .replace(/\|z\| between ([\d.]+) and ([\d.]+), below the alarm line/g, "moves noticed but below the alarm threshold")
+    .replace(/\b([a-z][a-z_]*[a-z]) \|z\| [\d.]+/g, (_, id: string) => `${metricName(graph, id)} far off its usual level`)
+    .replace(/(\d[\d,]*) series-hours?/g, "$1 metric checks")
+    .replace(/\bwiggles\b/g, "small moves")
+    .replace(/\bwiggle\b/g, "small move")
+    .replace(/\bedge tests\b/g, "formula checks")
+    .replace(/\bedge test\b/g, "formula check")
+    .replace(/\bLLM calls?\b/g, "AI calls")
+    .replace(/\b(SUPPORTED_CAUSE|HYPOTHESIS|EXPECTED|DATA_ISSUE|UNEXPLAINED)\b/g, (code: string) => VERDICT[code as Verdict].label);
+}
+
 /** How far a metric is off its usual level, in words; the lines are the watcher's own thresholds. */
 export function unusualness(z: number | null, wiggle: number, alarm: number): { word: string; tone: Tone } {
   if (z === null) return { word: "not checked this hour", tone: "muted" };

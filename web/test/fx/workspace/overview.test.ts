@@ -170,3 +170,17 @@ describe("the visualization's incident story", () => {
     }
   });
 });
+
+describe("server lines in plain words", () => {
+  it("rewrites the digest's internal terms and keeps every number", async () => {
+    const { plainWords } = await import("../../../src/fx/workspace/plain");
+    expect(plainWords("840 series-hours")).toBe("840 metric checks");
+    expect(plainWords("56 wiggles")).toBe("56 small moves");
+    expect(plainWords("|z| between 2 and 5, below the alarm line; 0 logged as noticed, not paged")).toBe(
+      "moves noticed but below the alarm threshold; 0 logged as noticed, not paged",
+    );
+    expect(plainWords("payment_success_rate |z| 9.4 at 18:00")).toBe("Payment success far off its usual level at 18:00");
+    expect(plainWords("34/34 edge tests pass")).toBe("34/34 formula checks pass");
+    expect(plainWords("SUPPORTED_CAUSE: x, 0 LLM calls")).toBe("Cause found: x, 0 AI calls");
+  });
+});

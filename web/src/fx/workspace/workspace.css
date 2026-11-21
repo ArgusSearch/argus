@@ -90,6 +90,16 @@
   display: none;
 }
 
+/* the activity feed speaks the engine's language (raw titles, verdict codes, edge tests): the pages tell the same
+   in plain words, so the feed steps aside and the views take its column */
+:root[data-fx] .rail {
+  display: none;
+}
+
+:root[data-fx] .vh-view {
+  grid-column: 2 / 4;
+}
+
 :root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) .trail {
   display: none;
 }

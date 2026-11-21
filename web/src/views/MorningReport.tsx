@@ -10,6 +10,7 @@ import type { RunView } from "../lib/store";
 import type { Incident, Note } from "../lib/types";
 import { explain, views } from "./data";
 import { parseMarkdown, type Block, type Inline } from "./markdown";
+import { plainWords } from "../fx/workspace/plain";
 
 const VERDICT_TEXT: Record<string, string> = {
   SUPPORTED_CAUSE: "Supported cause",
@@ -257,9 +258,9 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
               {digest.lines.map((line) => (
                 <div key={line.key} className={`mr-line ${line.tone}`}>
                   <span className="mr-line-label">{line.label}</span>
-                  <span className="mr-line-value">{line.value}</span>
+                  <span className="mr-line-value">{plainWords(line.value)}</span>
                   <span className="mr-line-detail">
-                    {line.detail}
+                    {plainWords(line.detail)}
                     {line.receipts.length > 0 ? (
                       <ReceiptChips ids={line.receipts} max={5} />
                     ) : (
