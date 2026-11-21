@@ -586,16 +586,14 @@
 
 .iv-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 470px);
+  grid-template-columns: minmax(0, 1040px) minmax(360px, 470px);
+  justify-content: center;
+  gap: 8px;
   min-height: 0;
 }
 
 .iv-story {
   padding: 18px 26px 40px;
-}
-
-.iv-story > * {
-  max-width: 1000px;
 }
 
 .iv-chapter + .iv-chapter {
