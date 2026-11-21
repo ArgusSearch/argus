@@ -127,4 +127,21 @@ test.describe("recorded scenarios at 64x", () => {
     await shot(page, "s4");
     expect(errors()).toEqual([]);
   });
+
+  test("S5: market-wide dip is expected (three notes), the PayCo routing fault is a SUPPORTED CAUSE", async ({ page }) => {
+    const errors = watchErrors(page);
+    await playScenario(page, "fixtures/s5");
+    // the dip follows the independent market demand index: no page, one "didn't wake you" note per metric
+    const notes = page.locator("article.card.note-expected");
+    await expect(notes).toHaveCount(3);
+    await expect(notes.filter({ hasText: /market/i })).toHaveCount(3);
+    // the real fault inside the dip is still found
+    const card = incidentCard(page);
+    await expect(card).toHaveCount(1);
+    await expect(card.locator(".pill.SUPPORTED_CAUSE")).toHaveText("SUPPORTED CAUSE");
+    for (const s of ["DE", "android", "PayCo"]) await expect(card.locator(".segs")).toContainText(s);
+    await expect(card.locator(".pill.state-resolved")).toBeVisible();
+    await shot(page, "s5");
+    expect(errors()).toEqual([]);
+  });
 });

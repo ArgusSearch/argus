@@ -22,7 +22,7 @@ This file is enough to continue the QA work without the chat.
 - `docs/qa/matrix.md`: one row per run (S1 replay, S1 live seeds 7/3/11, quiet, S2, S3, S4, blind), observed vs expected, with issue links, plus the scorecard and the list of all QA issues.
 - `docs/qa/screenshots/`: Mission Control at 1920x1080 and 1440x900, in five states.
 - `e2e/`: the Playwright smoke suite, a separate npm package (see `e2e/README.md`).
-  - `scenarios.spec.ts` checks the outcome card of every recorded scenario (S1, quiet, S2, S3, S4).
+  - `scenarios.spec.ts` checks the outcome card of every recorded scenario (S1, quiet, S2, S3, S4, S5).
   - 7 specs: health, load, s1-replay, receipt, controls, digest, offline.
   - Replay mode: green twice in a row, about 1:45 each.
   - Live mode: green (7 passed, the rest skipped as replay-only), about 46 s.
