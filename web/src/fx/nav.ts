@@ -80,7 +80,18 @@ function transition(update: () => void) {
   doc.startViewTransition(() => flushSync(update)).finished.catch(() => undefined);
 }
 
-function set(next: Location, after?: () => void) {
+function remember(next: Location) {
+  const url = new URL(window.location.href);
+  if (next.section === "dashboard") url.searchParams.delete("view");
+  else url.searchParams.set("view", next.section);
+  if (next.incident) url.searchParams.set("incident", next.incident);
+  else url.searchParams.delete("incident");
+  if (url.href === window.location.href) return;
+  if (document.documentElement.classList.contains("argus-demo")) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
+
+function set(next: Location, after?: () => void, fromHistory = false) {
   if (next.section === current.section && next.incident === current.incident) {
     after?.();
     return;
@@ -88,6 +99,7 @@ function set(next: Location, after?: () => void) {
   const update = () => {
     if (current.section !== "incident") previous = current;
     current = next;
+    if (!fromHistory && typeof window !== "undefined") remember(next);
     for (const listener of [...listeners]) listener();
     after?.();
   };
@@ -119,14 +131,18 @@ export function hostTab(): HostView | null {
  * pages put the graph behind them (hidden), so the scene keeps its place. The incident page leaves the host
  * where it is, so demo mode's own switch back to the graph still registers as a change.
  */
-export function go(next: Section, incident: string | null = null) {
+function show(next: Section, incident: string | null, fromHistory: boolean) {
   const tab: HostView | null = isHostView(next) ? next : next === "incident" ? null : "graph";
   set({ section: next, incident: next === "incident" ? incident : null }, () => {
     if (tab && hostTab() !== tab) {
       requested = tab;
       window.dispatchEvent(new KeyboardEvent("keydown", { key: HOST_KEYS[tab] }));
     }
-  });
+  }, fromHistory);
+}
+
+export function go(next: Section, incident: string | null = null) {
+  show(next, incident, false);
 }
 
 export function openIncidentPage(id: string) {
@@ -154,6 +170,14 @@ export function watchHost(): () => void {
     set({ section: followHost(tab, document.documentElement.classList.contains("argus-demo")), incident: null });
   };
   const observer = new MutationObserver(sync);
+  const restore = () => {
+    const { section, incident } = initialLocation(window.location.search);
+    show(section, incident, true);
+  };
   observer.observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
-  return () => observer.disconnect();
+  window.addEventListener("popstate", restore);
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("popstate", restore);
+  };
 }

@@ -373,11 +373,12 @@ const REFERENCE: Record<string, string> = {
 
 function TrackRecordCard() {
   const [state, setState] = useState<{ card: Scorecard; sample: boolean } | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
     loadScorecard().then(
       (s) => live && setState(s),
-      () => undefined,
+      () => live && setFailed(true),
     );
     return () => {
       live = false;
@@ -398,7 +399,7 @@ function TrackRecordCard() {
         </button>
       }
     >
-      {!argus && <p className="fx-empty">Loading the track record…</p>}
+      {!argus && <p className="fx-empty">{failed || state ? "The track record could not be loaded." : "Loading the track record…"}</p>}
       {argus && card && (
         <>
           <div className="ws-record-hero">
@@ -416,7 +417,7 @@ function TrackRecordCard() {
             </div>
           </div>
           <p className="ws-record-what">
-            {card.scenarios.length} kinds of trouble (and a quiet week), {card.seeds.length} sealed worlds each. The answers were locked away before Argus ran.
+            {card.scenarios.length} scenarios, {card.seeds.length} sealed worlds each. The answers were locked away before Argus ran.
           </p>
           <span className="ws-record-cap">For comparison, on the same worlds</span>
           <ul className="ws-record-refs" aria-label="for comparison">
