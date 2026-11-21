@@ -3,18 +3,23 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import suppress
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from argus.api.hub import EventHub
 from argus.contracts.findings import Receipt
 from argus.contracts.graph import Graph
-from argus.demo.contracts import ControlDemo, DemoBeat, DemoState, StartDemo
+from argus.counterfactual.models import CounterfactualResult
+from argus.counterfactual.replay import ReplayUnavailable
+from argus.demo.contracts import BeatKind, ControlDemo, DemoBeat, DemoState, StartDemo
 from argus.demo.playback import ControlError, Playback, PlaybackRun
-from argus.demo.timeline import load_timeline
+from argus.demo.timeline import load_counterfactual, load_timeline
+from argus.narrator.morning import MorningReport as NarratorReport
+from argus.narrator.run_queries import RunQueryResult, run_query
 
 
 def create_router(hub: EventHub) -> APIRouter:
@@ -52,8 +57,7 @@ def create_router(hub: EventHub) -> APIRouter:
     async def demo_graph(run_id: str | None = None) -> Graph:
         return active_run(run_id).timeline.graph
 
-    @router.get("/receipts/{receipt_id}")
-    async def demo_receipt(receipt_id: str, run_id: str | None = None) -> Receipt:
+    def released_receipt(receipt_id: str, run_id: str | None) -> Receipt:
         run = active_run(run_id)
         beat = run.state(playback.clock()).beat_index
         introduced = run.timeline.receipt_beats.get(receipt_id)
@@ -61,6 +65,52 @@ def create_router(hub: EventHub) -> APIRouter:
         if receipt is None or introduced is None or beat is None or introduced > beat:
             raise HTTPException(404, f"no released demo receipt {receipt_id}")
         return receipt
+
+    @router.get("/receipts/{receipt_id}")
+    async def demo_receipt(receipt_id: str, run_id: str | None = None) -> Receipt:
+        return released_receipt(receipt_id, run_id)
+
+    @router.post("/receipts/{receipt_id}/rerun", responses={404: {}, 409: {}})
+    async def demo_rerun(receipt_id: str, run_id: str | None = None) -> None:
+        released_receipt(receipt_id, run_id)
+        raise HTTPException(409, "demo playback has no world to re-run against; the receipt keeps its SQL and hash")
+
+    def released_run(run_id: str | None, kind: BeatKind) -> PlaybackRun:
+        """The run, once its first `kind` beat is due; the evidence behind a beat is not revealed before it."""
+        run = active_run(run_id)
+        beat = run.state(playback.clock()).beat_index
+        if beat is None or beat < run.timeline.beat(kind):
+            raise HTTPException(404, f"the demo has not reached its {kind} beat")
+        return run
+
+    @router.get("/counterfactual", responses={404: {}, 409: {}})
+    async def demo_counterfactual(run_id: str | None = None) -> CounterfactualResult:
+        run = released_run(run_id, "verdict")
+        try:
+            return await run_in_threadpool(load_counterfactual, run.timeline.scenario)
+        except ReplayUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @router.get("/report/morning", response_model=NarratorReport, responses={200: {"content": {"text/markdown": {}}}})
+    async def demo_morning_report(
+        run_id: str | None = None, format: Literal["json", "markdown"] = "json"
+    ) -> NarratorReport | Response:
+        report = released_run(run_id, "morning_report").timeline.report.report
+        if format == "markdown":
+            return Response(report.markdown, media_type="text/markdown")
+        return report
+
+    @router.get("/report/morning/queries/{query_id}")
+    async def demo_report_query(
+        query_id: str, stream: str, through_seq: Annotated[int, Query(ge=0)], run_id: str | None = None
+    ) -> RunQueryResult:
+        demo = released_run(run_id, "morning_report").timeline.report
+        if (stream, through_seq) != (demo.window.stream, demo.window.through_seq):
+            raise HTTPException(404, "Run prefix unavailable")
+        result = await run_in_threadpool(run_query, demo.window, query_id, demo.findings.get(query_id))
+        if result is None:
+            raise HTTPException(404, "Query unavailable for this run prefix")
+        return result
 
     async def stream_cursor(
         run_id: str | None = None, last_event_id: Annotated[str | None, Header()] = None

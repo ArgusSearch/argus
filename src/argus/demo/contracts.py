@@ -76,10 +76,12 @@ class VerdictBeat(_Strict):
     decision: Event
     calendar_check: Event
     incident: Incident
+    counterfactual: str = Field(description="GET path of the incident's counterfactual replay for this demo run")
 
 
 class MorningReport(_Strict):
     digest: Digest
+    report: str = Field(description="GET path of the narrator's morning report for this demo run")
 
 
 type BeatData = (

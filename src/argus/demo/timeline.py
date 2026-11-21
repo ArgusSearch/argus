@@ -1,17 +1,20 @@
 """Adapt an existing runtime recording to the demo's presentation timeline."""
 
+import threading
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import cache
-from itertools import pairwise
+from itertools import pairwise, takewhile
 from typing import Any
 
 from argus.api.digest import Digest, build_digest
 from argus.api.recording import FIXTURES, Recording, load_recording
 from argus.api.state import RunState
 from argus.contracts.events import Event, EventType, InvestigationStepPayload, TickPayload
-from argus.contracts.findings import Anomaly, Incident, Receipt
+from argus.contracts.findings import Anomaly, Findings, Incident, Receipt
 from argus.contracts.graph import Graph
+from argus.counterfactual.models import CounterfactualResult
+from argus.counterfactual.replay import counterfactual
 from argus.demo.contracts import (
     AnomalyAppears,
     AttentionShifts,
@@ -25,8 +28,14 @@ from argus.demo.contracts import (
     Scenario,
     VerdictBeat,
 )
+from argus.narrator.morning import MorningReport as NarratorReport
+from argus.narrator.morning import build_morning_report
+from argus.narrator.run_queries import RunWindow
 
 DURATION_MS = 90_000
+PREFIX = "/demo"
+REPORT_PATH = f"{PREFIX}/report/morning"
+COUNTERFACTUAL_PATH = f"{PREFIX}/counterfactual"
 _BEATS: tuple[tuple[int, BeatKind, str], ...] = (
     (0, "quiet_world", "Quiet world"),
     (12_000, "anomaly_appears", "Anomaly appears"),
@@ -42,12 +51,27 @@ OFFSETS = tuple(at_ms for at_ms, _, _ in _BEATS)
 
 
 @dataclass(frozen=True)
+class DemoReport:
+    """The narrator's morning report over the recording through the morning-report beat, linked under /demo."""
+
+    window: RunWindow
+    report: NarratorReport
+    findings: dict[str, tuple[int, Findings]]  # run query id `findings-<seq>` -> the findings it returns
+
+
+@dataclass(frozen=True)
 class Timeline:
     scenario: Scenario
     cues: tuple[Cue, ...]
     graph: Graph
     receipts: dict[str, Receipt]
     receipt_beats: dict[str, int]
+    incident: Incident
+    report: DemoReport
+
+    def beat(self, kind: BeatKind) -> int:
+        """The index of the first cue of `kind`, from which its evidence is released."""
+        return next(cue.index for cue in self.cues if cue.kind == kind)
 
 
 def _receipt_ids(data: Any) -> Iterator[str]:
@@ -85,6 +109,16 @@ def _morning_digest(recording: Recording, incident: Incident, anomaly: Anomaly) 
         if snap.seq <= state.last_seq and snap.incident.id == incident.id
     )
     return morning, build_digest(state, [snapshot], state.current_graph())
+
+
+def _narrator_report(scenario: Scenario, recording: Recording, morning: Event) -> DemoReport:
+    """Fold the recording through the same morning hour as the digest, as the narrator would have served it."""
+    events = tuple(takewhile(lambda event: event.sim_ts <= morning.sim_ts, recording.events))
+    window = RunWindow(f"demo-{scenario}", events[-1].seq, events, prefix=PREFIX)
+    incidents = {snap.incident.id: snap.incident for snap in recording.incidents if snap.seq <= window.through_seq}
+    receipts = {receipt.id for receipt in recording.receipts}
+    report, evidence = build_morning_report(window, list(incidents.values()), recording.graph, receipts.__contains__)
+    return DemoReport(window, report, {f"findings-{seq}": (seq, findings) for seq, findings in evidence.items()})
 
 
 def _steps_by_kind(recording: Recording, anomaly_id: str) -> dict[str, list[Event]]:
@@ -139,10 +173,14 @@ def _build_timeline(scenario: Scenario, recording: Recording) -> Timeline:
         (
             verdict,
             VerdictBeat(
-                outcome=incident.verdict, decision=verdict, calendar_check=groups["calendar"][0], incident=incident
+                outcome=incident.verdict,
+                decision=verdict,
+                calendar_check=groups["calendar"][0],
+                incident=incident,
+                counterfactual=COUNTERFACTUAL_PATH,
             ),
         ),
-        (morning, MorningReport(digest=digest)),
+        (morning, MorningReport(digest=digest, report=REPORT_PATH)),
     )
     cues = tuple(
         Cue(
@@ -158,12 +196,24 @@ def _build_timeline(scenario: Scenario, recording: Recording) -> Timeline:
             zip(_BEATS, pairwise((*OFFSETS, DURATION_MS)), content, strict=True)
         )
     )
+    report = _narrator_report(scenario, recording, morning)
     receipt_beats = dict.fromkeys(_receipt_ids(recording.graph.model_dump()), 0)
     for cue in cues:
         for receipt in _receipt_ids(cue.data.model_dump()):
             receipt_beats.setdefault(receipt, cue.index)
+    # The narrator report cites receipts no cue carries; they are released with the report's beat.
+    for line in report.report.lines:
+        for link in line.receipts:
+            if link.source == "semantic":
+                receipt_beats.setdefault(link.id, next(cue.index for cue in cues if cue.kind == "morning_report"))
     return Timeline(
-        scenario, cues, recording.graph, {receipt.id: receipt for receipt in recording.receipts}, receipt_beats
+        scenario,
+        cues,
+        recording.graph,
+        {receipt.id: receipt for receipt in recording.receipts},
+        receipt_beats,
+        incident,
+        report,
     )
 
 
@@ -175,3 +225,20 @@ def load_timeline(scenario: Scenario) -> Timeline:
         return _build_timeline(scenario, load_recording(path))
     except (IndexError, KeyError, StopIteration) as exc:
         raise ValueError(f"{scenario} recording is missing a required demo cue") from exc
+
+
+_counterfactual_lock = threading.Lock()
+
+
+@cache
+def _counterfactual(scenario: Scenario) -> CounterfactualResult:
+    timeline = load_timeline(scenario)
+    root = timeline.incident.findings.root
+    reference = timeline.receipts.get(root.change_pct.receipt or "") if root else None
+    return counterfactual(timeline.incident, reference=reference)
+
+
+def load_counterfactual(scenario: Scenario) -> CounterfactualResult:
+    """Replay the demo incident with its cause switched off: two seed-1 worlds, a few seconds, then cached."""
+    with _counterfactual_lock:
+        return _counterfactual(scenario)
