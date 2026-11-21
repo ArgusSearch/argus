@@ -67,8 +67,10 @@ export function useFollowTail(count: number): FollowTail {
     };
     const onScroll = () => dispatch({ type: atEnd(el) ? "reachedEnd" : "leftEnd" });
     // content that grows without a new item (a check's result, an opened group at the end) stays pinned too
+    // and content that shrank back to the end (a folded run) follows again, with no scroll event to say so
     const resize = new ResizeObserver(() => {
       if (followingRef.current) el.scrollTop = el.scrollHeight;
+      else if (atEnd(el)) dispatch({ type: "reachedEnd" });
     });
     // watch the scroller and each of its children, also children that replace each other (empty note, then list)
     const watchChildren = () => {

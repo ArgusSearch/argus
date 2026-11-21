@@ -166,7 +166,6 @@ export function ApprovalRow({ proposal, at }: { proposal: ProposalView; at?: str
         </svg>
       </span>
       <div className="ag-body">
-        {waiting && <span className="au-waiting">Waiting for your approval</span>}
         <Proposal proposal={proposal} compact />
       </div>
     </li>
@@ -221,6 +220,8 @@ export interface RunGroupProps {
 export const RunGroupView = memo(function RunGroupView({ group, live, open, proposals, onToggle }: RunGroupProps) {
   const own = proposalsOf(group, proposals);
   const waiting = own.filter((p) => p.state === "AWAIT_OPERATOR");
+  // folded, a run still shows what it proposed: waiting for you, or on its way through applied to verified
+  const kept = own.filter((p) => p.state !== "DENIED" && p.state !== "EXPIRED");
   const gate = gateOf(group);
   const status = group.run ? STATUS_WORD[group.run.status] : undefined;
   const cost = usdOf(group);
@@ -259,9 +260,9 @@ export const RunGroupView = memo(function RunGroupView({ group, live, open, prop
           ))}
         </ol>
       ) : (
-        waiting.length > 0 && (
+        kept.length > 0 && (
           <ol className="au-steps" id={panel}>
-            {waiting.map((p) => (
+            {kept.map((p) => (
               <ApprovalRow key={p.id} proposal={p} at={group.records.find((r) => r.action_id === p.id)?.sim_ts} />
             ))}
           </ol>
