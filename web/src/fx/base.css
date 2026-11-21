@@ -24,10 +24,10 @@
   background: var(--fx-stage-paint);
 }
 
-/* the app floats over the stage */
+/* the app floats over the stage: positioned after it in the same layer, but without a z-index of its own, so
+   the app's fixed layers (captions, popovers) still stack against sheets and modals as they do without the flag */
 :root[data-fx] .app {
   position: relative;
-  z-index: var(--fx-z-app);
 }
 
 /* until fx.css and the fonts are in, the app stays invisible (the loader or the bare stage shows instead) */

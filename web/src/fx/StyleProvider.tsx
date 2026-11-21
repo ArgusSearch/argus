@@ -19,8 +19,10 @@ export type FxPhase = "boot" | "intro" | "ready";
 
 /** The loader stays at least this long, so it reads as a beat and not as a flicker. */
 const LOADER_MIN_MS = 900;
-/** ...and fades by this time after navigation start at the latest, whatever is still loading. */
-const LOADER_CAP_MS = 2200;
+/** It waits for the scene's first frame until this time after navigation start at the latest... */
+const SCENE_CAP_MS = 2200;
+/** ...and for fx.css and the fonts until this time: an unstyled page is worse than a longer loader. */
+const STYLES_CAP_MS = 8000;
 
 const flags = fxFlags();
 if (flags.theme) boot(flags.theme);
@@ -79,14 +81,12 @@ function FxShell({ flags, children }: { flags: FxFlags; children: ReactNode }) {
     let live = true;
     let cancel = () => {};
     const styles = import("./styles").catch((error: unknown) => console.warn("[fx] the style layer failed to load", error));
-    const ready = Promise.all([styles, loadFonts()]);
+    const ready = Promise.race([Promise.all([styles, loadFonts()]), sleep(STYLES_CAP_MS - performance.now())]);
     const introMs = () => (flags.intro ? tokenMs("--fx-dur-intro", 3000) : 0);
-    // whatever is still loading at the cap, the page shows itself
-    const cap = sleep(LOADER_CAP_MS - performance.now());
 
     if (flags.intro) {
-      const released = Promise.all([ready, whenStageReady()]);
-      Promise.all([Promise.race([released, cap]), sleep(LOADER_MIN_MS)]).then(() => {
+      const scene = Promise.race([whenStageReady(), sleep(SCENE_CAP_MS - performance.now())]);
+      Promise.all([ready, scene, sleep(LOADER_MIN_MS)]).then(() => {
         if (!live) return;
         const fade = tokenMs("--fx-dur-reveal", 750);
         // the shell's last entrance (fx.css, intro phase) starts at 7 staggers and runs for --fx-dur-slow
@@ -100,7 +100,7 @@ function FxShell({ flags, children }: { flags: FxFlags; children: ReactNode }) {
         ]);
       });
     } else {
-      Promise.race([ready, cap]).then(() => {
+      ready.then(() => {
         if (!live) return;
         setPhase("ready");
         emitIntro(0);

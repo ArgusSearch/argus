@@ -29,7 +29,7 @@ The flag is read once and never stored, so other tabs and the end-to-end tests s
 - `tokens.css` remaps the variables of `styles.css` (`--bg`, `--panel`, `--text`, `--alarm`, ...), so every view that uses them follows the look without a change.
 - `fx.css` upgrades the existing class names from outside, all under `:root[data-fx]`: glass panels, mono HUD labels with `//` prefixes, brackets on the active tab, the opening choreography, view enter and card cascades.
 - `GraphStage` (in `App.tsx`) renders `GraphView` without the flag; with it, it lazy-loads `scene/GraphScene.tsx` (the 3D graph) and falls back to `GraphView` when that file is absent, WebGL2 is missing or the scene throws.
-- The opening: the loader holds until `fx.css` and the fonts are in and the graph area has its first frame (`fx:scene-ready`), at least 0.9 s and at most until 2.2 s after navigation start; then it fades, the shell arrives in a short cascade and `fx:intro` tells the scene to materialize.
+- The opening: the loader holds until `fx.css` and the fonts are in and the graph area has its first frame (`fx:scene-ready`), at least 0.9 s, waiting for the scene at most until 2.2 s after navigation start (for the styles up to 8 s); then it fades, the shell arrives in a short cascade and `fx:intro` tells the scene to materialize.
 
 | File | Role |
 | --- | --- |
