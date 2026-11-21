@@ -184,6 +184,27 @@
    },
    "ruled_out": [
     {
+     "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+     "prediction": "The rate is normal on android segments outside the root segment, so the release did not cause the drop (expect refuted).",
+     "result": "refuted",
+     "reason": "holdout normal: -0.1% (z -0.2) outside the segment vs -36.2% inside",
+     "evidence": {
+      "log": "log_deploys",
+      "ref": "dep_android-app_8.3.0",
+      "ts": "2026-11-21T17:54:00",
+      "kind": "release",
+      "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+      "scope": {
+       "platform": [
+        "android"
+       ]
+      }
+     },
+     "receipts": [
+      "r241"
+     ]
+    },
+    {
      "hypothesis": "checkout-service 1.2.6 (all users)",
      "prediction": "everything in the event's scope moves, not only DE / android / PayCo",
      "result": "refuted",
@@ -470,8 +491,8 @@
      "step": 8,
      "kind": "events",
      "tool": "list_events",
-     "hypothesis": "A logged change covering DE/android/PayCo happened at the 18:00 onset.",
-     "prediction": "At least one provider status or deploy event is found near 18:00.",
+     "hypothesis": "A logged event covering DE/android/PayCo started at the onset and caused the drop in payment success.",
+     "prediction": "At least one event (provider status or deploy) is found near 18:00 covering the segment.",
      "result": "3 of 5 log entries cover the segment",
      "decision": "validated: as predicted",
      "why": "expected 'found', the check says 'found' (agent)",
@@ -482,8 +503,8 @@
       "ledger": {
        "id": "h1",
        "hypothesis": {
-        "statement": "A logged change covering DE/android/PayCo happened at the 18:00 onset.",
-        "prediction": "At least one provider status or deploy event is found near 18:00.",
+        "statement": "A logged event covering DE/android/PayCo started at the onset and caused the drop in payment success.",
+        "prediction": "At least one event (provider status or deploy) is found near 18:00 covering the segment.",
         "tool": "list_events",
         "input": {
          "start": "2026-11-21T15:00:00",
@@ -570,9 +591,9 @@
      "step": 9,
      "kind": "holdout",
      "tool": "holdout_check",
-     "hypothesis": "Outside the PayCo DE android scope, payment success is normal.",
-     "prediction": "Holdout segments are normal, consistent with the event scope.",
-     "result": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.0% (z -0.0) vs -36.4% inside",
+     "hypothesis": "The PayCo degradation caused the drop, so success is normal outside its scope.",
+     "prediction": "Outside DE/android/PayCo the rate is normal.",
+     "result": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.2% (z -0.4) vs -36.2% inside",
      "decision": "validated: keep as cause",
      "why": "expected 'consistent', the check says 'consistent' (agent)",
      "receipts": [
@@ -582,8 +603,8 @@
       "ledger": {
        "id": "h2",
        "hypothesis": {
-        "statement": "Outside the PayCo DE android scope, payment success is normal.",
-        "prediction": "Holdout segments are normal, consistent with the event scope.",
+        "statement": "The PayCo degradation caused the drop, so success is normal outside its scope.",
+        "prediction": "Outside DE/android/PayCo the rate is normal.",
         "tool": "holdout_check",
         "input": {
          "event": {
@@ -612,7 +633,7 @@
          },
          "window": {
           "start": "2026-11-21T18:00:00",
-          "end": "2026-11-21T18:00:00"
+          "end": "2026-11-21T19:00:00"
          }
         },
         "expect": "consistent",
@@ -620,13 +641,13 @@
        },
        "status": "validated",
        "outcome": "consistent",
-       "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.0% (z -0.0) vs -36.4% inside",
+       "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.2% (z -0.4) vs -36.2% inside",
        "receipts": [
         "r240"
        ]
       },
       "output": {
-       "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.0% (z -0.0) vs -36.4% inside",
+       "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.2% (z -0.4) vs -36.2% inside",
        "receipts": [
         "r240"
        ],
@@ -635,8 +656,8 @@
         "description": "the neighbouring segments the event did not touch",
         "where": "(platform = 'android' AND provider = 'PayCo' AND country <> 'DE') OR (country = 'DE' AND provider = 'PayCo' AND platform <> 'android') OR (country = 'DE' AND platform = 'android' AND provider <> 'PayCo')"
        },
-       "rel_change": -0.0002,
-       "z": -0.05,
+       "rel_change": -0.0015,
+       "z": -0.39,
        "result": "consistent"
       },
       "agent": {
@@ -677,9 +698,9 @@
      "step": 10,
      "kind": "holdout",
      "tool": "holdout_check",
-     "hypothesis": "The android release caused the drop, so android outside DE/PayCo would also drop.",
-     "prediction": "Android in other countries and providers is normal, which refutes the release.",
-     "result": "holdout normal: +0.0% (z +0.0) outside the segment vs -36.4% inside",
+     "hypothesis": "The android release is a red herring: android outside DE/PayCo stays normal.",
+     "prediction": "The rate is normal on android segments outside the root segment, so the release did not cause the drop (expect refuted).",
+     "result": "holdout normal: -0.1% (z -0.2) outside the segment vs -36.2% inside",
      "decision": "validated: keep as cause",
      "why": "expected 'refuted', the check says 'refuted' (agent)",
      "receipts": [
@@ -689,8 +710,8 @@
       "ledger": {
        "id": "h3",
        "hypothesis": {
-        "statement": "The android release caused the drop, so android outside DE/PayCo would also drop.",
-        "prediction": "Android in other countries and providers is normal, which refutes the release.",
+        "statement": "The android release is a red herring: android outside DE/PayCo stays normal.",
+        "prediction": "The rate is normal on android segments outside the root segment, so the release did not cause the drop (expect refuted).",
         "tool": "holdout_check",
         "input": {
          "event": {
@@ -713,7 +734,7 @@
          },
          "window": {
           "start": "2026-11-21T18:00:00",
-          "end": "2026-11-21T18:00:00"
+          "end": "2026-11-21T19:00:00"
          }
         },
         "expect": "refuted",
@@ -721,13 +742,13 @@
        },
        "status": "validated",
        "outcome": "refuted",
-       "summary": "holdout normal: +0.0% (z +0.0) outside the segment vs -36.4% inside",
+       "summary": "holdout normal: -0.1% (z -0.2) outside the segment vs -36.2% inside",
        "receipts": [
         "r241"
        ]
       },
       "output": {
-       "summary": "holdout normal: +0.0% (z +0.0) outside the segment vs -36.4% inside",
+       "summary": "holdout normal: -0.1% (z -0.2) outside the segment vs -36.2% inside",
        "receipts": [
         "r241"
        ],
@@ -744,8 +765,8 @@
         },
         "where": "(platform IN ('android')) AND NOT (country = 'DE' AND platform = 'android' AND provider = 'PayCo')"
        },
-       "rel_change": 0.0,
-       "z": 0.01,
+       "rel_change": -0.0007,
+       "z": -0.17,
        "result": "refuted"
       },
       "agent": {
@@ -780,9 +801,9 @@
      "step": 11,
      "kind": "holdout",
      "tool": "placebo_test",
-     "hypothesis": "Deviations this large do not occur in the same hours of earlier weeks.",
-     "prediction": "The earlier weeks show no deviations like this.",
-     "result": "the real window: -36.3% (z -44.9); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+     "hypothesis": "A deviation this large is unusual for this segment at these hours.",
+     "prediction": "Earlier weeks show no deviations this large.",
+     "result": "0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
      "decision": "validated: the deviation is unusual",
      "why": "expected 'unusual', the check says 'unusual' (agent)",
      "receipts": [
@@ -792,8 +813,8 @@
       "ledger": {
        "id": "h4",
        "hypothesis": {
-        "statement": "Deviations this large do not occur in the same hours of earlier weeks.",
-        "prediction": "The earlier weeks show no deviations like this.",
+        "statement": "A deviation this large is unusual for this segment at these hours.",
+        "prediction": "Earlier weeks show no deviations this large.",
         "tool": "placebo_test",
         "input": {
          "node": "payment_success_rate",
@@ -804,7 +825,7 @@
          },
          "window": {
           "start": "2026-11-21T18:00:00",
-          "end": "2026-11-21T18:00:00"
+          "end": "2026-11-21T19:00:00"
          }
         },
         "expect": "unusual",
@@ -812,13 +833,13 @@
        },
        "status": "validated",
        "outcome": "unusual",
-       "summary": "the real window: -36.3% (z -44.9); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+       "summary": "0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
        "receipts": [
         "r242"
        ]
       },
       "output": {
-       "summary": "the real window: -36.3% (z -44.9); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+       "summary": "0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
        "receipts": [
         "r242"
        ],
@@ -1034,7 +1055,7 @@
         "upgrade": null
        },
        {
-        "text": "Placebo on payment_success_rate in DE / android / PayCo: the real window: -36.3% (z -44.9); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
+        "text": "Placebo on payment_success_rate in DE / android / PayCo: 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
         "label": "evidence",
         "basis": "placebo_test: unusual",
         "receipts": [
@@ -1071,8 +1092,8 @@
        {
         "id": "h1",
         "hypothesis": {
-         "statement": "A logged change covering DE/android/PayCo happened at the 18:00 onset.",
-         "prediction": "At least one provider status or deploy event is found near 18:00.",
+         "statement": "A logged event covering DE/android/PayCo started at the onset and caused the drop in payment success.",
+         "prediction": "At least one event (provider status or deploy) is found near 18:00 covering the segment.",
          "tool": "list_events",
          "input": {
           "start": "2026-11-21T15:00:00",
@@ -1096,8 +1117,8 @@
        {
         "id": "h2",
         "hypothesis": {
-         "statement": "Outside the PayCo DE android scope, payment success is normal.",
-         "prediction": "Holdout segments are normal, consistent with the event scope.",
+         "statement": "The PayCo degradation caused the drop, so success is normal outside its scope.",
+         "prediction": "Outside DE/android/PayCo the rate is normal.",
          "tool": "holdout_check",
          "input": {
           "event": {
@@ -1126,7 +1147,7 @@
           },
           "window": {
            "start": "2026-11-21T18:00:00",
-           "end": "2026-11-21T18:00:00"
+           "end": "2026-11-21T19:00:00"
           }
          },
          "expect": "consistent",
@@ -1134,7 +1155,7 @@
         },
         "status": "validated",
         "outcome": "consistent",
-        "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.0% (z -0.0) vs -36.4% inside",
+        "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.2% (z -0.4) vs -36.2% inside",
         "receipts": [
          "r240"
         ]
@@ -1142,8 +1163,8 @@
        {
         "id": "h3",
         "hypothesis": {
-         "statement": "The android release caused the drop, so android outside DE/PayCo would also drop.",
-         "prediction": "Android in other countries and providers is normal, which refutes the release.",
+         "statement": "The android release is a red herring: android outside DE/PayCo stays normal.",
+         "prediction": "The rate is normal on android segments outside the root segment, so the release did not cause the drop (expect refuted).",
          "tool": "holdout_check",
          "input": {
           "event": {
@@ -1166,7 +1187,7 @@
           },
           "window": {
            "start": "2026-11-21T18:00:00",
-           "end": "2026-11-21T18:00:00"
+           "end": "2026-11-21T19:00:00"
           }
          },
          "expect": "refuted",
@@ -1174,7 +1195,7 @@
         },
         "status": "validated",
         "outcome": "refuted",
-        "summary": "holdout normal: +0.0% (z +0.0) outside the segment vs -36.4% inside",
+        "summary": "holdout normal: -0.1% (z -0.2) outside the segment vs -36.2% inside",
         "receipts": [
          "r241"
         ]
@@ -1182,8 +1203,8 @@
        {
         "id": "h4",
         "hypothesis": {
-         "statement": "Deviations this large do not occur in the same hours of earlier weeks.",
-         "prediction": "The earlier weeks show no deviations like this.",
+         "statement": "A deviation this large is unusual for this segment at these hours.",
+         "prediction": "Earlier weeks show no deviations this large.",
          "tool": "placebo_test",
          "input": {
           "node": "payment_success_rate",
@@ -1194,7 +1215,7 @@
           },
           "window": {
            "start": "2026-11-21T18:00:00",
-           "end": "2026-11-21T18:00:00"
+           "end": "2026-11-21T19:00:00"
           }
          },
          "expect": "unusual",
@@ -1202,7 +1223,7 @@
         },
         "status": "validated",
         "outcome": "unusual",
-        "summary": "the real window: -36.3% (z -44.9); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+        "summary": "0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
         "receipts": [
          "r242"
         ]
@@ -1335,8 +1356,8 @@
    "skeptic": null,
    "cost": {
     "queries": 23,
-    "seconds": 16.167,
-    "llm_calls": 3,
+    "seconds": 16.275,
+    "llm_calls": 4,
     "eur": 0.0
    },
    "suggested_action": {

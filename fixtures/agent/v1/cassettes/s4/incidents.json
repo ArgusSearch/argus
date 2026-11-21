@@ -454,8 +454,8 @@
      "step": 8,
      "kind": "events",
      "tool": "list_events",
-     "hypothesis": "A logged change (budget/bid/deploy) at the onset explains the pacing spike across the whole business.",
-     "prediction": "At least one event near 23:00 covering all segments is returned.",
+     "hypothesis": "A budget/bid/deploy event near 23:00 on Nov 19 caused global pacing_ratio to jump.",
+     "prediction": "At least one logged event covering all segments near the onset.",
      "result": "10 entries",
      "decision": "validated: as predicted",
      "why": "expected 'found', the check says 'found' (agent)",
@@ -466,8 +466,8 @@
       "ledger": {
        "id": "h1",
        "hypothesis": {
-        "statement": "A logged change (budget/bid/deploy) at the onset explains the pacing spike across the whole business.",
-        "prediction": "At least one event near 23:00 covering all segments is returned.",
+        "statement": "A budget/bid/deploy event near 23:00 on Nov 19 caused global pacing_ratio to jump.",
+        "prediction": "At least one logged event covering all segments near the onset.",
         "tool": "list_events",
         "input": {
          "start": "2026-11-19T20:00:00",
@@ -659,8 +659,8 @@
      "step": 9,
      "kind": "holdout",
      "tool": "holdout_check",
-     "hypothesis": "Pacing is normal outside DE/FR, so the pacer deploy caused the spike.",
-     "prediction": "Outside DE/FR the pacing ratio stays near expectation.",
+     "hypothesis": "Pacing ratio is normal outside DE/FR, so the deploy is the cause.",
+     "prediction": "Outside DE/FR pacing_ratio stays near expectation.",
      "result": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +10.7% (z +18.5) vs +99.5% inside",
      "decision": "validated: keep as cause",
      "why": "expected 'consistent', the check says 'consistent' (agent)",
@@ -671,8 +671,8 @@
       "ledger": {
        "id": "h2",
        "hypothesis": {
-        "statement": "Pacing is normal outside DE/FR, so the pacer deploy caused the spike.",
-        "prediction": "Outside DE/FR the pacing ratio stays near expectation.",
+        "statement": "Pacing ratio is normal outside DE/FR, so the deploy is the cause.",
+        "prediction": "Outside DE/FR pacing_ratio stays near expectation.",
         "tool": "holdout_check",
         "input": {
          "event": {
@@ -752,7 +752,7 @@
      "step": 10,
      "kind": "holdout",
      "tool": "placebo_test",
-     "hypothesis": "Such a deviation is unusual for these hours.",
+     "hypothesis": "Such a deviation is unusual in the same hours of earlier weeks.",
      "prediction": "Earlier weeks show no deviations this large.",
      "result": "the real window: +98.9% (z +34.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
      "decision": "validated: the deviation is unusual",
@@ -765,7 +765,7 @@
       "ledger": {
        "id": "h3",
        "hypothesis": {
-        "statement": "Such a deviation is unusual for these hours.",
+        "statement": "Such a deviation is unusual in the same hours of earlier weeks.",
         "prediction": "Earlier weeks show no deviations this large.",
         "tool": "placebo_test",
         "input": {
@@ -1065,8 +1065,8 @@
        {
         "id": "h1",
         "hypothesis": {
-         "statement": "A logged change (budget/bid/deploy) at the onset explains the pacing spike across the whole business.",
-         "prediction": "At least one event near 23:00 covering all segments is returned.",
+         "statement": "A budget/bid/deploy event near 23:00 on Nov 19 caused global pacing_ratio to jump.",
+         "prediction": "At least one logged event covering all segments near the onset.",
          "tool": "list_events",
          "input": {
           "start": "2026-11-19T20:00:00",
@@ -1085,8 +1085,8 @@
        {
         "id": "h2",
         "hypothesis": {
-         "statement": "Pacing is normal outside DE/FR, so the pacer deploy caused the spike.",
-         "prediction": "Outside DE/FR the pacing ratio stays near expectation.",
+         "statement": "Pacing ratio is normal outside DE/FR, so the deploy is the cause.",
+         "prediction": "Outside DE/FR pacing_ratio stays near expectation.",
          "tool": "holdout_check",
          "input": {
           "event": {
@@ -1122,7 +1122,7 @@
        {
         "id": "h3",
         "hypothesis": {
-         "statement": "Such a deviation is unusual for these hours.",
+         "statement": "Such a deviation is unusual in the same hours of earlier weeks.",
          "prediction": "Earlier weeks show no deviations this large.",
          "tool": "placebo_test",
          "input": {
@@ -1280,7 +1280,7 @@
    "skeptic": null,
    "cost": {
     "queries": 22,
-    "seconds": 14.798,
+    "seconds": 14.636,
     "llm_calls": 4,
     "eur": 0.0
    },
