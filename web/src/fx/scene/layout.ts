@@ -49,9 +49,9 @@ export const ROW = 1.38;
 /** Size of a metric block (x, y, z); logs and north stars scale it (see BLOCK_SCALE). */
 export const BLOCK: Vec3 = [2.6, 0.46, 0.92];
 export const BLOCK_SCALE = {
-  metric: [1, 1, 1] as Vec3,
-  northStar: [1.06, 1.3, 1.06] as Vec3,
-  log: [0.9, 0.42, 0.86] as Vec3,
+  metric: [0.86, 0.78, 0.86] as Vec3,
+  northStar: [1.2, 1.55, 1.14] as Vec3,
+  log: [0.8, 0.4, 0.8] as Vec3,
 };
 
 /** Logs one step back and lower, north stars one step forward. */

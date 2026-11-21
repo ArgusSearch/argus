@@ -2,7 +2,7 @@
 // The state rules are the ones of the 2D graph (GraphView) and are pinned by web/test/fx/scene/model.test.ts.
 
 import { focusOf, freshAnomaly, isRuledOut, type RunView, type StepView } from "../../lib/store";
-import type { EdgeStatus, Graph } from "../../lib/types";
+import type { EdgeStatus, EvidenceRef, Graph } from "../../lib/types";
 import { layout, type Placement } from "./layout";
 
 export type NodeTone = "normal" | "wiggle" | "alarm" | "symptom" | "root" | "resolved";
@@ -212,6 +212,32 @@ export function sceneModel(graph: Graph, view: RunView, previous?: SceneModel): 
   const added = before ? nodes.filter((n) => !before.has(n.id)).map((n) => n.id) : [];
 
   return { nodes, links, trace: traceOf(view, placed), phase: phaseOf(view), ticks: view.ticks, added };
+}
+
+/**
+ * The affected path of the open investigation: the anomalous metric, everything its formulas move downstream
+ * (what the anomaly costs), and the logs whose evidence held. Empty when nothing is under investigation or the
+ * incident is resolved. The scene lights this path and lets the rest of the graph recede.
+ */
+export function incidentPath(model: SceneModel, view: RunView): Set<string> {
+  const path = new Set<string>();
+  const current = currentInvestigation(view);
+  if (!current || model.phase === "idle" || model.phase === "resolved") return path;
+  path.add(current.anomaly.node);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const l of model.links) {
+      if (l.kind === "formula" && path.has(l.source) && !path.has(l.target)) {
+        path.add(l.target);
+        grew = true;
+      }
+    }
+  }
+  for (const s of current.steps) {
+    const event = s.step.data?.event as EvidenceRef | undefined;
+    if (s.step.kind === "holdout" && event?.log && !isRuledOut(s.step.decision)) path.add(event.log);
+  }
+  return path;
 }
 
 /** The hover title of a block: the same text the 2D graph shows. */

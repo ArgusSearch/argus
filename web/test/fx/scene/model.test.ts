@@ -1,7 +1,7 @@
 // The scene model against the recorded runs: every block and link carries the state the 2D graph shows at
 // the same replay position, the trace follows the trail, and a new graph version reports exactly what it adds.
 import { describe, expect, it } from "vitest";
-import { sceneModel, ruledOut, nodeTitle, type SceneModel } from "../../../src/fx/scene/model";
+import { incidentPath, nodeTitle, ruledOut, sceneModel, type SceneModel } from "../../../src/fx/scene/model";
 import { emptyView, fold, freshAnomaly, type RunView } from "../../../src/lib/store";
 import type { ArgusEvent, Graph } from "../../../src/lib/types";
 import { loadEvents, loadGraph } from "./fixtures";
@@ -225,5 +225,29 @@ describe("node titles", () => {
     expect(nodeTitle(graph, { id: "gmv", kind: "metric", scored: true })).toBe(`${gmv.label}: ${gmv.description}`);
     expect(nodeTitle(graph, { id: "gmv", kind: "metric", scored: false })).toContain("(scored when an investigation needs it)");
     expect(nodeTitle(graph, { id: "log_deploys", kind: "log", scored: false })).toBe("log of state changes (evidence source)");
+  });
+});
+
+describe("the affected path", () => {
+  const graph = loadGraph();
+  const events = loadEvents();
+
+  it("follows the anomaly down its formulas to revenue and adds the evidence that held", () => {
+    let seen: Set<string> | null = null;
+    replay(graph, events, (view, model) => {
+      if (model.phase === "verdict" && !seen) seen = incidentPath(model, view);
+    });
+    expect(seen).not.toBeNull();
+    const path = seen as unknown as Set<string>;
+    for (const id of ["payment_success_rate", "cvr", "orders", "gmv", "log_provider_status"]) expect(path.has(id), id).toBe(true);
+    expect(path.has("log_deploys")).toBe(false);
+    expect(path.has("ad_spend")).toBe(false);
+  });
+
+  it("is empty while nothing is under investigation and after the resolution", () => {
+    const { view, model } = replay(graph, events);
+    expect(model.phase).toBe("resolved");
+    expect(incidentPath(model, view).size).toBe(0);
+    expect(incidentPath(sceneModel(graph, emptyView()), emptyView()).size).toBe(0);
   });
 });
