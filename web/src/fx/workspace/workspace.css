@@ -85,6 +85,90 @@
   display: none;
 }
 
+/* graph section: the graph is the hero. The feed steps aside, so the graph and the investigation band under it
+   span both columns and the graph fits at a readable zoom (about 1.15 at 1920x1080). */
+:root[data-fx][data-fx-section="graph"] .rail {
+  display: none;
+}
+
+:root[data-fx][data-fx-section="graph"] :is(.graph, .trail) {
+  grid-column: 2 / 4;
+}
+
+/* the graph takes the ticker's row; on short windows (1536x735) the band gets shorter and the legend floats over
+   the bottom of the canvas, so the graph keeps most of the height */
+:root[data-fx][data-fx-section="graph"] .app {
+  grid-template-rows: 52px 0 minmax(0, 1fr) auto;
+}
+
+:root[data-fx][data-fx-section="graph"] .ticker {
+  display: none;
+}
+
+@media (max-height: 900px) {
+
+  :root[data-fx][data-fx-section="graph"] .trail {
+    height: 204px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail-head {
+    padding-block: 8px 6px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-bar {
+    padding-top: 2px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-foot {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-foot > * {
+    pointer-events: auto;
+  }
+}
+
+/* the classic graph (no scene): the north-star metrics carry it, the rest steps back until it matters */
+:root[data-fx] .react-flow__node {
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx] .react-flow__edge {
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx] .react-flow__node-metric:not(:has(.mnode-star)):not(:has(.focus, .alarm, .root, .symptom, .wiggle)) {
+  opacity: 0.6;
+}
+
+:root[data-fx] .react-flow__node-log:not(:has(.focus)) {
+  opacity: 0.55;
+}
+
+:root[data-fx] .react-flow__node-metric:has(.mnode-star) .mnode {
+  border-color: var(--text-2);
+}
+
+:root[data-fx] .react-flow__node:hover {
+  opacity: 1;
+}
+
+/* while Argus checks something, its path stays lit and everything else recedes (the story of the video) */
+:root[data-fx] .graph:has(.mnode.focus, .lnode.focus) .react-flow__edge:not(.animated) {
+  opacity: 0.16;
+}
+
+:root[data-fx] .graph:has(.mnode.focus) .react-flow__node:not(:has(.focus, .root, .alarm)) {
+  opacity: 0.28;
+}
+
 /* the scene shows on the graph section only */
 :root[data-fx]:not([data-fx-section="graph"]) #fx-stage > * {
   opacity: 0;
