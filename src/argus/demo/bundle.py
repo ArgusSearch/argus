@@ -128,6 +128,11 @@ def receipt_keys(data: Any) -> Iterator[str]:
             yield from receipt_keys(value)
 
 
+def incident_available_at(incident: Incident) -> datetime:
+    """The finding is published at as_of, which can follow the incident's scored data hour."""
+    return max(incident.updated_at, incident.findings.as_of)
+
+
 def read_bundle(
     path: Path,
     scenario: AgentScenario,
@@ -254,7 +259,7 @@ def _validate_branch(graph: Graph, prefix: Segment, branch: Segment | None = Non
         check(record, record.sim_ts)
     for part in parts:
         for incident in part.incidents:
-            check(incident, incident.updated_at)
+            check(incident, incident_available_at(incident))
         for question in part.questions:
             check(question, clock[question.through_seq])
         for action in part.actions.values():
