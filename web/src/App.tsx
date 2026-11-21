@@ -12,6 +12,7 @@ import { Trail } from "./components/Trail";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
+import { OfflineBanner, Skeleton } from "./ui";
 
 function Legend() {
   const line = (dash: string | undefined, color: string) => (
@@ -150,7 +151,8 @@ export function App() {
                 )}
               </div>
               <div className="graph-canvas">
-                {connection === "offline" && <div className="banner">The API is offline. Start it with make api or make demo.</div>}
+                <OfflineBanner connection={connection} />
+                {!graph && <Skeleton variant="graph" label="Loading the metric graph" />}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphView graph={graph} view={view} onSelectNode={setNodeId} />
