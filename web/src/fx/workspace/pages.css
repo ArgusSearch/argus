@@ -2220,7 +2220,12 @@
 }
 
 :root[data-fx] .fx-demo .btn {
+  min-width: 0;
   padding-inline: 8px;
+  /* the narrow sidebar (1400 to 1600 px) wraps "Play the S4 agent run" instead of letting it run out of the box */
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
 }
 
 @media (max-width: 1400px) {

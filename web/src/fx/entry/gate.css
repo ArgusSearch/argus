@@ -1,0 +1,17 @@
+/* Loaded with EntryGate (the main bundle), so the app behind the entry screen is hidden from the first frame,
+   before the lazy entry screen and its own styles arrive. */
+
+:root[data-fx-entry="open"] .app {
+  visibility: hidden;
+}
+
+:root[data-fx-entry="leaving"] .app {
+  animation: fx-entry-app-in var(--fx-dur-move) var(--fx-ease-settle) both;
+}
+
+@keyframes fx-entry-app-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--fx-blur-reveal));
+  }
+}
