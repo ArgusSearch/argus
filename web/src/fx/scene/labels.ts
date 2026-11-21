@@ -57,6 +57,17 @@ export class Labels {
   private size = 0;
   private far = false;
   private hovered: string | null = null;
+  /** metrics the graph just learned: tagged "new metric" for a while */
+  private readonly fresh = new Set<string>();
+  private nodes: SceneNode[] = [];
+  private path: ReadonlySet<string> = new Set();
+
+  setFresh(id: string, on: boolean): void {
+    if (on === this.fresh.has(id)) return;
+    if (on) this.fresh.add(id);
+    else this.fresh.delete(id);
+    this.setNodes(this.nodes, this.path);
+  }
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement("div");
@@ -84,6 +95,8 @@ export class Labels {
 
   /** Creates, updates and removes labels for the model's nodes; `path` is the affected path, if any. */
   setNodes(nodes: SceneNode[], path: ReadonlySet<string> = new Set()): void {
+    this.nodes = nodes;
+    this.path = path;
     const seen = new Set<string>();
     for (const n of nodes) {
       seen.add(n.id);
@@ -91,6 +104,7 @@ export class Labels {
       if (!item) {
         const el = document.createElement("div");
         el.className = "fxs-node";
+        el.dataset.id = n.id;
         const tag = document.createElement("span");
         tag.className = "fxs-tag";
         const name = document.createElement("span");
@@ -103,14 +117,15 @@ export class Labels {
         this.items.set(n.id, item);
       }
       const z = n.kind === "metric" ? (n.z === null ? "–" : n.z.toFixed(1)) : n.id;
-      const text = `${n.northStar ? "★ " : ""}${n.label}|${z}|${n.tag ?? ""}`;
+      const tag = n.tag ?? (this.fresh.has(n.id) ? "new metric" : null);
+      const text = `${n.northStar ? "★ " : ""}${n.label}|${z}|${tag ?? ""}`;
       if (text !== item.text) {
         item.text = text;
         item.name.textContent = `${n.northStar ? "★ " : ""}${n.label}`;
         item.value.textContent = n.kind === "metric" ? `z ${z}` : n.id;
-        item.tag.textContent = n.tag ?? "";
+        item.tag.textContent = tag ?? "";
       }
-      const cls = `fxs-node ${n.kind} ${n.tone}${n.northStar ? " star" : ""}${n.focus ? " focus" : ""}${n.tag ? " tagged" : ""}${
+      const cls = `fxs-node ${n.kind} ${n.tone}${n.northStar ? " star" : ""}${n.focus ? " focus" : ""}${tag ? " tagged" : ""}${this.fresh.has(n.id) ? " fresh" : ""}${
         n.kind === "metric" && !n.scored && !n.focus ? " unscored" : ""
       }${path.has(n.id) ? " path" : path.size && !n.focus ? " recede" : ""}${n.id === this.hovered ? " hover" : ""}${item.shown ? " shown" : ""}`;
       if (cls !== item.cls) {

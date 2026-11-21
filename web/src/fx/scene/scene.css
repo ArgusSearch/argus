@@ -153,6 +153,12 @@
   background: #d3303b;
 }
 
+.fxs-node.fresh .fxs-tag {
+  color: #06101f;
+  background: var(--fxs-hud);
+  box-shadow: 0 0 18px rgba(214, 230, 255, 0.9);
+}
+
 .fxs-node.resolved .fxs-tag {
   color: #fff;
   background: #138a62;

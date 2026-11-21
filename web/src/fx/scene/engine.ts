@@ -28,7 +28,9 @@ export const THEME = "fx:theme";
 const INTRO_WAIT = 1.5;
 const DEFAULT_INTRO = 3;
 const FREEZE_IN = 1.8;
-const VISIT = 3.4;
+const VISIT = 4.5;
+/** seconds a learned metric keeps its "new metric" tag */
+const FRESH = 10;
 const VERDICT_HOLD = 4;
 
 export interface EngineOptions {
@@ -59,6 +61,8 @@ export interface SceneStats {
   height: number;
   tier: string;
   bloom: boolean;
+  /** what the camera frames: overview, investigation, verdict, visit or path */
+  camera: string;
 }
 
 interface Palette {
@@ -177,6 +181,7 @@ export class SceneEngine {
   private visitUntil = -1;
   private visitIds: string[] = [];
   private framingKey = "";
+  private cameraMode = "overview";
 
   private canvasW = 1;
   private canvasH = 1;
@@ -198,7 +203,7 @@ export class SceneEngine {
   private tierName = "";
   private pr = 1;
   private lostTimer = 0;
-  private stats: SceneStats = { fps: 0, worstMs: 0, cpuMs: 0, calls: 0, triangles: 0, points: 0, pixelRatio: 1, width: 0, height: 0, tier: "", bloom: true };
+  private stats: SceneStats = { fps: 0, worstMs: 0, cpuMs: 0, calls: 0, triangles: 0, points: 0, pixelRatio: 1, width: 0, height: 0, tier: "", bloom: true, camera: "overview" };
   private statFrames = 0;
   private statTime = 0;
   private statWorst = 0;
@@ -693,6 +698,7 @@ export class SceneEngine {
       v.duration = this.reducedMotion ? 0 : FREEZE_IN;
       v.m = 0;
       this.fresh.set(id, this.time);
+      this.labels.setFresh(id, true);
       this.visitIds.push(id);
       if (!this.reducedMotion) {
         this.bursts.motes(p.position[0], p.position[1], p.position[2], this.time, FREEZE_IN * 0.8, 22, this.palette.glow.ice);
@@ -802,6 +808,13 @@ export class SceneEngine {
     }
 
     this.updateHover();
+    if (this.fresh.size && this.frames % 30 === 0) {
+      for (const [id, at] of this.fresh) {
+        if (this.time - at < FRESH) continue;
+        this.fresh.delete(id);
+        this.labels.setFresh(id, false);
+      }
+    }
     this.animateNodes(dt);
     this.animateLinks(dt);
     this.aim(dt);
@@ -1025,6 +1038,7 @@ export class SceneEngine {
     const key = `${mode}:${ids.join(",")}:${this.structure.length}`;
     if (key !== this.framingKey && this.placed.size) {
       this.framingKey = key;
+      this.cameraMode = mode;
       const list = mode === "overview" ? [...this.placed.keys()] : ids;
       const pts: number[] = [];
       for (const id of list) {
@@ -1130,6 +1144,7 @@ export class SceneEngine {
       height: this.canvas.height,
       tier: this.tierName,
       bloom: this.post.bloomOn,
+      camera: this.cameraMode,
     };
     this.statFrames = 0;
     this.statTime = 0;
