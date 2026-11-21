@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import unicodedata
 from collections.abc import Iterable
@@ -378,8 +379,12 @@ def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> 
 def load_agent_timeline(scenario: Scenario) -> AgentTimeline:
     if scenario == "s2":
         raise ValueError("S2 uses the expected-change recording")
-    path = Path(os.environ.get("ARGUS_DEMO_BUNDLE", str(FIXTURES / "agent" / "v1" / scenario)))
+    fixtures = FIXTURES / "agent" / "v1"
+    custom_bundle = os.environ.get("ARGUS_DEMO_BUNDLE")
+    path = Path(custom_bundle) if custom_bundle else fixtures / scenario
     expected_sha = os.environ.get("ARGUS_DEMO_BUNDLE_SHA")
-    if not expected_sha:
+    if not expected_sha and not custom_bundle:
+        expected_sha = json.loads((fixtures / "accepted.json").read_bytes()).get(scenario)
+    if not isinstance(expected_sha, str) or not expected_sha:
         raise ValueError("configure ARGUS_DEMO_BUNDLE_SHA with the sealed recording digest")
     return _build_timeline(read_bundle(path, scenario, expected_sha))

@@ -16,19 +16,18 @@ Record the actual app. Keep the approval click in the footage. Retain the raw cl
 
 ## Cold offline rehearsal
 
-Build Mission Control and start a dedicated local replay server. Use the acceptance digest supplied with the sealed tape. Rehearse without provider credentials.
+Build Mission Control and start a dedicated local replay server. The checked-in tape is verified against `fixtures/agent/v1/accepted.json`. Rehearse without provider credentials.
 
 ```sh
 npm --prefix web run build
 env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY ARGUS_AGENT=off \
-  ARGUS_DEMO_BUNDLE_SHA="$SEALED_S4_DIGEST" \
   uv run --no-sync argus api --replay fixtures/s4 --port 8014
 ```
 
-Run from a second terminal. Pin a custom capture directory with `ARGUS_DEMO_BUNDLE=/absolute/path/to/s4` if the bundle is staged outside the repository.
+Run from a second terminal. For a custom capture, set `ARGUS_DEMO_BUNDLE=/absolute/path/to/s4` and `ARGUS_DEMO_BUNDLE_SHA` to the digest supplied with that tape.
 
 ```sh
-ARGUS_DEMO_BUNDLE_SHA="$SEALED_S4_DIGEST" uv run --no-sync argus demo --scenario s4 --variant agent
+uv run --no-sync argus demo --scenario s4 --variant agent
 uv run --no-sync python scripts/demo_capture/rehearse.py http://127.0.0.1:8014
 ```
 

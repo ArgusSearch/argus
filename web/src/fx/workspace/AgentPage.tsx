@@ -8,6 +8,7 @@ import { roleOf, type ActivityKind, type ActivityRecord, type RunSummary } from 
 import { AvatarSlot } from "./AvatarSlot";
 import { dayLabel, hhmm, humanize } from "../../lib/format";
 import { openIncidentPage } from "../nav";
+import { useAgentDemo } from "../../lib/agentDemo";
 import { useAgent } from "./agent";
 import { VERDICT, type Tone } from "./plain";
 import { Card, Pill } from "./ui";
@@ -141,6 +142,8 @@ function RunCard({ run }: { run: RunSummary }) {
 
 export function AgentPage() {
   const agent = useAgent();
+  // the sealed presentation is a recorded model run, whatever mode the server's own agent is in
+  const presenting = useAgentDemo() !== null;
   const [quiet, setQuiet] = useState(false);
   const lines = useMemo(() => agent.records.filter((r) => quiet || r.kind !== "watch"), [agent.records, quiet]);
   const spent = agent.runs.reduce((s, r) => s + r.usd, 0);
@@ -148,7 +151,7 @@ export function AgentPage() {
   return (
     <main className="fx-dash ws-page ws-agent" aria-label="agent activity">
       <header className="ws-head">
-        <span className="fx-hud ws-kicker">Agent activity{agent.health ? ` · ${agent.health.mode}` : ""}</span>
+        <span className="fx-hud ws-kicker">Agent activity{presenting ? " · recorded model run" : agent.health ? ` · ${agent.health.mode}` : ""}</span>
         <h1>{running ? `Argus is on it: ${RUN_KIND[running.kind].toLowerCase()} ${running.run_id}` : "What the Argus agent did on its own"}</h1>
         <p>
           Each step the agent took: what it said before a check, the check and its prediction, what came back, and what the verdict gate let through.

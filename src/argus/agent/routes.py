@@ -10,6 +10,7 @@ pending action through the same local operator gate as a live run.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any, Literal
 
@@ -21,7 +22,7 @@ from argus.agent.ask import AskScope
 from argus.agent.journal import Journal
 from argus.agent.provider import ProviderUnavailable
 from argus.agent.service import AgentService
-from argus.agent.types import ProposalView, ReceiptLink, RunSummary
+from argus.agent.types import ActivityRecord, ProposalView, ReceiptLink, RunSummary
 from argus.api.sources import LiveSource, Source
 from argus.contracts.events import EventType
 from argus.contracts.findings import Receipt
@@ -73,6 +74,36 @@ def _scope(source: Source) -> AskScope:
     )
 
 
+def _recorded_runs(activity: Iterable[ActivityRecord]) -> list[RunSummary]:
+    """The run summaries of a sealed presentation, from the activity visible at its clock."""
+    runs: dict[str, RunSummary] = {}
+    for record in activity:
+        if record.run_id is None:
+            continue
+        run = runs.get(record.run_id) or RunSummary(
+            run_id=record.run_id,
+            kind="ask" if record.stage == "ASK" else "investigate",
+            mode="replay",
+            sim_ts=record.sim_ts,
+            anomaly_id=record.anomaly_id,
+            status="running",
+        )
+        update: dict[str, Any] = {
+            "incident_id": run.incident_id or record.incident_id,
+            "llm_calls": run.llm_calls + (record.model is not None),
+            "tool_calls": run.tool_calls + (record.kind == "tool_result"),
+            "input_tokens": run.input_tokens + (record.input_tokens or 0),
+            "output_tokens": run.output_tokens + (record.output_tokens or 0),
+        }
+        if record.kind == "run_finished":
+            # the host's closing line carries the run's billed total
+            update |= {"status": "done", "usd": record.usd if record.usd is not None else run.usd}
+        elif record.model is not None:
+            update["usd"] = run.usd + (record.usd or 0)
+        runs[record.run_id] = run.model_copy(update=update)
+    return list(runs.values())
+
+
 def router(source: Source, playback: Playback | None = None) -> APIRouter:
     routes = APIRouter(prefix="/agent", tags=["agent"])
     off = _service(source)
@@ -122,8 +153,7 @@ def router(source: Source, playback: Playback | None = None) -> APIRouter:
     @routes.get("/runs")
     async def runs(run_id: str | None = None) -> list[RunSummary]:
         if run_id is not None:
-            presentation(run_id)
-            return []
+            return _recorded_runs(presentation(run_id).activity)
         return list(service().journal.runs.values())
 
     @routes.post("/ask")

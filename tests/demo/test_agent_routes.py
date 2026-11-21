@@ -5,7 +5,6 @@ activity, actions, Ask and receipts read the presentation at its clock, and appr
 operator session as a live run before the paused clock moves on.
 """
 
-import json
 from pathlib import Path
 
 import pytest
@@ -15,15 +14,13 @@ from argus.api.app import create_app
 from argus.api.sources import ReplaySource
 
 REPO = Path(__file__).resolve().parents[2]
-BUNDLE = REPO / "fixtures" / "agent" / "v1"
 QUESTION = "Could higher traffic explain the spend?"
 
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    sealed = json.loads((BUNDLE / "accepted.json").read_bytes())["s4"]
-    monkeypatch.setenv("ARGUS_DEMO_BUNDLE", str(BUNDLE / "s4"))
-    monkeypatch.setenv("ARGUS_DEMO_BUNDLE_SHA", sealed)
+    monkeypatch.delenv("ARGUS_DEMO_BUNDLE", raising=False)
+    monkeypatch.delenv("ARGUS_DEMO_BUNDLE_SHA", raising=False)
     # the operator session opens only from the local machine
     return TestClient(create_app(ReplaySource(REPO / "fixtures" / "s4"), start=False), client=("127.0.0.1", 50000))
 
@@ -50,6 +47,11 @@ def test_replay_serves_the_agent_presentation_and_its_approval(client: TestClien
         assert any(r["kind"] == "tool_call" for r in activity["records"])
         last = activity["records"][-1]["seq"]
         assert client.get("/agent/activity", params={**run, "since": last}).json()["records"] == []
+
+        [investigation] = client.get("/agent/runs", params=run).json()
+        assert investigation["mode"] == "replay" and investigation["status"] == "done"
+        assert investigation["llm_calls"] == 4 and investigation["tool_calls"] == 3
+        assert investigation["usd"] == pytest.approx(0.045867)
 
         [pending] = client.get("/agent/actions", params=run).json()
         assert pending["state"] == "AWAIT_OPERATOR"
@@ -83,3 +85,11 @@ def test_replay_serves_the_agent_presentation_and_its_approval(client: TestClien
         # outside the presentation the routes keep their replay answers; a replaced run is refused
         assert client.get("/agent/actions").json() == []
         assert client.get("/agent/activity", params={"run_id": "replaced"}).status_code == 409
+
+
+def test_custom_recording_still_requires_its_digest(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ARGUS_DEMO_BUNDLE", str(REPO / "fixtures" / "agent" / "v1" / "s4"))
+    with client:
+        response = client.post("/demo/start", json={"scenario": "s4", "variant": "agent"})
+        assert response.status_code == 503
+        assert "configure ARGUS_DEMO_BUNDLE_SHA" in response.json()["detail"]
