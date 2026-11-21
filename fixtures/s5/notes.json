@@ -30,7 +30,7 @@
     "reason": "Orders: The metric tracked the market-wide decline within the residual band. Evidence from market_demand_hourly.",
     "numbers": [
       {
-        "value": -29.32,
+        "value": -29.53,
         "unit": "pct",
         "receipt": "r231"
       }
@@ -52,7 +52,7 @@
     "reason": "GMV: The metric tracked the market-wide decline within the residual band. Evidence from market_demand_hourly.",
     "numbers": [
       {
-        "value": -28.84,
+        "value": -29.88,
         "unit": "pct",
         "receipt": "r237"
       }
