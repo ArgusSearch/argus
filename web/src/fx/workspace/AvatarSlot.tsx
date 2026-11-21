@@ -1,6 +1,7 @@
 // Who did it: the avatar of one of the seven agent roles. Lane G builds the avatars (web/src/village/avatars,
-// `AgentAvatar` with role, size, status and nameplate); until that module exists this slot draws a placeholder,
-// the role's initial in a circle of its color with the role's short name, so every surface already shows who.
+// `<AgentAvatar role status size nameplate />`, size in px, status idle | working | waiting | done | sleeping,
+// one shared frame loop for every avatar on the page); until that module is in the build this slot draws a
+// placeholder, the role's initial in a circle of its color with the role's short name.
 
 import { lazy, Suspense, type ComponentType } from "react";
 import type { AgentRole } from "../../lib/agent";
@@ -25,7 +26,19 @@ export const ROLE_TEXT: Record<AgentRole, { name: string; plate: string }> = {
   operator: { name: "Operator", plate: "OPR" },
 };
 
-type AvatarModule = { AgentAvatar?: ComponentType<AvatarProps>; default?: ComponentType<AvatarProps> };
+/** Lane G's props (web/src/village/avatars/AgentAvatar.tsx). */
+interface LaneGAvatarProps {
+  role: AgentRole;
+  status?: "idle" | "working" | "waiting" | "done" | "sleeping";
+  size?: number;
+  nameplate?: boolean;
+  badge?: boolean;
+}
+type AvatarModule = { AgentAvatar?: ComponentType<LaneGAvatarProps>; default?: ComponentType<LaneGAvatarProps> };
+
+const PX: Record<NonNullable<AvatarProps["size"]>, number> = { sm: 24, md: 30, lg: 48 };
+/** our statuses in lane G's set: a sent-back or fallen-back step works on (lane G has no alarm pose) */
+const STATUS: Record<NonNullable<AvatarProps["status"]>, LaneGAvatarProps["status"]> = { idle: "idle", working: "working", waiting: "waiting", done: "done", alarm: "working" };
 // import.meta.glob: an absent module builds to an empty map instead of failing
 const files = import.meta.glob<AvatarModule>(["../../village/avatars.tsx", "../../village/avatars/index.tsx", "../../village/avatars/index.ts"]);
 const load = Object.values(files)[0];
@@ -54,7 +67,10 @@ export function AvatarSlot(props: AvatarProps) {
   if (!Avatar) return <Placeholder {...props} />;
   return (
     <Suspense fallback={<Placeholder {...props} />}>
-      <Avatar {...props} />
+      <span className={`ws-avatar-g s-${props.size ?? "sm"}`}>
+        <Avatar role={props.role} size={PX[props.size ?? "sm"]} status={props.status ? STATUS[props.status] : "idle"} badge={false} />
+        {props.nameplate && <b>{ROLE_TEXT[props.role].plate}</b>}
+      </span>
     </Suspense>
   );
 }
