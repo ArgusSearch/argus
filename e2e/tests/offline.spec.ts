@@ -18,8 +18,6 @@ test("stopping the API shows the offline banner; starting it again recovers with
   // Known app bug: with the connection refused the browser keeps the EventSource in CONNECTING and retries
   // forever, so web/src/lib/api.ts never reports "offline"; the header falls back to the last mode and keeps
   // saying "Replay · recorded run". Observed 5 s and 30 s after the stop: no banner, header unchanged.
-  // remove test.fail once the offline-banner issue is fixed
-  test.fail(true, "offline banner never shows: https://github.com/ArgusSearch/argus/issues/6");
   test.setTimeout(90_000);
 
   api = await startApi(PORT);

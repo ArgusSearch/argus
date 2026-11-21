@@ -3,8 +3,6 @@ import { openMissionControl } from "./helpers";
 
 // Every metric box shows its unit (COUNT, RATE, EUR) next to a sparkline: the text must not run under it.
 test("unit labels on metric nodes are not overdrawn by the sparkline", async ({ page }) => {
-  // remove test.fail once the fix for #14 (PR #40) is on main
-  test.fail(true, "sparkline drawn over the unit label: https://github.com/ArgusSearch/argus/issues/14");
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openMissionControl(page);
   await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15_000 });

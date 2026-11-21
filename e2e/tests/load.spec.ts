@@ -9,7 +9,7 @@ test("the page loads with the header, the seed graph and no errors", async ({ pa
 
   const graph = (await (await request.get("/graph")).json()) as { nodes: unknown[]; edges: unknown[]; logs: unknown[] };
   expect(graph.nodes.length).toBeGreaterThanOrEqual(27);
-  await expect(page.locator(".graph-bar .sub")).toContainText(`${graph.nodes.length} metrics`);
+  // the graph bar is plain-English copy since the IA redesign; the count is checked on the rendered boxes
   // one box per metric plus one per evidence log
   await expect(page.locator(".react-flow__node")).toHaveCount(graph.nodes.length + graph.logs.length);
   await expect(page.locator(".react-flow__edge").first()).toBeAttached();

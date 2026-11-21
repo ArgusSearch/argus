@@ -9,8 +9,6 @@ for (const [width, height] of [
 ]) {
   test(`trail cards are never cut at the edge at ${width}x${height}`, async ({ page, request }) => {
     test.skip(LIVE, "replay-only: drives the recorded S1 run");
-    // remove test.fail once the fix for #16 (PR #61) is on main
-    test.fail(true, "trail cards cut at the edge: https://github.com/ArgusSearch/argus/issues/16");
     await page.setViewportSize({ width, height });
     await replay(request, { action: "restart", speed: 64 });
     await replay(request, { action: "play" });
