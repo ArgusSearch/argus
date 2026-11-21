@@ -108,7 +108,7 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [10](https://github.com/ArgusSearch/argus/issues/10) | api | P1 | Report Impact frozen at 1 h vs severity total |
 | [11](https://github.com/ArgusSearch/argus/issues/11) | api | P2 | Digest says "0 anomalys" (fix in PR #28) |
 | [12](https://github.com/ArgusSearch/argus/issues/12) | api | P2 | Receipts on quiet runs are world-independent; a zero-row receipt among samples |
-| [13](https://github.com/ArgusSearch/argus/issues/13) | web | P1 | Graph bar still says "checking …" after the verdict |
+| [13](https://github.com/ArgusSearch/argus/issues/13) | web | P1 | Graph bar still says "checking …" after the verdict (fix: PR #41) |
 | [14](https://github.com/ArgusSearch/argus/issues/14) | web | P1 | Sparkline drawn over the COUNT/RATE/EUR unit label (fix: PR #40) |
 | [15](https://github.com/ArgusSearch/argus/issues/15) | web | P1 | One verdict, four labels (SUPPORTED_CAUSE / SUPPORTED CAUSE / ROOT CAUSE) |
 | [16](https://github.com/ArgusSearch/argus/issues/16) | web | P1 | Investigation trail is a sideways scroller; leftmost card cut through its text |
