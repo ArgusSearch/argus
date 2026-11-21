@@ -1,5 +1,5 @@
 // The recorded blind challenge (seed 11), used until POST /challenge/commit and /challenge/reveal answer.
-// Recorded with `uv run argus-bench blind --seed 11` on the local integration branch; files copied verbatim
+// Recorded with `uv run argus-bench blind --seed 11` on main (f35b00a); files copied verbatim
 // except blind-11.argus.json, which keeps only the fields the reveal screen shows of agents/argus/incidents.json.
 
 import argusRaw from "./fixtures/blind-11.argus.json?raw";

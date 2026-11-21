@@ -52,7 +52,7 @@ describe("blind challenge commitment", () => {
 
   it("recomputes the recorded commitment from the reveal", () => {
     expect(commitmentOf(rec.reveal.nonce, rec.reveal.payload)).toBe(rec.commitment);
-    expect(rec.commitment).toBe("sha256:ee519191b65afd00566bdadd4997619933b28cbd58bc531a96634bf0e21a7a12");
+    expect(rec.commitment).toBe("sha256:0207174de63a1de23be0b8fb3c202fe3230d917d814822f4639adfd88fe7ed80");
   });
 
   it("matches with WebCrypto and with the built-in code", async () => {
