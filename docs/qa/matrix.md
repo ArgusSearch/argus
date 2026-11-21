@@ -101,7 +101,7 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [3](https://github.com/ArgusSearch/argus/issues/3) | brain | ~~P0~~ fixed | S2 silent: no EXPECTED / "didn't wake you" note |
 | [4](https://github.com/ArgusSearch/argus/issues/4) | brain | P1 | S4 Stage-2 segment `{}` although its own holdout localises DE, FR |
 | [5](https://github.com/ArgusSearch/argus/issues/5) | brain | P1 | S3 note is freshness-only: no broken identity, decoy not ruled out |
-| [6](https://github.com/ArgusSearch/argus/issues/6) | web | P1 | Offline banner never appears when the API stops |
+| [6](https://github.com/ArgusSearch/argus/issues/6) | web | P1 | Offline banner never appears when the API stops (fix: PR #32) |
 | [7](https://github.com/ArgusSearch/argus/issues/7) | bench | P2 | Progress output starts at [17/46] |
 | [8](https://github.com/ArgusSearch/argus/issues/8) | bench | P2 | `blind` runs only the first default agent |
 | [9](https://github.com/ArgusSearch/argus/issues/9) | graph | P1 | `f_orders_payments` never BROKEN during the S3 stall (28-day daily test) |
@@ -119,3 +119,9 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [29](https://github.com/ArgusSearch/argus/issues/29) | api | P1 | S4 replay shows €1,687 for the whole run (the recording ends at €73,602) |
 | [30](https://github.com/ArgusSearch/argus/issues/30) | api | P2 | Every replay re-run's 409 says "make demo runs … the S1 world", even for other scenarios |
 | [31](https://github.com/ArgusSearch/argus/issues/31) | api | P2 | S2 digest "0 queries"; duplicated receipts in the S2 note |
+| [33](https://github.com/ArgusSearch/argus/issues/33) | web | P1 | Metric graph blanks for seconds after a replay restart or loop (fix: PR #39) |
+| [34](https://github.com/ArgusSearch/argus/issues/34) | web | P2 | "Run complete" toast while the S4 incident is still open |
+| [35](https://github.com/ArgusSearch/argus/issues/35) | brain | P2 | S1 title repeats the provider ("PayCo: PayCo: …") |
+| [36](https://github.com/ArgusSearch/argus/issues/36) | web | P2 | Lifecycle and digest use the data hour, feed cards the clock hour |
+| [37](https://github.com/ArgusSearch/argus/issues/37) | web | P2 | S2 Verdict trail card text cut off |
+| [38](https://github.com/ArgusSearch/argus/issues/38) | web | P2 | "no anomaly yet" stays after the run is complete |
