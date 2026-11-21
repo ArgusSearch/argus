@@ -14,7 +14,7 @@ This file is enough to continue the QA work without the chat.
 - **Scorecard:** Argus pass@1 is 100% vs 20% for the threshold baseline.
 - **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
 - **`make check` on main** is red only because of #27 (ruff format on `docs/plan/build-plan.md`); CI is red for the same reason.
-- **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart (see the new web issues in matrix.md). Do not press Restart on stage without a buffer.
+- **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart or loop (#33; fix in PR #39). Until it merges, do not press Restart on stage.
 
 ## What is in this branch
 
@@ -52,8 +52,8 @@ On an 8 GB machine, run one API server and one browser at a time.
 
 Closed as fixed on main: #1, #2, #3.
 
-P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX), #29 (S4 replay money), plus the blank-graph-after-restart issue (see matrix.md).
-P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt coverage), #17–#20 (web polish), #30, #31.
+P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX), #29 (S4 replay money), #33 (blank graph after restart, fix in PR #39).
+P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt coverage), #17–#20 (web polish), #30, #31, #34–#38.
 
 ## Next steps
 
@@ -61,6 +61,7 @@ P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt cover
 2. Small UI/API fixes that QA can take, after Batu confirms nobody else is on them:
    - #11 is done (PR #28).
    - #6 is done (PR #32). After it merges, remove `test.fail` from `e2e/tests/offline.spec.ts`.
+   - #33 is done (PR #39). After it merges, remove `test.fail` from `e2e/tests/graph-restart.spec.ts`.
    - Each fix goes in its own PR `fix(api|web): ... (#n)` with a test that fails before and passes after.
 3. Propose the e2e CI job to Batu. The suggested step is in `e2e/README.md`; `.github/` is not ours.
 4. Before the 11:00 freeze and the 12:00 rehearsal: run the e2e suite and the matrix again.
