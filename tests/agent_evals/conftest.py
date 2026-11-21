@@ -29,6 +29,7 @@ def no_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     def deny(*args: object, **kwargs: object) -> None:
         pytest.fail("deterministic agent eval attempted network access")
 
+    monkeypatch.setattr("argus.agent.provider.AnthropicClient", deny)
     for method in ("connect", "connect_ex", "sendto", "sendmsg"):
         if not hasattr(socket.socket, method):
             continue

@@ -5,9 +5,12 @@ from pathlib import Path
 
 from scripts.agent_eval.offline_report import CASES, summarize
 from scripts.agent_eval.qualify import Counterexample, Trial, check_usage, score, show_quality
+from scripts.agent_eval.text_review import Sample, assess
 
 from argus.agent.examples import OBSERVATION, RUN, USAGE
-from argus.agent.fake import tool_use
+from argus.agent.fake import FakeLlmClient, tool_use
+from argus.agent.provider import SYNTHESIS_MODEL, SpendLedger, usage_record
+from argus.agent.types import LlmRequest, LlmResponse
 
 
 def test_offline_scorecard_rejects_missing_skipped_and_failed_cases(tmp_path: Path) -> None:
@@ -34,8 +37,10 @@ def test_live_scorecard_keeps_all_unattempted_trials_visible(tmp_path: Path) -> 
 
 
 def test_live_usage_rejects_unknown_price_duplicate_calls_and_wrong_total() -> None:
-    priced = USAGE.model_copy(update={"usd": 0.01})
-    run = RUN.model_copy(update={"llm_calls": 1, "usd": 0.01})
+    response = tool_use("list_events", {}).model_copy(update={"request_id": USAGE.request_id})
+    priced = usage_record(RUN.run_id, 1, response, 100)
+    assert priced.usd is not None
+    run = RUN.model_copy(update={"llm_calls": 1, "usd": round(priced.usd, 6)})
     trial = Trial(scenario="s1", seed=1, trial=1, source_commit="sha", elapsed_seconds=1, runs=[run], usage=[priced])
     assert check_usage(trial) == []
     trial.usage.append(priced.model_copy(update={"usd": None}))
@@ -70,3 +75,24 @@ def test_text_judge_only_scores_prose(tmp_path: Path) -> None:
     assert review["mean"] == 4.25
     assert review["rubric_passed"] is False
     assert review["below_three"] == ["memo-s1"]
+
+
+def test_text_judge_has_no_tools_and_records_spend(tmp_path: Path) -> None:
+    def review(request: LlmRequest) -> LlmResponse:
+        assert request.tools == []
+        assert json.loads(request.messages[0]["content"]) == {"prose": "The evidence points to pacing."}
+        return LlmResponse(
+            model=SYNTHESIS_MODEL,
+            content=[{"type": "text", "text": '{"what_happened":5,"why":4,"alternative":3,"next_action":4}'}],
+            stop_reason="end_turn",
+            usage={"input_tokens": 100, "output_tokens": 20},
+        )
+
+    ledger = tmp_path / "qualification-spend.jsonl"
+    outcomes = assess(
+        [Sample(sample="blind-1", text="The evidence points to pacing.")],
+        FakeLlmClient(responder=review),
+        SpendLedger(ledger),
+    )
+    assert outcomes[0].sample == "blind-1" and outcomes[0].what_happened == 5
+    assert len(ledger.read_bytes().splitlines()) == 1

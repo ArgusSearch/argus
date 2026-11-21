@@ -20,6 +20,10 @@ from mockmart.sim import WorldConfig
 from mockmart.world import generate
 
 
+class CaptureMismatch(ValueError):
+    """A replay comparison failed without exposing provider content."""
+
+
 def _read_lines(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_bytes().splitlines() if line.strip()]
 
@@ -27,9 +31,9 @@ def _read_lines(path: Path) -> list[dict[str, Any]]:
 def _compare(name: str, actual: list[dict[str, Any]], recorded: list[dict[str, Any]]) -> None:
     for index, (received, expected) in enumerate(zip(actual, recorded, strict=False), 1):
         if received != expected:
-            raise ValueError(f"{name} differs from the live export at record {index}")
+            raise CaptureMismatch(f"{name} differs from the live export at record {index}")
     if len(actual) != len(recorded):
-        raise ValueError(f"{name} has {len(actual)} records, expected {len(recorded)}")
+        raise CaptureMismatch(f"{name} has {len(actual)} records, expected {len(recorded)}")
 
 
 class _OrderedReplay(ReplayClient):
@@ -56,7 +60,7 @@ def stage_recording(source: Path, output: Path, scenario: str, seed: int, source
     if not summaries or any(
         run.mode != "record" or run.status != "done" or run.fallback or run.llm_calls < 2 for run in summaries
     ):
-        raise ValueError("the live export has an incomplete or fallback investigation")
+        raise CaptureMismatch("the live export has an incomplete or fallback investigation")
 
     # Store output only after the real tools have reproduced the captured events.
     with tempfile.TemporaryDirectory(prefix="argus-cassette-world-") as work:
@@ -70,7 +74,7 @@ def stage_recording(source: Path, output: Path, scenario: str, seed: int, source
             if replayer.position != len(replayer.expected) or any(
                 run.status != "done" for run in journal.runs.values()
             ):
-                raise ValueError(f"model exchange did not replay through turn {replayer.position + 1}")
+                raise CaptureMismatch(f"model exchange did not replay through turn {replayer.position + 1}")
             _compare(
                 "activity",
                 [record.model_dump(mode="json") for record in journal.records],
@@ -86,7 +90,7 @@ def stage_recording(source: Path, output: Path, scenario: str, seed: int, source
                 if receipt_id not in proofs_by_id:
                     receipt = runtime.runner.receipts[receipt_id]
                     if not runtime.runner.rerun(receipt_id)[1]:
-                        raise ValueError(f"receipt did not rerun at its recorded clock: {receipt_id}")
+                        raise CaptureMismatch("a receipt did not rerun at its recorded clock")
                     rows = runtime.runner.fetch(receipt.sql, receipt.as_of)[:12]
                     columns = list(rows[0]) if rows else []
                     # Timestamps are canonical UTF-8 values in the stored row sample.
@@ -137,8 +141,10 @@ def main() -> None:
     args = parser.parse_args()
     try:
         bundle = stage_recording(args.source, args.output, args.scenario, args.seed, args.source_commit)
-    except (KeyError, OSError, TypeError, ValueError) as exc:
+    except CaptureMismatch as exc:
         parser.exit(1, f"Cassette staging failed: {exc}\n")
+    except (KeyError, OSError, TypeError, ValueError):
+        parser.exit(1, "Cassette staging failed while validating the export or its receipt proofs.\n")
     print(f"{bundle.manifest.scenario}: sealed investigation cassette {bundle.manifest.bundle_sha}")
 
 

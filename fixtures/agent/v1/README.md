@@ -94,4 +94,7 @@ their genuine next responses. The scorecard requires three passes for stage S4
 and at least five of six scenario/seed groups, with median spend at most
 USD 0.25, max USD 0.50, and median investigation time at most 60 seconds.
 `TEXT_REVIEW=/path/to/text-review.json` optionally adds blinded prose scores
-to the report. These scores cannot satisfy any behavior gate.
+to the report. Generate the scores with
+`uv run python -m scripts.agent_eval.text_review SAMPLES --out REVIEW`, using a
+JSON array of opaque `sample` IDs and redacted `text` strings. Text scores are
+reported separately from the stage eligibility checks.

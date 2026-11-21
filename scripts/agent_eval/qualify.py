@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 from scripts.agent_eval.bundle import Bundle, read_bundle
 
+from argus.agent.provider import TARIFF, price
 from argus.agent.types import ActivityRecord, LlmResponse, Observation, RunSummary, UsageRecord
 from bench.grade import RunGrade
 
@@ -89,6 +90,19 @@ def check_usage(trial: Trial) -> list[str]:
         issues.append("duplicated provider call")
     if any(item.usd is None or not math.isfinite(item.usd) or item.usd < 0 for item in trial.usage):
         issues.append("missing or invalid priced usage")
+    for item in trial.usage:
+        expected = price(
+            item.model,
+            {
+                "input_tokens": item.input_tokens,
+                "output_tokens": item.output_tokens,
+                "cache_read_input_tokens": item.cache_read_tokens,
+                "cache_creation_input_tokens": item.cache_write_tokens,
+            },
+        )
+        if item.tariff != TARIFF or expected is None or item.usd != expected:
+            issues.append("provider usage does not match the pinned tariff")
+            break
     if not trial.usage or any(not item.request_id for item in trial.usage):
         issues.append("missing independent provider request identifiers")
     keys = {run.run_id for run in trial.runs}
@@ -96,7 +110,7 @@ def check_usage(trial: Trial) -> list[str]:
         issues.append("usage has an unknown or duplicated run")
     for run in trial.runs:
         entries = [entry for entry in trial.usage if entry.run_id == run.run_id]
-        if len(entries) != run.llm_calls or abs(sum(entry.usd or 0 for entry in entries) - run.usd) > 1e-7:
+        if len(entries) != run.llm_calls or round(sum(entry.usd or 0 for entry in entries), 6) != run.usd:
             issues.append(f"usage differs from run {run.run_id}")
     return issues
 
@@ -104,24 +118,38 @@ def check_usage(trial: Trial) -> list[str]:
 def check_adaptive(bundle: Bundle, investigation_ids: set[str]) -> bool:
     """Find two provider-selected tools with a real, receipted observation between them."""
     records = [ActivityRecord.model_validate(item) for item in bundle.documents["activity.jsonl"]]
-    model_calls: dict[str, str | None] = {}
-    observed: set[str] = set()
-    for record in records:
-        if record.run_id not in investigation_ids:
+    for run_id in investigation_ids:
+        history = [record for record in records if record.run_id == run_id]
+        anomaly_id = next((record.anomaly_id for record in history if record.anomaly_id), None)
+        if not anomaly_id:
             continue
-        if record.kind == "tool_call" and record.actor == "model":
-            if record.run_id in observed:
+        rounds = [
+            [
+                block["name"]
+                for block in turn["response"]["content"]
+                if block["type"] == "tool_use" and block["name"] != "submit_findings"
+            ]
+            for turn in bundle.documents["turns.jsonl"]
+            if turn["key"].startswith(f"investigate:{anomaly_id}:")
+        ]
+        results = [
+            record.observation for record in history if record.kind == "tool_result" and record.observation is not None
+        ]
+        if [name for names in rounds for name in names] != [item.tool for item in results]:
+            continue
+        received_evidence = False
+        index = 0
+        for names in rounds:
+            evidence = [
+                item for item in results[index : index + len(names)] if item.receipt_refs and item.availability == "ok"
+            ]
+            if received_evidence and any(
+                item.tool in {"holdout_check", "placebo_test", "market_control", "decompose_formula", "mix_rate_split"}
+                for item in evidence
+            ):
                 return True
-            model_calls[record.run_id] = record.tool
-        elif (
-            record.kind == "tool_result"
-            and record.run_id in model_calls
-            and record.observation is not None
-            and record.observation.tool == model_calls[record.run_id]
-            and record.observation.availability == "ok"
-            and record.observation.receipt_refs
-        ):
-            observed.add(record.run_id)
+            received_evidence |= bool(evidence)
+            index += len(names)
     return False
 
 
@@ -171,6 +199,7 @@ def score(directory: Path, source_commit: str) -> dict[str, object]:
     seconds: list[float] = []
     passed: Counter[tuple[str, int]] = Counter()
     request_ids: set[str] = set()
+    all_usage_verified = True
     for scenario, seed in CASES:
         for index in range(1, TRIALS + 1):
             path = directory / f"{scenario}-{seed}-{index}"
@@ -179,6 +208,7 @@ def score(directory: Path, source_commit: str) -> dict[str, object]:
                 if (trial.scenario, trial.seed, trial.trial) != (scenario, seed, index):
                     raise ValueError("trial identity mismatch")
                 failures, usd = assess_trial(trial, path, source_commit)
+                all_usage_verified &= not check_usage(trial)
                 ids = [entry.request_id for entry in trial.usage if entry.request_id]
                 if set(ids) & request_ids or len(set(ids)) != len(ids):
                     failures.append("provider exchange reused across trials")
@@ -208,6 +238,7 @@ def score(directory: Path, source_commit: str) -> dict[str, object]:
     reliability = sum(passed[case] == TRIALS for case in CASES) >= 5 and passed[("s4", 1)] == TRIALS
     costs_ok = (
         len(costs) == len(CASES) * TRIALS
+        and all_usage_verified
         and statistics.median(costs) <= 0.25
         and max(costs) <= 0.50
         and statistics.median(seconds) <= 60

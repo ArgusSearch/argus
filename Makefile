@@ -10,7 +10,7 @@ S1_OUT ?= runs
 AGENT_EVAL_OUT ?= runs/agent-eval
 CONTRACTS_BASE := 2c36e8204f3082aa1a9ddfd613ab545247fdc5ef
 
-.PHONY: setup check lint format typecheck test test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval agent-eval-live world demo api fixtures clean
+.PHONY: setup check lint format typecheck test test-app test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval agent-eval-live world demo api fixtures clean
 
 setup:            ## install the locked environment
 	uv sync
@@ -27,8 +27,11 @@ format:
 
 typecheck:
 	uv run mypy
+	uv run mypy --explicit-package-bases scripts/agent_eval
 
-test: agent-eval
+test: test-app agent-eval
+
+test-app:
 	uv run pytest --ignore=tests/agent_evals
 
 test-fast:        ## unit tests only, skips the end-to-end scenario runs

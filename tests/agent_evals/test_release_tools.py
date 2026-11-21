@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -198,3 +200,18 @@ def test_bench_gate_ignores_aggregate_pass_when_a_case_fails() -> None:
     failed.false_alarms.append("spurious-page")
     with pytest.raises(ValueError, match=failed.case):
         validate_scorecard(card)
+
+
+def test_bench_default_stays_stage_two_and_loads_no_agent_package() -> None:
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; "
+            "from argus.runtime.loop import Runtime; "
+            "from bench.agents import ArgusAgent; "
+            "assert ArgusAgent().stage == 2; "
+            "assert 'argus.agent' not in sys.modules",
+        ],
+        check=True,
+    )

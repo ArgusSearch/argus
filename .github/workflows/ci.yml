@@ -37,9 +37,22 @@ jobs:
       - name: Install the locked environment
         run: uv sync --frozen
       - name: Lint, types, contracts, Mission Control, tests
-        run: make check
+        run: make lint typecheck contracts-check contracts-frozen web test-app
       - name: S1 end to end (single command from the README)
         run: make s1
+
+  agent-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Run all 17 deterministic agent evals offline
+        run: make agent-eval
       - name: Upload offline agent evaluation results
         if: always()
         uses: actions/upload-artifact@v4
