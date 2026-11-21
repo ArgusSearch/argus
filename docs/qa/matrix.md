@@ -1,6 +1,37 @@
 # Scenario matrix
 
-## Current: `main` @ `2c62f8b` (Saturday 2026-11-21, ~23:45 CET): demo moment 3, a new metric places itself
+## Current: `main` @ `e0ce93b` (Sunday 2026-11-22, ~00:45 CET)
+
+117 commits since 2c62f8b: the IA redesign, the village view, agent presentation replay, demo fixes, and the merged QA fixes #28, #32, #40, #60 and #61. The agent was off for every run; the recorded presentation was replayed and no model was called.
+
+**Verdicts on all 14 runs are unchanged from 1cc4cef:**
+- S1 (3 seeds), quiet, S2 and S5 pass.
+- S4 is mostly right: segment `{}` (#4).
+- S3 is partial (#5, #9).
+- Live receipt re-runs: 45/45 give the same hash. 0 5xx.
+- The only data change is the digest wording ("anomalies", "SUPPORTED CAUSE"), from the merged fixes.
+
+**The recorded S4 agent presentation, on a replay server:**
+- It plays 9 beats and holds at awaiting approval, with the clock frozen.
+- Ask answers the recorded question with 5 receipts, all of which resolve.
+- Effect receipts stay hidden (404) until the action is released.
+- The operator gate refuses a missing session or CSRF and a foreign Origin (403), a stale digest (409) and bad bodies (422).
+- Approve → APPLIED → VERIFIED, and INC-0001 resolves at €24,769.
+- The presentation's morning report shows "Rollback pacer · DE/FR · Verified".
+- The deny path ends DENIED. `scripts/demo_capture/rehearse.py` gives 2 identical cold runs.
+
+**`/graph/metrics` live:** EXACT ×3, AMBIGUOUS and REJECTED, and the graph grows from 27 to 31. #73 still returns a 500.
+
+**Scorecard:** identical (Argus pass@1 100%, threshold 17%).
+
+**Blind seed 11:** drew s1, exact, PASS; `verify` matches.
+
+**e2e:**
+- The specs for #6, #14, #15 and #16 now run as normal checks and pass.
+- The core suite needed one copy update in the load spec; its full re-run on this commit is still to do.
+- `test:demo` needs spec updates for the redesigned navigation and copy (in progress).
+
+## Earlier: `main` @ `2c62f8b` (Saturday 2026-11-21, ~23:45 CET): demo moment 3, a new metric places itself
 
 `POST /graph/metrics` places a metric, live over the world or from the recorded ad-metric pack in a replay, and Mission Control shows a "New metric placed" card over the graph and marks the new node.
 
@@ -241,17 +272,17 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [3](https://github.com/ArgusSearch/argus/issues/3) | brain | ~~P0~~ fixed | S2 silent: no EXPECTED / "didn't wake you" note |
 | [4](https://github.com/ArgusSearch/argus/issues/4) | brain | P1 | S4 Stage-2 segment `{}` although its own holdout localises DE, FR |
 | [5](https://github.com/ArgusSearch/argus/issues/5) | brain | P1 | S3 note is freshness-only: no broken identity, decoy not ruled out |
-| [6](https://github.com/ArgusSearch/argus/issues/6) | web | P1 | Offline banner never appears when the API stops (fix: PR #32) |
+| [6](https://github.com/ArgusSearch/argus/issues/6) | web | ~~P1~~ fixed | Offline banner never appears when the API stops (fixed by PR #32) |
 | [7](https://github.com/ArgusSearch/argus/issues/7) | bench | P2 | Progress output starts at [17/46] |
 | [8](https://github.com/ArgusSearch/argus/issues/8) | bench | P2 | `blind` runs only the first default agent |
 | [9](https://github.com/ArgusSearch/argus/issues/9) | graph | P1 | `f_orders_payments` never BROKEN during the S3 stall (28-day daily test) |
 | [10](https://github.com/ArgusSearch/argus/issues/10) | api | P1 | Report Impact frozen at 1 h vs severity total |
-| [11](https://github.com/ArgusSearch/argus/issues/11) | api | P2 | Digest says "0 anomalys" (fix in PR #28) |
+| [11](https://github.com/ArgusSearch/argus/issues/11) | api | ~~P2~~ fixed | Digest says "0 anomalys" (fixed by PR #28) |
 | [12](https://github.com/ArgusSearch/argus/issues/12) | api | P2 | Receipts on quiet runs are world-independent; a zero-row receipt among samples |
 | [13](https://github.com/ArgusSearch/argus/issues/13) | web | P1 | Graph bar still says "checking …" after the verdict (fix: PR #41) |
-| [14](https://github.com/ArgusSearch/argus/issues/14) | web | P1 | Sparkline drawn over the COUNT/RATE/EUR unit label (fix: PR #40) |
-| [15](https://github.com/ArgusSearch/argus/issues/15) | web | P1 | One verdict, four labels (SUPPORTED_CAUSE / SUPPORTED CAUSE / ROOT CAUSE) (fix: PR #60) |
-| [16](https://github.com/ArgusSearch/argus/issues/16) | web | P1 | Investigation trail is a sideways scroller; leftmost card cut through its text (fix: PR #61) |
+| [14](https://github.com/ArgusSearch/argus/issues/14) | web | ~~P1~~ fixed | Sparkline drawn over the COUNT/RATE/EUR unit label (fixed by PR #40) |
+| [15](https://github.com/ArgusSearch/argus/issues/15) | web | ~~P1~~ fixed | One verdict, four labels (SUPPORTED_CAUSE / SUPPORTED CAUSE / ROOT CAUSE) (fixed by PR #60) |
+| [16](https://github.com/ArgusSearch/argus/issues/16) | web | ~~P1~~ fixed | Investigation trail is a sideways scroller; leftmost card cut through its text (fixed by PR #61) |
 | [17](https://github.com/ArgusSearch/argus/issues/17) | web | P2 | "INC-0001 explained" toast covers trail cards 12–13 |
 | [18](https://github.com/ArgusSearch/argus/issues/18) | web | P2 | "log_provider_status" overflows its pill |
 | [19](https://github.com/ArgusSearch/argus/issues/19) | web | P2 | Metric node text about 7–9 px at 1440x900 |
