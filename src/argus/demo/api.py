@@ -80,7 +80,7 @@ def create_router(
             raise HTTPException(409, "agent demo requires its run_id")
         return run
 
-    @router.get("/snapshot")
+    @router.get("/snapshot", include_in_schema=allow_agent)
     async def demo_snapshot(run_id: str) -> AgentSnapshot:
         active_run(run_id)
         try:
