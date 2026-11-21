@@ -528,8 +528,8 @@
 }
 
 :root[data-fx] .fx-kpi-state {
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: none;
+  max-width: 100%;
   overflow: hidden;
   margin-left: auto;
   text-overflow: ellipsis;
@@ -549,6 +549,7 @@
 
 :root[data-fx] .fx-kpi-value {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -570,6 +571,7 @@
 :root[data-fx] .fx-kpi-value span {
   color: var(--fx-ink-2);
   font-size: var(--fx-text-xs);
+  white-space: nowrap;
 }
 
 :root[data-fx] .fx-trend {
@@ -1019,6 +1021,11 @@
 
 :root[data-fx] .fx-score .t-bad {
   color: var(--alarm);
+}
+
+/* a reference agent (Stage 1 alone, the threshold baseline) is context, never graded in Argus's colors */
+:root[data-fx] .fx-score .ref {
+  color: var(--fx-ink-2);
 }
 
 /* ---------------------------------------------------------------- feed: a footer that fills a short list */

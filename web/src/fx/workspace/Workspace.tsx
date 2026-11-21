@@ -13,7 +13,7 @@ import { autonomyCounts } from "../../views/autonomy";
 import { views as reads } from "../../views/data";
 import { breadcrumb, stepQuestion } from "../../views/investigation";
 import { investigations, metricStatus, type MetricState } from "../../views/model";
-import { isScorecard, summaryMetrics, type Scorecard } from "../../views/scorecard";
+import { AGENT_TEXT, headlineRows, isScorecard, orderedSummaries, type Scorecard } from "../../views/scorecard";
 import sampleUrl from "../../views/fixtures/scorecard.sample.json?url";
 import { fxOn } from "../flag";
 import { GraphStage, sceneAvailable } from "../GraphStage";
@@ -501,9 +501,10 @@ function ScoreCard() {
       live = false;
     };
   }, []);
-  const argus = state?.card.summaries.find((s) => s.agent === "argus");
-  const baseline = state?.card.summaries.find((s) => s.agent !== "argus");
-  const pick = ["recall", "cause", "ttd", "fa"];
+  const card = state?.card;
+  const argus = card?.summaries.some((s) => s.agent === "argus");
+  const agents = card ? orderedSummaries(card).map((s) => s.agent) : [];
+  const rows = card ? headlineRows(card, ["recall", "cause", "ttd", "fa"]) : [];
   return (
     <Card
       title="Bench scorecard"
@@ -521,23 +522,24 @@ function ScoreCard() {
             <thead>
               <tr>
                 <th />
-                <th>Argus</th>
-                {baseline && <th>Threshold baseline</th>}
+                {agents.map((a) => (
+                  <th key={a} className={a === "argus" ? undefined : "ref"}>
+                    {AGENT_TEXT[a] ?? a}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {summaryMetrics(argus)
-                .filter((m) => pick.includes(m.key))
-                .map((m) => {
-                  const base = baseline ? summaryMetrics(baseline).find((b) => b.key === m.key) : undefined;
-                  return (
-                    <tr key={m.key}>
-                      <th>{m.label}</th>
-                      <td className={`t-${m.tone}`}>{m.value}</td>
-                      {base && <td className={`t-${base.tone}`}>{base.value}</td>}
-                    </tr>
-                  );
-                })}
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <th title={r.hint}>{r.label}</th>
+                  {r.cells.map((c) => (
+                    <td key={c.agent} className={`t-${c.tone}${c.agent === "argus" ? "" : " ref"}`}>
+                      {c.value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
           <p className="fx-card-note">
