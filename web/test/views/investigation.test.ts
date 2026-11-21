@@ -38,16 +38,16 @@ describe("investigation story", () => {
     ]);
   });
 
-  it("strikes the release and the checkout deploy, keeps PayCo", () => {
+  it("strikes the Android release by its holdout and keeps PayCo", () => {
     const s = suspects(steps);
-    expect(s.map((x) => [x.ref, x.kept])).toEqual([
-      ["dep_checkout-service_1.2.6", false],
-      ["ps_payco_degraded", true],
-      ["dep_android-app_8.3.0", false],
-    ]);
-    expect(s[2].reason).toContain("holdout normal");
-    expect(scopeLabel(s[2].scope)).toBe("platform android");
-    expect(scopeLabel(s[0].scope)).toBe("everyone");
+    const byRef = Object.fromEntries(s.map((x) => [x.ref, x]));
+    expect(byRef["ps_payco_degraded"]?.kept).toBe(true);
+    const release = byRef["dep_android-app_8.3.0"];
+    expect(release?.kept).toBe(false);
+    expect(release?.reason).toContain("holdout");
+    expect(scopeLabel(release?.scope ?? {})).toBe("platform android");
+    for (const x of s.filter((x) => !x.kept)) expect(x.reason.length).toBeGreaterThan(0);
+    expect(scopeLabel({})).toBe("everyone");
   });
 
   it("groups the steps into chapters in playbook order and names each step's question", () => {

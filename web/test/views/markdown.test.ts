@@ -25,7 +25,9 @@ describe("parseMarkdown", () => {
     if (!table || table.t !== "table") throw new Error("no table");
     expect(table.head.map((c) => c.map((i) => i.v).join(""))).toEqual(["factor", "share of the change"]);
     expect(table.rows.length).toBeGreaterThan(3);
-    expect(table.rows[0][1]).toContainEqual({ t: "receipt", v: "r242" });
+    // every share in the table comes with the receipt of the query behind it
+    const withReceipt = table.rows.filter((row) => row.flat().some((i) => i.t === "receipt"));
+    expect(withReceipt.length).toBe(table.rows.length);
   });
 
   it("turns every [rNNN] into a receipt and keeps every other character", () => {
