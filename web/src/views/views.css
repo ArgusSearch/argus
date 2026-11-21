@@ -122,6 +122,13 @@
   }
 }
 
+/* the projector tier of web/src/ui/responsive.css zooms the header and ticker; the tab bar follows them */
+@media (min-width: 1800px) and (min-height: 1000px) {
+  html:not([data-demo]) .vh-bar {
+    zoom: 1.12;
+  }
+}
+
 /* ---------------------------------------------------------------- autonomy strip */
 
 .as {

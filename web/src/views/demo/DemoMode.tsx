@@ -46,9 +46,14 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
   // the page's look for the video
   useEffect(() => {
     if (!options.demo) return;
+    // data-demo also opts out of the projector tier of web/src/ui/responsive.css (demo mode sizes type itself)
     const root = document.documentElement;
     root.classList.add("argus-demo");
-    return () => root.classList.remove("argus-demo");
+    root.setAttribute("data-demo", "");
+    return () => {
+      root.classList.remove("argus-demo");
+      root.removeAttribute("data-demo");
+    };
   }, [options.demo]);
 
   // Esc leaves demo mode and drops its options from the address bar
