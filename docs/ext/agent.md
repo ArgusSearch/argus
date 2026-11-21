@@ -51,7 +51,7 @@ Rules every implementation keeps:
 
 | Mode | Provider | Used by |
 | --- | --- | --- |
-| `live` | Anthropic Messages API (`claude-sonnet-5-5` for the loop, `claude-opus-5-5` for one final synthesis) | `ARGUS_AGENT=live` with `ANTHROPIC_API_KEY` |
+| `live` | Anthropic Messages API: `claude-sonnet-5-5` chooses the checks and answers questions; the verdict is deterministic code, so no Opus call is needed (`ARGUS_AGENT_SYNTHESIS_MODEL` is reserved) | `ARGUS_AGENT=live` with `ANTHROPIC_API_KEY` |
 | `record` | live, plus the recording | re-recording fixtures (needs the key, appends to the spend ledger) |
 | `replay` | none is constructed | the demo, CI, evals |
 | `off` | none | default without a key; Stage 2 only |
@@ -60,17 +60,34 @@ Cost: every provider call becomes a `UsageRecord` priced from one tariff table (
 
 ## Routes
 
-All routes sit outside the C5 `ROUTES` tuple, mounted like the narrator and demo routers.
+All routes sit outside the C5 `ROUTES` tuple, mounted like the narrator and demo routers (`src/argus/agent/routes.py`).
 
 | Route | Returns |
 | --- | --- |
-| `GET /agent/health` | `{enabled, mode, models, caps, usd}`; a feature probe for the web |
-| `GET /agent/activity?since=<seq>` | `{stream, mode, records: [ActivityRecord]}`, ordered by `seq` |
+| `GET /agent/health` | `{enabled, mode, reason, interface_version, models, caps, runs, usd}`; the web's feature probe |
+| `GET /agent/activity?since=<seq>` | `{stream, mode, records: [ActivityRecord], next_cursor}`, ordered by `seq` |
 | `GET /agent/runs` | `[RunSummary]` |
-| `GET /agent/actions`, `GET /agent/actions/{id}` | `ProposalView` |
-| `POST /agent/actions/{id}/approve`, `POST /agent/actions/{id}/deny` | `{digest, idempotency_key}`; the `ProposalView`; 409 when stale or decided, 404 when unknown |
-| `POST /agent/ask` | `{question, incident_id?, conversation_id?}` -> `{status, answer, claims, receipt_links, activity_cursor}` |
-| `GET /agent/receipts/{run_id}/{world_revision}/{receipt_id}` | the receipt behind a `ReceiptLink` |
+| `POST /agent/ask` | `{question, incident_id?, conversation_id?}` -> `{status, run_id, conversation_id, answer, claims, receipt_links, reason, usd, activity_cursor}`; 404 for an unknown conversation, 409 when the agent is off |
+| `GET /agent/receipts/{run_id}/{world_revision}/{receipt_id}` | the receipt behind a `ReceiptLink`; only in the run and revision that minted or cited it |
+| `POST /agent/operator/session` | lane C: `{principal, csrf_token}` plus a session cookie; local clients only |
+| `GET /agent/actions`, `GET /agent/actions/{id}` | lane C: `ProposalView` |
+| `POST /agent/actions/{id}/approve`, `POST /agent/actions/{id}/deny` | lane C: `{digest, idempotency_key}` with the session cookie and `X-Argus-CSRF`; the `ProposalView`; 409 when stale or decided |
+
+Ask runs with its own `RunContext`, a read-only runner with its own receipt namespace (`q1`, `q2`, ...) and a session in lane B's `EvidenceStore`.
+The model finishes with prose without digits plus claims that cite fact handles; the host verifies every claim and renders its figure with its receipt.
+A follow-up with the same `conversation_id` keeps the incident scope and sees the earlier turns as context, never as evidence.
+After an approved action is applied, the run, its investigations and Ask read the treated branch (`world_revision` `<action id>-treated`).
+
+## Running it
+
+| Command | What it does |
+| --- | --- |
+| `uv run argus api --world runs/s4-1/world.duckdb --agent live` | live run with the agent (needs `ANTHROPIC_API_KEY`); the clock holds while an action waits for the operator |
+| `uv run argus agent record --world W --out DIR [--decide approve\|deny\|none] [--ask 'YYYY-MM-DDTHH:MM\|question' ...] [--incident ID]` | a live session over a world, recorded: `turns.jsonl` (lane D's line format), `activity.jsonl`, `events.jsonl`, `runs.json`, `usage.jsonl`, `incidents.json`, `ask.jsonl`, `session.json` |
+| `uv run argus agent replay --world W --recording DIR` | the same session again from its turns, no provider constructed; prints the first difference, exit 1 on any |
+
+`ARGUS_AGENT` (`live`, `record`, `off`) sets the default mode, `ARGUS_SPEND_LEDGER` names the JSONL spend ledger, and `ARGUS_AGENT_MAX_*` and `ARGUS_ASK_MAX_*` override the budgets.
+Budgets per investigation: 10 model requests, 12 tool calls, 150,000 input and 12,000 output tokens, USD 0.50, 120 seconds; per question: 6 requests, 8 tool calls, USD 0.25.
 
 ## Examples
 
