@@ -8,7 +8,7 @@ import { ROLE_IDS, type RoleId } from "./roles";
 /** Seconds per unit of beat weight at speed 1. */
 export const PACE = 2.4;
 /** Seconds a case orb spends travelling between two igloos. */
-export const TRAVEL = 1.25;
+export const TRAVEL = 2.1;
 
 export interface Slot {
   beat: Beat;

@@ -8,11 +8,14 @@ import { api, follow, type ConnectionState } from "../lib/api";
 import type { ArgusEvent, Incident } from "../lib/types";
 import type { ActivityRecord, ProposalView, TapeIncident, VillageTape } from "./types";
 
-export type SourceId = "s1" | "s4" | "live";
+export type SourceId = "s1" | "s2" | "s4" | "s5" | "live";
+export type TapeId = Exclude<SourceId, "live">;
 
 export const SOURCES: readonly { id: SourceId; label: string; hint: string }[] = [
-  { id: "s4", label: "S4 replay", hint: "The ad pacer overspends in DE and FR: recorded run, asks for your approval" },
-  { id: "s1", label: "S1 replay", hint: "PayCo payments fail on Android in Germany: recorded run" },
+  { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (recorded run)" },
+  { id: "s1", label: "S1", hint: "Fault: PayCo payments fail on Android in Germany (recorded run)" },
+  { id: "s2", label: "S2", hint: "Harmless change: a planned ad push, checked and logged, nobody woken (recorded run)" },
+  { id: "s5", label: "S5", hint: "The whole market dips (expected), and a routing fault hides inside it (recorded run)" },
   { id: "live", label: "Live", hint: "Follow the API's event stream and the agent's activity log" },
 ];
 
@@ -24,7 +27,7 @@ export async function tapeUrl(scenario: string): Promise<string | null> {
   return load ? load() : null;
 }
 
-export async function loadTape(scenario: "s1" | "s4", signal?: AbortSignal): Promise<VillageTape> {
+export async function loadTape(scenario: TapeId, signal?: AbortSignal): Promise<VillageTape> {
   const url = await tapeUrl(scenario);
   if (!url) throw new Error(`no tape for ${scenario}`);
   const res = await fetch(url, { signal });
@@ -32,10 +35,10 @@ export async function loadTape(scenario: "s1" | "s4", signal?: AbortSignal): Pro
   return (await res.json()) as VillageTape;
 }
 
-/** Which source a page load starts on: ?village=s1|s4|live, else the S4 replay (the demo story). */
+/** Which source a page load starts on: ?village=s1|s2|s4|s5|live, else the S4 replay (the demo story). */
 export function initialSource(search: string): SourceId {
   const asked = new URLSearchParams(search).get("village");
-  return asked === "s1" || asked === "s4" || asked === "live" ? asked : "s4";
+  return SOURCES.some((s) => s.id === asked) ? (asked as SourceId) : "s4";
 }
 
 // ---------------------------------------------------------------- live

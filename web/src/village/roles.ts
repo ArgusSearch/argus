@@ -1,5 +1,7 @@
 // The seven agent roles of Argus, one igloo each. Positions are on the ground plane (x to the right, z toward
-// the camera), in scene units; the 2D fallback projects the same coordinates. The case travels
+// the camera), in scene units; every igloo is cut open toward the camera (facing 0); the 2D fallback projects
+// the same coordinates. Back row: Watcher, Detective, Skeptic; middle: Narrator, Market Analyst; front:
+// Operator, Cartographer. The case travels
 // Watcher -> Detective -> Skeptic -> Narrator -> (your approval) -> Operator; the Cartographer and the Market
 // Analyst are consulted on the way.
 
@@ -30,10 +32,10 @@ export const ROLES: readonly Role[] = [
     job: "Scores every metric each simulated hour and raises the alarm when one leaves its band.",
     idle: "Watching every metric, hour by hour",
     color: "#7cc4ff",
-    x: -9.2,
-    z: -0.6,
-    facing: 0.55,
-    size: 1.75,
+    x: -7.6,
+    z: -7.2,
+    facing: 0,
+    size: 2.25,
   },
   {
     id: "cartographer",
@@ -41,10 +43,10 @@ export const ROLES: readonly Role[] = [
     job: "Keeps the metric map honest: tests every formula edge and follows a metric down its formula.",
     idle: "Every formula edge holds",
     color: "#a495ff",
-    x: -5.6,
-    z: -5.4,
-    facing: 0.35,
-    size: 1.55,
+    x: 4.4,
+    z: 7.0,
+    facing: 0,
+    size: 2.25,
   },
   {
     id: "detective",
@@ -52,10 +54,10 @@ export const ROLES: readonly Role[] = [
     job: "Searches for the cause: where the change sits, when it started and what changed at that moment.",
     idle: "No open case",
     color: "#5aa7ff",
-    x: -3.4,
-    z: 1.6,
-    facing: 0.15,
-    size: 1.7,
+    x: 0.0,
+    z: -7.6,
+    facing: 0,
+    size: 2.25,
   },
   {
     id: "market",
@@ -63,10 +65,10 @@ export const ROLES: readonly Role[] = [
     job: "Compares the shop with the market, so a shared downturn is not filed as our fault.",
     idle: "Market index at hand",
     color: "#3fbf8f",
-    x: 1.2,
-    z: -5.6,
-    facing: -0.05,
-    size: 1.5,
+    x: 7.8,
+    z: 0.3,
+    facing: 0,
+    size: 2.15,
   },
   {
     id: "skeptic",
@@ -74,10 +76,10 @@ export const ROLES: readonly Role[] = [
     job: "Tries to prove the Detective wrong: holdouts and placebo weeks rule out the false trails.",
     idle: "Nothing to doubt yet",
     color: "#f2785d",
-    x: 2.8,
-    z: 1.4,
-    facing: -0.15,
-    size: 1.65,
+    x: 7.6,
+    z: -7.2,
+    facing: 0,
+    size: 2.25,
   },
   {
     id: "narrator",
@@ -85,10 +87,10 @@ export const ROLES: readonly Role[] = [
     job: "Writes the verdict and the morning report, with a receipt behind every number.",
     idle: "Morning report up to date",
     color: "#e8b04a",
-    x: 7.2,
-    z: -3.0,
-    facing: -0.4,
-    size: 1.6,
+    x: -7.8,
+    z: 0.3,
+    facing: 0,
+    size: 2.15,
   },
   {
     id: "operator",
@@ -96,10 +98,10 @@ export const ROLES: readonly Role[] = [
     job: "Acts only after your approval, then checks against an untouched twin that the action worked.",
     idle: "Nothing waits for your approval",
     color: "#36c9b6",
-    x: 9.8,
-    z: 1.9,
-    facing: -0.6,
-    size: 1.7,
+    x: -4.4,
+    z: 7.0,
+    facing: 0,
+    size: 2.25,
   },
 ];
 
@@ -114,7 +116,7 @@ export function doorstep(role: Role, out = 1.0): [number, number] {
 }
 
 /** The approval post between the Narrator and the Operator, where a case waits for you. */
-export const APPROVAL_POST: [number, number] = [8.2, -0.2];
+export const APPROVAL_POST: [number, number] = [-8.9, 5.4];
 
 /** The order the case visits the igloos in, for the paths drawn on the snow. */
 export const PATHS: readonly [RoleId, RoleId][] = [
