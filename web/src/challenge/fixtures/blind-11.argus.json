@@ -1,0 +1,27 @@
+{
+  "_source": "runs/bench/blind-11/agents/argus/incidents.json from uv run argus-bench blind --seed 11 (local integration branch, 2026-11-21)",
+  "incidents": [
+    {
+      "id": "INC-0001",
+      "title": "Payment success rate down in DE / android / PayCo",
+      "verdict": "SUPPORTED_CAUSE",
+      "state": "resolved",
+      "root_node": "payment_success_rate",
+      "segment": {
+        "country": "DE",
+        "platform": "android",
+        "provider": "PayCo"
+      },
+      "evidence": "ps_payco_degraded",
+      "opened_at": "2026-11-20T20:00:00",
+      "resolved_at": "2026-11-21T05:00:00",
+      "ruled_out": [
+        {
+          "ref": "dep_android-app_8.3.0",
+          "reason": "holdout normal",
+          "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries"
+        }
+      ]
+    }
+  ]
+}
