@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api } from "../lib/api";
 import { hhmm, dayLabel, quantity } from "../lib/format";
 import type { Quantity, Receipt, RerunResult } from "../lib/types";
+import { ErrorState, explainError, Skeleton } from "../ui";
 
 const ReceiptContext = createContext<(id: string) => void>(() => {});
 
@@ -101,7 +102,9 @@ function highlight(sql: string): ReactNode[] {
 
 function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [runError, setRunError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
   const [rerun, setRerun] = useState<RerunResult | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -110,14 +113,15 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
     setReceipt(null);
     setRerun(null);
     setError(null);
+    setRunError(null);
     api.receipt(id).then(
       (r) => live && setReceipt(r),
-      (e: Error) => live && setError(e.message),
+      (e: unknown) => live && setError(e),
     );
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -127,15 +131,17 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
 
   const run = async () => {
     setRunning(true);
-    setError(null);
+    setRunError(null);
     try {
       setRerun(await api.rerun(id));
     } catch (e) {
-      setError((e as Error).message);
+      setRunError(e);
     } finally {
       setRunning(false);
     }
   };
+
+  const runWhy = runError ? explainError(runError, `/receipts/${id}/rerun`) : null;
 
   return (
     <>
@@ -180,7 +186,7 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
               <pre className="sql">{highlight(formatSql(receipt.sql))}</pre>
             </>
           ) : (
-            <div className="muted">{error ?? "Loading…"}</div>
+            error ? <ErrorState error={error} route={`/receipts/${id}`} onRetry={() => setAttempt((n) => n + 1)} /> : <Skeleton lines={5} label="Loading the receipt" />
           )}
         </div>
         <div className="modal-foot">
@@ -196,7 +202,7 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
             </span>
           ) : (
             <span className="verify">
-              {error && receipt ? error : "Runs the exact SQL again at the pinned as_of and compares the hash."}
+              {runWhy ? `${runWhy.title}. ${runWhy.detail}` : "Runs the exact SQL again at the pinned as_of and compares the hash."}
             </span>
           )}
         </div>
