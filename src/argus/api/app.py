@@ -106,6 +106,11 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
     app.include_router(narrator_router(source))
     app.include_router(counterfactual_router(source))
     app.include_router(agent_router(source))
+    remediation = getattr(source, "remediation", None)
+    if remediation is not None:
+        from argus.remediation import create_router as remediation_router
+
+        app.include_router(remediation_router(remediation))
     hub = source.bus
 
     # ------------------------------------------------------------------ run and stream

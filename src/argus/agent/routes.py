@@ -97,18 +97,22 @@ def router(source: Source) -> APIRouter:
         scope = await run_in_threadpool(_scope, source)
         cursor = svc.journal.records[-1].seq if svc.journal.records else 0
         try:
-            result = await run_in_threadpool(svc.ask, body.question, scope, body.incident_id)
+            result = await run_in_threadpool(svc.ask, body.question, scope, body.incident_id, body.conversation_id)
         except ProviderUnavailable as exc:
             raise HTTPException(503, str(exc)) from exc
+        if result.status == "unknown_conversation":
+            raise HTTPException(404, result.reason or "unknown conversation")
         return result.to_json(cursor)
 
-    @routes.get("/actions")
-    def actions() -> list[dict[str, Any]]:
-        return []  # lane C's proposal service mounts here
+    if getattr(source, "remediation", None) is None:  # otherwise lane C's operator router serves /agent/actions
 
-    @routes.get("/actions/{action_id}")
-    def action(action_id: str) -> dict[str, Any]:
-        raise HTTPException(404, f"no action {action_id}")
+        @routes.get("/actions")
+        def actions() -> list[dict[str, Any]]:
+            return []
+
+        @routes.get("/actions/{action_id}")
+        def action(action_id: str) -> dict[str, Any]:
+            raise HTTPException(404, f"no action {action_id}")
 
     @routes.get("/receipts/{run_id}/{world_revision}/{receipt_id}")
     def receipt(run_id: str, world_revision: str, receipt_id: str) -> Receipt:
@@ -120,8 +124,11 @@ def router(source: Source) -> APIRouter:
                 found = svc.store.inspect_receipt(ctx, ref)
                 if found is not None:
                     return found
-        # investigation runs use the runtime's own receipts
-        if run_id in svc.journal.runs and (found := source.receipt(receipt_id)) is not None:
+        remediation = getattr(source, "remediation", None)
+        if remediation is not None and (found := remediation.receipt(ref)) is not None:
+            return found
+        # an investigation run cites the runtime's own receipts: serve only those it cited, in its revision
+        if svc.journal.cited(ref) and (found := source.receipt(receipt_id)) is not None:
             return found
         raise HTTPException(404, f"no receipt {ref.key()}")
 
