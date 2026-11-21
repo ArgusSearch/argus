@@ -1,7 +1,7 @@
 // The live investigation: a fixed playbook, each step with its prediction, result, decision and receipts.
 
 import { Fragment, useEffect, useRef } from "react";
-import { hhmm, humanize } from "../lib/format";
+import { hhmm, humanize, verdictLabel } from "../lib/format";
 import { isRuledOut, type RunView } from "../lib/store";
 import { ReceiptChips } from "./Receipts";
 
@@ -69,7 +69,7 @@ export function Trail({ view }: { view: RunView }) {
                   </span>
                 </div>
                 {step.prediction && <div className="tstep-pred">Predicts: {step.prediction}</div>}
-                <div className="tstep-result">{step.result}</div>
+                <div className="tstep-result">{verdictLabel(step.result)}</div>
                 <div className={`tstep-decision${refuted ? " refuted" : ""}`}>
                   <span>{refuted ? "✗" : "→"}</span>
                   <span>{step.decision}</span>

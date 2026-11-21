@@ -71,6 +71,9 @@ export interface StreamHeader {
 
 export type ConnectionState = "connecting" | "open" | "offline";
 
+/** How long the stream may fail to reconnect before the page says the API is offline. */
+export const OFFLINE_AFTER_MS = 4000;
+
 /**
  * Follow `GET /events`. Events arrive in seq order, batched per animation frame. `onReset` fires when
  * the server starts a new stream (a replay restart, or a reconnect after one): drop the state, the
@@ -85,6 +88,8 @@ export function follow(handlers: {
   let closed = false;
   let queue: ArgusEvent[] = [];
   let frame = 0;
+  let offline = false;
+  let offlineTimer: ReturnType<typeof setTimeout> | undefined;
 
   const flush = () => {
     frame = 0;
@@ -100,8 +105,31 @@ export function follow(handlers: {
     handlers.onState("connecting");
     const es = new EventSource("/events");
     source = es;
-    es.onopen = () => handlers.onState("open");
-    es.onerror = () => handlers.onState(es.readyState === EventSource.CLOSED ? "offline" : "connecting");
+    es.onopen = () => {
+      clearTimeout(offlineTimer);
+      offlineTimer = undefined;
+      offline = false;
+      handlers.onState("open");
+    };
+    // A stopped API refuses the connection and the browser keeps retrying with readyState CONNECTING,
+    // so "offline" cannot wait for CLOSED: it is declared when no reconnect succeeds for a while.
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) {
+        clearTimeout(offlineTimer);
+        offlineTimer = undefined;
+        offline = true;
+        handlers.onState("offline");
+        return;
+      }
+      if (offline) return; // still down: keep the banner instead of flickering back to "connecting"
+      handlers.onState("connecting");
+      offlineTimer ??= setTimeout(() => {
+        offlineTimer = undefined;
+        if (closed) return;
+        offline = true;
+        handlers.onState("offline");
+      }, OFFLINE_AFTER_MS);
+    };
     es.addEventListener("stream", (msg) => {
       // events of the old stream still waiting for a frame are void
       queue = [];
@@ -119,6 +147,7 @@ export function follow(handlers: {
   return () => {
     closed = true;
     if (frame) cancelAnimationFrame(frame);
+    clearTimeout(offlineTimer);
     source?.close();
   };
 }

@@ -4,6 +4,7 @@
 import { Handle, MarkerType, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/base.css";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { verdictLabel } from "../lib/format";
 import { freshAnomaly, isRuledOut, type Focus, type RunView } from "../lib/store";
 import type { EdgeStatus, EvidenceRef, Graph, GraphEdge, GraphNode } from "../lib/types";
 import { Sparkline } from "./charts";
@@ -325,7 +326,7 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
   const resolved = new Set<string>();
   for (const inc of Object.values(view.incidents)) {
     if (inc.state === "resolved") resolved.add(inc.root_node);
-    else roots.set(inc.root_node, inc.verdict === "SUPPORTED_CAUSE" ? "root cause" : "anomaly");
+    else roots.set(inc.root_node, inc.verdict === "SUPPORTED_CAUSE" ? verdictLabel(inc.verdict).toLowerCase() : "anomaly");
   }
   for (const note of view.notes) {
     if (note.node && note.reason.includes("symptom of")) symptoms.set(note.node, "symptom");
