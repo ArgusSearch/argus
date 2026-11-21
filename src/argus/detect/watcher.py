@@ -473,7 +473,8 @@ class Watcher:
         triggers = 0
         for change in self._plans_now:
             first = floor_hour(change.start)
-            if change.is_plan or change.key in self._planned_done or change.node not in self._tables or hour < first:
+            skip = change.is_plan or change.derived or change.key in self._planned_done
+            if skip or change.node not in self._tables or hour < first:
                 continue
             if hour >= first + timedelta(hours=self.config.planned_watch_hours):
                 self._planned_done.add(change.key)
@@ -560,7 +561,7 @@ class Watcher:
                 continue
             share: np.ndarray | float = 1.0
             if rel == "contains":
-                weight = self._baseline_share(change, series, values, as_of, fresh)
+                weight = self._baseline_share(change, segment, series, values, as_of, fresh)
                 if weight is None:
                     continue
                 share = weight
@@ -569,12 +570,22 @@ class Watcher:
         return out
 
     def _baseline_share(
-        self, change: PlannedChange, series: NodeSeries, values: np.ndarray, as_of: datetime, fresh: FreshnessState
+        self,
+        change: PlannedChange,
+        segment: Segment,
+        series: NodeSeries,
+        values: np.ndarray,
+        as_of: datetime,
+        fresh: FreshnessState,
     ) -> np.ndarray | None:
-        """Share of the change's scope in a wider series, per hour, from the same-hour baseline weeks."""
-        dims = tuple(d for d in self.graph.node(change.node).dims if d in change.segment)
+        """Share of (scope and segment) in the segment's series, per hour, from the same-hour baseline weeks.
+
+        For the whole advertiser that is the budget line; for {platform: web} it is the line's web part.
+        """
+        both = {**segment, **change.segment}
+        dims = tuple(d for d in self.graph.node(change.node).dims if d in both)
         narrow = self._series(change.node, dims, series.hours[-1].to_pydatetime(), as_of, fresh)
-        key = SEP.join(change.segment[d] for d in dims)
+        key = SEP.join(both[d] for d in dims)
         if key not in narrow.slices():
             return None
         inside = narrow.num[key].reindex(series.hours).to_numpy(dtype=float)

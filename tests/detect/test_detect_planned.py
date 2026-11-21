@@ -90,8 +90,11 @@ def test_planned_changes_are_read_once_per_line_with_their_uplift(
 ) -> None:
     world = make_world("quiet", 7, mutate=planned_increase(0.4), tag="-plan40")
     found = PlannedChanges(Runner(world.path), graph).refresh(world.end)
-    assert [(c.node, c.is_plan) for c in found] == [("ad_spend", False), ("planned_spend", True)]
-    spend = found[0]
+    named = [c for c in found if not c.derived]
+    assert [(c.node, c.is_plan) for c in named] == [("ad_spend", False), ("planned_spend", True)]
+    # the budget line's other measures in fact_ads_hourly move with it
+    assert {c.node for c in found if c.derived} == {"ad_impressions", "ad_clicks", "ad_conversions", "attributed_gmv"}
+    spend = named[0]
     assert spend.segment == SEGMENT and spend.start == world.live_start + EFFECT_AFTER_LIVE
     assert spend.uplift == pytest.approx(0.4, abs=0.001)
     assert spend.ids == (f"bud_{ADVERTISER}_{COUNTRY}_increase", f"cal_{ADVERTISER}_{COUNTRY}_push")

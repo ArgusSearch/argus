@@ -12,8 +12,11 @@ From the hour the change takes effect, the watcher tests the step in that segmen
   below its plan is itself an alert, even when nothing moved.
 
 Plans also change the expectation of every regular look (`relation`): fully for a series inside the
-change's scope, and weighted by the scope's baseline share for a wider additive series (the whole
-advertiser, the whole country, the total), so once the change is in force nothing pages on it again.
+change's scope, and weighted by the baseline share of the scope inside a wider additive series (the whole
+advertiser, the whole country, one platform, the total), so once the change is in force nothing pages on it
+again. A plan scales its line: every other additive measure of the same fact view in the scope (impressions,
+clicks and conversions of a budget line) gets the same expectation uplift, marked `derived`; only the named
+node gets the step look.
 
 Plans are not watched themselves (nodes named ``planned_*``, such as planned_spend): they move by design.
 Quiet worlds carry no planned changes, so these looks add no tests there.
@@ -49,6 +52,8 @@ class PlannedChange:
     uplift: float | None
     ids: tuple[str, ...] = field(default_factory=tuple)
     end: datetime | None = None
+    derived: bool = False
+    """Not named by the plan: another measure of the same fact view that the plan scales with it."""
 
     @property
     def is_plan(self) -> bool:
@@ -85,7 +90,8 @@ def relation(scope: Segment, segment: Segment) -> Literal["inside", "contains"] 
     """How a series' segment relates to a change's scope.
 
     ``inside``: the segment pins every scope dimension to the scope's value (full uplift);
-    ``contains``: the segment is wider and holds the scope (uplift weighted by the scope's share);
+    ``contains``: the segment leaves a scope dimension open, so part of it is in scope (uplift weighted by
+    the share of the scope inside the segment);
     None: they disagree on a shared dimension (the change does not touch the series).
     """
     if any(d in segment and segment[d] != v for d, v in scope.items()):
@@ -188,4 +194,21 @@ class PlannedChanges:
                     continue
                 for segment in _segments(scope, self.graph.node(node_id).dims) or []:
                     add(PlannedChange(node_id, segment, row["ts"], float(planned), (str(row["id"]),), row["end_ts"]))
+        named = list(found.values())
+        for change in named:
+            node = self.graph.node(change.node)
+            if node.kind is not NodeKind.ADDITIVE or change.is_plan:
+                continue
+            for other in self.graph.nodes:
+                derived = PlannedChange(
+                    other.id, change.segment, change.start, change.uplift, change.ids, change.end, derived=True
+                )
+                if (
+                    other.kind is NodeKind.ADDITIVE
+                    and other.table == node.table
+                    and other.id != node.id
+                    and set(change.segment) <= set(other.dims)
+                    and derived.key not in found
+                ):
+                    found[derived.key] = derived
         return sorted(found.values(), key=lambda c: (c.start, c.node, sorted(c.segment.items())))
