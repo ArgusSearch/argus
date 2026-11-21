@@ -1,7 +1,6 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Feed } from "./components/Feed";
-import { GraphView } from "./components/GraphView";
 import { Header } from "./components/Header";
 import { IncidentSheet } from "./components/IncidentSheet";
 import { NodeSheet } from "./components/NodeSheet";
@@ -9,6 +8,7 @@ import { AutonomyLegend, DigestModal } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
+import { GraphStage } from "./fx";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -155,7 +155,7 @@ export function App() {
                 {connection === "offline" && <div className="banner">The API is offline. Start it with make api or make demo.</div>}
                 {graph && (
                   <ReactFlowProvider>
-                    <GraphView graph={graph} view={view} onSelectNode={setNodeId} />
+                    <GraphStage graph={graph} view={view} onSelectNode={setNodeId} />
                   </ReactFlowProvider>
                 )}
               </div>
