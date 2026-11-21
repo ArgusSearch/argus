@@ -1,0 +1,302 @@
+// The metric graph: typed edges with their live test status, node states, attention heat and the
+// investigation walk (the edges and nodes the current trail step touches light up).
+
+import { Handle, MarkerType, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import "@xyflow/react/dist/base.css";
+import { memo, useEffect, useMemo, useRef } from "react";
+import { ALARM_Z, WIGGLE_Z, type Focus, type RunView } from "../lib/store";
+import type { EdgeStatus, Graph, GraphEdge, GraphNode } from "../lib/types";
+import { Sparkline } from "./charts";
+
+const NODE_W = 146;
+const NODE_H = 46;
+const LOG_W = 124;
+const LOG_H = 38;
+
+type Tone = "normal" | "wiggle" | "alarm" | "symptom" | "root" | "resolved";
+
+interface MetricData extends Record<string, unknown> {
+  node: GraphNode;
+  z: number;
+  history: number[];
+  heat: number;
+  tone: Tone;
+  focus: boolean;
+  tag: string | null;
+}
+
+interface LogData extends Record<string, unknown> {
+  id: string;
+  label: string;
+  focus: boolean;
+}
+
+const SHORT_LABEL: Record<string, string> = {
+  payment_success_rate: "Payment success",
+  impressions_per_session: "Impr. per session",
+  aov: "Order value (AOV)",
+  cvr: "Conversion",
+  payment_attempts: "Pay attempts",
+  payment_successes: "Pay successes",
+};
+
+const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>>) {
+  const { node, z, history, heat, tone, focus, tag } = data;
+  const glow = heat > 0.05 && !focus ? `0 0 ${10 + 26 * heat}px rgba(227, 166, 59, ${0.12 + 0.4 * heat})` : undefined;
+  const sparkTone = tone === "alarm" || tone === "root" ? "alarm" : tone === "wiggle" ? "watch" : "muted";
+  return (
+    <div
+      className={`mnode ${tone}${focus ? " focus" : ""}`}
+      style={{ boxShadow: glow }}
+      title={`${node.label}: ${node.description}`}
+    >
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
+      {tag && <span className="mnode-tag">{tag}</span>}
+      <div className="mnode-head">
+        {node.north_star && <span className="mnode-star" aria-label="north star">★</span>}
+        <span className="mnode-label">{SHORT_LABEL[node.id] ?? node.label}</span>
+      </div>
+      <div className="mnode-foot">
+        <span className="mnode-kind">{node.kind === "ratio" ? "rate" : node.unit}</span>
+        <Sparkline values={history} width={54} height={12} max={Math.max(ALARM_Z + 1, ...history)} tone={sparkTone} />
+        <span className="mnode-z">{Number.isFinite(z) ? z.toFixed(1) : "–"}</span>
+      </div>
+    </div>
+  );
+});
+
+const LogNode = memo(function LogNode({ data }: NodeProps<Node<LogData>>) {
+  return (
+    <div className={`lnode${data.focus ? " focus" : ""}`} title="log of state changes (evidence source)">
+      <Handle type="source" position={Position.Right} />
+      {data.label}
+      <span className="mono">{data.id}</span>
+    </div>
+  );
+});
+
+const nodeTypes = { metric: MetricNode, log: LogNode };
+
+interface Link {
+  id: string;
+  edge: GraphEdge | null; // null: a ratio's definition (numerator / denominator)
+  source: string;
+  target: string;
+}
+
+function links(graph: Graph): Link[] {
+  const out: Link[] = [];
+  for (const e of graph.edges) {
+    if (e.kind === "breakdown") continue; // a split of the node itself, shown on the node
+    for (const s of e.sources) out.push({ id: `${e.id}:${s}`, edge: e, source: s, target: e.target });
+  }
+  // A ratio's numerator and denominator, drawn faintly, unless the ratio is itself a factor of a formula
+  // (ctr in clicks = impressions x ctr): then the formula already says how they relate.
+  const factors = new Set(graph.edges.filter((e) => e.kind === "formula").flatMap((e) => e.sources));
+  for (const n of graph.nodes) {
+    if (n.kind !== "ratio" || factors.has(n.id)) continue;
+    for (const part of [n.numerator, n.denominator]) {
+      if (part) out.push({ id: `def:${n.id}:${part}`, edge: null, source: part, target: n.id });
+    }
+  }
+  return out;
+}
+
+// Inputs on the left, outcomes on the right; the shop above, the ads business below.
+// [column, row]; metrics the graph learns later get a column of their own.
+const GRID: Record<string, [number, number]> = {
+  log_calendar: [0, 0],
+  log_deploys: [0, 3.2],
+  log_provider_status: [0, 6],
+  sessions: [1, 0],
+  product_views: [1, 1],
+  carts: [1, 2],
+  checkouts: [1, 3],
+  payment_attempts: [1, 4],
+  payment_successes: [1, 5],
+  view_rate: [2, 1],
+  cart_rate: [2, 2],
+  checkout_rate: [2, 3],
+  attempt_rate: [2, 4],
+  payment_success_rate: [2, 5],
+  cvr: [3, 3],
+  orders: [4, 2],
+  aov: [4, 4],
+  gmv: [5, 3],
+  impressions_per_session: [2, 7],
+  ad_impressions: [3, 7],
+  ctr: [3, 8],
+  ad_clicks: [4, 7.5],
+  cpc: [4, 8.5],
+  ad_spend: [5, 8],
+  attributed_gmv: [5, 6.6],
+  log_ad_budgets: [4, 9.8],
+  planned_spend: [5, 9.3],
+  ad_conversions: [5, 10.3],
+  roas: [6, 6.9],
+  pacing_ratio: [6, 8.6],
+  cpa: [6, 9.8],
+};
+const COL_W = 174;
+const ROW_H = 56;
+
+function layout(graph: Graph): Record<string, { x: number; y: number }> {
+  const pos: Record<string, { x: number; y: number }> = {};
+  const extraCol = Math.max(...Object.values(GRID).map(([c]) => c)) + 1;
+  let extraRow = 0;
+  const place = (id: string, w: number, h: number) => {
+    const cell = GRID[id] ?? [extraCol, extraRow++];
+    pos[id] = { x: cell[0] * COL_W + (NODE_W - w) / 2, y: cell[1] * ROW_H + (NODE_H - h) / 2 };
+  };
+  for (const n of graph.nodes) place(n.id, NODE_W, NODE_H);
+  for (const l of graph.logs) place(l.id, LOG_W, LOG_H);
+  return pos;
+}
+
+const STATUS_COLOR: Record<EdgeStatus, string> = {
+  VALID: "#4a5568",
+  SUPPORTED: "#5b5a8a",
+  PROBATION: "#e3a63b",
+  PROPOSED: "#3a4256",
+  BROKEN: "#f2585d",
+};
+
+function linkStyle(link: Link, status: EdgeStatus | null, focused: boolean): Partial<Edge> {
+  if (focused) {
+    return {
+      animated: true,
+      style: { stroke: "#5aa7ff", strokeWidth: 2.2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#5aa7ff", width: 16, height: 16 },
+      zIndex: 10,
+    };
+  }
+  if (!link.edge) return { style: { stroke: "#232b3b", strokeWidth: 1, strokeDasharray: "2 4" } };
+  const color = STATUS_COLOR[status ?? link.edge.status];
+  const dash =
+    link.edge.kind === "cause" ? "6 5" : link.edge.kind === "evidence" ? "2 4" : status === "PROPOSED" ? "2 5" : undefined;
+  return {
+    style: { stroke: color, strokeWidth: link.edge.kind === "formula" ? 1.6 : 1.2, strokeDasharray: dash },
+    markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
+  };
+}
+
+function focusSets(focus: Focus | null) {
+  const nodes = new Set(focus?.nodes ?? []);
+  const logs = new Set(focus?.logs ?? []);
+  const edges = new Set<string>();
+  for (const e of focus?.edges ?? []) {
+    if (e.startsWith("b_")) continue;
+    edges.add(e);
+  }
+  return { nodes, logs, edges, split: (focus?.edges ?? []).filter((e) => e.startsWith("b_")) };
+}
+
+export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: RunView; onSelectNode?: (id: string) => void }) {
+  const positions = useMemo(() => layout(graph), [graph]);
+  const { fitView } = useReactFlow();
+  const box = useRef<HTMLDivElement>(null);
+
+  // keep the whole graph in view: on load, when the graph changes and when the panel resizes
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => requestAnimationFrame(() => void fitView({ padding: 0.05 }));
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [graph, fitView]);
+  const allLinks = useMemo(() => links(graph), [graph]);
+
+  const roots = new Map<string, string>();
+  const symptoms = new Map<string, string>();
+  const resolved = new Set<string>();
+  for (const inc of Object.values(view.incidents)) {
+    if (inc.state === "resolved") resolved.add(inc.root_node);
+    else roots.set(inc.root_node, inc.verdict === "SUPPORTED_CAUSE" ? "root cause" : "anomaly");
+  }
+  for (const note of view.notes) {
+    if (note.node && note.reason.includes("symptom of")) symptoms.set(note.node, "symptom");
+  }
+  const f = focusSets(view.focus);
+
+  const nodes: Node[] = [
+    ...graph.nodes.map((n): Node<MetricData> => {
+      const z = view.tick?.max_abs_z[n.id] ?? Number.NaN;
+      let tone: Tone = "normal";
+      let tag: string | null = null;
+      if (z >= WIGGLE_Z) tone = "wiggle";
+      if (symptoms.has(n.id) && roots.size) {
+        tone = "symptom";
+        tag = "symptom";
+      }
+      if (z >= ALARM_Z) tone = "alarm";
+      if (roots.has(n.id)) {
+        tone = "root";
+        tag = roots.get(n.id) ?? null;
+      } else if (resolved.has(n.id) && tone !== "alarm") {
+        tone = "resolved";
+        tag = "resolved";
+      }
+      const focus = f.nodes.has(n.id);
+      if (focus && f.split.some((e) => e.startsWith(`b_${n.id}_`))) tag = "segment search";
+      else if (focus) tag = tag ?? "checking";
+      return {
+        id: n.id,
+        type: "metric",
+        position: positions[n.id] ?? { x: 0, y: 0 },
+        data: {
+          node: n,
+          z,
+          history: view.zHistory[n.id] ?? [],
+          heat: view.attention[n.id] ?? 0,
+          tone,
+          focus,
+          tag,
+        },
+        draggable: false,
+      };
+    }),
+    ...graph.logs.map(
+      (l): Node<LogData> => ({
+        id: l.id,
+        type: "log",
+        position: positions[l.id] ?? { x: 0, y: 0 },
+        data: { id: l.id, label: l.label, focus: f.logs.has(l.id) },
+        draggable: false,
+      }),
+    ),
+  ];
+
+  const edges: Edge[] = allLinks.map((link) => {
+    const status = link.edge ? (view.edges[link.edge.id]?.status ?? null) : null;
+    const focused = link.edge ? f.edges.has(link.edge.id) && (f.nodes.has(link.target) || f.nodes.size === 0 || f.logs.has(link.source) || f.nodes.has(link.source)) : false;
+    return {
+      id: link.id,
+      source: link.source,
+      target: link.target,
+      type: "default",
+      ...linkStyle(link, status, focused),
+    };
+  });
+
+  return (
+    <div ref={box} style={{ position: "absolute", inset: 0 }}>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      fitView
+      fitViewOptions={{ padding: 0.08 }}
+      minZoom={0.3}
+      maxZoom={1.6}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      onNodeClick={(_, node) => onSelectNode?.(node.id)}
+      proOptions={{ hideAttribution: true }}
+      onInit={() => void fitView({ padding: 0.05 })}
+    />
+    </div>
+  );
+}

@@ -1,67 +1,200 @@
-"""Where the API reads from: a live runtime over a world, or a replay of recorded fixtures.
+"""Where the API reads from: a live runtime over a world, or a replay of a recorded run.
 
-Both modes publish through the same EventBus, so the UI's replay mode is the same code path as live.
+Both publish through the same `EventHub`, so replay and live share every code path after the hub.
+Both can be paced and paused through `POST /replay`; only a replay can restart.
 """
 
 from __future__ import annotations
 
-import json
+import asyncio
 import threading
 import time
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Literal, Protocol
 
-from argus.contracts.events import Event, EventType
+from argus.api.hub import EventHub
+from argus.api.recording import FIXTURES, Recording, load_recording
+from argus.api.replay import Action, Pace, Replayer
+from argus.api.rerun import RerunResult, RerunUnavailable, WorldRerunner
+from argus.api.state import RunState
 from argus.contracts.findings import Incident, Note, Receipt
 from argus.contracts.graph import Graph
+from argus.graph.store import load_seed_graph
 from argus.narrator.report import render
-from argus.runtime.bus import EventBus
 from argus.runtime.loop import Runtime
 
-REPO = Path(__file__).resolve().parents[3]
-FIXTURES = REPO / "fixtures"
+__all__ = ["FIXTURES", "ControlError", "LiveSource", "ReplaySource", "RerunUnavailable", "Source"]
+
+MAX_SPEED = 64.0
+
+
+class ControlError(RuntimeError):
+    """A run control the source cannot do (for example restarting a live run)."""
 
 
 class Source(Protocol):
-    mode: str
-    bus: EventBus
+    mode: Literal["replay", "live"]
+    bus: EventHub
 
-    def start(self) -> None: ...
+    def start(self) -> None:
+        """Called once on the server's event loop."""
+
     def stop(self) -> None: ...
+
+    async def closed(self) -> None: ...
+
     def graph(self) -> Graph: ...
+
     def incidents(self) -> list[Incident]: ...
+
     def notes(self) -> list[Note]: ...
+
     def receipt(self, receipt_id: str) -> Receipt | None: ...
-    def rerun(self, receipt_id: str) -> tuple[str, bool] | None: ...
+
+    def rerun(self, receipt_id: str) -> RerunResult | None:
+        """None: there is no world to re-run against. Raises RerunUnavailable with a reason."""
+
     def report(self, incident_id: str) -> str | None: ...
+
+    def status(self) -> dict[str, Any]: ...
+
+    def control(self, action: Action | None, speed: float | None) -> dict[str, Any]: ...
+
+    def describe(self) -> dict[str, Any]: ...
+
+
+def _incident(incidents: list[Incident], incident_id: str) -> Incident | None:
+    return next((i for i in incidents if i.id == incident_id), None)
+
+
+class ReplaySource:
+    """Replays a recording (default `fixtures/`), `seconds_per_tick` wall seconds per simulated hour.
+
+    REST serves the recorded incidents as of the replay position. Receipts re-run only against an
+    explicit `world` (the recording's manifest must match it).
+    """
+
+    mode: Literal["replay", "live"] = "replay"
+
+    def __init__(
+        self,
+        fixtures: Path = FIXTURES,
+        seconds_per_tick: float = 2.0,
+        loop: bool = False,
+        world: Path | None = None,
+        recording: Recording | None = None,
+    ) -> None:
+        self.recording = recording or load_recording(fixtures)
+        self.bus = EventHub(RunState(self.recording.graph))
+        self.replayer = Replayer(self.bus, self.recording, Pace.per_tick(seconds_per_tick), loop=loop)
+        self._rerunner = WorldRerunner(world=world, manifest=self.recording.manifest) if world else None
+
+    def start(self) -> None:
+        self.bus.bind(asyncio.get_running_loop())
+        self.replayer.start()
+
+    def stop(self) -> None:
+        self.replayer.stop()
+
+    async def closed(self) -> None:
+        await self.replayer.closed()
+        if self._rerunner:
+            self._rerunner.close()
+
+    def graph(self) -> Graph:
+        return self.bus.state.current_graph()
+
+    def incidents(self) -> list[Incident]:
+        return self.replayer.incidents
+
+    def notes(self) -> list[Note]:
+        return self.bus.state.note_list()
+
+    def receipt(self, receipt_id: str) -> Receipt | None:
+        return next((r for r in self.recording.receipts if r.id == receipt_id), None)
+
+    def rerun(self, receipt_id: str) -> RerunResult | None:
+        found = self.receipt(receipt_id)
+        if found is None or self._rerunner is None:
+            return None
+        return self._rerunner.rerun(found)
+
+    def report(self, incident_id: str) -> str | None:
+        found = _incident(self.incidents(), incident_id)
+        return render(found, self.graph()) if found else None
+
+    def status(self) -> dict[str, Any]:
+        return self.replayer.status()
+
+    def control(self, action: Action | None, speed: float | None) -> dict[str, Any]:
+        self.replayer.control(action, speed)
+        return self.status()
+
+    def describe(self) -> dict[str, Any]:
+        manifest = self.recording.manifest
+        return {
+            "source": str(self.recording.path),
+            "world_start": manifest.get("world_start"),
+            "rerun": self._rerunner is not None,
+        }
 
 
 class LiveSource:
-    """Runs the tick loop in a background thread, `seconds_per_tick` wall seconds per simulated hour."""
+    """Runs Argus over a world in a background thread, one tick per `seconds_per_tick` (divided by speed)."""
 
-    mode = "live"
+    mode: Literal["replay", "live"] = "live"
 
-    def __init__(self, world: Path, seconds_per_tick: float = 2.0):
-        self.runtime = Runtime(world)
-        self.bus = self.runtime.bus
+    def __init__(self, world: Path, seconds_per_tick: float = 2.0) -> None:
+        self.bus = EventHub(RunState(load_seed_graph()))
+        self.runtime = Runtime(world, bus=self.bus)
         self.seconds_per_tick = seconds_per_tick
+        self.speed = 1.0
+        self.playing = True
+        self.position = 0
+        self._ticks = self.runtime.ticks()
         self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._to_end = False
         self._thread: threading.Thread | None = None
 
+    # ------------------------------------------------------------------ run
+
     def start(self) -> None:
-        self._thread = threading.Thread(
-            target=self.runtime.run,
-            kwargs={"seconds_per_tick": self.seconds_per_tick, "stop": self._stop},
-            name="argus-runtime",
-            daemon=True,
-        )
+        self.bus.bind(asyncio.get_running_loop())
+        self._thread = threading.Thread(target=self._run, name="argus-runtime", daemon=True)
         self._thread.start()
+
+    def _run(self) -> None:
+        for as_of in self._ticks:
+            while not self.playing and not self._to_end and not self._stop.is_set():
+                self._wake.wait(0.5)
+                self._wake.clear()
+            if self._stop.is_set():
+                return
+            self.runtime.tick(as_of)
+            self.position += 1
+            deadline = time.monotonic() + self.seconds_per_tick / self.speed
+            while not self._to_end and not self._stop.is_set() and (left := deadline - time.monotonic()) > 0:
+                self._wake.wait(left)  # a speed change or pause re-evaluates the wait
+                self._wake.clear()
+                deadline = min(deadline, time.monotonic() + self.seconds_per_tick / self.speed)
+                if not self.playing:
+                    break
 
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
+
+    async def closed(self) -> None:
+        if self._thread is not None:
+            await asyncio.to_thread(self._thread.join, 30)
+        self.runtime.runner.close()
+
+    # ------------------------------------------------------------------ read
 
     def graph(self) -> Graph:
-        return self.runtime.graph
+        with self.runtime.lock:
+            return self.runtime.graph.model_copy(deep=True)
 
     def incidents(self) -> list[Incident]:
         with self.runtime.lock:
@@ -69,77 +202,64 @@ class LiveSource:
 
     def notes(self) -> list[Note]:
         with self.runtime.lock:
-            return list(self.runtime.book.notes)
+            return sorted(self.runtime.book.notes, key=lambda n: (n.sim_ts, n.id), reverse=True)
 
     def receipt(self, receipt_id: str) -> Receipt | None:
         return self.runtime.runner.receipts.get(receipt_id)
 
-    def rerun(self, receipt_id: str) -> tuple[str, bool] | None:
-        if receipt_id not in self.runtime.runner.receipts:
+    def rerun(self, receipt_id: str) -> RerunResult | None:
+        found = self.receipt(receipt_id)
+        if found is None:
             return None
-        return self.runtime.runner.rerun(receipt_id)
+        started = time.perf_counter()
+        result_hash, matches = self.runtime.runner.rerun(receipt_id)
+        world = self.runtime.runner.world_path
+        return RerunResult(
+            receipt=found.id,
+            as_of=found.as_of,
+            expected_hash=found.result_hash,
+            result_hash=result_hash,
+            matches=matches,
+            rows=found.rows,
+            ms=round((time.perf_counter() - started) * 1000, 2),
+            world=world.parent.name or str(world),
+        )
 
     def report(self, incident_id: str) -> str | None:
         with self.runtime.lock:
-            inc = self.runtime.book.incidents.get(incident_id)
-            return render(inc, self.runtime.graph) if inc else None
+            found = self.runtime.book.incidents.get(incident_id)
+            return render(found, self.runtime.graph) if found else None
 
+    # ------------------------------------------------------------------ control
 
-class ReplaySource:
-    """Replays fixtures/events.jsonl; REST routes serve the recorded end state of the same run."""
-
-    mode = "replay"
-
-    def __init__(self, fixtures: Path = FIXTURES, seconds_per_tick: float = 2.0, loop: bool = False):
-        self.fixtures = fixtures
-        self.bus = EventBus()
-        self.seconds_per_tick = seconds_per_tick
-        self.loop = loop
-        self._graph = Graph.model_validate_json((fixtures / "graph.json").read_text())
-        self._incidents = [Incident.model_validate(i) for i in json.loads((fixtures / "incidents.json").read_text())]
-        self._notes = [Note.model_validate(n) for n in json.loads((fixtures / "notes.json").read_text())]
-        self._receipts = {
-            r["id"]: Receipt.model_validate(r) for r in json.loads((fixtures / "receipts.json").read_text())
+    def status(self) -> dict[str, Any]:
+        done = self.position >= len(self._ticks)
+        as_of = self.runtime.as_of
+        return {
+            "playing": self.playing and not done,
+            "finished": done,
+            "speed": self.speed,
+            "position": self.position,
+            "total": len(self._ticks),
+            "sim_ts": as_of.isoformat() if as_of else None,
+            "loop": False,
         }
-        self._events = [
-            Event.model_validate_json(line) for line in (fixtures / "events.jsonl").read_text().splitlines() if line
-        ]
-        self._stop = threading.Event()
 
-    def start(self) -> None:
-        threading.Thread(target=self._play, name="argus-replay", daemon=True).start()
+    def control(self, action: Action | None, speed: float | None) -> dict[str, Any]:
+        if action == "restart":
+            raise ControlError("a live run cannot restart: restart the API (make demo)")
+        if speed is not None:
+            self.speed = max(0.1, min(speed, MAX_SPEED))
+        if action in ("play", "pause"):
+            self.playing = action == "play"
+        elif action == "end":
+            self._to_end = True
+        self._wake.set()
+        return self.status()
 
-    def _play(self) -> None:
-        seq = 0
-        while not self._stop.is_set():
-            for ev in self._events:
-                if self._stop.is_set():
-                    return
-                seq += 1
-                self.bus.publish(ev.model_copy(update={"seq": seq}))
-                if ev.type is EventType.TICK and self.seconds_per_tick:
-                    time.sleep(self.seconds_per_tick)
-            if not self.loop:
-                return
-
-    def stop(self) -> None:
-        self._stop.set()
-
-    def graph(self) -> Graph:
-        return self._graph
-
-    def incidents(self) -> list[Incident]:
-        return list(self._incidents)
-
-    def notes(self) -> list[Note]:
-        return list(self._notes)
-
-    def receipt(self, receipt_id: str) -> Receipt | None:
-        return self._receipts.get(receipt_id)
-
-    def rerun(self, receipt_id: str) -> tuple[str, bool] | None:
-        return None
-
-    def report(self, incident_id: str) -> str | None:
-        inc = next((i for i in self._incidents if i.id == incident_id), None)
-        return render(inc, self._graph) if inc else None
+    def describe(self) -> dict[str, Any]:
+        return {
+            "source": str(self.runtime.world),
+            "world_start": self.runtime.manifest.get("world_start"),
+            "rerun": True,
+        }
