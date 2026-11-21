@@ -155,3 +155,15 @@ def render_node_sql(graph: Graph, node: Node) -> str | None:
             keys = ", ".join(table(num.table).grain)
             return f"SELECT {dims}, {value}\nFROM {num.table} JOIN {den.table} USING ({keys})\nGROUP BY ALL"
     return None
+
+
+def measures_window_sql(
+    table_name: str, measures: list[str], window: Window, where: str = "TRUE", weeks: int = BASELINE_WEEKS
+) -> str:
+    """Window totals of several measures of one view: `cur_<m>` and `base_<m>` (mean of `weeks` prior weeks)."""
+    cur, base = window_condition(window), baseline_condition(window, weeks)
+    cols = []
+    for m in measures:
+        cols.append(f"SUM(CASE WHEN {cur} THEN {m} END) AS cur_{m}")
+        cols.append(f"SUM(CASE WHEN {base} THEN {m} END) / {float(weeks)} AS base_{m}")
+    return f"SELECT {', '.join(cols)} FROM {table_name} WHERE ({where}) AND ({cur} OR {base})"
