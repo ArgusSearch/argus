@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from argus.contracts.graph import Graph
-from argus.detect import Watcher
+from argus.detect import Watcher, WatcherConfig
 from argus.detect.planned import PlannedChanges, relation, step_z
 from argus.semantic.runner import Runner
 from mockmart.sim import WorldParams
@@ -135,3 +135,18 @@ def test_a_plan_that_is_not_delivered_is_an_alert(make_world: Callable[..., Worl
     anomaly = watcher.anomalies[0]
     assert anomaly.onset == t0 and anomaly.z < -5
     assert anomaly.expected > anomaly.observed  # the expectation includes the plan
+
+
+@pytest.mark.e2e
+def test_check_plans_alone_routes_the_same_anomaly(make_world: Callable[..., World], graph: Graph) -> None:
+    """The narrow entry point for a runtime that keeps its own detector for totals."""
+    world = make_world("quiet", 7, mutate=planned_increase(0.5), tag="-plan0.5")
+    t0 = world.live_start + EFFECT_AFTER_LIVE
+    watcher = Watcher(Runner(world.path), graph, WatcherConfig(anomaly_prefix="an_plan_"))
+    opened = []
+    as_of = t0 - timedelta(hours=2)
+    while as_of <= t0 + timedelta(hours=14):
+        opened += watcher.check_plans(as_of)
+        as_of += timedelta(hours=1)
+    assert [(a.id, a.node, a.segment, a.direction) for a in opened] == [("an_plan_0001", "ad_spend", SEGMENT, "up")]
+    assert opened[0].onset == t0

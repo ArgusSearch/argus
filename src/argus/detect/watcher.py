@@ -55,6 +55,8 @@ class WatcherConfig:
     freshness_lookback_hours: int = 48
     planned_watch_hours: int = 24
     planned_min_hours: int = 2
+    anomaly_prefix: str = "an_"
+    """Prefix of anomaly ids (an_0001, ...); set another one when a second detector shares the id space."""
     score: ScoreParams = field(default_factory=ScoreParams)
     rules: RuleParams = field(default_factory=RuleParams)
     pacing: PacingParams = field(default_factory=PacingParams)
@@ -210,6 +212,18 @@ class Watcher:
         while as_of <= end:
             yield self.tick(as_of, open_incidents() if open_incidents else 0)
             as_of += HOUR
+
+    def check_plans(self, as_of: datetime) -> list[Anomaly]:
+        """Only the planned-change looks (freshness gate, plans in force, step tests) for one tick.
+
+        For a runtime that keeps its own detector for totals and breakdowns: route the returned anomalies to
+        the investigator. Call it once per tick, like `tick`, and never mix the two on one watcher.
+        """
+        hour = floor_hour(as_of) - timedelta(hours=self.config.lag_hours)
+        fresh = self.gate.check(as_of, hour)
+        self._plans_now = self.plans.refresh(as_of)
+        opened, _, _ = self._planned(as_of, hour, fresh)
+        return opened
 
     def tick(self, as_of: datetime, open_incidents: int = 0) -> TickReport:
         hour = floor_hour(as_of) - timedelta(hours=self.config.lag_hours)
@@ -432,7 +446,7 @@ class Watcher:
         receipts.append(fr.id)
         self._anomaly_seq += 1
         anomaly = Anomaly(
-            id=f"an_{self._anomaly_seq:04d}",
+            id=f"{self.config.anomaly_prefix}{self._anomaly_seq:04d}",
             node=node.id,
             segment=look.segment,
             direction=direction,
