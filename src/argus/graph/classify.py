@@ -37,8 +37,11 @@ The contributor writes only `name`, `description` and `sql`. The classifier work
 Derived nodes (`SUM(a) - SUM(b)`, constants) are verified but not placed: the semantic layer cannot compile
 them yet (`compile.parts`), so edge re-testing would fail on them. The certificate says so.
 
+Proposers live in `classify_llm`, before/after cards for the UI in `classify_cards`.
+
 Try it: `make world`, then
-`uv run python -m argus.graph.classify tests/graph_classify/metrics/*.yml --world runs/s1-7/world.duckdb`.
+`uv run python -m argus.graph.classify tests/graph_classify/metrics/*.yml --world runs/s1-7/world.duckdb`
+(add `--cards` for the before/after cards, `--out DIR` for graph.json, certificates, cards and C5 events).
 """
 
 from __future__ import annotations
@@ -47,19 +50,17 @@ import argparse
 import ast
 import json
 import math
-import re
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 
 import duckdb
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from argus.contracts.graph import (
     STATUS_WEIGHT,
@@ -78,6 +79,7 @@ from argus.contracts.graph import (
 )
 from argus.contracts.metric import MetricDefinition, MetricSqlError, load_metric, parse_metric
 from argus.contracts.world import table
+from argus.graph.classify_llm import EdgeProposer, EdgeSuggestion, LlmProposer, ProposalContext
 from argus.graph.classify_sql import (
     SHARE_WORDS,
     Lineage,
@@ -128,6 +130,15 @@ METRIC_KEY = "metric"
 PlacedAs = Literal["EXACT", "NEW_DIMENSION", "ALIAS", "AMBIGUOUS", "REJECTED"]
 
 
+def describe_edge(e: Edge) -> str:
+    """One-line reading of an edge: `gmv = orders * aov`, `cvr by country`, `ad_clicks -> sessions`."""
+    if e.kind is EdgeKind.FORMULA:
+        return f"{e.target} = {e.expr}"
+    if e.kind is EdgeKind.BREAKDOWN:
+        return f"{e.target} by {e.dim}"
+    return f"{', '.join(e.sources)} -> {e.target}"
+
+
 class Lifecycle(StrEnum):
     """Where a candidate edge stands. TESTED is final for an edge that passed but was not chosen."""
 
@@ -158,12 +169,7 @@ class Candidate:
         return self.lifecycle in (Lifecycle.ACCEPTED, Lifecycle.PROPOSED)
 
     def describe(self) -> str:
-        e = self.edge
-        if e.kind is EdgeKind.FORMULA:
-            return f"{e.target} = {e.expr}"
-        if e.kind is EdgeKind.BREAKDOWN:
-            return f"{e.target} by {e.dim}"
-        return f"{', '.join(e.sources)} -> {e.target}"
+        return describe_edge(self.edge)
 
 
 @dataclass(frozen=True)
@@ -182,6 +188,7 @@ class Placement:
     metric: MetricDefinition
     certificate: Certificate
     graph: Graph
+    as_of: datetime
     node: Node | None = None
     alias_of: str | None = None
     alias_scale: float = 1.0
@@ -190,6 +197,8 @@ class Placement:
     changes: list[GraphChange] = field(default_factory=list)
     checks: list[str] = field(default_factory=list)
     repair: Repair | None = None
+    definition: str = ""
+    """The definition check in one line, e.g. 'gmv / sessions: residual 0.00 % over 672 h'."""
 
     @property
     def placed_as(self) -> PlacedAs:
@@ -250,82 +259,11 @@ class SeriesBank:
         return list(dict.fromkeys(rid for _, rid in self.cache.values()))
 
 
-# --------------------------------------------------------------------------------------------- proposers
-
-
-class EdgeSuggestion(BaseModel):
-    """A typed edge a proposer (for example an LLM) suggests. Only a proposal: the tests decide."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    kind: Literal["formula", "cause"]
-    target: str
-    sources: list[str] = Field(min_length=1)
-    expr: str | None = Field(default=None, description="formula: arithmetic over the sources (default: product)")
-    lag_hours: list[int] | None = Field(default=None, description="cause: lags at which the source leads")
-    why: str = ""
-
-
-class SuggestionBatch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    edges: list[EdgeSuggestion]
-
-
-@dataclass(frozen=True)
-class ProposalContext:
-    metric: MetricDefinition
-    node: Node
-    graph: Graph
-    """The graph with the proposed node already in it."""
-
-
-class EdgeProposer(Protocol):
-    name: str
-
-    def propose(self, context: ProposalContext) -> list[EdgeSuggestion]: ...
-
-
-class LlmProposer:
-    """Asks a language model for typed edges; `complete` is any prompt -> reply function (JSON reply).
-
-    The model never decides. Every suggestion is tested like a deterministic candidate, and one that cannot
-    be tested here (for example a log as the source) enters the graph only as PROPOSED with zero weight.
-    """
-
-    name = "llm"
-
-    def __init__(self, complete: Callable[[str], str]):
-        self.complete = complete
-
-    def prompt(self, context: ProposalContext) -> str:
-        new = context.node
-        nodes = "\n".join(
-            f"- {n.id} ({n.kind}, {n.unit}): {n.description}" for n in context.graph.nodes if n is not new
-        )
-        logs = "\n".join(f"- {log.id}: {log.description}" for log in context.graph.logs)
-        return (
-            "You place a new metric in a typed metric graph. Suggest edges that connect it to existing nodes.\n"
-            "formula: target = expr over source node ids (an exact arithmetic identity, + - * / only).\n"
-            "cause: a source node or log that can drive the target with a lag in hours (a mechanism).\n"
-            'Reply with JSON only: {"edges": [{"kind": "formula"|"cause", "target": id, "sources": [ids], '
-            '"expr": str|null, "lag_hours": [int]|null, "why": str}]}\n\n'
-            f"New metric {new.id} ({new.kind}, {new.unit}): {context.metric.description}\n"
-            f"SQL:\n{context.metric.sql}\n\nExisting nodes:\n{nodes}\n\nLogs:\n{logs}\n"
-        )
-
-    def propose(self, context: ProposalContext) -> list[EdgeSuggestion]:
-        reply = re.sub(r"^```(?:json)?\s*|\s*```$", "", self.complete(self.prompt(context)).strip())
-        try:
-            return SuggestionBatch.model_validate(json.loads(reply)).edges
-        except (json.JSONDecodeError, ValidationError) as err:
-            raise ValueError(f"reply is not a valid suggestion batch: {err}") from err
-
-
 # --------------------------------------------------------------------------------------------- the pipeline
 
 
-def _ingredients(node: Node) -> set[str]:
+def ingredients_of(node: Node) -> set[str]:
+    """The additive node ids a node is computed from (itself for an additive node)."""
     if node.kind is NodeKind.ADDITIVE:
         return {node.id}
     return {i for i in (node.numerator, node.denominator) if i}
@@ -356,6 +294,7 @@ class _Classifier:
         self.edge_ids = {e.id for e in graph.edges}
         self.first_seq = len(changelog.entries)
         self.repair: Repair | None = None
+        self.definition = ""
 
     # ------------------------------------------------------------------ main flow
 
@@ -394,6 +333,7 @@ class _Classifier:
         median, p95, hours = residuals(written, compiled)
         if not passes_identity(median, p95):
             return self._reject_definition(lin, parsed.dims, written, compiled, what, fanout, median, hours)
+        self.definition = f"your SQL = compiled {what}: residual {median * 100:.2f} % over {hours} h"
         self.checks.append(
             f"definition check: your SQL equals the compiled {what} over {hours} h "
             f"(median residual {median:.1e}, p95 {p95:.1e})"
@@ -905,12 +845,12 @@ class _Classifier:
             if node.id in e.sources:
                 near |= {e.target, *e.sources}
         nodes = {n.id: n for n in [*self.graph.nodes, node]}
-        shared = set().union(*(_ingredients(nodes[i]) for i in near if i in nodes))
+        shared = set().union(*(ingredients_of(nodes[i]) for i in near if i in nodes))
         mine = factors(node.id)
         return {
             n.id
             for n in self.graph.nodes
-            if n.id in near or _ingredients(n) & shared or factors(n.id) & mine or n.kind is NodeKind.DERIVED
+            if n.id in near or ingredients_of(n) & shared or factors(n.id) & mine or n.kind is NodeKind.DERIVED
         }
 
     def _correlation_scan(self, node: Node, graph: Graph) -> None:
@@ -1044,6 +984,7 @@ class _Classifier:
             metric=self.metric,
             certificate=cert,
             graph=graph or self.graph,
+            as_of=self.as_of,
             node=node,
             alias_of=alias_of,
             alias_scale=scale,
@@ -1052,6 +993,7 @@ class _Classifier:
             changes=self.changelog.entries[self.first_seq :],
             checks=self.checks,
             repair=self.repair,
+            definition=self.definition,
         )
 
 
@@ -1102,14 +1044,20 @@ def _default_as_of(world: Path) -> datetime:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from argus.contracts.events import Event
+    from argus.graph.classify_cards import placement_cards, to_events  # imports this module
+
     parser = argparse.ArgumentParser(prog="python -m argus.graph.classify", description=(__doc__ or "").split("\n")[0])
     parser.add_argument("metrics", nargs="+", type=Path, help="metric YAML files (C2), placed in order")
     parser.add_argument("--world", type=Path, required=True, help="world.duckdb")
     parser.add_argument("--as-of", type=datetime.fromisoformat, help="default: live_start from manifest.json")
     parser.add_argument("--graph", type=Path, help="graph.json to start from (default: the seed graph)")
     parser.add_argument("--llm-replay", type=Path, help="a recorded LLM reply (JSON) to use as the LLM proposer")
-    parser.add_argument("--out", type=Path, help="write graph.json, graph_changelog.jsonl, certificates.json here")
+    parser.add_argument("--cards", action="store_true", help="print the before/after cards instead of the report")
     parser.add_argument("--json", action="store_true", help="print the certificates as JSON instead of the report")
+    parser.add_argument(
+        "--out", type=Path, help="write graph.json, graph_changelog.jsonl, certificates.json, cards.json, events.jsonl"
+    )
     args = parser.parse_args(argv)
 
     graph = Graph.model_validate_json(args.graph.read_text()) if args.graph else load_seed_graph()
@@ -1127,8 +1075,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         graph = placement.graph
         placements.append(placement)
-        if not args.json:
+        if args.cards:
+            cards = placement_cards(placement)
+            print(
+                "\n".join(card.line() for card in cards) + (f"\n{cards[0].diff}" if cards[0].diff else ""), end="\n\n"
+            )
+        elif not args.json:
             print(render(placement), end="\n\n")
+    runner.close()
     certificates = [p.certificate.model_dump(mode="json") for p in placements]
     if args.json:
         print(json.dumps(certificates, indent=2))
@@ -1137,7 +1091,11 @@ def main(argv: list[str] | None = None) -> int:
         write_graph(graph, args.out / "graph.json")
         changelog.write(args.out / "graph_changelog.jsonl")
         (args.out / "certificates.json").write_text(json.dumps(certificates, indent=2) + "\n")
-    runner.close()
+        cards_json = [c.model_dump(mode="json") for p in placements for c in placement_cards(p)]
+        (args.out / "cards.json").write_text(json.dumps(cards_json, indent=2) + "\n")
+        typed = [(p.as_of, kind, payload) for p in placements for kind, payload in to_events(p)]
+        events = [Event(seq=i, type=kind, sim_ts=ts, payload=payload) for i, (ts, kind, payload) in enumerate(typed, 1)]
+        (args.out / "events.jsonl").write_text("".join(e.model_dump_json() + "\n" for e in events))
     return 0
 
 
