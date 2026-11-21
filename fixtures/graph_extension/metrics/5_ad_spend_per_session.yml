@@ -1,0 +1,10 @@
+# Demo pack, metric 5 of 5. Expected: REJECTED by the fan-out guard. The join keys miss advertiser_id on the ads
+# side and channel, category on the funnel side, so every row is counted several times; the repair diff fixes it.
+name: ad_spend_per_session
+description: Ad spend per storefront session in EUR, per country and platform
+sql: |
+  SELECT ts, country, platform,
+         SUM(ad_spend)::DOUBLE / NULLIF(SUM(sessions), 0) AS value
+  FROM fact_ads_hourly
+  JOIN fact_funnel_hourly USING (ts, country, platform)
+  GROUP BY ALL

@@ -1,0 +1,8 @@
+# Demo pack, metric 2 of 5. Expected: EXACT; it also factors cost_per_impression through cpa.
+name: conversions_per_impression
+description: Ad conversions per ad impression, per advertiser, country and platform
+sql: |
+  SELECT ts, advertiser_id, country, platform,
+         SUM(ad_conversions)::DOUBLE / NULLIF(SUM(ad_impressions), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL
