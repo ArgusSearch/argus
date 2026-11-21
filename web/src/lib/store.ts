@@ -187,8 +187,8 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
         ...recount(zBuckets, v.thresholds),
         zBuckets,
         zHistory,
-        // a new tick ends the walk of the previous investigation
-        focus: null,
+        // the tick that closes an investigation's hour keeps its walk on screen; the next hour ends it
+        focus: view.simTs === event.sim_ts ? v.focus : null,
       };
     }
     case "attention":
@@ -300,6 +300,17 @@ export function recount(buckets: Record<number, number>, t: Thresholds): Pick<Ru
     else if (b >= wiggleAt) wiggles += n;
   }
   return { wiggles, alarms };
+}
+
+/** An anomaly opened in the hour being scored right now (its tick event comes after the investigation). */
+export function freshAnomaly(view: RunView): Anomaly | null {
+  const latest = view.anomalies[view.anomalies.length - 1];
+  return latest && latest.detected_at === view.simTs && latest.hour !== view.tick?.hour ? latest : null;
+}
+
+/** The data hour being scored: the anomaly's hour while its tick is still running. */
+export function scoringHour(view: RunView): string | null {
+  return freshAnomaly(view)?.hour ?? view.tick?.hour ?? null;
 }
 
 export function foldAll(view: RunView, events: ArgusEvent[]): RunView {

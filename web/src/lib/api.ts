@@ -2,6 +2,16 @@
 
 import { EVENT_TYPES, type ArgusEvent, type Graph, type Health, type Incident, type Receipt, type ReplayStatus, type RerunResult } from "./types";
 
+/** A non-2xx answer; the message is the API's own `detail`. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    detail: string,
+  ) {
+    super(detail);
+  }
+}
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
   if (!res.ok) {
@@ -11,7 +21,7 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* not JSON */
     }
-    throw new Error(`${res.status} ${detail}`);
+    throw new ApiError(res.status, detail);
   }
   return (await res.json()) as T;
 }

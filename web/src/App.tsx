@@ -125,7 +125,15 @@ export function App() {
   return (
     <ReceiptProvider>
       <div className="app">
-        <Header view={view} health={health} connection={connection} onDigest={() => setDigestOpen(true)} />
+        <Header
+          view={view}
+          health={health}
+          connection={connection}
+          onDigest={() => {
+            setDigestOpen(true);
+            setToast(null);
+          }}
+        />
         <Ticker view={view} />
         <div className="main">
           <div className="left">

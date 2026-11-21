@@ -1,6 +1,6 @@
 import { api, type ConnectionState } from "../lib/api";
 import { dayLabel, hhmm } from "../lib/format";
-import type { RunView } from "../lib/store";
+import { scoringHour, type RunView } from "../lib/store";
 import type { Health } from "../lib/types";
 
 const SPEEDS = [1, 2, 4, 8];
@@ -41,7 +41,7 @@ export function Header({
         <span className="clock-time">
           {view.simTs ? `${dayLabel(view.simTs)} · ${hhmm(view.simTs)}` : "waiting for the first tick"}
         </span>
-        {view.tick && <span className="clock-sub">scoring data hour {hhmm(view.tick.hour)}</span>}
+        {view.tick && <span className="clock-sub">scoring data hour {hhmm(scoringHour(view))}</span>}
       </div>
       <span className="spacer" />
       <span className={`mode ${mode}`} title={health?.source}>

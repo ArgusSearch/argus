@@ -4,7 +4,7 @@
 import { Handle, MarkerType, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/base.css";
 import { memo, useEffect, useMemo, useRef } from "react";
-import type { Focus, RunView } from "../lib/store";
+import { freshAnomaly, type Focus, type RunView } from "../lib/store";
 import type { EdgeStatus, Graph, GraphEdge, GraphNode } from "../lib/types";
 import { Sparkline } from "./charts";
 
@@ -24,6 +24,7 @@ interface MetricData extends Record<string, unknown> {
   focus: boolean;
   tag: string | null;
   alarm: number;
+  scored: boolean;
 }
 
 interface LogData extends Record<string, unknown> {
@@ -42,14 +43,14 @@ const SHORT_LABEL: Record<string, string> = {
 };
 
 const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>>) {
-  const { node, z, history, heat, tone, focus, tag, alarm } = data;
+  const { node, z, history, heat, tone, focus, tag, alarm, scored } = data;
   const glow = heat > 0.05 && !focus ? `0 0 ${10 + 26 * heat}px rgba(227, 166, 59, ${0.12 + 0.4 * heat})` : undefined;
   const sparkTone = tone === "alarm" || tone === "root" ? "alarm" : tone === "wiggle" ? "watch" : "muted";
   return (
     <div
-      className={`mnode ${tone}${focus ? " focus" : ""}`}
+      className={`mnode ${tone}${focus ? " focus" : ""}${scored ? "" : " unscored"}`}
       style={{ boxShadow: glow }}
-      title={`${node.label}: ${node.description}`}
+      title={`${node.label}: ${node.description}${scored ? "" : " (scored when an investigation needs it)"}`}
     >
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
@@ -221,10 +222,12 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
     if (note.node && note.reason.includes("symptom of")) symptoms.set(note.node, "symptom");
   }
   const f = focusSets(view.focus);
+  const fresh = freshAnomaly(view);
+  const scored = new Set(view.tick?.scored_nodes ?? []);
 
   const nodes: Node[] = [
     ...graph.nodes.map((n): Node<MetricData> => {
-      const z = view.tick?.max_abs_z[n.id] ?? Number.NaN;
+      const z = fresh?.node === n.id ? Math.abs(fresh.z) : (view.tick?.max_abs_z[n.id] ?? Number.NaN);
       let tone: Tone = "normal";
       let tag: string | null = null;
       if (z >= view.thresholds.wiggle_z) tone = "wiggle";
@@ -256,6 +259,7 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
           focus,
           tag,
           alarm: view.thresholds.alarm_z,
+          scored: scored.has(n.id) || fresh?.node === n.id,
         },
         draggable: false,
       };

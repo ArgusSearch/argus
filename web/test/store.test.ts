@@ -65,3 +65,13 @@ describe("fold", () => {
     expect(fold(view, events[3])).toBe(view);
   });
 });
+
+describe("the walk", () => {
+  it("stays on screen through its own tick and ends with the next hour", () => {
+    const verdict = events.findIndex((e) => e.type === "investigation_step" && e.payload.step.kind === "verdict");
+    const closing = events.findIndex((e, i) => i > verdict && e.type === "tick");
+    expect(foldAll(emptyView(), events.slice(0, closing + 1)).focus?.logs).toEqual(["log_provider_status"]);
+    const next = events.findIndex((e, i) => i > closing && e.type === "tick");
+    expect(foldAll(emptyView(), events.slice(0, next + 1)).focus).toBeNull();
+  });
+});

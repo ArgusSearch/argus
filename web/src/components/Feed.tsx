@@ -52,7 +52,7 @@ function IncidentCard({ inc, onOpen }: { inc: IncidentView; onOpen: (id: string)
           <span>measuring the impact…</span>
         )}
       </div>
-      {inc.reason && <div className="card-body">{inc.reason.replace(/ \[r\d+\]/g, "")}</div>}
+      {inc.reason && inc.reason !== inc.verdict && <div className="card-body">{inc.reason.replace(/ \[r\d+\]/g, "")}</div>}
     </article>
   );
 }

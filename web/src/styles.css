@@ -2020,3 +2020,7 @@ button {
 .lnode {
   cursor: pointer;
 }
+
+.mnode.unscored:not(.focus) .mnode-label {
+  color: var(--muted);
+}

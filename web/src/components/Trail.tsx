@@ -52,7 +52,7 @@ export function Trail({ view }: { view: RunView }) {
             {skeptic.length > 0 && <span className="pb-step done">skeptic</span>}
           </span>
         ) : (
-          <span className="muted">no anomaly yet: the watcher scores every metric each hour</span>
+          <span className="muted">no anomaly yet: the watcher scores the ★ metrics every hour</span>
         )}
       </div>
       {total ? (
@@ -118,7 +118,8 @@ function Watchlist({ view }: { view: RunView }) {
           <span className="tstep-kind">Quiet hour {hhmm(view.tick?.hour)}</span>
         </div>
         <div className="tstep-result">
-          Every metric is scored against the same hour of the last four weeks. Nothing crossed the alarm line, so nobody gets paged.
+          The ★ metrics are scored against the same hour of the last four weeks. Nothing crossed the alarm line, so nobody gets
+          paged.
         </div>
         <div className="tstep-pred">Closest to the line right now →</div>
       </article>
