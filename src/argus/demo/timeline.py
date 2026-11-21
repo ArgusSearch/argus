@@ -28,8 +28,8 @@ from argus.demo.contracts import (
     Scenario,
     VerdictBeat,
 )
+from argus.narrator.morning import MorningProjection, build_morning_report
 from argus.narrator.morning import MorningReport as NarratorReport
-from argus.narrator.morning import build_morning_report
 from argus.narrator.run_queries import RunWindow
 
 DURATION_MS = 90_000
@@ -117,13 +117,17 @@ def _morning_digest(recording: Recording, incident: Incident, anomaly: Anomaly) 
     return morning, build_digest(state, [snapshot], state.current_graph())
 
 
-def build_report(stream: str, recording: Recording, morning: Event) -> DemoReport:
+def build_report(
+    stream: str, recording: Recording, morning: Event, agent_projection: MorningProjection | None = None
+) -> DemoReport:
     """Fold the recording through the same morning hour as the digest, as the narrator would have served it."""
     events = tuple(takewhile(lambda event: event.sim_ts <= morning.sim_ts, recording.events))
     window = RunWindow(stream, events[-1].seq, events, prefix=PREFIX)
     incidents = {snap.incident.id: snap.incident for snap in recording.incidents if snap.seq <= window.through_seq}
     receipts = {receipt.id for receipt in recording.receipts}
-    report, evidence = build_morning_report(window, list(incidents.values()), recording.graph, receipts.__contains__)
+    report, evidence = build_morning_report(
+        window, list(incidents.values()), recording.graph, receipts.__contains__, agent_projection
+    )
     return DemoReport(window, report, {f"findings-{seq}": (seq, findings) for seq, findings in evidence.items()})
 
 

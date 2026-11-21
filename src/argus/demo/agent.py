@@ -21,6 +21,7 @@ from argus.contracts.graph import Graph
 from argus.demo.bundle import AgentBundle, AskAnswer, ReceiptProof, RecordedAsk, read_bundle, receipt_keys
 from argus.demo.contracts import AgentDemoState, BeatKind, Cue, MorningReport, RecordingPrefix, Scenario
 from argus.demo.timeline import DURATION_MS, REPORT_PATH, DemoReport, build_report
+from argus.narrator.morning import AgentMorning
 
 
 @dataclass(frozen=True)
@@ -178,6 +179,9 @@ def _build_timeline(bundle: AgentBundle) -> AgentTimeline:
                 or proposed is not prefix.activity[-1]
                 or proposed.sim_ts != presented_at
                 or not proposed.action_id
+                or any(
+                    record.kind in {"action_decided", "action_applied", "effect_checked"} for record in prefix.activity
+                )
             ):
                 raise ValueError("the S4 presentation prefix must end at its proposal hour")
             if set(prefix.actions) != {proposed.action_id}:
@@ -217,8 +221,8 @@ def _build_timeline(bundle: AgentBundle) -> AgentTimeline:
                 event
                 for event in approve.events
                 if event.type is EventType.TICK
-                and (hour := TickPayload.model_validate(event.payload).hour) > checked.sim_ts
-                and hour.hour == 8
+                and event.sim_ts > checked.sim_ts
+                and TickPayload.model_validate(event.payload).hour.hour == 8
             )
             report, morning_data = _morning(bundle, events, morning)
             action_index = len(marks)
@@ -339,7 +343,13 @@ def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> 
             if "/" not in key and proof.receipt.as_of <= morning.sim_ts
         ],
     )
-    report = build_report(f"demo-agent-{bundle.manifest.bundle_sha[:16]}", recording, morning)
+    final_actions = tuple(bundle.approve.actions.values())
+    report = build_report(
+        f"demo-agent-{bundle.manifest.bundle_sha[:16]}",
+        recording,
+        morning,
+        agent_projection=lambda _: AgentMorning(actions=final_actions),
+    )
     return report, MorningReport(digest=build_digest(state, list(incidents.values()), graph), report=REPORT_PATH)
 
 

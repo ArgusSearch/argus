@@ -47,12 +47,10 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
     prefix = [event for event in legacy.events if event.seq <= snapshot.seq]
     clock = prefix[-1].sim_ts
     applied_at = clock + timedelta(hours=1)
-    checked_at = clock + timedelta(hours=4)
+    checked_at = clock + timedelta(hours=6)
     ticks = [event for event in legacy.events if event.type is EventType.TICK and event.seq > snapshot.seq]
     morning = next(
-        tick
-        for tick in ticks
-        if (hour := TickPayload.model_validate(tick.payload).hour) > checked_at and hour.hour == 8
+        tick for tick in ticks if tick.sim_ts > checked_at and TickPayload.model_validate(tick.payload).hour.hour == 8
     )
     approval_events = [event for event in ticks if event.seq <= morning.seq]
     root = snapshot.incident.findings.root
@@ -282,7 +280,12 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         assert effect and done.state.sim_ts > effect.checked_at
         assert all(link.key() in done.receipts for link in effect.receipt_refs)
         assert done.receipts[answer.receipt_links[0].key()] == proof
-        return (run_id, done.activity, answer, proof, effect, done.state.through_seq)
+        assert tape.report is not None
+        report = tape.report.report
+        action_line = next(line for line in report.lines if line.id == f"agent:action:{proposal.id}")
+        assert {ref.id for ref in action_line.receipts} >= {ref.key() for ref in effect.receipt_refs}
+        assert report.activity.until == effect.checked_at
+        return (run_id, done.activity, answer, proof, effect, report)
 
     first, second = cold(), cold()
     assert first[0] != second[0]
@@ -323,6 +326,15 @@ def test_http_deny_and_reconnect_stop_at_cut(recording_dir: tuple) -> None:
         assert newer["run_id"] != run_id and newer["decision"] is None
         assert client.get("/demo/snapshot", params=params).status_code == 409
         assert client.get("/demo/events", params=params).status_code == 204
+
+        new_id = newer["run_id"]
+        now += 50
+        playback.decide(new_id, proposal.id, "approve", proposal.digest, "approve-click")
+        now += 40
+        report = client.get("/demo/report/morning", params={"run_id": new_id})
+        assert report.status_code == 200
+        action_line = next(line for line in report.json()["lines"] if line["id"] == f"agent:action:{proposal.id}")
+        assert all(ref["href"].endswith(f"?run_id={new_id}") for ref in action_line["receipts"])
 
 
 def test_manifest_pin_and_provenance_are_required(recording_dir: tuple, tmp_path: Path) -> None:
