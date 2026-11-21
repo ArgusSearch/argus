@@ -1,6 +1,6 @@
 # QA handover (Ansor)
 
-Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `2c62f8b`. PR #21 targets `main`.
+Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `e0ce93b`. PR #21 targets `main`.
 
 This file is enough to continue the QA work without the chat.
 
