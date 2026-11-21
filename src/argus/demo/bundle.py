@@ -17,7 +17,7 @@ from argus.agent.types import INTERFACE_VERSION, ActivityRecord, ProposalView, R
 from argus.contracts.events import Event
 from argus.contracts.findings import Incident, Receipt
 from argus.contracts.graph import Graph
-from argus.demo.contracts import Decision, Scenario
+from argus.demo.contracts import AgentScenario, Decision
 from argus.semantic.runner import canonical_hash
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
@@ -31,7 +31,7 @@ class Manifest(_Strict):
     schema_version: Literal[1]
     provenance: Literal["live_capture", "synthetic_test"]
     source_commit: Annotated[str, Field(pattern=r"^[a-f0-9]{40}$")]
-    scenario: Scenario
+    scenario: AgentScenario
     seed: int
     interface_version: str
     prompt_sha: Sha256
@@ -130,7 +130,7 @@ def receipt_keys(data: Any) -> Iterator[str]:
 
 def read_bundle(
     path: Path,
-    scenario: Scenario,
+    scenario: AgentScenario,
     expected_sha: str,
     *,
     allow_synthetic: bool = False,

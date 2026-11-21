@@ -21,13 +21,14 @@ from argus.demo.agent import AgentTimeline, load_agent_timeline
 from argus.demo.bundle import ReceiptProof
 from argus.demo.contracts import AgentDemoState, ControlDemo, DemoBeat, DemoState, Scenario, StartDemo
 from argus.demo.playback import ControlError, Playback, PlaybackRun
+from argus.demo.showcase import SHOWCASE, Chapter
 from argus.demo.timeline import DemoReport, Timeline, load_counterfactual, load_timeline
 from argus.narrator.morning import MorningReport as NarratorReport
 from argus.narrator.run_queries import RunQueryResult, run_query
 
 
-class AgentSnapshot(BaseModel):
-    state: AgentDemoState
+class DemoSnapshot(BaseModel):
+    state: AgentDemoState | DemoState
     events: tuple[Event, ...]
     incidents: list[Incident]
 
@@ -46,6 +47,8 @@ def create_router(
     async def start_demo(body: StartDemo) -> DemoState:
         if body.variant == "agent" and not allow_agent:
             raise HTTPException(409, "agent demo requires a replay server")
+        if body.variant == "agent" and body.scenario == "s2":
+            raise HTTPException(422, "S2 uses the expected-change recording")
         loader: Callable[[Scenario], Timeline | AgentTimeline] = (
             agent_loader if body.variant == "agent" else load_timeline
         )
@@ -81,13 +84,19 @@ def create_router(
         return run
 
     @router.get("/snapshot", include_in_schema=allow_agent)
-    async def demo_snapshot(run_id: str) -> AgentSnapshot:
-        active_run(run_id)
-        try:
+    async def demo_snapshot(run_id: str) -> DemoSnapshot:
+        run = active_run(run_id)
+        state = run.state(playback.clock())
+        if isinstance(run.timeline, AgentTimeline):
             view = playback.agent_view(run_id)
-        except ControlError as exc:
-            raise HTTPException(404, str(exc)) from exc
-        return AgentSnapshot(state=view.state, events=view.events, incidents=view.incidents)
+            return DemoSnapshot(state=view.state, events=view.events, incidents=view.incidents)
+        assert state.beat_index is not None
+        events, incidents = run.timeline.visible(state.beat_index)
+        return DemoSnapshot(state=state, events=events, incidents=incidents)
+
+    @router.get("/showcase", include_in_schema=allow_agent)
+    async def showcase() -> tuple[Chapter, ...]:
+        return SHOWCASE
 
     @router.get("/graph")
     async def demo_graph(run_id: str | None = None) -> Graph:
@@ -119,8 +128,8 @@ def create_router(
     @router.get("/counterfactual", responses={404: {}, 409: {}})
     async def demo_counterfactual(run_id: str | None = None) -> CounterfactualResult:
         run = active_run(run_id)
-        if not isinstance(run.timeline, Timeline):
-            raise HTTPException(404, "the agent demo serves its recorded action effect")
+        if not isinstance(run.timeline, Timeline) or run.timeline.incident is None:
+            raise HTTPException(404, "this presentation has no counterfactual replay")
         beat = run.state(playback.clock()).beat_index
         if beat is None or beat < run.timeline.beat("verdict"):
             raise HTTPException(404, "the demo has not reached its verdict beat")

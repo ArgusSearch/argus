@@ -9,7 +9,8 @@ from argus.api.digest import Digest
 from argus.contracts.events import Event
 from argus.contracts.findings import Incident, Verdict
 
-type Scenario = Literal["s1", "s4"]
+type Scenario = Literal["s1", "s2", "s4"]
+type AgentScenario = Literal["s1", "s4"]
 type Variant = Literal["legacy", "agent"]
 type Action = Literal["pause", "resume", "skip", "restart"]
 type Decision = Literal["approve", "deny"]
@@ -21,6 +22,7 @@ type BeatKind = Literal[
     "investigation_steps",
     "evidence",
     "verdict",
+    "expected_change",
     "agent_activity",
     "agent_verdict",
     "action_proposed",
@@ -86,6 +88,11 @@ class Evidence(_Strict):
     steps: list[Event]
 
 
+class ExpectedChange(_Strict):
+    note: Event
+    incidents: Literal[0] = 0
+
+
 class VerdictBeat(_Strict):
     outcome: Verdict
     decision: Event
@@ -109,6 +116,7 @@ type BeatData = (
     | AttentionShifts
     | InvestigationSteps
     | Evidence
+    | ExpectedChange
     | VerdictBeat
     | MorningReport
     | RecordingPrefix

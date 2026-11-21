@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from argus.demo.agent import AgentTimeline, AgentView
 from argus.demo.contracts import Action, AgentDemoState, Decision, DemoState, Status
-from argus.demo.timeline import DURATION_MS, Timeline
+from argus.demo.timeline import Timeline
 
 
 class ControlError(ValueError):
@@ -37,12 +37,12 @@ class PlaybackRun:
     def elapsed(self, now: float) -> float:
         advanced = 0.0 if self.paused else (now - self.anchor) * 1000 * self.speed
         limit = self.approval_offset if self.decision != "approve" else None
-        return min(self.position + advanced, DURATION_MS if limit is None else limit)
+        return min(self.position + advanced, self.timeline.duration_ms if limit is None else limit)
 
     def state(self, now: float) -> DemoState:
         position = self.elapsed(now)
         status: Status = "paused" if self.paused else "playing"
-        if position >= DURATION_MS or self.decision == "deny":
+        if position >= self.timeline.duration_ms or self.decision == "deny":
             status = "completed"
         elif position == self.approval_offset and self.decision is None:
             status = "awaiting_approval"
@@ -52,7 +52,7 @@ class PlaybackRun:
             status=status,
             speed=self.speed,
             elapsed_ms=int(position),
-            duration_ms=DURATION_MS,
+            duration_ms=self.timeline.duration_ms,
             beat_index=bisect_right(self.timeline.offsets, position) - 1,
             beat_count=len(self.timeline.cues),
         )
@@ -68,7 +68,7 @@ class PlaybackRun:
 
     def delay(self, now: float, next_index: int) -> float | None:
         offsets = self.timeline.offsets
-        target = offsets[next_index] if next_index < len(offsets) else DURATION_MS
+        target = offsets[next_index] if next_index < len(offsets) else self.timeline.duration_ms
         limit = self.approval_offset
         if self.paused or (limit is not None and self.decision != "approve" and target > limit):
             return None
@@ -118,7 +118,7 @@ class Playback:
             case "skip":
                 offsets = run.timeline.offsets
                 next_index = bisect_right(offsets, position)
-                position = offsets[next_index] if next_index < len(offsets) else DURATION_MS
+                position = offsets[next_index] if next_index < len(offsets) else run.timeline.duration_ms
         run.position = position
         run.anchor = now
         self._notify()

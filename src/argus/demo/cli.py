@@ -15,7 +15,7 @@ def _speed(value: str) -> float:
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--scenario", choices=("s1", "s4"), default="s4")
+    parser.add_argument("--scenario", choices=("s1", "s2", "s4"), default="s4")
     parser.add_argument("--speed", type=_speed, default=1.0, help="playback speed (0.25 to 100, default 1)")
     parser.add_argument("--variant", choices=("legacy", "agent"), default="legacy")
 
@@ -23,7 +23,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace) -> int:
     from argus.demo.agent import load_agent_timeline
     from argus.demo.contracts import StartDemo
-    from argus.demo.timeline import DURATION_MS, Timeline, load_timeline
+    from argus.demo.timeline import Timeline, load_timeline
 
     settings = StartDemo(scenario=args.scenario, speed=args.speed, variant=args.variant)
     try:
@@ -39,5 +39,5 @@ def run(args: argparse.Namespace) -> int:
         seconds = cue.at_ms / (1000 * settings.speed)
         print(f"{seconds:7.2f}s  {cue.kind:<20}  {cue.title}")
     note = " (excluding the approval hold)" if timeline.approval_index is not None else ""
-    print(f"{DURATION_MS / (1000 * settings.speed):7.2f}s  completed{note}")
+    print(f"{timeline.duration_ms / (1000 * settings.speed):7.2f}s  completed{note}")
     return 0

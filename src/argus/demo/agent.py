@@ -19,7 +19,7 @@ from argus.contracts.events import Event, EventType, TickPayload
 from argus.contracts.findings import Incident
 from argus.contracts.graph import Graph
 from argus.demo.bundle import AgentBundle, AskAnswer, ReceiptProof, RecordedAsk, read_bundle, receipt_keys
-from argus.demo.contracts import AgentDemoState, BeatKind, Cue, MorningReport, RecordingPrefix, Scenario
+from argus.demo.contracts import AgentDemoState, AgentScenario, BeatKind, Cue, MorningReport, RecordingPrefix, Scenario
 from argus.demo.timeline import DURATION_MS, REPORT_PATH, DemoReport, build_report
 from argus.narrator.morning import AgentMorning
 
@@ -35,8 +35,12 @@ class AgentTimeline:
     report: DemoReport | None
 
     @property
-    def scenario(self) -> Scenario:
+    def scenario(self) -> AgentScenario:
         return self.bundle.manifest.scenario
+
+    @property
+    def duration_ms(self) -> int:
+        return DURATION_MS
 
     @property
     def graph(self) -> Graph:
@@ -354,6 +358,8 @@ def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> 
 
 
 def load_agent_timeline(scenario: Scenario) -> AgentTimeline:
+    if scenario == "s2":
+        raise ValueError("S2 uses the expected-change recording")
     path = Path(os.environ.get("ARGUS_DEMO_BUNDLE", str(FIXTURES / "agent" / "v1" / scenario)))
     expected_sha = os.environ.get("ARGUS_DEMO_BUNDLE_SHA")
     if not expected_sha:
