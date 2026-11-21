@@ -18,7 +18,15 @@ from argus.api.state import RunState
 from argus.contracts.events import Event, EventType, TickPayload
 from argus.contracts.findings import Incident
 from argus.contracts.graph import Graph
-from argus.demo.bundle import AgentBundle, AskAnswer, ReceiptProof, RecordedAsk, read_bundle, receipt_keys
+from argus.demo.bundle import (
+    AgentBundle,
+    AskAnswer,
+    ReceiptProof,
+    RecordedAsk,
+    incident_available_at,
+    read_bundle,
+    receipt_keys,
+)
 from argus.demo.contracts import AgentDemoState, AgentScenario, BeatKind, Cue, MorningReport, RecordingPrefix, Scenario
 from argus.demo.timeline import DURATION_MS, REPORT_PATH, DemoReport, build_report
 from argus.narrator.morning import AgentMorning
@@ -90,7 +98,7 @@ class AgentTimeline:
             for part in parts
             if not part.events or part.events[-1].seq <= state.through_seq
             for incident in part.incidents
-            if incident.updated_at <= state.sim_ts
+            if incident_available_at(incident) <= state.sim_ts
         }
         questions = tuple(q for part in parts for q in part.questions if q.through_seq <= state.through_seq)
         refs: list[BaseModel] = [self.graph, *events, *activity, *actions, *incidents.values()]
@@ -328,7 +336,7 @@ def _morning(bundle: AgentBundle, events: tuple[Event, ...], morning: Event) -> 
         incident.id: incident
         for part in (bundle.prefix, bundle.approve)
         for incident in part.incidents
-        if incident.updated_at <= morning.sim_ts
+        if incident_available_at(incident) <= morning.sim_ts
     }
     state = RunState(bundle.graph)
     for event in events:

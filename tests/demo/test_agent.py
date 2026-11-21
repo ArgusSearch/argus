@@ -46,6 +46,7 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
     snapshot = legacy.incidents[0]
     prefix = [event for event in legacy.events if event.seq <= snapshot.seq]
     clock = prefix[-1].sim_ts
+    incident_at_data_hour = snapshot.incident.model_copy(update={"updated_at": clock - timedelta(hours=2)})
     applied_at = clock + timedelta(hours=1)
     checked_at = clock + timedelta(hours=6)
     ticks = [event for event in legacy.events if event.type is EventType.TICK and event.seq > snapshot.seq]
@@ -167,7 +168,7 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
         "activity.jsonl": [_dump(record) for record in activity],
         "actions.json": [_dump(pending)],
         "graph.json": graph,
-        "incidents.json": [_dump(snapshot.incident)],
+        "incidents.json": [_dump(incident_at_data_hour)],
         "ask.jsonl": [ask],
         "turns.jsonl": [
             {
@@ -252,6 +253,8 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         pending = playback.agent_view(run_id)
         assert pending.state.status == "awaiting_approval" and pending.state.elapsed_ms == 50_000
         assert pending.actions[0].state == "AWAIT_OPERATOR"
+        incident = pending.incidents[0]
+        assert incident.updated_at < incident.findings.as_of == pending.state.sim_ts
         assert not any(record.kind in {"action_decided", "effect_checked"} for record in pending.activity)
         answer = pending.ask("Could  HIGHER traffic explain the spend", proposal.incident_ref)
         proof = pending.receipts[answer.receipt_links[0].key()]
