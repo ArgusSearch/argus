@@ -41,7 +41,11 @@ class Digest(BaseModel):
 
 
 def _plural(n: int, word: str) -> str:
-    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+    if n == 1:
+        return f"{n} {word}"
+    if word.endswith("y") and word[-2:-1] not in "aeiou":
+        return f"{n} {word[:-1]}ies"
+    return f"{n} {word}s"
 
 
 def segment_label(segment: dict[str, str]) -> str:
