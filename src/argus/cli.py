@@ -6,8 +6,13 @@ import argparse
 import json
 from pathlib import Path
 
+from argus.demo import cli as demo_cli
+
 
 def main(argv: list[str] | None = None) -> int:
+    from argus.counterfactual.__main__ import add_arguments
+    from argus.counterfactual.__main__ import run as run_counterfactual
+
     parser = argparse.ArgumentParser(prog="argus", description="Argus, the analyst that never sleeps")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -23,7 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     api.add_argument("--stage", type=int, choices=(1, 2), default=2, help="live investigator stage (default: 2)")
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8000)
+    demo_cli.configure_parser(sub.add_parser("demo", help="print the demo playback timeline"))
+    add_arguments(sub.add_parser("counterfactual", help="replay a MockMart incident with its named cause switched off"))
     args = parser.parse_args(argv)
+    if args.cmd == "counterfactual":
+        return run_counterfactual(args)
+
+    if args.cmd == "demo":
+        return demo_cli.run(args)
 
     if args.cmd == "run":
         from argus.runtime.loop import Runtime
