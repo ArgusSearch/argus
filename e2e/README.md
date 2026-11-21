@@ -64,6 +64,7 @@ Environment flags:
 | `ARGUS_E2E_SCENARIO_PORT` | `scenarios.spec.ts`'s own server (default 8013) |
 | `ARGUS_E2E_SCENARIOS=0` | skip `scenarios.spec.ts` (saves about 40 s) |
 | `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, and `scenario-<s>.png` from `scenarios.spec.ts`) |
+| `ARGUS_E2E_ROOT` | the repository checkout whose `argus api` (and `web/dist`) the suite runs; default `..`. Use it to test a fix branch from another worktree |
 | `CI` | never reuse a running server; also write the HTML report |
 
 Outside CI an API already listening on the port is reused, so stop stray servers first
