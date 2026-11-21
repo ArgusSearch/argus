@@ -3,15 +3,18 @@
 
 import { Handle, MarkerType, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/base.css";
-import { memo, useEffect, useMemo, useRef } from "react";
-import { freshAnomaly, type Focus, type RunView } from "../lib/store";
-import type { EdgeStatus, Graph, GraphEdge, GraphNode } from "../lib/types";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { freshAnomaly, isRuledOut, type Focus, type RunView } from "../lib/store";
+import type { EdgeStatus, EvidenceRef, Graph, GraphEdge, GraphNode } from "../lib/types";
 import { Sparkline } from "./charts";
 
+// The north-star metrics carry the graph at full size; the other metrics and the logs are compact.
 const NODE_W = 146;
 const NODE_H = 46;
-const LOG_W = 124;
-const LOG_H = 38;
+const SMALL_W = 124;
+const SMALL_H = 30;
+const LOG_W = 112;
+const LOG_H = 30;
 
 type Tone = "normal" | "wiggle" | "alarm" | "symptom" | "root" | "resolved";
 
@@ -25,13 +28,21 @@ interface MetricData extends Record<string, unknown> {
   tag: string | null;
   alarm: number;
   scored: boolean;
+  /** on the affected path of the open incident */
+  path: boolean;
+  /** an incident path is on screen and this node is not on it */
+  recede: boolean;
 }
 
 interface LogData extends Record<string, unknown> {
   id: string;
   label: string;
   focus: boolean;
+  path: boolean;
+  recede: boolean;
 }
+
+const PATH_COLOR = "#ff7a5c";
 
 const SHORT_LABEL: Record<string, string> = {
   payment_success_rate: "Payment success",
@@ -43,21 +54,47 @@ const SHORT_LABEL: Record<string, string> = {
 };
 
 const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>>) {
-  const { node, z, history, heat, tone, focus, tag, alarm, scored } = data;
-  const glow = heat > 0.05 && !focus ? `0 0 ${10 + 26 * heat}px rgba(227, 166, 59, ${0.12 + 0.4 * heat})` : undefined;
+  const { node, z, history, heat, tone, focus, tag, alarm, scored, path, recede } = data;
+  const glow =
+    path && !focus && tone !== "root" && tone !== "alarm"
+      ? `0 0 18px rgba(255, 122, 92, 0.35)`
+      : heat > 0.05 && !focus
+        ? `0 0 ${10 + 26 * heat}px rgba(227, 166, 59, ${0.12 + 0.4 * heat})`
+        : undefined;
   const sparkTone = tone === "alarm" || tone === "root" ? "alarm" : tone === "wiggle" ? "watch" : "muted";
+  const className = `mnode ${tone}${focus ? " focus" : ""}${scored ? "" : " unscored"}`;
+  const title = `${node.label}: ${node.description}${scored ? "" : " (scored when an investigation needs it)"}`;
+  const style = {
+    boxShadow: glow,
+    opacity: recede && !focus ? 0.32 : 1,
+    borderColor: path && tone !== "root" && tone !== "alarm" && !focus ? PATH_COLOR : undefined,
+  };
+  if (!node.north_star) {
+    // compact: name and |z| on one line; the full card is for the metrics the watcher scores every hour
+    return (
+      <div className={className} style={{ ...style, width: SMALL_W, height: SMALL_H, padding: "6px 9px" }} title={title}>
+        <Handle type="target" position={Position.Left} />
+        <Handle type="source" position={Position.Right} />
+        {tag && <span className="mnode-tag">{tag}</span>}
+        <div className="mnode-head">
+          <span className="mnode-label" style={{ fontSize: 11, fontWeight: 500 }}>
+            {SHORT_LABEL[node.id] ?? node.label}
+          </span>
+          {Number.isFinite(z) && <span className="mnode-z">{z.toFixed(1)}</span>}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div
-      className={`mnode ${tone}${focus ? " focus" : ""}${scored ? "" : " unscored"}`}
-      style={{ boxShadow: glow }}
-      title={`${node.label}: ${node.description}${scored ? "" : " (scored when an investigation needs it)"}`}
-    >
+    <div className={className} style={style} title={title}>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
       {tag && <span className="mnode-tag">{tag}</span>}
       <div className="mnode-head">
         {node.north_star && <span className="mnode-star" aria-label="north star">★</span>}
-        <span className="mnode-label">{SHORT_LABEL[node.id] ?? node.label}</span>
+        <span className="mnode-label" style={{ fontSize: 13.5, fontWeight: 650 }}>
+          {SHORT_LABEL[node.id] ?? node.label}
+        </span>
       </div>
       <div className="mnode-foot">
         <span className="mnode-kind">{node.kind === "ratio" ? "rate" : node.unit}</span>
@@ -70,7 +107,19 @@ const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>
 
 const LogNode = memo(function LogNode({ data }: NodeProps<Node<LogData>>) {
   return (
-    <div className={`lnode${data.focus ? " focus" : ""}`} title="log of state changes (evidence source)">
+    <div
+      className={`lnode${data.focus ? " focus" : ""}`}
+      style={{
+        width: LOG_W,
+        height: LOG_H,
+        padding: "3px 10px",
+        fontSize: 11,
+        opacity: data.recede && !data.focus ? 0.32 : 1,
+        borderColor: data.path && !data.focus ? PATH_COLOR : undefined,
+        borderStyle: data.path ? "solid" : undefined,
+      }}
+      title="log of state changes (evidence source)"
+    >
       <Handle type="source" position={Position.Right} />
       {data.label}
       <span className="mono">{data.id}</span>
@@ -140,20 +189,54 @@ const GRID: Record<string, [number, number]> = {
   pacing_ratio: [6, 8.6],
   cpa: [6, 9.8],
 };
-const COL_W = 174;
-const ROW_H = 56;
+const ROW_H = 50;
+const MIN_COL_W = 174;
+const MAX_COL_W = 300;
 
-function layout(graph: Graph): Record<string, { x: number; y: number }> {
+/**
+ * Positions on the grid. The columns widen with a wide panel (`aspect` is its width over its height), so the
+ * graph fills the panel instead of sitting small in its middle.
+ */
+function layout(graph: Graph, aspect: number): Record<string, { x: number; y: number }> {
   const pos: Record<string, { x: number; y: number }> = {};
   const extraCol = Math.max(...Object.values(GRID).map(([c]) => c)) + 1;
+  const cols = Math.max(...graph.nodes.map((n) => GRID[n.id]?.[0] ?? extraCol), ...graph.logs.map((l) => GRID[l.id]?.[0] ?? extraCol), 1);
+  const height = Math.max(...Object.values(GRID).map(([, r]) => r)) * ROW_H + NODE_H;
+  const colW = Math.min(MAX_COL_W, Math.max(MIN_COL_W, (aspect * height - NODE_W) / cols));
   let extraRow = 0;
   const place = (id: string, w: number, h: number) => {
     const cell = GRID[id] ?? [extraCol, extraRow++];
-    pos[id] = { x: cell[0] * COL_W + (NODE_W - w) / 2, y: cell[1] * ROW_H + (NODE_H - h) / 2 };
+    pos[id] = { x: cell[0] * colW + (NODE_W - w) / 2, y: cell[1] * ROW_H + (NODE_H - h) / 2 };
   };
-  for (const n of graph.nodes) place(n.id, NODE_W, NODE_H);
+  for (const n of graph.nodes) place(n.id, n.north_star ? NODE_W : SMALL_W, n.north_star ? NODE_H : SMALL_H);
   for (const l of graph.logs) place(l.id, LOG_W, LOG_H);
   return pos;
+}
+
+/**
+ * The affected path of the open investigation: the anomalous metric, everything its formulas move downstream,
+ * and the logs whose evidence held. Empty when there is no anomaly or its incident is resolved.
+ */
+function affectedPath(graph: Graph, view: RunView): Set<string> {
+  const out = new Set<string>();
+  const anomaly = view.anomalies[view.anomalies.length - 1];
+  if (!anomaly) return out;
+  if (Object.values(view.incidents).some((inc) => inc.root_node === anomaly.node && inc.state === "resolved")) return out;
+  out.add(anomaly.node);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const e of graph.edges) {
+      if (e.kind === "formula" && !out.has(e.target) && e.sources.some((s) => out.has(s))) {
+        out.add(e.target);
+        grew = true;
+      }
+    }
+  }
+  for (const s of view.steps) {
+    const event = s.step.data?.event as EvidenceRef | undefined;
+    if (s.anomalyId === anomaly.id && s.step.kind === "holdout" && event?.log && !isRuledOut(s.step.decision)) out.add(event.log);
+  }
+  return out;
 }
 
 const STATUS_COLOR: Record<EdgeStatus, string> = {
@@ -164,7 +247,15 @@ const STATUS_COLOR: Record<EdgeStatus, string> = {
   BROKEN: "#f2585d",
 };
 
-function linkStyle(link: Link, status: EdgeStatus | null, focused: boolean): Partial<Edge> {
+function linkStyle(link: Link, status: EdgeStatus | null, focused: boolean, onPath = false): Partial<Edge> {
+  if (onPath && !focused) {
+    return {
+      animated: true,
+      style: { stroke: PATH_COLOR, strokeWidth: 2.4 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: PATH_COLOR, width: 16, height: 16 },
+      zIndex: 9,
+    };
+  }
   if (focused) {
     return {
       animated: true,
@@ -195,11 +286,26 @@ function focusSets(focus: Focus | null) {
 }
 
 export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: RunView; onSelectNode?: (id: string) => void }) {
-  const positions = useMemo(() => layout(graph), [graph]);
+  const [aspect, setAspect] = useState(1.9);
+  const positions = useMemo(() => layout(graph, aspect), [graph, aspect]);
   const { fitView } = useReactFlow();
   const box = useRef<HTMLDivElement>(null);
 
-  // keep the whole graph in view: on load, when the graph changes and when the panel resizes
+  // the layout follows the panel's shape (in steps, so a resize does not re-layout every frame)
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect();
+      if (width > 0 && height > 0) setAspect(Math.round((width / height) * 4) / 4);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // keep the whole graph in view: on load, when the graph or its layout changes and when the panel resizes
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -208,7 +314,7 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [graph, fitView]);
+  }, [graph, positions, fitView]);
   const allLinks = useMemo(() => links(graph), [graph]);
 
   const roots = new Map<string, string>();
@@ -222,6 +328,7 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
     if (note.node && note.reason.includes("symptom of")) symptoms.set(note.node, "symptom");
   }
   const f = focusSets(view.focus);
+  const path = affectedPath(graph, view);
   const fresh = freshAnomaly(view);
   const scored = new Set(view.tick?.scored_nodes ?? []);
 
@@ -252,8 +359,8 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
         position: positions[n.id] ?? { x: 0, y: 0 },
         // the layout knows every box's size: without it React Flow hides a node until it is measured,
         // and after a restart the whole graph blinks out while the event burst is folded
-        initialWidth: NODE_W,
-        initialHeight: NODE_H,
+        initialWidth: n.north_star ? NODE_W : SMALL_W,
+        initialHeight: n.north_star ? NODE_H : SMALL_H,
         data: {
           node: n,
           z,
@@ -264,6 +371,8 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
           tag,
           alarm: view.thresholds.alarm_z,
           scored: scored.has(n.id) || fresh?.node === n.id,
+          path: path.has(n.id),
+          recede: path.size > 0 && !path.has(n.id),
         },
         draggable: false,
       };
@@ -275,24 +384,33 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
         position: positions[l.id] ?? { x: 0, y: 0 },
         initialWidth: LOG_W,
         initialHeight: LOG_H,
-        data: { id: l.id, label: l.label, focus: f.logs.has(l.id) },
+        data: { id: l.id, label: l.label, focus: f.logs.has(l.id), path: path.has(l.id), recede: path.size > 0 && !path.has(l.id) },
         draggable: false,
       }),
     ),
   ];
 
+  const stars = new Set(graph.nodes.filter((n) => n.north_star).map((n) => n.id));
   const edges: Edge[] = allLinks.map((link) => {
     const status = link.edge ? (view.edges[link.edge.id]?.status ?? null) : null;
     // an edge is in focus when the step names it, or when the step touches both of its ends
     const named = link.edge ? f.edges.has(link.edge.id) && (f.nodes.size <= 1 || f.nodes.has(link.target) || f.nodes.has(link.source) || f.logs.has(link.source)) : false;
     const ends = f.nodes.has(link.target) && (f.nodes.has(link.source) || f.logs.has(link.source));
     const focused = named || ends;
+    const onPath = path.has(link.source) && path.has(link.target);
+    const styled = linkStyle(link, status, focused, onPath);
+    // ratio definitions only while they matter; links between two compact metrics stay faint; an incident path
+    // on screen pushes every other link back
+    const quiet = !stars.has(link.source) && !stars.has(link.target);
+    const opacity = focused || onPath ? 1 : path.size > 0 ? 0.15 : quiet ? 0.45 : 1;
     return {
       id: link.id,
       source: link.source,
       target: link.target,
       type: "default",
-      ...linkStyle(link, status, focused),
+      hidden: !link.edge && !focused && !onPath,
+      ...styled,
+      style: { ...styled.style, opacity },
     };
   });
 
