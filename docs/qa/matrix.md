@@ -1,6 +1,42 @@
 # Scenario matrix
 
-## Current: `main` @ `1cc4cef` (Saturday 2026-11-21, ~23:00 CET): agent and remediation lanes
+## Current: `main` @ `2c62f8b` (Saturday 2026-11-21, ~23:45 CET): demo moment 3, a new metric places itself
+
+`POST /graph/metrics` places a metric, live over the world or from the recorded ad-metric pack in a replay, and Mission Control shows a "New metric placed" card over the graph and marks the new node.
+
+**Replay pack:** the graph grows from 27 nodes / 44 edges to 31 / 65.
+
+| Metric | Verdict | Details |
+| --- | --- | --- |
+| `cost_per_impression` | EXACT | ctr × cpc, plus 3 breakdowns |
+| `conversions_per_impression` | EXACT | |
+| `revenue_per_conversion` | EXACT | |
+| `revenue_per_impression` | AMBIGUOUS | probation at ½ weight, with an alternative parent |
+| `ad_spend_per_session` | REJECTED | fan-out ×6.72, with a repair diff |
+
+**Live:** the same verdicts in 0.6–0.8 s each, and placement receipts re-run with the same hash.
+
+**Bad input** gives 422 with clear messages. Unknown columns or tables give a REJECTED verdict by design.
+
+**In the browser:**
+- Classic: the cards show the EXACT, AMBIGUOUS and REJECTED states, and placed nodes are marked in the graph and the tree.
+- fx: the 3D scene freezes the new block in with a "NEW METRIC" tag.
+- `e2e/tests/new-metric.spec.ts` covers it, run through `npm --prefix e2e run test:demo`.
+
+**Bugs found:**
+- [#73](https://github.com/ArgusSearch/argus/issues/73): a live 500 when a metric reuses an existing name.
+- [#74](https://github.com/ArgusSearch/argus/issues/74): the graph sometimes zooms onto the new nodes and stays there. It happens randomly, and the spec marks it only when it occurs.
+- [#75](https://github.com/ArgusSearch/argus/issues/75): the card can say "placed" while the node never appears.
+- [#76](https://github.com/ArgusSearch/argus/issues/76): placed nodes stack in the far-right column with cut labels.
+- [#77](https://github.com/ArgusSearch/argus/issues/77): metrics on ad clicks get aliased because CPC is almost constant in MockMart.
+
+**Demo advice:** place the recorded pack, not live metrics built on ad clicks.
+
+**Suites on 2c62f8b:**
+- `npm --prefix e2e test` gives 21 passed twice, in 3:01 and 3:06.
+- `npm --prefix e2e run test:demo` (fx plus new-metric) gives 13 passed and 1 skipped, in 1:47.
+
+## Earlier: `main` @ `1cc4cef` (Saturday 2026-11-21, ~23:00 CET): agent and remediation lanes
 
 This commit adds the Argus Agent (an LLM pre-verdict loop, off by default with no key), remediation proposals with operator decisions, `/agent` routes and a new calm test for incidents. It was checked with the agent off and no model calls.
 
@@ -240,3 +276,8 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [70](https://github.com/ArgusSearch/argus/issues/70) | api | P2 | The replay pause-at-end test is timing-sensitive and fails under load |
 | [71](https://github.com/ArgusSearch/argus/issues/71) | api | P2 | `ARGUS_AGENT=replay` (advertised) crashes `argus api` |
 | [72](https://github.com/ArgusSearch/argus/issues/72) | api | P2 | The morning report ignores a verified roll-back and still asks for approval |
+| [73](https://github.com/ArgusSearch/argus/issues/73) | graph | P1 | Live POST /graph/metrics gives a 500 when a name is reused |
+| [74](https://github.com/ArgusSearch/argus/issues/74) | web | P1 | After a placement the graph sometimes zooms onto the new nodes and stays there |
+| [75](https://github.com/ArgusSearch/argus/issues/75) | web | P2 | The card says placed but the node never appears (first-poll race) |
+| [76](https://github.com/ArgusSearch/argus/issues/76) | web | P2 | Placed nodes stack in the far-right column with cut labels; the card covers Payment success |
+| [77](https://github.com/ArgusSearch/argus/issues/77) | graph | P2 | Metrics on ad clicks get aliased (CPC almost constant in MockMart) |

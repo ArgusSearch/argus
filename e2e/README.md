@@ -25,6 +25,7 @@ Base: `main` (every lane merged: Stage-2 runtime, detect, a recording per scenar
 | `trail-cards.spec.ts` | at 1920x1080 and 1440x900 every card visible in the investigation row is whole | expected failure until #16 is fixed (PR #61) | skipped (replay-only) |
 | `scenarios.spec.ts` | every recorded scenario on its own replay API (`--replay fixtures[/<s>]`) at 64x to `run.finished`: S1 one SUPPORTED CAUSE card in DE / android / PayCo; quiet no incident card; S2 no incident card and a "Didn't wake you" card about the budget (tab count > 0); S3 no incident card and a "Data issue · held back" card; S4 one SUPPORTED CAUSE card naming pacing and DE or FR; S5 three market "Didn't wake you" notes and one resolved SUPPORTED CAUSE card in DE / android / PayCo | runs (about 50 s) | skipped (replay-only) |
 | `fx.spec.ts` | the "Argus Ice" layer on its own replay API (`--replay fixtures`): `?fx=1&fxintro=0` sets `html[data-fx=ice]`, the loader leaves, one KPI card per north-star metric, no console errors or failed requests (501 stubs and 409s allowed); S1 at 64x puts INC-0001 SUPPORTED CAUSE in DE / android / PayCo on the dashboard and in the feed and "Open report" opens the sheet; every sidebar section opens by click and by the view keys 1-5; the metric graph view shows the 3D scene's canvas (headless Chromium has WebGL2 via SwiftShader) or the classic graph; `?fx=night` sets `data-fx=night`; the recording URL `/?demo=1&captions=1&fx=1` restarts the replay at 2x by itself, shows a caption from the start, switches to Investigations on the first step, captions the verdict, opens the INC-0001 report 3.5 s after it and closes it 12 s later back to the dashboard (the test fast-forwards the server, never touches the page). With `ARGUS_E2E_SHOTS=1` it also saves `fx-*.png` | runs (about 50 s); "key 1 on the dashboard opens the metric graph" is an expected failure (see below) | skipped (replay-only) |
+| `new-metric.spec.ts` | demo moment 3, "a new metric places itself in the graph", on its own replay API (port 8015) at 1920x1080: `POST /graph/metrics` with `cost_per_impression.yml` shows the "New metric placed" card (EXACT, parents CTR × CPC, feeds Ad spend, breakdowns, headline with the residual, certificate) and the node appears in the graph with the placed highlight (`28 metrics`); the tree marks the row; the card's "Add the ad metric pack" button places the other four: the AMBIGUOUS card shows the probation parent and the alternative parent, the REJECTED card the fan-out ×6.72 and the repair diff, four marked nodes, none for the rejected metric; the graph refits to every node after each of four API posts; a placement before the page's first poll still shows its node; in the fx look the card shows and the 3D scene gets a "new metric" block (skipped with `ARGUS_E2E_FX=0`). No console errors, no HTTP errors. With `ARGUS_E2E_SHOTS=1` it saves `new-metric-*.png` | runs (about 30 s, 45 s with fx); "a placement before the page's first poll" is an expected failure, and the refit test marks itself as one when it hits the random miss (see below) | skipped (replay-only) |
 | `screenshots.spec.ts` | not a check: captures the QA screenshots, skipped unless `ARGUS_E2E_SHOTS=1` | skipped by default | skipped (replay-only) |
 
 ## Prerequisites
@@ -42,7 +43,12 @@ If `web/dist` is missing, the page says "not built yet" and every UI spec fails 
 
 ## Running
 
-Replay mode: `npm --prefix e2e test` runs every spec except the fx layer, in under 3 min on an 8 GB Mac. `npm --prefix e2e run test:fx` runs `fx.spec.ts` alone (about 50 s), and `npm --prefix e2e run test:all` runs everything (about 3 min 50 s). Run `test:all`, or `test` followed by `test:fx`, before a rehearsal: the fx layer is the look the demo video is recorded in.
+Replay mode: `npm --prefix e2e test` runs the core specs in about 3 min on an 8 GB Mac. The demo-specific specs run separately:
+- `npm --prefix e2e run test:demo` runs `fx.spec.ts` (the Argus Ice look and the recording URL `/?demo=1&captions=1&fx=1`) and `new-metric.spec.ts` (demo moment 3, a new metric placing itself), about 2 min;
+- `test:fx` runs only the fx spec;
+- `test:all` runs everything.
+
+Before a rehearsal, run `test` and then `test:demo`.
 
 ```sh
 npm --prefix e2e test
@@ -67,8 +73,10 @@ Environment flags:
 | `ARGUS_E2E_OFFLINE_PORT` | `offline.spec.ts`'s own server (default 8012) |
 | `ARGUS_E2E_SCENARIO_PORT` | `scenarios.spec.ts`'s own server (default 8013) |
 | `ARGUS_E2E_SCENARIOS=0` | skip `scenarios.spec.ts` (saves about 40 s) |
+| `ARGUS_E2E_NEWMETRIC=0` | skip `new-metric.spec.ts` (what `npm test` sets) |
 | `ARGUS_E2E_FX=0` | skip `fx.spec.ts` (what `npm test` sets; `test:fx` and `test:all` run it) |
 | `ARGUS_E2E_FX_PORT` | `fx.spec.ts`'s own server (default 8014) |
+| `ARGUS_E2E_NEWMETRIC_PORT` | `new-metric.spec.ts`'s own server (default 8015) |
 | `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, `scenario-<s>.png` from `scenarios.spec.ts`, `fx-*.png` from `fx.spec.ts`) |
 | `ARGUS_E2E_ROOT` | the repository checkout whose `argus api` (and `web/dist`) the suite runs; default `..`. Use it to test a fix branch from another worktree |
 | `CI` | never reuse a running server; also write the HTML report |
@@ -95,9 +103,10 @@ Failure traces and screenshots land in `e2e/test-results/`; `npx --prefix e2e pl
 | 8012 | `offline.spec.ts` starts and stops its own replay API here (`ARGUS_E2E_OFFLINE_PORT`) |
 | 8013 | `scenarios.spec.ts` starts one replay API per scenario here, one at a time (`ARGUS_E2E_SCENARIO_PORT`) |
 | 8014 | `fx.spec.ts` starts one replay API for the whole spec here (`ARGUS_E2E_FX_PORT`) |
+| 8015 | `new-metric.spec.ts` starts one replay API for the whole spec here, so its placements never reach the main server's graph (`ARGUS_E2E_NEWMETRIC_PORT`) |
 
-8015 is reserved for e2e; 8020-8029 belong to other agents' API servers, leave them alone.
-The self-started servers go through `tests/own-api.ts`: bounded start (30 s), stop in `afterEach` (`afterAll` for `fx.spec.ts`; SIGINT to the
+8020-8029 belong to other agents' API servers, leave them alone.
+The self-started servers go through `tests/own-api.ts`: bounded start (30 s), stop in `afterEach` (`afterAll` for `fx.spec.ts` and `new-metric.spec.ts`; SIGINT to the
 process group, SIGKILL after 5 s), and a refusal to start when the port already answers.
 
 ## Why one worker
@@ -132,6 +141,26 @@ the view host's "Graph" tab, so pressing `1` on the dashboard selects a tab that
 section `1` opens the metric graph (covered by the keys test). There is no key for the dashboard and no `6`: the
 shortcuts are the view host's 1-5 (Graph, Tree, Investigation, Morning report, Scorecard), in a different order than
 the sidebar. Once fixed, the test passes, Playwright reports "expected to fail", and the `test.fail` line goes.
+
+## The expected failures in new-metric.spec.ts
+
+Found on `main` @ 2c62f8b (the graph extension). Both tests assert the correct behaviour.
+
+- "a placement that lands before the page's first poll still puts its node in the graph" is marked `test.fail(...)`.
+  `useGraphExtension` (`web/src/graph-extension/useGraphExtension.ts`) calls `onGraphChanged` only when the
+  `stream:version` key moves between two polls (`seen.current !== null`). When a placement lands after the page's
+  `GET /graph` but before its first `GET /graph/metrics` answers, the card says "New metric placed" while the graph
+  stays at 27 metrics until the next placement. The test holds the first poll with `page.route` to make the window
+  certain; in the fx look the first poll comes seconds late, so the window is real there.
+- "the graph refits to every node after each placement posted to the API": after a placement the classic graph
+  sometimes zooms onto the new node(s) alone (scale 1, every other node off-canvas) and stays there, despite the
+  `fitView({ nodes: all })` in `web/src/components/GraphView.tsx` (React Flow's own `fitView` prop seems to win the
+  race). Seen in about 3 of 5 runs of four API posts, about 1 in 12 single posts, rarely through the pack button. The
+  miss is random, so the test calls `test.fail(true, ...)` only when it hits it (and saves `new-metric-refit-bug.png`
+  with `ARGUS_E2E_SHOTS=1`); when every refit lands it passes. Remove that call once the fit is fixed. The other tests
+  only record the off-canvas count as an annotation.
+
+Screenshots: `ARGUS_E2E_SHOTS=1 npm --prefix e2e run test:all -- new-metric` (the fx one needs `test:all`).
 
 ## Known flake source: blank graph after a stream reset
 

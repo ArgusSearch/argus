@@ -1,6 +1,6 @@
 # QA handover (Ansor)
 
-Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `2c36e82`. PR #21 targets `main`.
+Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `2c62f8b`. PR #21 targets `main`.
 
 This file is enough to continue the QA work without the chat.
 
@@ -16,6 +16,8 @@ This file is enough to continue the QA work without the chat.
 - **CI on main is green** on 2c36e82: worlds are now identical on macOS and Linux (118a335), and the fixtures were re-recorded.
 - **The fx layer** (`/?fx=1`, and the recording URL `/?demo=1&captions=1&fx=1`) is the look the video uses. It is covered by `npm --prefix e2e run test:fx`. Open fx bugs: #63–#69; the P1s are #64 (morning card vs ticker) and #68 (live step cut at 1080).
 - The graph-blank-after-restart bug (#33) is fixed on main (f85616a).
+
+- **Demo moment 3** (a new metric places itself) works with the recorded pack, in replay and live. Bugs: #73, #74 (P1); #75–#77. Use the pack on stage, not hand-written metrics on ad clicks (#77).
 
 ## What is in this branch
 
@@ -36,7 +38,7 @@ make setup && make check && make s1
 npm --prefix web install && npm --prefix web run build
 npm --prefix e2e install && npx --prefix e2e playwright install chromium
 npm --prefix e2e test                       # replay, everything but fx, under 3 min (own API on 8010)
-npm --prefix e2e run test:fx                # the fx layer and the demo recording URL (about 70 s)
+npm --prefix e2e run test:demo              # fx look, recording URL and demo moment 3 (new metric), about 2 min
 make world SEED=7 && npm --prefix e2e run test:live   # live over runs/s1-7 on 8011
 ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots # refresh docs/qa/screenshots
 ```
