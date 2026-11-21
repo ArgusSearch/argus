@@ -27,8 +27,13 @@ export function metricName(graph: Graph | null, id: string): string {
 
 /** What each verdict means to the person reading the incident. */
 export const VERDICT: Record<Verdict, { label: string; tone: Tone; help: string }> = {
-  SUPPORTED_CAUSE: { label: "Cause found", tone: "ok", help: "One logged change explains the drop, and every rival suspect was tested and ruled out." },
-  HYPOTHESIS: { label: "Likely cause", tone: "watch", help: "The best explanation so far; at least one check could not rule the alternatives out." },
+  // the brief's own words (lane I): an evidenced cause and a hypothesis stay distinguishable on screen
+  SUPPORTED_CAUSE: {
+    label: "Supported cause (evidenced)",
+    tone: "ok",
+    help: "A logged change starts when the change starts, and its check against the unaffected groups backs it up.",
+  },
+  HYPOTHESIS: { label: "Hypothesis", tone: "watch", help: "Argus found where it happens, but no logged change is proven to cause it yet." },
   EXPECTED: { label: "Planned change", tone: "ok", help: "A plan or calendar entry explains the move and delivery followed it, so nobody was woken." },
   DATA_ISSUE: { label: "Late data", tone: "watch", help: "The data had not fully arrived; Argus waited instead of raising a false alarm." },
   UNEXPLAINED: { label: "Checking", tone: "probe", help: "No explanation yet: the investigation is still running or found nothing it could prove." },

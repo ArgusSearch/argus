@@ -166,6 +166,8 @@ export function normalizeReceipt(raw: unknown): AgentReceipt {
 
 export interface AskAnswer {
   status: string;
+  /** send it back with a follow-up question: the follow-up keeps the incident scope and sees the earlier turns */
+  conversation_id?: string | null;
   answer: string;
   claims: VerifiedClaim[];
   receipt_links: ReceiptLink[];
@@ -186,7 +188,42 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-const post = (body: unknown): RequestInit => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const post = (body: unknown, headers: Record<string, string> = {}): RequestInit => ({
+  method: "POST",
+  headers: { "content-type": "application/json", ...headers },
+  body: JSON.stringify(body),
+});
+
+/**
+ * The operator session (lane C, docs/ext/remediation.md): `POST /agent/operator/session` sets an HttpOnly cookie
+ * on /agent and returns a CSRF token; every decision sends the token in `X-Argus-CSRF`. Opened on the first
+ * decision and again when the server forgot it (a restarted API answers 403). A server without the route (the
+ * demo playback) takes decisions without one.
+ */
+const CSRF_HEADER = "X-Argus-CSRF";
+let operator: { token: string | null } | null = null;
+
+async function operatorToken(fresh = false): Promise<string | null> {
+  if (operator && !fresh) return operator.token;
+  try {
+    const session = await call<{ principal: string; csrf_token: string }>("/agent/operator/session", post({}));
+    operator = { token: session.csrf_token };
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 404 || e.status === 405)) operator = { token: null };
+    else throw e;
+  }
+  return operator.token;
+}
+
+async function decideWithSession<T>(path: string, body: unknown): Promise<T> {
+  const send = (token: string | null) => call<T>(withRun(path), post(body, token ? { [CSRF_HEADER]: token } : {}));
+  try {
+    return await send(await operatorToken());
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) return send(await operatorToken(true));
+    throw e;
+  }
+}
 
 /** A fresh key per decision click: the route is idempotent per key, so a retried request cannot decide twice. */
 export function idempotencyKey(): string {
@@ -212,7 +249,7 @@ export const agentApi = {
   runs: () => call<RunSummary[]>(withRun("/agent/runs")),
   actions: () => call<ProposalView[]>(withRun("/agent/actions")),
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
-    call<ProposalView>(withRun(`/agent/actions/${encodeURIComponent(id)}/${verb}`), post({ digest, idempotency_key: key })),
+    decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }),
   ask: (question: string, incidentId?: string | null, conversationId?: string | null) =>
     call<AskAnswer>(withRun("/agent/ask"), post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null })),
   receipt: async (link: ReceiptLink): Promise<AgentReceipt> =>
