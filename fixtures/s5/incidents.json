@@ -201,9 +201,7 @@
           ]
         }
       ],
-      "uncertain": [
-        "Whether the fault is inside PayCo or in our PayCo integration."
-      ],
+      "uncertain": [],
       "explained_share": 1.0,
       "unexplained_share": 0.0,
       "trail": [
@@ -938,13 +936,6 @@
                   "r263"
                 ],
                 "upgrade": null
-              },
-              {
-                "text": "Whether the fault is inside PayCo or in our PayCo integration.",
-                "label": "hypothesis",
-                "basis": "still uncertain",
-                "receipts": [],
-                "upgrade": null
               }
             ],
             "ledger": [
@@ -1151,12 +1142,12 @@
       "skeptic": null,
       "cost": {
         "queries": 21,
-        "seconds": 0.085,
+        "seconds": 0.105,
         "llm_calls": 0,
         "eur": 0.0
       },
       "suggested_action": {
-        "text": "Route DE-android payments from PayCo to CardHub until PayCo recovers.",
+        "text": "Roll back dep_checkout-routing_retry-policy for DE / android / PayCo and watch payment_success_rate.",
         "needs_approval": true
       }
     }

@@ -20,6 +20,9 @@ from argus.counterfactual.models import CounterfactualResult
 from argus.demo.contracts import DemoBeat, MorningReport, VerdictBeat
 from argus.demo.timeline import load_timeline
 from argus.narrator.morning import MorningReport as NarratorReport
+from argus.runtime.loop import Runtime
+from mockmart.sim import WorldConfig
+from mockmart.world import generate
 
 RECORDINGS = {"quiet": FIXTURES / "quiet", "s1": FIXTURES, "s2": FIXTURES / "s2", "s3": FIXTURES / "s3"}
 RECORDINGS |= {"s4": FIXTURES / "s4", "s5": FIXTURES / "s5"}
@@ -171,6 +174,9 @@ def test_s5_market_control_reaches_the_stream_notes_and_morning_report(tmp_path:
             # The note cites the control-group receipt the market check ran.
             assert verdicts[note.node]["receipt_id"] in {link.id for link in line.receipts}
         assert "checkout" in lines[f"{incident.id}:verdict"].text.lower()
+        # The cause is our own routing change, so Argus asks to undo it, not to route around PayCo.
+        assert "Roll back dep_checkout-routing_retry-policy" in lines[f"{incident.id}:approval"].text
+        assert f"{incident.id}:uncertainty" not in lines
         playbooks = sorted((run.playbook_id, run.incident_id or "") for run in report.investigations)
         assert playbooks == [
             ("revenue_drop", ""),
@@ -183,6 +189,20 @@ def test_s5_market_control_reaches_the_stream_notes_and_morning_report(tmp_path:
         # S5's cause is no MockMart intervention the counterfactual replay can switch off.
         counterfactual = client.get(f"/incidents/{incident.id}/counterfactual")
         assert counterfactual.status_code == 409 and counterfactual.json()["detail"]
+
+
+@pytest.mark.e2e
+def test_s5_runtime_recommends_rolling_back_its_supported_deploy(tmp_path: Path) -> None:
+    world = generate("s5", WorldConfig(seed=1), tmp_path / "world").world
+    runtime = Runtime(world)
+    runtime.run()
+    (incident,) = runtime.book.incidents.values()
+    root = incident.findings.root
+    assert root and root.evidence and root.evidence.log == "log_deploys" and "provider" in root.segment
+    action = incident.findings.suggested_action
+    assert action and action.needs_approval
+    assert action.text.startswith(f"Roll back {root.evidence.ref} for ")
+    assert not any("inside PayCo" in question for question in incident.findings.uncertain)
 
 
 @pytest.mark.parametrize("scenario", sorted(RECORDINGS))
