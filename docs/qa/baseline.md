@@ -1,6 +1,15 @@
 # QA baseline
 
-## Current base: `main` @ `f35b00a` (Saturday ~18:00 CET)
+## Current base: `main` @ `1cc4cef` (Saturday ~22:30 CET)
+
+| Command | Result |
+| --- | --- |
+| `make check` | 1 failed, 457 passed, 1 xfailed in 16 min on the 8 GB Mac. The failure is the timing-sensitive replay test (#70); it passes 3 of 3 times alone, and CI on main is green (run 44949595251). |
+| `make s1` | `ALL PASS` (21 receipts re-run, 0 mismatched) |
+| `npm --prefix e2e test` | 21 passed twice: 3:14 and 3:21, alongside a matrix run on the same machine; 2:56 when the machine is quiet |
+| `npm --prefix e2e run test:fx` | 7 passed in 1:04 |
+
+## Earlier base: `main` @ `f35b00a` (Saturday ~18:00 CET)
 
 | Command | Result |
 | --- | --- |

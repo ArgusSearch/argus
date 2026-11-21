@@ -210,3 +210,4 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [67](https://github.com/ArgusSearch/argus/issues/67) | web | P2 | fx night theme contrast |
 | [68](https://github.com/ArgusSearch/argus/issues/68) | web | P1 | fx: the running investigation's current step is cut at the bottom of 1920x1080 |
 | [69](https://github.com/ArgusSearch/argus/issues/69) | web | P2 | demo mode at speed ≥8 races the replay loop |
+| [70](https://github.com/ArgusSearch/argus/issues/70) | api | P2 | The replay pause-at-end test is timing-sensitive and fails under load |
