@@ -42,7 +42,7 @@ export function Trail({ view }: { view: RunView }) {
         {anomaly ? (
           <span className="playbook">
             <span className="muted" style={{ marginRight: 4 }}>
-              {anomaly.direction === "down" ? "Drop" : "Spike"} playbook
+              Playbook for a {anomaly.direction === "down" ? "drop" : "spike"}
             </span>
             {PLAYBOOK.map(([kind, label]) => (
               <span key={kind} className={`pb-step${done.has(kind) && kind !== current ? " done" : ""}${kind === current ? " now" : ""}`}>
