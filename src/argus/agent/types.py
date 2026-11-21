@@ -241,6 +241,11 @@ ActivityKind = Literal[
     "run_finished",
 ]
 
+Role = Literal["watcher", "detective", "skeptic", "market", "narrator", "operator", "cartographer"]
+"""Who acts in a record, for the avatars: watcher (hourly watch), detective (planning, localising, events),
+skeptic (holdouts, placebo, the gate), market (market control), narrator (reports, answers), operator
+(human decisions and actions), cartographer (graph and metric placement)."""
+
 Stage = Literal["WATCH", "TRIAGE", "PLAN", "ACT", "OBSERVE", "VERIFY", "REPORT", "PROPOSE", "AWAIT_OPERATOR", "ASK"]
 
 
@@ -253,6 +258,7 @@ class ActivityRecord(_Strict):
     kind: ActivityKind
     stage: Stage
     actor: Literal["model", "host", "operator"]
+    role: Role | None = Field(default=None, description="avatar role; the journal derives it when not given")
     text: str = Field(default="", description="numbers only as the host rendered them (with receipt tags)")
     anomaly_id: str | None = None
     incident_id: str | None = None
