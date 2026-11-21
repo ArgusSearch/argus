@@ -59,3 +59,4 @@ Recommended picks stand until the team confirms them.
 
 - **Three.js** (`three`, MIT, with `@types/three`, MIT): renders the metric graph as a 3D scene behind `?fx=1`; loaded only in the lazy scene chunk, never without the flag.
 - **IBM Plex Mono** (`@fontsource/ibm-plex-mono`, SIL Open Font License 1.1): the mono face of the style layer, weights 400 and 500, bundled so the demo needs no network.
+- **Bot Avatars** (`bot-avatars` 0.2.2, MIT, (c) Jakub Antalik, libraries.dev/bots): the plush body of the seven agent avatars (`web/src/village/avatars`); drawn on a 2D canvas, our own armor and nameplates on top, no assets copied.
