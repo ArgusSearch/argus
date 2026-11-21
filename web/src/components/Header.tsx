@@ -20,14 +20,16 @@ export function Header({
   health,
   connection,
   onDigest,
+  presenting,
 }: {
   view: RunView;
   health: Health | null;
   connection: ConnectionState;
   onDigest: () => void;
+  presenting: boolean;
 }) {
-  const replay = health?.run ?? null;
-  const mode = connection === "offline" ? "offline" : (health?.mode ?? view.mode ?? "replay");
+  const replay = connection === "open" && !presenting ? health?.run ?? null : null;
+  const mode = connection === "open" ? (view.mode ?? health?.mode ?? "connecting") : connection;
   const world = health?.source.split("/").slice(-2, -1)[0];
   const control = (body: Parameters<typeof api.replay>[0]) => void api.replay(body).catch(() => undefined);
   return (
@@ -44,9 +46,10 @@ export function Header({
         {view.tick && <span className="clock-sub">checking data up to {hhmm(scoringHour(view))}</span>}
       </div>
       <span className="spacer" />
-      <span className={`mode ${mode}`} title={health?.source}>
+      <span className={`mode ${mode}`} title={presenting ? undefined : health?.source}>
         <span className="dot" />
-        {mode === "offline" ? "API offline" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
+        {mode === "offline" ? "API offline" : mode === "connecting" ? "Connecting to API" : presenting
+          ? "Agent replay · recorded run" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
       </span>
       {replay && (
         <>

@@ -16,14 +16,14 @@ export function useOpenReceipt(): (target: ReceiptTarget) => void {
   return useContext(ReceiptContext);
 }
 
-export function ReceiptProvider({ children }: { children: ReactNode }) {
+export function ReceiptProvider({ children, rerunAvailable }: { children: ReactNode; rerunAvailable: boolean }) {
   const [open, setOpen] = useState<ReceiptTarget | null>(null);
   const openReceipt = useCallback((target: ReceiptTarget) => setOpen(target), []);
   const close = useCallback(() => setOpen(null), []);
   return (
     <ReceiptContext.Provider value={openReceipt}>
       {children}
-      {open && <ReceiptDrawer key={typeof open === "string" ? open : linkKey(open)} target={open} onClose={close} />}
+      {open && <ReceiptDrawer key={typeof open === "string" ? open : linkKey(open)} target={open} onClose={close} rerunAvailable={rerunAvailable} />}
     </ReceiptContext.Provider>
   );
 }
@@ -131,12 +131,13 @@ function highlight(sql: string): ReactNode[] {
   return out;
 }
 
-function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: () => void }) {
+function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTarget; onClose: () => void; rerunAvailable: boolean }) {
   const agent = typeof target === "string" ? null : target;
   const id = typeof target === "string" ? target : target.receipt_id;
   const [receipt, setReceipt] = useState<AgentReceipt | null>(null);
   // during the agent presentation a plain receipt id is one the presentation revealed: its own route
   const demo = typeof target === "string" && demoRunId() !== null;
+  const canRerun = !agent && !demo && rerunAvailable;
   const [error, setError] = useState<string | null>(null);
   const [rerun, setRerun] = useState<RerunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -156,9 +157,13 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
   }, [id, agent, demo]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
   const run = async () => {
@@ -253,7 +258,7 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
               <span className="mono">recorded run · hash {receipt.result_hash.replace("sha256:", "").slice(0, 16)}</span>
             </span>
           )}
-          {!agent && !demo && (
+          {canRerun && (
             <button className="btn primary" onClick={run} disabled={!receipt || running}>
               {running ? "Re-running…" : "Re-run SQL"}
             </button>
@@ -271,7 +276,9 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
                 ? error
                 : agent || demo
                   ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
-                  : "Runs the exact SQL again at the pinned as_of and compares the hash."}
+                  : canRerun
+                    ? "Runs the exact SQL again at the pinned as_of and compares the hash."
+                    : "SQL re-runs need a world. Start Argus over a world to verify this query."}
             </span>
           )}
         </div>
