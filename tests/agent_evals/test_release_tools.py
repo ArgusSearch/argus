@@ -9,6 +9,7 @@ import pytest
 from scripts.agent_eval.bench_gate import validate_scorecard
 from scripts.agent_eval.bundle import canonical_json, read_bundle, seal
 
+from argus.agent.examples import PROPOSAL
 from argus.contracts.events import Event, TickPayload
 from argus.graph.store import load_seed_graph
 from argus.semantic.runner import canonical_hash
@@ -59,6 +60,18 @@ def proof(receipt_id: str) -> dict[str, Any]:
     }
 
 
+def activity(seq: int, kind: str, actor: str = "host") -> dict[str, Any]:
+    return {
+        "seq": seq,
+        "run_id": "run_0001",
+        "kind": kind,
+        "action_id": "act_0001",
+        "actor": actor,
+        "sim_ts": CHECKED_AT.isoformat(),
+        "stage": "ACT",
+    }
+
+
 @pytest.fixture
 def staging(tmp_path: Path) -> Path:
     """Minimal synthetic S4 capture to exercise sealing and refusal paths."""
@@ -99,21 +112,29 @@ def staging(tmp_path: Path) -> Path:
     write_jsonl(tmp_path / "events.jsonl", [tick(1)])
     write_jsonl(tmp_path / "ask.jsonl", [])
     write_json(tmp_path / "receipts.json", {LINK_KEY: proof("r1")})
-    proposal = {"id": "act_0001", "digest": "action-digest", "state": "AWAIT_OPERATOR", "evidence_refs": [LINK]}
+    proposal = PROPOSAL.model_dump(mode="json") | {"evidence_refs": [LINK]}
     write_json(tmp_path / "actions.json", [proposal])
-    write_jsonl(tmp_path / "activity.jsonl", [{"seq": 1, "kind": "action_proposed", "action_id": "act_0001"}])
+    write_jsonl(tmp_path / "activity.jsonl", [activity(1, "action_proposed")])
     for branch, state in (("approve", "VERIFIED"), ("deny", "DENIED")):
         path = tmp_path / branch
         path.mkdir()
         write_jsonl(path / "events.jsonl", [tick(2)])
-        activity = [{"seq": 2, "kind": "action_decided", "action_id": "act_0001", "actor": "operator"}]
-        result = proposal | {"state": state, "decision": {"decision": branch}}
+        records = [activity(2, "action_decided", "operator")]
+        result = proposal | {
+            "state": state,
+            "decision": {"decision": branch, "principal": "test-operator", "at": CHECKED_AT.isoformat()},
+        }
         if branch == "approve":
-            activity.append({"seq": 3, "kind": "action_applied", "action_id": "act_0001"})
+            records.append(activity(3, "action_applied"))
             twin = LINK | {"receipt_id": "r2", "world_revision": "untouched"}
-            result["effect"] = {"state": "VERIFIED", "receipt_refs": [LINK, twin]}
+            result["effect"] = {
+                "state": "VERIFIED",
+                "checked_at": CHECKED_AT.isoformat(),
+                "summary": "Treated and untreated pacing compared",
+                "receipt_refs": [LINK, twin],
+            }
             write_json(path / "receipts.json", {"run_0001/untouched/r2": proof("r2")})
-        write_jsonl(path / "activity.jsonl", activity)
+        write_jsonl(path / "activity.jsonl", records)
         write_json(path / "actions.json", [result])
     return tmp_path
 
@@ -134,7 +155,7 @@ def test_seal_requires_independent_pin_and_preserves_provenance(staging: Path) -
 
 def test_seal_rejects_missing_approval(staging: Path) -> None:
     original = (staging / "manifest.json").read_bytes()
-    write_jsonl(staging / "approve" / "activity.jsonl", [{"seq": 3, "kind": "action_applied", "action_id": "act_0001"}])
+    write_jsonl(staging / "approve" / "activity.jsonl", [activity(3, "action_applied")])
     with pytest.raises(ValueError, match="operator decision"):
         seal(staging)
     assert (staging / "manifest.json").read_bytes() == original

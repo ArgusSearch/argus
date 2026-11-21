@@ -8,11 +8,13 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from argus.agent.types import INTERFACE_VERSION, ActivityRecord, LlmResponse, ProposalView
 from argus.contracts.events import Event
 from argus.contracts.findings import Receipt
 from argus.contracts.graph import Graph
@@ -151,34 +153,38 @@ def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
     for index, turn in enumerate(turns, 1):
         try:
             key = turn["key"]
-            response = turn["response"]
-            content = response["content"]
-            usage = response["usage"]
+            response = LlmResponse.model_validate(turn["response"])
+            usage = response.usage
             if (
-                key in seen
-                or not isinstance(key, str)
+                not isinstance(key, str)
+                or not re.fullmatch(r"(?:investigate|ask|morning|verify_effect):.+:[1-9]\d*", key)
+                or key in seen
                 or not SHA256.fullmatch(turn["request_sha"])
-                or not response["stop_reason"]
-                or response.get("request_id") is not None
-                or any(block["type"] not in {"text", "tool_use"} for block in content)
+                or not response.stop_reason
+                or response.request_id is not None
+                or any(block["type"] not in {"text", "tool_use"} for block in response.content)
                 or not {"input_tokens", "output_tokens"} <= usage.keys()
-                or any(type(count) is not int or count < 0 for count in usage.values())
+                or any(type(count) is not int or count < 0 for count in turn["response"]["usage"].values())
             ):
                 raise ValueError
             seen.add(key)
-            returned_models.add(response["model"])
+            returned_models.add(response.model)
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"turns.jsonl: invalid exchange at turn {index}") from None
     if len(models) != len(returned_models) or set(models) != returned_models:
         raise ValueError("turns.jsonl: returned models do not match manifest")
 
 
-def _links(value: Any, receipts: dict[str, ReceiptProof]) -> None:
+def _links(value: Any, receipts: dict[str, ReceiptProof], visible_at: datetime | None = None) -> None:
+    def check(key: str, label: str) -> None:
+        if key not in receipts:
+            raise ValueError(f"missing {label} receipt {key}")
+        if visible_at is not None and receipts[key].receipt.as_of > visible_at:
+            raise ValueError(f"future {label} receipt {key}")
+
     if isinstance(value, dict):
         if {"run_id", "world_revision", "receipt_id"} <= value.keys():
-            key = "/".join(value[field] for field in ("run_id", "world_revision", "receipt_id"))
-            if key not in receipts:
-                raise ValueError(f"missing qualified receipt {key}")
+            check("/".join(value[field] for field in ("run_id", "world_revision", "receipt_id")), "qualified")
         for field, child in value.items():
             ids: list[str] = []
             if field == "receipt" and isinstance(child, str):
@@ -186,12 +192,11 @@ def _links(value: Any, receipts: dict[str, ReceiptProof]) -> None:
             elif field == "receipts" and isinstance(child, list):
                 ids.extend(item for item in child if isinstance(item, str))
             for receipt_id in ids:
-                if receipt_id not in receipts:
-                    raise ValueError(f"missing C4 receipt {receipt_id}")
-            _links(child, receipts)
+                check(receipt_id, "C4")
+            _links(child, receipts, visible_at)
     elif isinstance(value, list):
         for child in value:
-            _links(child, receipts)
+            _links(child, receipts, visible_at)
 
 
 def _receipts(raw: dict[str, Any], require_verified: bool) -> dict[str, ReceiptProof]:
@@ -274,6 +279,9 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
     if not latest_event or not latest_activity:
         raise ValueError("empty presentation stream")
     base_receipts = _receipts(documents["receipts.json"], manifest.provenance == "live_capture")
+    prefix_clock = {
+        event.seq: event.sim_ts for event in (Event.model_validate(raw) for raw in documents["events.jsonl"])
+    }
     for prefix in ("", *(f"{branch}/" for branch in BRANCHES if manifest.scenario == "s4")):
         receipts = base_receipts
         through_seq = latest_event
@@ -286,14 +294,22 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
             receipts = receipts | extra_receipts
             through_seq = _ordered(documents[f"{prefix}events.jsonl"], f"{prefix}events.jsonl", latest_event)
             _ordered(documents[f"{prefix}activity.jsonl"], f"{prefix}activity.jsonl", latest_activity)
-        for event in documents[f"{prefix}events.jsonl"]:
-            Event.model_validate(event)
+        clock = prefix_clock.copy()
+        for raw in documents[f"{prefix}events.jsonl"]:
+            event = Event.model_validate(raw)
+            clock[event.seq] = event.sim_ts
+            _links(event.payload, receipts, event.sim_ts)
+        for raw in documents[f"{prefix}activity.jsonl"]:
+            activity = ActivityRecord.model_validate(raw)
+            _links(raw, receipts, activity.sim_ts)
+        for action in documents[f"{prefix}actions.json"]:
+            ProposalView.model_validate(action)
         for answer in documents.get(f"{prefix}ask.jsonl", []):
-            if not answer["question"].strip() or not 0 < answer["through_seq"] <= through_seq:
+            if not answer["question"].strip() or answer["through_seq"] not in clock:
                 raise ValueError(f"{prefix}ask.jsonl: answer outside visible event prefix")
-        for filename in REQUIRED | OPTIONAL if not prefix else BRANCH_REQUIRED | BRANCH_OPTIONAL:
-            if filename not in {"turns.jsonl", "graph.json", "receipts.json"}:
-                _links(documents.get(f"{prefix}{filename}"), receipts)
+            _links(answer["response"], receipts, clock[answer["through_seq"]])
+        for filename in (*OPTIONAL, "actions.json"):
+            _links(documents.get(f"{prefix}{filename}"), receipts, clock[through_seq])
     if manifest.scenario == "s4":
         _cut(documents)
 
@@ -312,6 +328,7 @@ def read_bundle(directory: Path, *, expected_digest: str, require_live: bool = T
     if (
         manifest.schema_version != 1
         or manifest.scenario not in {"s1", "s4"}
+        or manifest.interface_version != INTERFACE_VERSION
         or manifest.provenance not in {"live_capture", "synthetic_test"}
         or (require_live and manifest.provenance != "live_capture")
         or not GIT_SHA.fullmatch(manifest.source_commit)
