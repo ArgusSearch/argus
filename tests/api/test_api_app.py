@@ -109,6 +109,22 @@ def test_sse_wire_format_resume_and_stream_change() -> None:
     assert [b["id"] for b in stale[1:]] == ["6"]
 
 
+def test_scorecard_reads_the_server_results(tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, bench_out=tmp_path))
+    assert client.get("/bench/scorecard").json() is None
+
+    path = tmp_path / "scorecard.json"
+    recorded = FIXTURES.parent / "web/src/views/fixtures/scorecard.sample.json"
+    path.write_bytes(recorded.read_bytes())
+    response = client.get("/bench/scorecard")
+    assert response.status_code == 200
+    assert response.json()["bench_commitment"] == json.loads(recorded.read_text())["bench_commitment"]
+    assert client.get("/bench/results").status_code == 501
+
+    path.write_text("{}")
+    assert client.get("/bench/scorecard").status_code == 503
+
+
 def test_index_without_build_explains_how_to_build(tmp_path: Path) -> None:
     client = TestClient(create_app(ReplaySource(seconds_per_tick=FAST), start=False, web_dist=tmp_path))
     assert "npm --prefix web" in client.get("/").text

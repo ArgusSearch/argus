@@ -43,6 +43,9 @@ from argus.graph.extension_api import create_router as graph_extension_router
 from argus.graph.extension_api import extension_for
 from argus.graph.store import REPO
 from argus.narrator.routes import router as narrator_router
+from bench.runner import DEFAULT_OUT as DEFAULT_BENCH_OUT
+from bench.runner import load_scorecard
+from bench.scorecard import Scorecard
 
 WEB_DIST = REPO / "web" / "dist"
 
@@ -85,7 +88,9 @@ def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
     return restore
 
 
-def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) -> FastAPI:
+def create_app(
+    source: Source, start: bool = True, web_dist: Path = WEB_DIST, *, bench_out: Path = REPO / DEFAULT_BENCH_OUT
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         restore = end_streams_on_exit(source.bus)
@@ -141,6 +146,16 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
     @app.get("/routes")
     def routes() -> list[dict[str, str]]:
         return [r.model_dump() for r in ROUTES]
+
+    @app.get("/bench/scorecard")
+    def bench_scorecard() -> Scorecard | None:
+        """Read the latest bench result written by this installation."""
+        try:
+            return load_scorecard(bench_out)
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError) as exc:
+            raise HTTPException(503, "The latest bench scorecard file could not be read.") from exc
 
     @app.get("/events", response_class=EventSourceResponse)
     async def events(
