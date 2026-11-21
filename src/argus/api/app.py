@@ -12,7 +12,9 @@ from an older stream, first gets `event: stream` with `{"stream", "mode"}` and m
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+import signal
+import threading
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
@@ -25,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from argus.api.digest import Digest, build_digest
+from argus.api.hub import EventHub
 from argus.api.rerun import RerunResult, RerunUnavailable
 from argus.api.sources import ControlError, Source
 from argus.api.state import ALARM_Z, PAIR_Z, WIGGLE_Z
@@ -44,14 +47,50 @@ class RunControl(BaseModel):
     speed: float | None = Field(default=None, gt=0)
 
 
+def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
+    """Make the first Ctrl+C (or SIGTERM) end every SSE stream, then hand the signal on.
+
+    uvicorn waits for open responses to finish before it runs the lifespan shutdown, and an event
+    stream never finishes by itself: without this, stopping the server hangs while a page is open.
+    Returns a function that restores the previous handlers. Does nothing outside the main thread.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        return lambda: None
+    previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+
+    def handler(signum: int, frame: Any) -> None:
+        hub.close()
+        prev = previous[signal.Signals(signum)]
+        if callable(prev):
+            prev(signum, frame)
+        else:  # SIG_DFL or SIG_IGN: let the default behaviour happen
+            signal.signal(signum, prev)
+            signal.raise_signal(signum)
+
+    for sig in previous:
+        signal.signal(sig, handler)
+
+    def restore() -> None:
+        for sig, prev in previous.items():
+            if signal.getsignal(sig) is handler:
+                signal.signal(sig, prev)
+
+    return restore
+
+
 def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        restore = end_streams_on_exit(source.bus)
         if start:
             source.start()
-        yield
-        source.stop()
-        await source.closed()
+        try:
+            yield
+        finally:
+            restore()
+            source.bus.close()
+            source.stop()
+            await source.closed()
 
     app = FastAPI(
         title="Argus",

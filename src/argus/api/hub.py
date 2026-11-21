@@ -47,6 +47,7 @@ class EventHub(EventBus):
         self.stream = _new_stream_id()
         self.base_seq = 0  # every seq of the current stream is greater than this
         self.pace_steps: Callable[[], float] | None = None  # seconds to hold each live investigation step
+        self.closed = False
         self._loop: asyncio.AbstractEventLoop | None = None
         self._changed: asyncio.Event | None = None
 
@@ -81,6 +82,13 @@ class EventHub(EventBus):
             self.state.reset()
         self._notify()
         return self.stream
+
+    def close(self) -> None:
+        """End every SSE stream (server shutdown). Safe to call from a signal handler."""
+        self.closed = True
+        loop = self._loop
+        if loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(self._wake)
 
     def _notify(self) -> None:
         loop = self._loop
@@ -138,6 +146,6 @@ class EventHub(EventBus):
                 if live and self.pace_steps and item.event is not None and item.event.type in PACED:
                     await asyncio.sleep(self.pace_steps())
             live = True
-            if changed is None:
+            if changed is None or self.closed:
                 return
             await changed.wait()

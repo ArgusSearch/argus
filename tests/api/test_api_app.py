@@ -5,13 +5,14 @@ from __future__ import annotations
 import asyncio
 import itertools
 import json
+import signal
 import time
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from argus.api.app import create_app
+from argus.api.app import create_app, end_streams_on_exit
 from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, load_recording
 from argus.api.sources import LiveSource, ReplaySource
@@ -187,3 +188,32 @@ def test_live_run_control(s1_world: WorldPaths) -> None:
         assert client.get("/health").json()["mode"] == "live"
         events = _blocks(client.get("/events?limit=2").text)
         assert [b["id"] for b in events] == ["1", "2"]
+
+
+def test_exit_signal_ends_every_stream_then_reaches_the_server() -> None:
+    """uvicorn waits for open responses before shutting down: the first SIGTERM must end the SSE streams."""
+    seen: list[int] = []
+    original = signal.signal(signal.SIGTERM, lambda signum, _frame: seen.append(signum))
+    try:
+
+        async def run() -> bool:
+            hub = EventHub(RunState(load_recording(FIXTURES).graph))
+            hub.bind(asyncio.get_running_loop())
+            restore = end_streams_on_exit(hub)
+
+            async def consume() -> None:
+                async for _ in hub.follow():
+                    pass
+
+            task = asyncio.create_task(consume())
+            await asyncio.sleep(0.01)
+            assert not task.done()
+            signal.raise_signal(signal.SIGTERM)
+            await asyncio.wait_for(task, timeout=2)
+            restore()
+            return hub.closed
+
+        assert asyncio.run(run())
+        assert seen == [signal.SIGTERM], "the previous handler (uvicorn's) still runs"
+    finally:
+        signal.signal(signal.SIGTERM, original)
