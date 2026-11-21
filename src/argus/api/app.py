@@ -35,6 +35,7 @@ from argus.contracts import CONTRACT_VERSION
 from argus.contracts.events import ROUTES
 from argus.contracts.findings import Incident, Note, Receipt
 from argus.contracts.graph import Graph
+from argus.counterfactual.api import router as counterfactual_router
 from argus.graph.store import REPO
 
 WEB_DIST = REPO / "web" / "dist"
@@ -99,6 +100,7 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
         lifespan=lifespan,
     )
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+    app.include_router(counterfactual_router(source))
     hub = source.bus
 
     # ------------------------------------------------------------------ run and stream
