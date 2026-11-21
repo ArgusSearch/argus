@@ -1,6 +1,52 @@
 # Scenario matrix
 
-## Current: `main` @ `f35b00a` (Saturday 2026-11-21, ~18:30 CET)
+## Current: `main` @ `260d499` (Saturday 2026-11-21, ~20:30 CET)
+
+New on main since `f35b00a`:
+- S5 (market control) with its recording;
+- counterfactual replay, the morning report and `/autonomy`;
+- demo playback `/demo/*`;
+- the ruff-format fix (#27).
+
+`make check` is green: 335 passed, 1 xfailed. `make s1` gives ALL PASS.
+
+| Run | Expected | Observed | Verdict ok | Time to incident or note | Receipt re-runs | Bugs |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 live, seeds 7 / 3 / 11 | one incident `SUPPORTED_CAUSE` on `payment_success_rate` DE / android / PayCo; android-app 8.3.0 ruled out; resolved after 3 normal hours | as expected on all three seeds: €86,459 / €163,454 / €71,646, resolved 08:00 / 20:00 / 06:00 | yes | 17 / 24 / 18 s | 21/21 same hash | #10, #35 |
+| S1 replay (browser and API) | same | INC-0001 SUPPORTED CAUSE DE / android / PayCo, two releases ruled out, resolved, €99,647 | yes | 20 s | 409 by design | #13–#16 UI (fix PRs open) |
+| quiet, live and replay | zero incidents | 0 incidents, 0 notes | yes | — | 2/2 | #11 (fix PR #28) |
+| S2, live and replay | `EXPECTED` note, no incident | `expected` note (`cal_adv_03_FR_push` live, `bud_adv_01_FR_increase` replay), no incident | yes | 22 s live / 12 s replay | 3/3 | #31 |
+| S3, live and replay | `DATA_ISSUE`, identity broken, re-check after the backfill | freshness `data_issue` note only; no BROKEN edge, no re-check | partial | 26 s | 2/2 | #5, #9 |
+| S4, live and replay | `SUPPORTED_CAUSE` on the pacing ratio, DE or FR, `dep_ad-pacer_1.7.0`, UK/ES/NL holdout | `pacing_ratio`, `dep_ad-pacer_1.7.0`, holdout outside DE/FR validated, **segment `{}`**. The replay stays at €1,687 | mostly | 14 s | 7/7 | #4, #29 |
+| S5 live (new) | market-wide dip: three `EXPECTED` notes from the market control; the checkout-routing fault on DE / android / PayCo is `SUPPORTED_CAUSE` and resolves | 3 `expected` notes (sessions, orders, gmv), and `SUPPORTED_CAUSE` on `payment_success_rate` {DE, android, PayCo} citing `dep_checkout-routing_retry-policy`. Opened 21:00 (2 h after onset), resolved 05:00. Action: "Roll back dep_checkout-routing_retry-policy" | yes | notes 18 s, incident 19 s | 10/10 | #10 |
+| S5 replay (browser and API) | same | 3 notes and SUPPORTED CAUSE, decoy recommendations 1.1.5 refuted, resolved | yes | 18 / 21 s | 409 by design | — |
+| Blind `argus-bench blind --seed 11` | the sealed scenario is solved | drew s3: DATA_ISSUE note, grade 4, PASS. `verify`: the hash matches | yes | — | — | #8 (baseline dropped; S5 not in the blind list) |
+
+New routes, checked once per run (13 runs), with no 5xx anywhere:
+- `GET /incidents/{id}/counterfactual`: 200 on S1 and S4 in 3.5–4.3 s, explained share 0.945–0.984. S5 gives the documented 409.
+- `GET /report/morning` and `GET /autonomy`: 200 everywhere.
+- `/demo/*`: the 9-beat stream with resume, and the documented 409/204/422/404.
+- `GET /routes` does not list the 14 new routes (#62).
+
+### Scorecard on main @ 260d499 (`uv run argus-bench`, 3 seeds per scenario)
+
+```
+agent      recall  cause  exact     TTD h  prec  FA/day quietFA expect   data grade pass@1 truth
+argus        100%   100%    67%       2/2  100%       0       0   100%   100%  3.83   100%    ok
+threshold    100%     0%     0%       2/2   44%   0.167       0     0%     0%  0.83    17%    ok
+argus      s1 3x exact | s2 3x explained | s3 3x data issue | s4 3x right cause (grade 3) | s5 3x explained | quiet 3x pass
+threshold  s5  0%  3x paged on a planned change (FA 9)
+```
+
+### Smoke suite on main @ 260d499
+
+- `npm --prefix e2e test` gives 21 passed, 2 skipped (screenshots), twice in a row, in 2:50 and 2:53.
+- `scenarios.spec.ts` now covers S5.
+- Seven specs are marked `test.fail` for open bugs that have fix PRs: #6 (#32), #13 (#41), #14 (#40), #15 (#60), #16 (#61), #33 (#39). Each turns red once its fix lands, as a reminder to remove the mark.
+
+---
+
+## Earlier: `main` @ `f35b00a` (Saturday 2026-11-21, ~18:30 CET)
 
 On `main` every lane has landed: the runtime uses the Stage-2 investigator and the detect lane's plan watch, and every scenario has a recording in `fixtures/<scenario>`.
 
@@ -125,3 +171,4 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [36](https://github.com/ArgusSearch/argus/issues/36) | web | P2 | Lifecycle and digest use the data hour, feed cards the clock hour |
 | [37](https://github.com/ArgusSearch/argus/issues/37) | web | P2 | S2 Verdict trail card text cut off |
 | [38](https://github.com/ArgusSearch/argus/issues/38) | web | P2 | "no anomaly yet" stays after the run is complete |
+| [62](https://github.com/ArgusSearch/argus/issues/62) | api | P2 | `GET /routes` omits the 14 new routes |

@@ -1,6 +1,6 @@
 # QA handover (Ansor)
 
-Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `f35b00a`. PR #21 now targets `main`.
+Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `260d499`. PR #21 targets `main`.
 
 This file is enough to continue the QA work without the chat.
 
@@ -8,12 +8,12 @@ This file is enough to continue the QA work without the chat.
 
 `main` has every lane. On it:
 
-- **S1** (live seeds 7, 3, 11 and replay), **quiet** and **S2** play correctly. S2 now writes its "Didn't wake you" note, so demo moment 2 works. #1, #2 and #3 are verified fixed and closed.
+- **S1** (live seeds 7, 3, 11 and replay), **quiet**, **S2** and the new **S5** (market control: 3 expected notes plus the real PayCo routing fault) play correctly. S2 now writes its "Didn't wake you" note, so demo moment 2 works. #1, #2 and #3 are verified fixed and closed.
 - **S4** names the right cause (`pacing_ratio`, `dep_ad-pacer_1.7.0`, holdout run), but the segment is `{}` instead of DE/FR (#4). The S4 replay shows €1,687 instead of about €73.6k (#29).
 - **S3** holds back correctly, but the note does not name the broken identity (#5, #9).
-- **Scorecard:** Argus pass@1 is 100% vs 20% for the threshold baseline.
+- **Scorecard on 260d499:** Argus pass@1 is 100% vs 17% for the threshold baseline.
 - **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
-- **`make check` on main** is red only because of #27 (ruff format on `docs/plan/build-plan.md`); CI is red for the same reason.
+- **`make check` on main** is green (335 passed); #27 is fixed.
 - **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart or loop (#33; fix in PR #39). Until it merges, do not press Restart on stage.
 
 ## What is in this branch
