@@ -195,8 +195,10 @@ function runningInvestigation(view: RunView) {
 
 type Tone = "ok" | "watch" | "alarm" | "probe" | "muted";
 
-/** Short chip words for the KPI cards; the long labels stay in the views. */
+/** Short chip words for the KPI cards; the long labels stay in the views and the chip's title. */
 const CHIP: Partial<Record<MetricState, string>> = { checking: "checking", symptom: "symptom", unscored: "not scored", pending: "pending" };
+/** A root's label says whether its cause is supported ("root cause") or not ("anomaly"); the chip keeps that. */
+const CHIP_LABEL: Record<string, string> = { "root cause": "cause" };
 
 const TONE: Record<MetricState, Tone> = {
   checking: "probe",
@@ -227,7 +229,9 @@ function Kpi({ graph, node, view, onSelect }: { graph: Graph | null; node: Graph
       <span className="fx-kpi-value">
         <b>{status.z === null ? "–" : status.z.toFixed(1)}</b>
         <span>|z|</span>
-        <span className="fx-kpi-state">{CHIP[status.state] ?? status.label}</span>
+        <span className="fx-kpi-state" title={status.label}>
+          {CHIP[status.state] ?? CHIP_LABEL[status.label] ?? status.label}
+        </span>
       </span>
       <Trend values={history} alarm={view.thresholds.alarm_z} />
     </button>
