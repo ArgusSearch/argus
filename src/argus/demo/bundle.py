@@ -57,6 +57,7 @@ class AskAnswer(_Strict):
     receipt_links: list[ReceiptLink]
     activity_cursor: int | None
     run_id: str | None = None
+    conversation_id: str | None = None
     reason: str | None = None
     usd: float = Field(default=0, ge=0, allow_inf_nan=False)
 

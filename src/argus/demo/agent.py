@@ -143,12 +143,15 @@ class AgentView:
     receipts: dict[str, ReceiptProof]
     questions: tuple[RecordedAsk, ...]
 
-    def ask(self, question: str, incident_id: str | None = None) -> AskAnswer:
+    def ask(self, question: str, incident_id: str | None = None, conversation_id: str | None = None) -> AskAnswer:
         if incident_id is None or any(incident.id == incident_id for incident in self.incidents):
             key = _question_key(question)
             matching = [item for item in self.questions if _question_key(item.question) == key]
             if matching:
-                return max(matching, key=lambda item: item.through_seq).response
+                response = max(matching, key=lambda item: item.through_seq).response
+                thread = f"{self.state.run_id}:{response.conversation_id}" if response.conversation_id else None
+                if conversation_id is None or conversation_id == thread:
+                    return response.model_copy(update={"conversation_id": thread})
         return AskAnswer(
             status="unavailable",
             answer="This recording has no answer to that question at the current demo time.",

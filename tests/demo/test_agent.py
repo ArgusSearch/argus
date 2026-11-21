@@ -173,6 +173,7 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
         "response": {
             "status": "answered",
             "run_id": "ask",
+            "conversation_id": "recorded-thread",
             "answer": "The recorded check points to pacing.",
             "claims": [],
             "receipt_links": [_dump(investigation_proof)],
@@ -277,6 +278,9 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         assert incident.updated_at < incident.findings.as_of == pending.state.sim_ts
         assert not any(record.kind in {"action_decided", "effect_checked"} for record in pending.activity)
         answer = pending.ask("Could  HIGHER traffic explain the spend", proposal.incident_ref)
+        assert answer.conversation_id == f"{run_id}:recorded-thread"
+        assert pending.ask(QUESTION, proposal.incident_ref, answer.conversation_id) == answer
+        assert pending.ask(QUESTION, proposal.incident_ref, "stale-run:recorded-thread").status == "unavailable"
         proof = pending.receipts[answer.receipt_links[0].key()]
         assert pending.ask("an unseen question").status == "unavailable"
         assert pending.ask(QUESTION, "different-case").status == "unavailable"
@@ -312,7 +316,14 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         action_line = next(line for line in report.lines if line.id == f"agent:action:{proposal.id}")
         assert {ref.id for ref in action_line.receipts} >= {ref.key() for ref in effect.receipt_refs}
         assert report.activity.until == effect.checked_at
-        return (run_id, done.activity, answer, proof, effect, report)
+        return (
+            run_id,
+            done.activity,
+            answer.model_copy(update={"conversation_id": "recorded-thread"}),
+            proof,
+            effect,
+            report,
+        )
 
     first, second = cold(), cold()
     assert first[0] != second[0]

@@ -90,6 +90,9 @@ def cold_run(api: LocalAPI, hold: float) -> tuple[str, dict[str, Any]]:
     question = {"question": QUESTION, "incident_id": proposal["incident_ref"]}
     answer = api.json("/agent/ask", question, run_id=run_id)
     require(answer["receipt_links"], "recorded Ask response has no evidence")
+    if thread := answer.get("conversation_id"):
+        require(thread.startswith(f"{run_id}:"), "Ask conversation is scoped to a different presentation")
+        answer["conversation_id"] = thread.split(":", 1)[1]
     asked = [api.json(receipt_path(link), run_id=run_id) for link in answer["receipt_links"]]
     time.sleep(hold)
     require(api.json("/demo/state") == held, "presentation clock moved during the hold")
