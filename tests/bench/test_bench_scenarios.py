@@ -13,6 +13,7 @@ from mockmart.truth import read_truth
 pytestmark = pytest.mark.e2e
 SEEDS = (1, 2, 3)
 END_AS_OF = datetime(2026, 11, 24)  # after the default world end: every row is visible
+# Money columns are DECIMAL(18,2); every sum below is cast to DOUBLE so ratios compare as floats.
 
 
 def _truth(paths, kind: str) -> dict:
@@ -31,7 +32,7 @@ def test_s2_budget_rises_as_planned(world, view, seed):
     v = view(paths.world).at(END_AS_OF)
 
     budget = v.at(t0 - timedelta(hours=12)).one(
-        f"SELECT ts, daily_budget FROM log_ad_budgets WHERE id = '{exp['evidence']}'"
+        f"SELECT ts, daily_budget::DOUBLE FROM log_ad_budgets WHERE id = '{exp['evidence']}'"
     )
     assert budget == (t0, event["magnitude"]["budget_after_eur"]), "the change is visible half a day ahead"
     assert v.one(f"SELECT count(*) FROM log_calendar WHERE id IN {tuple(exp['evidence_any'])}")[0] == 1
@@ -40,15 +41,15 @@ def test_s2_budget_rises_as_planned(world, view, seed):
     line = f"advertiser_id = '{adv}' AND country = 'FR'"
     after = f"ts >= TIMESTAMP '{t0}' AND ts < TIMESTAMP '{t0 + timedelta(hours=24)}'"
     before = f"ts >= TIMESTAMP '{t0 - timedelta(hours=48)}' AND ts < TIMESTAMP '{t0 - timedelta(hours=24)}'"
-    spend_after = v.one(f"SELECT sum(ad_spend) FROM fact_ads_hourly WHERE {line} AND {after}")[0]
-    spend_before = v.one(f"SELECT sum(ad_spend) FROM fact_ads_hourly WHERE {line} AND {before}")[0]
-    plan_after = v.one(f"SELECT sum(planned_spend) FROM fact_ad_plan_hourly WHERE {line} AND {after}")[0]
+    spend_after = v.one(f"SELECT sum(ad_spend)::DOUBLE FROM fact_ads_hourly WHERE {line} AND {after}")[0]
+    spend_before = v.one(f"SELECT sum(ad_spend)::DOUBLE FROM fact_ads_hourly WHERE {line} AND {before}")[0]
+    plan_after = v.one(f"SELECT sum(planned_spend)::DOUBLE FROM fact_ad_plan_hourly WHERE {line} AND {after}")[0]
     uplift = event["magnitude"]["uplift"]
     assert spend_after / spend_before == pytest.approx(1 + uplift, rel=0.08)
     assert spend_after / plan_after == pytest.approx(1.0, rel=0.06), "delivery follows the new plan"
     # The plan's hourly share is the same every day, so an untouched line plans the same spend a week apart.
     plans = v.all(
-        f"SELECT ts, sum(planned_spend) FROM fact_ad_plan_hourly WHERE NOT ({line}) AND ts IN "
+        f"SELECT ts, sum(planned_spend)::DOUBLE FROM fact_ad_plan_hourly WHERE NOT ({line}) AND ts IN "
         f"(TIMESTAMP '{t0 + timedelta(hours=3)}', TIMESTAMP '{t0 + timedelta(hours=3, days=-7)}') GROUP BY ts"
     )
     assert len(plans) == 2 and plans[0][1] == pytest.approx(plans[1][1]), "every other budget line keeps its plan"
@@ -108,8 +109,9 @@ def test_s4_pacer_burns_de_fr_budgets_by_midday(world, view, seed):
 
     day = f"ts >= TIMESTAMP '{day0}' AND ts < TIMESTAMP '{day0 + timedelta(days=1)}'"
     rows = v.all(
-        f"SELECT a.country, hour(a.ts) AS h, sum(a.ad_spend) AS spend, "
-        f"(SELECT sum(p.planned_spend) FROM fact_ad_plan_hourly p WHERE p.ts = a.ts AND p.country = a.country) AS plan "
+        f"SELECT a.country, hour(a.ts) AS h, sum(a.ad_spend)::DOUBLE AS spend, "
+        f"(SELECT sum(p.planned_spend)::DOUBLE FROM fact_ad_plan_hourly p "
+        f"WHERE p.ts = a.ts AND p.country = a.country) AS plan "
         f"FROM fact_ads_hourly a WHERE {day.replace('ts', 'a.ts')} GROUP BY a.country, a.ts"
     )
     by_country: dict[str, dict[int, tuple[float, float]]] = {}
