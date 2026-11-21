@@ -43,8 +43,8 @@ from argus.detect import Watcher, WatcherConfig
 from argus.graph.edge_tests import EdgeStatusChange, EdgeTester
 from argus.graph.store import Changelog, load_seed_graph, write_graph
 from argus.incidents.lifecycle import IncidentBook
-from argus.investigate import investigate
 from argus.investigator.procedure import investigate as investigate_stage_one
+from argus.market.investigator import investigate
 from argus.narrator.report import render
 from argus.runtime.bus import EventBus
 from argus.semantic.runner import Runner
