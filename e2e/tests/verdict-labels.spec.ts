@@ -7,7 +7,7 @@ test("the S1 verdict is written the same way everywhere", async ({ page, request
   test.skip(LIVE, "replay-only: drives the recorded S1 run");
   // remove test.fail once the fix for #15 (PR #60) is on main
   test.fail(true, "one verdict, four labels: https://github.com/ArgusSearch/argus/issues/15");
-  await replay(request, { action: "restart", speed: 8 });
+  await replay(request, { action: "restart", speed: 16 });
   await replay(request, { action: "play" });
   await openMissionControl(page);
   // fast to the incident, then slow so the verdict can be caught before the incident resolves
