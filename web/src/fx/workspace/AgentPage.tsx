@@ -1,37 +1,21 @@
-// Agent activity: every run of the Argus agent and every step of it, in the order it happened. What the model
-// said before a check, the check and its prediction, what came back, what the verdict gate let through, what was
-// proposed and decided. Numbers in these lines were rendered by the host from receipts, never typed by the model.
+// Agent activity: every run of the Argus agent, each folded to one line once it is done, the running one open with
+// what it is doing now. Open a run for its steps: what the model said before a check, the check and its prediction,
+// what came back, what the verdict gate let through, what was proposed and decided. A proposal waiting for you stays
+// in view with its approve and deny. Numbers in these lines were rendered by the host from receipts, never typed by
+// the model.
 
-import { useMemo, useState } from "react";
-import { AgentReceiptChips } from "../../components/Receipts";
-import { roleOf, type ActivityKind, type ActivityRecord, type RunSummary } from "../../lib/agent";
-import { AvatarSlot } from "./AvatarSlot";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { groupRuns, isLive, pendingProposals } from "../../agent-ui/activity";
+import { runClock } from "../../agent-ui/clock";
+import { JumpToLatest, useFollowTail } from "../../agent-ui/hooks";
+import { RunGroupView, usd } from "../../agent-ui/RunLog";
+import { type RunSummary } from "../../lib/agent";
 import { dayLabel, hhmm, humanize } from "../../lib/format";
 import { openIncidentPage } from "../nav";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { useAgent } from "./agent";
 import { VERDICT, type Tone } from "./plain";
 import { Card, Pill } from "./ui";
-
-const KIND: Record<ActivityKind, { word: string; tone: Tone }> = {
-  run_started: { word: "Started", tone: "muted" },
-  thought: { word: "Thinks", tone: "probe" },
-  tool_call: { word: "Runs a check", tone: "probe" },
-  tool_result: { word: "Result", tone: "muted" },
-  gate: { word: "Verdict gate", tone: "watch" },
-  report: { word: "Report", tone: "ok" },
-  rejected: { word: "Sent back", tone: "alarm" },
-  action_proposed: { word: "Proposes", tone: "probe" },
-  action_decided: { word: "You decided", tone: "ok" },
-  action_applied: { word: "Applied", tone: "watch" },
-  effect_checked: { word: "Effect checked", tone: "ok" },
-  budget: { word: "Budget", tone: "watch" },
-  fallback: { word: "Fixed checklist took over", tone: "watch" },
-  chat_question: { word: "You asked", tone: "muted" },
-  chat_answer: { word: "Answer", tone: "ok" },
-  watch: { word: "Quiet hour", tone: "muted" },
-  run_finished: { word: "Finished", tone: "muted" },
-};
 
 const RUN_KIND: Record<RunSummary["kind"], string> = {
   investigate: "Investigation",
@@ -48,77 +32,17 @@ const STATUS: Record<RunSummary["status"], { word: string; tone: Tone }> = {
   fallback: { word: "handed to the fixed checklist", tone: "watch" },
 };
 
-/** the lines that name an incident with a link; the rest of a run is about the same incident */
-const LINKED = new Set<ActivityKind>(["run_started", "report", "action_proposed", "effect_checked"]);
-
 const verdictWord = (code: string) => VERDICT[code as keyof typeof VERDICT]?.label ?? humanize(code.toLowerCase());
-const usd = (n: number) => `$${n < 0.1 ? n.toFixed(3) : n.toFixed(2)}`;
 
-function Outcome({ outcome }: { outcome: string | null }) {
-  if (!outcome) return null;
-  const tone: Tone = /refut|ruled/i.test(outcome) ? "alarm" : /confirm|valid|consistent|held/i.test(outcome) ? "ok" : "muted";
-  return <Pill tone={tone}>{humanize(outcome)}</Pill>;
-}
-
-function Line({ r }: { r: ActivityRecord }) {
-  const k = KIND[r.kind];
-  const o = r.observation;
-  return (
-    <li className={`ag-line a-${r.actor} k-${r.kind}`}>
-      <span className="ag-time mono">{hhmm(r.sim_ts)}</span>
-      <AvatarSlot role={roleOf(r)} size="md" nameplate status={r.kind === "rejected" || r.kind === "fallback" ? "alarm" : r.kind === "action_proposed" ? "waiting" : undefined} />
-      <div className="ag-body">
-        <span className="ag-kind">
-          <span className={`ag-who ${r.actor}`} title={r.actor === "model" ? "the language model wrote this" : r.actor === "host" ? "Argus' own code ran this" : "a person did this"}>
-            {r.actor === "model" ? "AI" : r.actor === "host" ? "Argus" : "You"}
-          </span>
-          <Pill tone={k.tone}>{k.word}</Pill>
-          {r.tool && <span className="mono ag-tool">{r.tool}</span>}
-          {r.kind === "tool_result" && <Outcome outcome={o?.outcome ?? null} />}
-        </span>
-        {r.text && <p className="ag-text">{r.text}</p>}
-        {r.kind === "tool_call" && o && (o.hypothesis || o.prediction) && (
-          <p className="ag-pred">
-            {o.hypothesis && (
-              <>
-                <span>Suspect</span>
-                {o.hypothesis}
-              </>
-            )}
-            {o.prediction && (
-              <>
-                <span>If so, then</span>
-                {o.prediction}
-              </>
-            )}
-          </p>
-        )}
-        {r.kind === "tool_result" && o && !r.text && <p className="ag-text">{o.summary}</p>}
-        <span className="ag-meta">
-          <AgentReceiptChips links={r.receipt_links.length ? r.receipt_links : (o?.receipt_refs ?? [])} />
-          {r.model && (
-            <span className="mono">
-              {r.model} · {r.input_tokens ?? 0} in / {r.output_tokens ?? 0} out{r.usd !== null ? ` · ${usd(r.usd)}` : ""}
-            </span>
-          )}
-          {r.incident_id && LINKED.has(r.kind) && (
-            <button className="ag-link" onClick={() => openIncidentPage(r.incident_id as string)}>
-              {r.incident_id}
-            </button>
-          )}
-        </span>
-      </div>
-    </li>
-  );
-}
-
-function RunCard({ run }: { run: RunSummary }) {
+function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => void }) {
   const s = STATUS[run.status];
   return (
     <li className="ag-run">
       <span className="ag-run-head">
         <b>{RUN_KIND[run.kind]}</b>
-        <span className="mono">{run.run_id}</span>
+        <button className="ag-link mono" title="Show this run's steps" onClick={() => onShow(run.run_id)}>
+          {run.run_id}
+        </button>
         <Pill tone={s.tone}>{s.word}</Pill>
       </span>
       <span className="ag-run-line">
@@ -145,17 +69,47 @@ export function AgentPage() {
   // the sealed presentation is a recorded model run, whatever mode the server's own agent is in
   const presenting = useAgentDemo() !== null;
   const [quiet, setQuiet] = useState(false);
-  const lines = useMemo(() => agent.records.filter((r) => quiet || r.kind !== "watch"), [agent.records, quiet]);
+  // runs the reader opened or folded; the rest follow the default (the live run and the newest are open)
+  const [folds, setFolds] = useState<ReadonlyMap<string, boolean>>(new Map());
+  const records = useMemo(() => agent.records.filter((r) => quiet || r.kind !== "watch"), [agent.records, quiet]);
+  const groups = useMemo(() => groupRuns(records, agent.runs), [records, agent.runs]);
+  const live = useMemo(() => new Set(groups.filter((g) => isLive(g, presenting)).map((g) => g.key)), [groups, presenting]);
+  const tail = useFollowTail(records.length);
   const spent = agent.runs.reduce((s, r) => s + r.usd, 0);
   const running = agent.runs.find((r) => r.status === "running");
+  const waiting = pendingProposals(agent.proposals).length;
+  const newest = groups[groups.length - 1]?.key;
+
+  // every run is timed from when this page first saw it live, open or folded
+  useLayoutEffect(() => {
+    const now = Date.now();
+    for (const g of groups) runClock.observe(g.key, live.has(g.key), now);
+  }, [groups, live]);
+
+  const isOpen = (key: string) => folds.get(key) ?? (live.has(key) || key === newest);
+  const { release } = tail;
+  const toggle = useCallback(
+    (key: string) => {
+      // opening a run above the newest is reading history: stop following the end
+      if (key !== newest) release();
+      setFolds((f) => new Map(f).set(key, !(f.get(key) ?? (live.has(key) || key === newest))));
+    },
+    [newest, live, release],
+  );
+  const show = (key: string) => {
+    release();
+    setFolds((f) => new Map(f).set(key, true));
+    requestAnimationFrame(() => document.querySelector(`.au-group[data-run="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  };
+
   return (
     <main className="fx-dash ws-page ws-agent" aria-label="agent activity">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Agent activity{presenting ? " · recorded model run" : agent.health ? ` · ${agent.health.mode}` : ""}</span>
         <h1>{running ? `Argus is on it: ${RUN_KIND[running.kind].toLowerCase()} ${running.run_id}` : "What the Argus agent did on its own"}</h1>
         <p>
-          Each step the agent took: what it said before a check, the check and its prediction, what came back, and what the verdict gate let through.
-          Every number comes from a receipt; the model never types one.
+          Each run folds to one line once it is done; open it for every step: what the AI said before a check, the check and its prediction, what came back,
+          and what the verdict gate let through. Every number comes from a receipt; the model never types one.
         </p>
       </header>
       {!agent.enabled && (
@@ -166,23 +120,34 @@ export function AgentPage() {
       {agent.enabled && (
         <div className="ag-grid">
           <Card
-            title="Steps"
-            className="ag-steps"
+            title={waiting ? `Runs · ${waiting} waiting for you` : "Runs"}
+            className="ag-steps au-card"
             action={
               <label className="ag-toggle">
                 <input type="checkbox" checked={quiet} onChange={(e) => setQuiet(e.target.checked)} /> show quiet hours
               </label>
             }
           >
-            {lines.length === 0 ? <p className="fx-empty">Nothing yet: quiet hours need no model call.</p> : <ol className="ag-lines">{lines.map((r) => <Line key={r.seq} r={r} />)}</ol>}
+            <div className="au-scroll" ref={tail.ref} tabIndex={0} role="region" aria-label="agent runs">
+              {groups.length === 0 ? (
+                <p className="fx-empty">Nothing yet: quiet hours need no model call.</p>
+              ) : (
+                <ol className="au-groups">
+                  {groups.map((g) => (
+                    <RunGroupView key={g.key} group={g} live={live.has(g.key)} open={isOpen(g.key)} proposals={agent.proposals} onToggle={toggle} />
+                  ))}
+                </ol>
+              )}
+            </div>
+            <JumpToLatest tail={tail} noun="new" />
           </Card>
-          <Card title="Runs" className="ag-runs">
+          <Card title="Run totals" className="ag-runs">
             <p className="ag-spent">
               {agent.runs.length} run{agent.runs.length === 1 ? "" : "s"} · {usd(spent)} spent on model calls
             </p>
             <ul className="ag-run-list">
               {[...agent.runs].reverse().map((r) => (
-                <RunCard key={r.run_id} run={r} />
+                <RunCard key={r.run_id} run={r} onShow={show} />
               ))}
             </ul>
           </Card>
