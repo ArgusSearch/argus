@@ -215,6 +215,11 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
               </svg>
               <span>{item.label}</span>
               {item.id === "investigation" && running && <i className="fx-side-live" aria-label="investigation running" />}
+              {item.id === "agent" && agent.waiting > 0 && (
+                <em className="fx-side-badge" title="Proposals waiting for your approval" aria-label={`${agent.waiting} waiting for your approval`}>
+                  {agent.waiting}
+                </em>
+              )}
               {item.id === "incidents" && open > 0 && (
                 <em className="fx-side-badge" aria-label={`${open} open`}>
                   {open}

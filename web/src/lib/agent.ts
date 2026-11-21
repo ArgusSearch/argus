@@ -172,6 +172,11 @@ export interface AskAnswer {
   claims: VerifiedClaim[];
   receipt_links: ReceiptLink[];
   activity_cursor: number | null;
+  /** the agent run that answered (its checks are in the activity log); null when no run was needed */
+  run_id?: string | null;
+  /** why the status is what it is, for a refused or unavailable answer */
+  reason?: string | null;
+  usd?: number | null;
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -250,8 +255,9 @@ export const agentApi = {
   actions: () => call<ProposalView[]>(withRun("/agent/actions")),
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
     decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }),
-  ask: (question: string, incidentId?: string | null, conversationId?: string | null) =>
-    call<AskAnswer>(withRun("/agent/ask"), post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null })),
+  /** `signal` stops waiting for the answer (the server's run still finishes and is billed) */
+  ask: (question: string, incidentId?: string | null, conversationId?: string | null, signal?: AbortSignal) =>
+    call<AskAnswer>(withRun("/agent/ask"), { ...post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null }), signal }),
   receipt: async (link: ReceiptLink): Promise<AgentReceipt> =>
     normalizeReceipt(
       await call<unknown>(withRun(`/agent/receipts/${encodeURIComponent(link.run_id)}/${encodeURIComponent(link.world_revision)}/${encodeURIComponent(link.receipt_id)}`)),

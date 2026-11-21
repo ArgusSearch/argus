@@ -5,6 +5,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useApprovalCount } from "./approvals";
+import { pendingProposals } from "../../agent-ui/activity";
+import { useWaitingTitle } from "../../agent-ui/hooks";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
 
@@ -14,13 +16,15 @@ export interface AgentState {
   records: ActivityRecord[];
   proposals: ProposalView[];
   runs: RunSummary[];
+  /** proposals waiting for a person's decision (the sidebar and the tab title count them) */
+  waiting: number;
   /** re-read proposals and runs now (after a decision) */
   refresh: () => void;
   /** replace one proposal with the version a decision returned */
   put: (p: ProposalView) => void;
 }
 
-const EMPTY: AgentState = { enabled: false, health: null, records: [], proposals: [], runs: [], refresh: () => undefined, put: () => undefined };
+const EMPTY: AgentState = { enabled: false, health: null, records: [], proposals: [], runs: [], waiting: 0, refresh: () => undefined, put: () => undefined };
 const Ctx = createContext<AgentState>(EMPTY);
 
 export function useAgent(): AgentState {
@@ -119,6 +123,11 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     if (settling(p.state)) setTick((t) => t + 1);
   }, []);
 
-  const value = useMemo<AgentState>(() => ({ enabled, health, records, proposals, runs, refresh, put }), [enabled, health, records, proposals, runs, refresh, put]);
+  const waiting = enabled ? pendingProposals(proposals).length : 0;
+  useWaitingTitle(waiting);
+  const value = useMemo<AgentState>(
+    () => ({ enabled, health, records, proposals, runs, waiting, refresh, put }),
+    [enabled, health, records, proposals, runs, waiting, refresh, put],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
