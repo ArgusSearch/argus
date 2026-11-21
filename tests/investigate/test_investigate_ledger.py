@@ -167,7 +167,7 @@ def test_scripted_planner_tags_its_proposals() -> None:
         expected=0.95,
         band=(0.94, 0.96),
         z=-8.0,
-        rule="z_gt_4",
+        rule="z_gt_open",
     )
     ctx = PlannerContext(
         anomaly=anomaly,
