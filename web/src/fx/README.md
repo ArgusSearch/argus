@@ -1,7 +1,7 @@
 # Argus Ice: the style layer
 
-Mission Control in a pale-fog, glowing-ice look, switched on per page load from the address bar.
-Without the flag nothing of this folder runs: same DOM, same styles, no request for the 3D chunk.
+Mission Control in a pale-fog, glowing-ice look: the default interface.
+With `?classic=1` (or the old `?fx=0`) nothing of this folder runs: the classic DOM and styles, no request for the 3D chunk.
 The plan behind it is the scout report `argus-igloo-style` (sections 2 and 3); this note is the part teammates need.
 
 ## Try it
@@ -13,15 +13,15 @@ npm --prefix web run build                 # the API serves web/dist at /
 
 | URL | Result |
 | --- | --- |
-| `/` or `/?fx=0` | today's interface |
-| `/?fx=1` (or `fx=ice`) | Argus Ice, light fog |
+| `/`, `/?fx=1` (or `fx=ice`) | Argus Ice, light fog |
+| `/?classic=1` (or `/?fx=0`) | the classic interface |
 | `/?fx=night` | the same world after dark |
 | `/?demo=1&captions=1&fx=1` | the recording URL: hands-off demo in Argus Ice |
 | `&fxq=low\|mid\|high` | fixed quality tier for the 3D scene (default `auto`) |
 | `&fxintro=0` | no loader hold, no intro (tests, repeated takes) |
 | `&fxdebug=1` | frame rate, worst frame and the scene's quality tier in the bottom-left corner |
 
-The flag is read once and never stored, so other tabs and the end-to-end tests stay on today's interface.
+The flag is read once and never stored.
 
 ## How it works
 
