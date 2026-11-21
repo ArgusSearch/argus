@@ -21,6 +21,7 @@ from argus.contracts.findings import Incident
 Action = Literal["play", "pause", "restart", "end"]
 
 _STEP_TYPES = frozenset({EventType.INVESTIGATION_STEP, EventType.SKEPTIC_STEP, EventType.ANOMALY_OPENED})
+LOOP_LINGER_SECONDS = 8.0  # a looping replay holds its final state this long before it starts over
 
 
 @dataclass
@@ -45,11 +46,19 @@ class Replayer:
     `incidents` holds the recorded incident snapshots published so far: replay never shows the future.
     """
 
-    def __init__(self, hub: EventHub, recording: Recording, pace: Pace | None = None, loop: bool = False) -> None:
+    def __init__(
+        self,
+        hub: EventHub,
+        recording: Recording,
+        pace: Pace | None = None,
+        loop: bool = False,
+        linger: float = LOOP_LINGER_SECONDS,
+    ) -> None:
         self.hub = hub
         self.recording = recording
         self.pace = pace or Pace()
         self.loop = loop
+        self.linger = linger
         self.speed = 1.0
         self.position = 0
         self.playing = True
@@ -163,8 +172,9 @@ class Replayer:
                 if not self.loop:
                     await self._sleep(3600)
                     continue
-                await self._sleep(8.0)
-                if self.position >= len(events):
+                # Start over only after an undisturbed linger: a control at the end (pause, speed) re-evaluates
+                # instead, so pausing holds the final state rather than restarting the replay.
+                if not await self._sleep(self.linger) and self.position >= len(events):
                     self.control("restart", None)
                 continue
             prev = events[self.position - 1] if self.position else None

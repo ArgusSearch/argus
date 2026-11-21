@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from argus.api.app import create_app, end_streams_on_exit
 from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, load_recording
+from argus.api.replay import Pace, Replayer
 from argus.api.sources import LiveSource, ReplaySource
 from argus.api.state import RunState
 from argus.contracts.events import Event, EventType
@@ -217,3 +218,28 @@ def test_exit_signal_ends_every_stream_then_reaches_the_server() -> None:
         assert seen == [signal.SIGTERM], "the previous handler (uvicorn's) still runs"
     finally:
         signal.signal(signal.SIGTERM, original)
+
+
+def test_a_looping_replay_holds_its_end_while_paused_and_starts_over_after_the_linger() -> None:
+    """`make api` loops the replay; pausing it at the end (to read the final state) must not restart it."""
+
+    async def run() -> tuple[int, bool, int, int]:
+        rec = load_recording(FIXTURES / "quiet")
+        hub = EventHub(RunState(rec.graph))
+        hub.bind(asyncio.get_running_loop())
+        replayer = Replayer(hub, rec, Pace.per_tick(0), loop=True, linger=0.2)
+        replayer.start()  # an instant pace publishes the whole recording here
+        await asyncio.sleep(0.05)  # inside the linger at the end
+        replayer.control("pause", None)
+        await asyncio.sleep(0.5)  # well past the linger
+        held = (replayer.position, replayer.playing, hub.base_seq)
+        replayer.control("play", None)
+        await asyncio.sleep(0.5)
+        replayer.stop()
+        await replayer.closed()
+        return (*held, hub.base_seq)
+
+    position, playing, base_paused, base_played = asyncio.run(run())
+    total = len(load_recording(FIXTURES / "quiet").events)
+    assert (position, playing, base_paused) == (total, False, 0), "paused at the end: no restart"
+    assert base_played >= total, "playing again: the loop starts over after the linger"
