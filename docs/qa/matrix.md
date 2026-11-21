@@ -1,6 +1,33 @@
 # Scenario matrix
 
-## Current: `main` @ `2c36e82` (Saturday 2026-11-21, ~21:00 CET)
+## Current: `main` @ `1cc4cef` (Saturday 2026-11-21, ~23:00 CET): agent and remediation lanes
+
+This commit adds the Argus Agent (an LLM pre-verdict loop, off by default with no key), remediation proposals with operator decisions, `/agent` routes and a new calm test for incidents. It was checked with the agent off and no model calls.
+
+**13 of 14 runs are identical to 2c36e82:** verdicts, severities, receipt hashes, counterfactuals and the scorecard. 0 5xx.
+
+**Live S4** is the one difference:
+- Lifecycle: explained → monitoring (one calm hour, 11-20 09:00) → explained again.
+- It never resolves on the untreated world, which docs/ext/remediation.md predicts. €73,490.
+- `fixtures/s4` was not re-recorded, so replay S4 still differs (#29).
+
+**Remediation on live S4.** This was driven with a small harness that wires the service the way the API does when the agent is on.
+- A `rollback_pacer` proposal reaches AWAIT_OPERATOR, and the clock holds.
+- The operator routes reject a missing session or CSRF and a foreign Origin (403), a stale digest (409) and bad bodies (422).
+- Approve → APPLIED (5,184 future ads rows replaced) → VERIFIED: treated pacing 1.01 vs the untreated twin 4.21.
+- **The incident resolves**, at €24,416 instead of €73,490.
+- Old receipts re-run with the same hash.
+- Gap: the morning report still asks for approval afterwards (#72).
+
+**Agent routes with the agent off:** `/agent/health`, `/activity`, `/runs` and `/actions` give 200. `POST /agent/ask` gives 409 "agent is off". The operator routes are absent (404) unless the agent is on. `ARGUS_AGENT=replay`, which the docs advertise, crashes `argus api` (#71).
+
+**Scorecard:** identical to 2c36e82 (Argus pass@1 100%, threshold 17%).
+
+**Blind seed 11:** drew s2, EXPECTED note, grade 4, PASS; `verify` matches.
+
+`make check` on the 8 GB Mac: 457 passed and 1 timing flake (#70). CI on main is green.
+
+## Earlier: `main` @ `2c36e82` (Saturday 2026-11-21, ~21:00 CET)
 
 Argus's own code (`src/argus`, `src/bench`, `graph/`, `metrics/`) is identical to `260d499`. Commit 118a335 regenerated the MockMart worlds the same way on every platform, and the fixtures were re-recorded. CI on main is green again (run 44938516625).
 
@@ -211,3 +238,5 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [68](https://github.com/ArgusSearch/argus/issues/68) | web | P1 | fx: the running investigation's current step is cut at the bottom of 1920x1080 |
 | [69](https://github.com/ArgusSearch/argus/issues/69) | web | P2 | demo mode at speed ≥8 races the replay loop |
 | [70](https://github.com/ArgusSearch/argus/issues/70) | api | P2 | The replay pause-at-end test is timing-sensitive and fails under load |
+| [71](https://github.com/ArgusSearch/argus/issues/71) | api | P2 | `ARGUS_AGENT=replay` (advertised) crashes `argus api` |
+| [72](https://github.com/ArgusSearch/argus/issues/72) | api | P2 | The morning report ignores a verified roll-back and still asks for approval |
