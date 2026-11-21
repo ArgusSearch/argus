@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from argus.agent.types import ProposalView, VerifiedClaim
 from argus.contracts.events import Event, EventType, IncidentUpdatedPayload, InvestigationStepPayload
 from argus.contracts.findings import Anomaly, Findings, Incident, Note, TrailStep, Verdict
 from argus.contracts.graph import Graph
@@ -17,6 +19,22 @@ from argus.narrator.playbooks import PlaybookRun, map_playbook
 from argus.narrator.run_queries import Activity, ReceiptLink, RunWindow, measure_activity
 
 Section = Literal["happened", "decided", "asks"]
+
+
+@dataclass(frozen=True)
+class AgentReportClaim:
+    claim: VerifiedClaim
+    incident_id: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentMorning:
+    claims: Sequence[AgentReportClaim] = ()
+    actions: Sequence[ProposalView] = ()
+
+
+MorningProjection = Callable[[RunWindow], AgentMorning]
+"""Read verified claims, visible action snapshots and their receipts for the requested prefix."""
 
 
 class ReportLine(BaseModel):
@@ -69,7 +87,11 @@ def _markdown(lines: list[ReportLine]) -> str:
 
 
 def _note_line(
-    window: RunWindow, event: Event, tick: Event | None, semantic: Callable[..., list[ReceiptLink]]
+    window: RunWindow,
+    event: Event,
+    tick: Event | None,
+    semantic: Callable[..., list[ReceiptLink]],
+    agent_mode: bool,
 ) -> ReportLine:
     note = Note.model_validate(event.payload)
     event_links = [window.event_link(event)]
@@ -79,7 +101,7 @@ def _note_line(
         id=f"note:{note.id}",
         note_id=note.id,
         section="decided",
-        text=f"{_NOTE_LABEL[note.kind]} - {note.reason}",
+        text=_NOTE_LABEL[note.kind] if agent_mode else f"{_NOTE_LABEL[note.kind]} - {note.reason}",
         receipts=event_links + semantic(*note.receipts, *(number.receipt for number in note.numbers)),
     )
 
@@ -90,6 +112,7 @@ def _incident_lines(
     findings: Findings | None,
     verdict_event: Event | None,
     semantic: Callable[..., list[ReceiptLink]],
+    agent_mode: bool,
 ) -> list[ReportLine]:
     update = IncidentUpdatedPayload.model_validate(event.payload)
 
@@ -107,15 +130,16 @@ def _incident_lines(
         evidence += semantic(change.receipt)
         if findings.root and findings.root.evidence:
             evidence += semantic(*(rid for step in findings.trail if step.kind == "events" for rid in step.receipts))
+    verdict = f"{update.id} · {update.verdict.value} · {update.state.value}"
     result = [
         line(
             "verdict",
             "decided",
-            f"{update.id} · {update.verdict.value} · {update.state.value} - {update.title}",
+            verdict if agent_mode else f"{verdict} - {update.title}",
             evidence,
         )
     ]
-    if findings:
+    if findings and not agent_mode:
         observed = findings.observed
         base_receipts = (observed.observed.receipt, observed.expected.receipt)
         links = semantic(*base_receipts, observed.change_pct.receipt)
@@ -175,10 +199,67 @@ def _incident_lines(
             )
 
     if update.verdict in (Verdict.HYPOTHESIS, Verdict.UNEXPLAINED):
-        uncertainty = " ".join(findings.uncertain) if findings else ""
+        uncertainty = " ".join(findings.uncertain) if findings and not agent_mode else ""
         text = f"Further evidence needed for {update.id} ({update.verdict.value})."
         result.append(line("review", "asks", f"{text} {uncertainty}".strip(), evidence))
     return result
+
+
+def _agent_lines(window: RunWindow, snapshot: AgentMorning, visible_incidents: set[str]) -> list[ReportLine]:
+    if not window.events:
+        return []
+    as_of = window.events[-1].sim_ts
+    lines: dict[str, ReportLine] = {}
+    claims = list(snapshot.claims)
+    for action in snapshot.actions:
+        if action.incident_ref not in visible_incidents or (action.decision is not None and action.decision.at > as_of):
+            continue
+        effect = action.effect
+        if effect is not None and effect.checked_at > as_of:
+            continue
+        if action.state in {"VERIFIED", "NO_EFFECT", "INCONCLUSIVE"} and (
+            effect is None or effect.state != action.state
+        ):
+            continue
+        proposal_refs = [ref for ref in action.evidence_refs if ref.run_id == action.run_id]
+        refs = proposal_refs + (effect.receipt_refs if effect else [])
+        state = action.state.replace("_", " ").capitalize()
+        scope = ", ".join(f"{dim}={'/'.join(values)}" for dim, values in sorted(action.scope.items()))
+        playbook = action.playbook_id.replace("_", " ").capitalize()
+        if refs:
+            line_id = f"agent:action:{action.id}"
+            when = f" · Effective {action.effective_at:%Y-%m-%d %H:%M} UTC" if action.state != "DENIED" else ""
+            lines[line_id] = ReportLine(
+                id=line_id,
+                section="asks" if action.state == "AWAIT_OPERATOR" else "decided",
+                incident_id=action.incident_ref,
+                text=f"{playbook} · {scope or 'all segments'} · {state}{when}",
+                receipts=list({ref.key(): window.agent_link(ref) for ref in refs}.values()),
+            )
+        if effect:
+            claims.extend(AgentReportClaim(claim, action.incident_ref) for claim in effect.claims)
+
+    for item in claims:
+        claim = item.claim
+        if (
+            claim.as_of > as_of
+            or (item.incident_id is not None and item.incident_id not in visible_incidents)
+            or not claim.receipts
+            or not any(ref.world_revision == claim.world_revision for ref in claim.receipts)
+        ):
+            continue
+        line_id = f"agent:claim:{claim.claim_id}"
+        display = claim.display
+        for ref in claim.receipts:
+            display = display.replace(f"[{ref.receipt_id}]", "")
+        lines[line_id] = ReportLine(
+            id=line_id,
+            section="decided" if claim.kind in {"cause", "ruled_out", "recovered"} else "happened",
+            incident_id=item.incident_id,
+            text=re.sub(r"\s+\.$", ".", display.strip()),
+            receipts=[window.agent_link(ref) for ref in claim.receipts],
+        )
+    return list(lines.values())
 
 
 def build_morning_report(
@@ -186,8 +267,10 @@ def build_morning_report(
     incidents: Sequence[Incident],
     graph: Graph,
     has_receipt: Callable[[str], bool],
+    agent_projection: MorningProjection | None = None,
 ) -> tuple[MorningReport, dict[int, Findings]]:
     """Produce deterministic prose and evidence links without provider calls."""
+    agent_mode = agent_projection is not None
     activity = measure_activity(window)
     activity_receipt = window.link("activity")
     lines = [
@@ -255,14 +338,18 @@ def build_morning_report(
             findings = None
         anomaly_id = findings.anomaly_id if findings else None
         lines.extend(
-            _incident_lines(window, event, findings, verdicts.get(anomaly_id) if anomaly_id else None, semantic)
+            _incident_lines(
+                window, event, findings, verdicts.get(anomaly_id) if anomaly_id else None, semantic, agent_mode
+            )
         )
         if incident is not None and findings is not None:
             published_findings[event.seq] = findings
             for linked in (*incident.anomalies, findings.anomaly_id):
                 incident_ids[linked] = incident_id
             trails.setdefault(findings.anomaly_id, findings.trail)
-    lines.extend(_note_line(window, event, ticks.get(event.sim_ts), semantic) for event in notes)
+    lines.extend(_note_line(window, event, ticks.get(event.sim_ts), semantic, agent_mode) for event in notes)
+    if agent_projection is not None:
+        lines.extend(_agent_lines(window, agent_projection(window), set(latest)))
 
     investigations = []
     for anomaly_id, trail in trails.items():
