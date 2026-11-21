@@ -8,7 +8,7 @@ import { AutonomyLegend, DigestModal } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
-import { GraphStage } from "./fx";
+import { FxWorkspace, GraphStage } from "./fx";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -169,6 +169,7 @@ export function App() {
           <Feed view={view} graph={graph} onOpenIncident={openIncident} />
         </div>
         </ViewHost>
+        <FxWorkspace graph={graph} view={view} onOpenIncident={openIncident} onSelectNode={setNodeId} />
       </div>
       {incidentId && (
         <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} graph={graph} onClose={closeIncident} />
