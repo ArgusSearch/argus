@@ -174,16 +174,16 @@ function LocalAction({
       </p>
       <div className="ws-act-foot">
         {approvedAt ? (
-          <span className="ws-approved">✓ Approved at {hhmm(approvedAt)}, handed to your team</span>
+          <span className="ws-approved">✓ Approval recorded in this browser at {hhmm(approvedAt)}</span>
         ) : incidentState === "resolved" ? (
           <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
         ) : (
           <button
             className="btn primary"
             onClick={() => approve(view.stream, incidentId, view.simTs ?? "")}
-            title="Argus never changes the business itself: approving hands the action to your team"
+            title="Save this decision in this browser for this run"
           >
-            Approve action
+            Record local approval
           </button>
         )}
       </div>
