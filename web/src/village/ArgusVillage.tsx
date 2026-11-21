@@ -156,7 +156,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
   const caseId = state.beat?.caseId ?? null;
 
   return (
-    <main className={`vl-root vl-${stage}`} aria-label="Argus village">
+    <section className={`vl-root vl-${stage}`} aria-label="Argus village">
       <div className="vl-stage">
         {stage === "3d" ? (
           <SceneBoundary onFail={onFail}>
@@ -247,6 +247,6 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
       {approval && state.gate && (
         <ApprovalCard gate={state.gate} live={source === "live"} busy={deciding.busy} error={deciding.error} onDecide={decide} onClose={() => setApproval(false)} />
       )}
-    </main>
+    </section>
   );
 }
