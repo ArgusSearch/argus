@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from argus.contracts.findings import Anomaly, Cost, Findings, ObservedChange, Quantity, RootCause, Verdict, Window
+from argus.contracts.findings import (
+    Anomaly,
+    Cost,
+    Findings,
+    Impact,
+    ObservedChange,
+    Quantity,
+    RootCause,
+    Verdict,
+    Window,
+)
 from argus.contracts.graph import Graph
 from argus.incidents.lifecycle import IncidentBook, fingerprint, symptoms_of
 from argus.narrator.report import render, unbacked_numbers
@@ -105,3 +115,28 @@ def test_template_passes_the_number_check_and_an_invented_number_fails(graph: Gr
     extra = inc.model_dump(mode="json")
     assert "-41.0" in unbacked_numbers(report.replace("-34.6%", "-41.0%"), inc.findings, extra=extra)
     assert "+34.6" in unbacked_numbers(report.replace("-34.6%", "+34.6%"), inc.findings, extra=extra)
+
+
+def _impact(node: str, per_hour: float, eur_per_hour: float) -> Impact:
+    return Impact(
+        node=node,
+        segment={},
+        hours=2,
+        per_hour=Quantity(value=per_hour, unit="value", receipt="r3"),
+        gmv_eur_per_hour=Quantity(value=eur_per_hour, unit="eur", receipt="r4"),
+        eur_so_far=Quantity(value=2 * eur_per_hour, unit="eur", receipt="r4"),
+    )
+
+
+def test_impact_counts_gmv_for_lost_orders_and_the_money_itself_for_spend(graph: Graph) -> None:
+    """S1 loses orders, which costs GMV; the S4 pacer overburns ad spend, which is money but not GMV."""
+    a = _anomaly("an_1", "payment_success_rate", T0)
+    orders = _findings(a).model_copy(update={"impact": _impact("orders", -280.0, -19717.0)})
+    spend = _findings(a).model_copy(update={"impact": _impact("ad_spend", 843.3, 843.0)})
+    for findings, line in (
+        (orders, "-280.0 orders per hour [r3], EUR -19,717 GMV per hour [r4]"),
+        (spend, "+843.3 ad_spend per hour [r3], EUR +843 per hour [r4]"),
+    ):
+        inc, _ = IncidentBook(graph).record(findings, a, a.detected_at)
+        assert inc is not None
+        assert line in render(inc, graph)

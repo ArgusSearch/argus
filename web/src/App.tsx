@@ -164,10 +164,12 @@ export function App() {
             </section>
             <Trail view={view} />
           </div>
-          <Feed view={view} onOpenIncident={openIncident} />
+          <Feed view={view} graph={graph} onOpenIncident={openIncident} />
         </div>
       </div>
-      {incidentId && <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} onClose={closeIncident} />}
+      {incidentId && (
+        <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} graph={graph} onClose={closeIncident} />
+      )}
       {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={view} onClose={closeNode} />}
       {digestOpen && <DigestModal version={view.lastSeq} onClose={closeDigest} />}
       {toast && (

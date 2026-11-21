@@ -60,12 +60,14 @@ def render(incident: Incident, graph: Graph) -> str:
             lines.append(f"Evidence: {ev.description} ({ev.log} `{ev.ref}`, {ev.ts:%Y-%m-%d %H:%M}){tag(found)}.")
     if f.impact:
         i = f.impact
+        # Lost orders cost GMV; a node that is money itself (ad_spend) moves that money, not GMV.
+        money = "" if graph.node(i.node).unit == "eur" and i.node != "gmv" else " GMV"
         lines += [
             "",
             "## Impact",
             "",
             f"{i.per_hour.value:+,.1f} {i.node} per hour{tag(i.per_hour.receipt)}, "
-            f"EUR {i.gmv_eur_per_hour.value:+,.0f} GMV per hour{tag(i.gmv_eur_per_hour.receipt)}, "
+            f"EUR {i.gmv_eur_per_hour.value:+,.0f}{money} per hour{tag(i.gmv_eur_per_hour.receipt)}, "
             f"EUR {i.eur_so_far.value:+,.0f} so far over {i.hours} h{tag(i.eur_so_far.receipt)}.",
         ]
     if f.decomposition:

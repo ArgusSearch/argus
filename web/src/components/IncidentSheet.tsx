@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { dayLabel, eur, hhmm, humanize, pct, segmentLabel, share } from "../lib/format";
+import { dayLabel, eur, hhmm, humanize, impactNoun, pct, segmentLabel, share } from "../lib/format";
 import { isRuledOut, type IncidentView } from "../lib/store";
-import type { Incident, IncidentState, TrailStep } from "../lib/types";
+import type { Graph, Incident, IncidentState, TrailStep } from "../lib/types";
 import { Bars, TimeChart, type SeriesPoint } from "./charts";
 import { Segments } from "./Feed";
 import { Num, ReceiptChips } from "./Receipts";
@@ -23,7 +23,17 @@ interface PathCell {
   rel_change: number;
 }
 
-export function IncidentSheet({ id, summary, onClose }: { id: string; summary: IncidentView | undefined; onClose: () => void }) {
+export function IncidentSheet({
+  id,
+  summary,
+  graph,
+  onClose,
+}: {
+  id: string;
+  summary: IncidentView | undefined;
+  graph: Graph | null;
+  onClose: () => void;
+}) {
   const [incident, setIncident] = useState<Incident | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -58,6 +68,7 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
   };
 
   const f = incident?.findings;
+  const money = f?.impact && incident ? impactNoun(f.impact.node, incident.direction, graph) : "";
   const path = f ? (stepData<{ path: PathCell[] }>(f.trail, "segment")?.path ?? []) : [];
   const series = f ? (stepData<{ series: SeriesPoint[] }>(f.trail, "impact")?.series ?? []) : [];
   const reached = incident ? new Set(incident.history.map((h) => h.to_state)) : new Set<IncidentState>();
@@ -159,13 +170,15 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                       </span>
                     </div>
                     <div>
-                      <label>GMV per hour</label>
+                      <label>{money.includes("GMV") ? "GMV" : "EUR"} per hour</label>
                       <span className="big">
                         <Num q={f.impact.gmv_eur_per_hour} />
                       </span>
                     </div>
                     <div>
-                      <label>GMV lost over {f.impact.hours} h</label>
+                      <label>
+                        {money.charAt(0).toUpperCase() + money.slice(1)} over {f.impact.hours} h
+                      </label>
                       <span className="big">
                         <Num q={f.impact.eur_so_far} />
                       </span>

@@ -1,4 +1,4 @@
-import type { Quantity, Segment } from "./types";
+import type { Direction, Graph, Quantity, Segment } from "./types";
 
 const DAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short", timeZone: "UTC" });
 
@@ -68,4 +68,18 @@ export function segmentLabel(segment: Segment): string {
 
 export function humanize(id: string): string {
   return id.replace(/_/g, " ");
+}
+
+/**
+ * What an incident's EUR figure counts, from the node it is measured on. Orders and payments that go
+ * missing cost GMV; a metric that is money itself, or a ratio over money (pacing_ratio = ad_spend /
+ * planned_spend), moves that money instead: a pacer overburn is extra ad spend, not lost GMV.
+ */
+export function impactNoun(nodeId: string, direction: Direction, graph: Graph | null | undefined): string {
+  const node = graph?.nodes.find((n) => n.id === nodeId);
+  const moneyId = node?.unit === "eur" ? node.id : node?.kind === "ratio" ? node.numerator : null;
+  const money = moneyId && moneyId !== "gmv" ? graph?.nodes.find((n) => n.id === moneyId && n.unit === "eur") : undefined;
+  if (!money) return direction === "down" ? "GMV lost" : "extra GMV";
+  const label = money.label.charAt(0).toLowerCase() + money.label.slice(1);
+  return direction === "up" ? `extra ${label}` : `${label} short`;
 }

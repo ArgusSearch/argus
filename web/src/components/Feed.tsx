@@ -1,9 +1,9 @@
 // The right rail: incidents, "didn't wake you" notes and graph changes, newest first.
 
 import { useState } from "react";
-import { eur, hhmm, segmentEntries } from "../lib/format";
+import { eur, hhmm, impactNoun, segmentEntries } from "../lib/format";
 import { type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
-import type { Note } from "../lib/types";
+import type { Graph, Note } from "../lib/types";
 import { Num, ReceiptChips } from "./Receipts";
 
 type Tab = "all" | "incidents" | "quiet" | "graph";
@@ -31,7 +31,7 @@ const STATE_TEXT: Record<string, string> = {
   resolved: "resolved",
 };
 
-function IncidentCard({ inc, onOpen }: { inc: IncidentView; onOpen: (id: string) => void }) {
+function IncidentCard({ inc, graph, onOpen }: { inc: IncidentView; graph: Graph | null; onOpen: (id: string) => void }) {
   return (
     <article className={`card incident click ${inc.state}`} onClick={() => onOpen(inc.id)}>
       <div className="card-head">
@@ -46,7 +46,10 @@ function IncidentCard({ inc, onOpen }: { inc: IncidentView; onOpen: (id: string)
         {inc.severity_eur > 0 ? (
           <>
             <b>{eur(inc.severity_eur)}</b>
-            <span>{inc.state === "resolved" ? "GMV lost in total" : "GMV lost so far"} · open the report</span>
+            <span>
+              {impactNoun(inc.root_node, inc.direction, graph)} {inc.state === "resolved" ? "in total" : "so far"} · open
+              the report
+            </span>
           </>
         ) : (
           <span>measuring the impact…</span>
@@ -157,27 +160,45 @@ function EdgesCard({ changes, simTs }: { changes: EdgeChange[]; simTs: string })
   );
 }
 
-function FeedCard({ item, view, onOpen }: { item: FeedItem; view: RunView; onOpen: (id: string) => void }) {
+function FeedCard({
+  item,
+  view,
+  graph,
+  onOpen,
+}: {
+  item: FeedItem;
+  view: RunView;
+  graph: Graph | null;
+  onOpen: (id: string) => void;
+}) {
   if (item.kind === "incident") {
     const inc = view.incidents[item.id];
-    return inc ? <IncidentCard inc={inc} onOpen={onOpen} /> : null;
+    return inc ? <IncidentCard inc={inc} graph={graph} onOpen={onOpen} /> : null;
   }
   if (item.kind === "note") return <NoteCard note={item.note} alarm={view.thresholds.alarm_z} />;
   return <EdgesCard changes={item.changes} simTs={item.simTs} />;
 }
 
-export function Feed({ view, onOpenIncident }: { view: RunView; onOpenIncident: (id: string) => void }) {
+export function Feed({
+  view,
+  graph,
+  onOpenIncident,
+}: {
+  view: RunView;
+  graph: Graph | null;
+  onOpenIncident: (id: string) => void;
+}) {
   const [tab, setTab] = useState<Tab>("all");
   const items = [...view.feed].reverse();
   const quiet = items.filter((i) => i.kind === "note");
-  const graph = items.filter((i) => i.kind === "edges");
+  const changes = items.filter((i) => i.kind === "edges");
   const incidents = items.filter((i) => i.kind === "incident");
-  const shown = tab === "all" ? items : tab === "incidents" ? incidents : tab === "quiet" ? quiet : graph;
+  const shown = tab === "all" ? items : tab === "incidents" ? incidents : tab === "quiet" ? quiet : changes;
   const tabs: [Tab, string, number][] = [
     ["all", "Feed", items.length],
     ["incidents", "Incidents", incidents.length],
     ["quiet", "Didn't wake you", quiet.length],
-    ["graph", "Graph", graph.reduce((n, i) => n + (i.kind === "edges" ? i.changes.length : 0), 0)],
+    ["graph", "Graph", changes.reduce((n, i) => n + (i.kind === "edges" ? i.changes.length : 0), 0)],
   ];
   return (
     <aside className="rail">
@@ -196,6 +217,7 @@ export function Feed({ view, onOpenIncident }: { view: RunView; onOpenIncident: 
               key={item.kind === "incident" ? `inc-${item.id}` : `${item.kind}-${item.seq}`}
               item={item}
               view={view}
+              graph={graph}
               onOpen={onOpenIncident}
             />
           ))
