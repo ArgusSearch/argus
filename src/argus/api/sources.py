@@ -144,9 +144,22 @@ class LiveSource:
 
     mode: Literal["replay", "live"] = "live"
 
-    def __init__(self, world: Path, seconds_per_tick: float = 2.0, stage: int = 2) -> None:
+    def __init__(
+        self,
+        world: Path,
+        seconds_per_tick: float = 2.0,
+        stage: int = 2,
+        agent: str | None = None,
+        agent_recording: Path | None = None,
+    ) -> None:
+        from argus.agent.service import build, configured_mode
+
         self.bus = EventHub(RunState(load_seed_graph()))
-        self.runtime = Runtime(world, bus=self.bus, stage=stage)
+        # the agent (argus.agent): off unless --agent live/record or ARGUS_AGENT, and then only with a key
+        self.agent = build(configured_mode(agent), stream=self.bus.stream, recording=agent_recording)
+        if self.agent.selector is not None:
+            self.agent.selector.through_seq = lambda: self.bus.last_seq
+        self.runtime = Runtime(world, bus=self.bus, stage=stage, selector=self.agent.selector)
         self.seconds_per_tick = seconds_per_tick
         self.speed = 1.0
         self.playing = True
@@ -190,6 +203,7 @@ class LiveSource:
         if self._thread is not None:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()
+        self.agent.save()
 
     # ------------------------------------------------------------------ read
 
