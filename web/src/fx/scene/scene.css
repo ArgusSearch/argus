@@ -46,6 +46,14 @@
   contain: strict;
 }
 
+/* at night a checked or lit block glows brighter than the light ink on it: a dark halo keeps its name readable */
+:root[data-fx="night"] .fxs-name,
+:root[data-fx="night"] .fxs-z {
+  text-shadow:
+    0 0 2px rgba(5, 8, 14, 0.9),
+    0 0 8px rgba(5, 8, 14, 0.7);
+}
+
 :root[data-fx="night"] .fxs-node.root .fxs-z,
 :root[data-fx="night"] .fxs-node.alarm .fxs-z {
   color: #fff;
