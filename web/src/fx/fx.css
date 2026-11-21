@@ -1146,6 +1146,15 @@
   animation: fx-drop var(--fx-dur-slow) var(--fx-ease-glide) both;
 }
 
+:root[data-fx][data-fx-phase="intro"] .fx-side {
+  animation: fx-slide-left var(--fx-dur-slow) var(--fx-ease-glide) both;
+}
+
+:root[data-fx][data-fx-phase="intro"] .fx-dash {
+  animation: fx-rise var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(3 * var(--fx-stagger));
+}
+
 :root[data-fx][data-fx-phase="intro"] .ticker {
   animation: fx-drop var(--fx-dur-slow) var(--fx-ease-glide) both;
   animation-delay: calc(1 * var(--fx-stagger));
@@ -1218,6 +1227,13 @@
   from {
     opacity: 0;
     transform: translateY(24px);
+  }
+}
+
+@keyframes fx-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
   }
 }
 

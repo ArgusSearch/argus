@@ -4,3 +4,4 @@ export { fxFlags, fxOn, parseFx, type FxFlags, type FxQuality, type FxTheme } fr
 export { GraphStage, type GraphSceneProps } from "./GraphStage";
 export { StyleProvider, useFx, type FxPhase } from "./StyleProvider";
 export * from "./ui";
+export { FxWorkspace, type WorkspaceProps } from "./workspace/Workspace";
