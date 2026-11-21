@@ -74,9 +74,10 @@
           "type": "array"
         },
         "rule": {
+          "description": "z_gt_open: |z| > Z_OPEN; two_of_three: 2 of the last 3 hours |z| > Z_PAIR; pacing: lane B",
           "enum": [
-            "z_gt_4",
-            "two_of_three_gt_3",
+            "z_gt_open",
+            "two_of_three",
             "pacing"
           ],
           "title": "Rule",

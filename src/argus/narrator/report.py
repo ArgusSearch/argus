@@ -56,7 +56,8 @@ def render(incident: Incident, graph: Graph) -> str:
         )
         if f.root.evidence:
             ev = f.root.evidence
-            lines.append(f"Evidence: {ev.description} ({ev.log} `{ev.ref}`, {ev.ts:%Y-%m-%d %H:%M}).")
+            found = next((s.receipts[0] for s in f.trail if s.kind == "events" and s.receipts), None)
+            lines.append(f"Evidence: {ev.description} ({ev.log} `{ev.ref}`, {ev.ts:%Y-%m-%d %H:%M}){tag(found)}.")
     if f.impact:
         i = f.impact
         lines += [

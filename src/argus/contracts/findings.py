@@ -67,7 +67,9 @@ class Anomaly(_Strict):
     expected: float
     band: tuple[float, float] = Field(description="expected +- 2 sigma")
     z: float
-    rule: Literal["z_gt_4", "two_of_three_gt_3", "pacing"]
+    rule: Literal["z_gt_open", "two_of_three", "pacing"] = Field(
+        description="z_gt_open: |z| > Z_OPEN; two_of_three: 2 of the last 3 hours |z| > Z_PAIR; pacing: lane B"
+    )
     data_confidence: float = 1.0
     receipts: list[str] = Field(default_factory=list)
 

@@ -3,11 +3,11 @@
 ```
 expected  y_hat_t = median(y_{t-168k}, k = 1..4) x (1 + planned_uplift_t)   # additive: same hour of week
           y_hat_t = sum(num_{t-168k}) / sum(den_{t-168k})                     # ratio: pooled over 4 weeks
-residual  r_t = y_t / y_hat_t - 1                                             # relative
+residual  r_t = ln(y_t / y_hat_t)                                             # log: symmetric for ratios
 scale     s = 1.4826 x MAD(r) over the previous 168 hours                    # many points, not 4
-floor     Poisson 1/sqrt(y_hat) for counts, binomial sqrt((1-p)/(p n)) for rates
+floor     sampling noise of this hour and of the baseline: Poisson for counts, binomial for rates
 z_t       = r_t / max(s, floor_t)
-open      |z| > 4, or 2 of the last 3 hours |z| > 3 (same sign)
+open      |z| > 5, or 2 of the last 3 hours |z| > 3.5 (same sign); calibrated on quiet worlds
 resolve   3 consecutive hours with |z| < 2
 onset     first hour of the run with |z| > 2
 ```
@@ -33,7 +33,9 @@ WEEK_H = 168
 SCALE_HOURS = 168
 LOOKBACK_HOURS = 4 * WEEK_H + SCALE_HOURS + 24
 REFRESH_HOURS = 6
-Z_OPEN, Z_PAIR, Z_ONSET, Z_CALM = 4.0, 3.0, 2.0, 2.0
+# Calibrated on 40 quiet worlds (seeds 200-239, 120 live hours x 7 nodes each), see docs/decisions.md:
+# the vision's |z| > 4 paged in 6 of 40 quiet worlds (max |z| 4.63); the 2-of-3 rule's second value peaked at 3.28.
+Z_OPEN, Z_PAIR, Z_ONSET, Z_CALM = 5.0, 3.5, 2.0, 2.0
 CALM_HOURS = 3
 
 
@@ -53,8 +55,8 @@ class Score:
 
     @property
     def band(self) -> tuple[float, float]:
-        width = 2 * self.sigma_rel * self.expected
-        return (self.expected - width, self.expected + width)
+        """expected x exp(+-2 sigma) on the log scale"""
+        return (self.expected * float(np.exp(-2 * self.sigma_rel)), self.expected * float(np.exp(2 * self.sigma_rel)))
 
 
 class TotalsCache:
@@ -132,17 +134,21 @@ class Detector:
             y = self.cache.series(ps[0].node.table or "", ps[0].node.measure or "", hours)
             expected = np.median(lagged(y), axis=0)
             observed = y[idx]
-            floor = 1 / np.sqrt(np.maximum(expected, 1.0)) if node.unit == "count" else np.zeros_like(expected)
+            # median of 4 Poisson draws has ~1.57/4 of a single draw's variance
+            floor = (
+                np.sqrt((1 + 1.57 / 4) / np.maximum(expected, 1.0)) if node.unit == "count" else np.zeros_like(expected)
+            )
         else:
             num = self.cache.series(ps[0].node.table or "", ps[0].node.measure or "", hours)
             den = self.cache.series(ps[1].node.table or "", ps[1].node.measure or "", hours)
+            base_num, base_den = lagged(num).sum(axis=0), lagged(den).sum(axis=0)
             with np.errstate(divide="ignore", invalid="ignore"):
-                expected = lagged(num).sum(axis=0) / lagged(den).sum(axis=0)
+                expected = base_num / base_den
                 observed = num[idx] / den[idx]
-            floor = _ratio_floor(ps[0].node.unit, ps[1].node.unit, expected, num[idx], den[idx])
+            floor = _ratio_floor(ps[0].node.unit, ps[1].node.unit, expected, (num[idx], den[idx]), (base_num, base_den))
         expected = expected * (1 + planned_uplift(node_id, hour))
         with np.errstate(divide="ignore", invalid="ignore"):
-            rel = observed / expected - 1
+            rel = np.log(observed / expected)
         if not np.isfinite(rel[-1]):
             return None
         window = rel[-SCALE_HOURS - 1 : -1]
@@ -164,9 +170,9 @@ class Detector:
             return None, None
         rule = None
         if abs(score.z) > Z_OPEN:
-            rule = "z_gt_4"
+            rule = "z_gt_open"
         elif abs(score.z) > Z_PAIR and any(p is not None and abs(p) > Z_PAIR and p * score.z > 0 for p in prev):
-            rule = "two_of_three_gt_3"
+            rule = "two_of_three"
         if rule is None:
             return None, None
         onset = score.hour
@@ -200,13 +206,21 @@ class Detector:
         return receipt.id
 
 
-def _ratio_floor(num_unit: str, den_unit: str, p: np.ndarray, num: np.ndarray, den: np.ndarray) -> np.ndarray:
+def _ratio_floor(
+    num_unit: str,
+    den_unit: str,
+    p: np.ndarray,
+    current: tuple[np.ndarray, np.ndarray],
+    baseline: tuple[np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Relative sampling noise of a ratio this hour against a baseline pooled over 4 weeks."""
+    (num, den), (bnum, bden) = current, baseline
     with np.errstate(divide="ignore", invalid="ignore"):
         if num_unit == "count" and den_unit == "count" and np.all(p[np.isfinite(p)] <= 1):
-            return np.sqrt(np.clip(1 - p, 0, 1) / (p * den))
+            return np.sqrt(np.clip(1 - p, 0, 1) / p * (1 / den + 1 / bden))
         terms = np.zeros_like(p)
         if num_unit == "count":
-            terms = terms + 1 / np.maximum(num, 1)
+            terms = terms + 1 / np.maximum(num, 1) + 1 / np.maximum(bnum, 1)
         if den_unit == "count":
-            terms = terms + 1 / np.maximum(den, 1)
+            terms = terms + 1 / np.maximum(den, 1) + 1 / np.maximum(bden, 1)
         return np.sqrt(terms)
