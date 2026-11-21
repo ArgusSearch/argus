@@ -321,7 +321,6 @@ def test_e13_cold_s4_event_replay_repeats_the_effect_without_provider_or_world(
 ) -> None:
     capture = require_capture("s4", presentation=True)
     from argus.demo.agent import load_agent_timeline
-
     from argus.demo.playback import Playback
 
     monkeypatch.setenv("ARGUS_DEMO_BUNDLE", str(FIXTURES / "s4"))
@@ -365,7 +364,6 @@ def test_e09_playback_requires_operator_and_rejects_stale_or_conflicting_decisio
 ) -> None:
     capture = require_capture("s4", presentation=True)
     from argus.demo.agent import load_agent_timeline
-
     from argus.demo.playback import ControlError, Playback
 
     monkeypatch.setenv("ARGUS_DEMO_BUNDLE", str(FIXTURES / "s4"))
