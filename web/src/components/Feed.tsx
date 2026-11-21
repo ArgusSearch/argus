@@ -62,7 +62,7 @@ function IncidentCard({ inc, graph, onOpen }: { inc: IncidentView; graph: Graph 
 
 function noteKind(note: Note): { key: string; label: string } {
   if (note.kind === "expected") return { key: "expected", label: "Didn't wake you" };
-  if (note.kind === "data_issue") return { key: "data_issue", label: "Data issue · held back" };
+  if (note.kind === "data_issue") return { key: "data_issue", label: "Data issue · didn't wake you" };
   if (note.reason.includes("symptom of")) return { key: "symptom", label: "Symptom silenced" };
   return { key: "suppressed", label: "Noticed, not paged" };
 }
