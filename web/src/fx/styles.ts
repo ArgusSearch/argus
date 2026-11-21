@@ -2,3 +2,4 @@
 // the page without the flag and lands after styles.css and views.css in the cascade.
 import "./fx.css";
 import "./workspace/workspace.css";
+import "./workspace/pages.css";

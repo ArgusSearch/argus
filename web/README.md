@@ -30,6 +30,8 @@ Receipts re-run in live mode (`make demo`), against the world the run reads.
 | `GET /receipts/{id}`, `POST /receipts/{id}/rerun` | the SQL behind a number, re-run at its pinned `as_of` |
 | `GET /digest` | "While you slept" |
 | `GET /health`, `POST /replay` | mode, thresholds, run position; play, pause, speed, restart (replay only) |
+| `GET /incidents` | every incident with its findings: the overview's decisions, the incident list, the visualization's story (`?fx=1`) |
+| `GET /openapi.json`, `GET /agent/*` | the Argus Agent ([docs/ext/agent.md](../docs/ext/agent.md)), only when the route table lists `/agent/health`: Ask Argus, agent activity, proposals with approve/deny and the verified outcome, agent receipts (`?fx=1`) |
 
 The page folds the stream with one pure reducer (`src/lib/store.ts`), so a replay and a live run look the same.
 A replay restart starts a new stream whose seqs continue after the old one: the server sends `event: stream` and the page drops its state.
