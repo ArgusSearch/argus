@@ -67,6 +67,14 @@ recovered by a strict cold replay. Use
 to rebuild an investigation cassette. A cassette has no operator decision or
 recorded Ask, so a full presentation requires a separate release bundle.
 
+Build the presentation with
+`uv run python -m scripts.agent_eval.capture_presentation RAW_EXPORT STAGING --scenario s4 --source-commit SHA --denial RAW_DENIAL`.
+The exporter validates both live traces with strict replay. The published
+denial follows the approved investigation's exact prefix and runs through the
+real denial boundary. This keeps the two operator choices tied to one proposal
+and one set of investigation receipts. Presentation answers rendered by the
+host identify their provenance in the response and link to capture evidence.
+
 1. Strict cassette replay matches the next key and request hash and dispatches
    real tools on the matching world. A miss fails offline with the first bad turn.
 2. Lenient cassette replay accepts a known key with a changed request hash and
