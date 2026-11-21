@@ -7,12 +7,12 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from argus.agent.ask import AskRunner
-from argus.agent.service import AgentService
 from fastapi.testclient import TestClient
 
+from argus.agent.ask import AskRunner
 from argus.agent.fake import FakeLlmClient, tool_use
 from argus.agent.journal import Journal
+from argus.agent.service import AgentService
 from argus.agent.types import LlmRequest, LlmResponse, ReceiptLink, VerifiedClaim
 from argus.api.app import create_app
 from argus.api.sources import LiveSource
@@ -204,6 +204,7 @@ def test_e04_ask_receipt_routes_cannot_alias_a_different_revision(source: LiveSo
         assert client.get(f"/agent/receipts/{ref.key()}").status_code == 200
         factual_receipt = next(iter(source.runtime.runner.receipts))
         assert client.get(f"/agent/receipts/{ref.run_id}/wrong-world/{factual_receipt}").status_code == 404
+        assert client.get(f"/agent/receipts/{ref.run_id}/factual/{factual_receipt}").status_code == 404
     finally:
         client.close()
 

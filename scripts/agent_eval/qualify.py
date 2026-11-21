@@ -17,6 +17,7 @@ from scripts.agent_eval.bundle import Bundle, read_bundle
 from argus.agent.provider import TARIFF, price
 from argus.agent.types import ActivityRecord, LlmResponse, Observation, RunSummary, UsageRecord
 from bench.grade import RunGrade
+from bench.sealed import verify
 
 CASES = tuple((scenario, seed) for scenario in ("s1", "s4") for seed in (1, 3, 7))
 TRIALS = 3
@@ -168,6 +169,8 @@ def assess_trial(trial: Trial, directory: Path, source_commit: str) -> tuple[lis
         or not grade.passed
     ):
         failures.append("sealed Stage 3 grade did not pass")
+    elif not _verified_grade(directory, grade):
+        failures.append("grade does not match the pre-run truth commitment")
     investigations = [run for run in trial.runs if run.kind == "investigate"]
     if not investigations or any(
         run.mode not in {"live", "record"} or run.status != "done" or run.fallback or run.llm_calls < 2
@@ -191,6 +194,19 @@ def assess_trial(trial: Trial, directory: Path, source_commit: str) -> tuple[lis
     except (KeyError, OSError, TypeError, ValueError):
         failures.append("missing or unverified recording, approval or effect")
     return failures, sum(entry.usd or 0 for entry in trial.usage)
+
+
+def _verified_grade(directory: Path, grade: RunGrade) -> bool:
+    try:
+        before = json.loads((directory / "commitment.json").read_bytes())
+        after = json.loads((directory / "reveal.json").read_bytes())
+        return (
+            before["case"] == grade.case == directory.name
+            and before["commitment"] == after["commitment"] == grade.commitment
+            and verify(grade.commitment, after["nonce"], after["payload"])
+        )
+    except (KeyError, OSError, ValueError, TypeError):
+        return False
 
 
 def score(directory: Path, source_commit: str) -> dict[str, object]:

@@ -89,6 +89,11 @@ for S1/S4, seeds 1/3/7, trials 1/2/3. Each directory has `trial.json` with
 sealed Stage 3 `grade`, frozen run summaries under `runs`, and billed
 `UsageRecord` entries under `usage`. Completed attempts provide their own sealed
 `bundle/`. Retain failed attempts in their original slots with `failure`.
+Use `uv run python -m scripts.agent_eval.archive_trial prepare ARCHIVE s4 1 1`
+to seal an independent world before the live session. After capture,
+`uv run python -m scripts.agent_eval.archive_trial finish SLOT --journal JOURNAL --elapsed-seconds SECONDS --capture BUNDLE --digest SHA`
+grades the recorded findings against the pre-run seal and attaches metered usage.
+Record a failed run with `--failure REASON` in place of the capture and digest.
 Include `counterexample.json` with the original and changed observations and
 their genuine next responses. The scorecard requires three passes for stage S4
 and at least five of six scenario/seed groups, with median spend at most
