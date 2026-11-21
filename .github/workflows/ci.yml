@@ -52,6 +52,7 @@ jobs:
       - name: Install the locked environment
         run: uv sync --frozen
       - name: Run all 17 deterministic agent evals offline
+        if: ${{ hashFiles('fixtures/agent/v2/*/manifest.json') == '' }}
         run: make agent-eval
       - name: Qualify the pinned intelligence recordings offline
         if: ${{ hashFiles('fixtures/agent/v2/*/manifest.json') != '' }}

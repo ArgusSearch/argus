@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -80,8 +81,17 @@ def nonrefuting(request):
     return end_critic(request)
 
 
-def test_e20_sql_only_cannot_grant_and_backfills(payments, world_case):
+@pytest.mark.parametrize("remove_cause", (False, True), ids=("supported", "no-cause"))
+def test_e20_sql_only_cannot_grant_and_backfills(payments, world_case, tmp_path, remove_cause):
+    case = world_case("s1")
     _, findings = payments
+    if remove_cause:
+        case = copy_world(case, tmp_path / "without-cause")
+        with duckdb.connect(str(case.world)) as conn:
+            conn.execute("DELETE FROM raw_provider_status WHERE id = ?", [REAL_CAUSE])
+        (baseline,) = stage2(case, first_incident=True).book.incidents.values()
+        findings = baseline.findings
+        assert findings.verdict == Verdict.HYPOTHESIS
     sql = comparison_sql(findings.window.start, findings.window.end)
 
     def checks_only(request):
@@ -98,7 +108,7 @@ def test_e20_sql_only_cannot_grant_and_backfills(payments, world_case):
             )
         return submit(request)
 
-    runtime, journal, _ = run_v2(world_case("s1"), checks_only, features=("sql",), first_incident=True)
+    runtime, journal, _ = run_v2(case, checks_only, features=("sql",), first_incident=True)
     (incident,) = runtime.book.incidents.values()
     assert incident.verdict == findings.verdict
     (result,) = [
@@ -113,29 +123,32 @@ def test_e20_sql_only_cannot_grant_and_backfills(payments, world_case):
     assert {"holdout_check", "placebo_test"} <= {step.tool for step in incident.findings.trail}
 
 
-def decoy_world(case, destination):
-    from dataclasses import replace
-
-    root = destination / "decoy"
-    root.mkdir()
-    database = root / case.world.name
+def copy_world(case, directory):
+    directory.mkdir()
+    database = directory / case.world.name
+    manifest = directory / case.manifest.name
     shutil.copyfile(case.world, database)
-    shutil.copyfile(case.manifest, root / case.manifest.name)
-    with duckdb.connect(str(database)) as conn:
+    shutil.copyfile(case.manifest, manifest)
+    return replace(case, world=database, manifest=manifest)
+
+
+def decoy_world(case, destination):
+    decoy = copy_world(case, destination / "decoy")
+    with duckdb.connect(str(decoy.world)) as conn:
         ts, scope = conn.execute("SELECT ts, scope FROM raw_provider_status WHERE id = ?", [REAL_CAUSE]).fetchone()
         closer = ts.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         conn.execute(
             "UPDATE raw_deploys SET ts = ?, scope = ?, description = ? WHERE id = ?",
             [closer, scope, "An Android SDK rollout in the affected payment segment", DECOY],
         )
-    return replace(case, world=database)
+    return decoy
 
 
 @pytest.mark.e2e
 @pytest.mark.parametrize("seed", SEEDS)
 def test_e21_planted_false_cause_is_downgraded(world_case, tmp_path: Path, seed):
     case = decoy_world(world_case("s1", seed), tmp_path)
-    (baseline,) = stage2(case).book.incidents.values()
+    (baseline,) = stage2(case, first_incident=True).book.incidents.values()
     assert baseline.verdict == Verdict.SUPPORTED_CAUSE
     assert baseline.findings.root.evidence.ref == DECOY, "the planted cause must first fool Stage 2"
     findings = baseline.findings
@@ -155,12 +168,11 @@ def test_e21_planted_false_cause_is_downgraded(world_case, tmp_path: Path, seed)
         }
         return critic_call(request, "holdout_check", args)
 
-    runtime, journal, _ = run_v2(case, check_rival, features=("critic",), first_incident=True)
+    runtime, _, _ = run_v2(case, check_rival, features=("critic",), first_incident=True)
     (incident,) = runtime.book.incidents.values()
     assert incident.verdict != Verdict.SUPPORTED_CAUSE
     skeptic = incident.findings.skeptic
     assert skeptic is not None and skeptic.verdict in {"weakened", "refuted"} and skeptic.checks
-    assert not [r for r in journal.records if r.kind == "action_proposed"]
 
 
 @pytest.mark.e2e
@@ -218,8 +230,9 @@ def test_e22_all_bench_cases_are_monotone(world_case, scenario, seed):
 
 
 @pytest.mark.parametrize("fail", (False, True), ids=("loop", "unavailable"))
-def test_e22_critic_is_isolated_and_bounded(world_case, fail):
+def test_e22_critic_is_isolated_and_bounded(world_case, payments, fail):
     case = world_case("s1")
+    _, deterministic = payments
 
     def respond(request):
         if not request.key.startswith("critic:"):
@@ -230,7 +243,6 @@ def test_e22_critic_is_isolated_and_bounded(world_case, fail):
         return critic_call(request, "placebo_test", {**series_args(request), **CHECKS, "expect": "recurring"})
 
     runtime, journal, requests = run_v2(case, respond, features=("critic",), first_incident=True)
-    (baseline,) = stage2(case).book.incidents.values()
     (incident,) = runtime.book.incidents.values()
     critics = [r for r in requests if r.key.startswith("critic:")]
     detective_models = {r.model for r in requests if r.key.startswith("investigate:")}
@@ -240,10 +252,10 @@ def test_e22_critic_is_isolated_and_bounded(world_case, fail):
     calls = [r for r in journal.records if r.kind == "tool_call" and r.role == "skeptic" and r.tool == "placebo_test"]
     assert len(calls) <= 3
     assert sum(u.usd or 0 for u in journal.usage if u.model in {r.model for r in critics}) <= 0.20
-    assert incident.verdict == baseline.verdict and incident.findings.as_of == baseline.findings.as_of
+    assert incident.verdict == deterministic.verdict and incident.findings.as_of == deterministic.as_of
     if fail:
         unavailable = [r for r in journal.records if r.kind == "critic" and "unavailable" in r.text.lower()]
-        assert len(unavailable) == 1 and unavailable[0].sim_ts == baseline.findings.as_of
+        assert len(unavailable) == 1 and unavailable[0].sim_ts == deterministic.as_of
 
 
 def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):

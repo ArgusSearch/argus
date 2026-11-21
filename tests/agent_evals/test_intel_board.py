@@ -30,10 +30,16 @@ def pinned(profile: str, scenario: str, *, cassette: bool = False) -> Bundle:
     return read_bundle(root / scenario, expected_digest=pins[scenario], presentation=not cassette)
 
 
-def stage2(case) -> Runtime:
+def stage2(case, *, first_incident: bool = False) -> Runtime:
     runtime = Runtime(case.world)
     try:
-        runtime.run()
+        if first_incident:
+            for tick in runtime.ticks():
+                runtime.tick(tick)
+                if runtime.book.incidents:
+                    break
+        else:
+            runtime.run()
         assert not runtime.fallbacks
         return runtime
     finally:

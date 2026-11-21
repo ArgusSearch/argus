@@ -60,10 +60,14 @@ bench:            ## the scorecard: every scenario x 3 seeds, Argus against the 
 	uv run argus-bench run --out "$(BENCH_OUT)"
 	uv run python -m scripts.agent_eval.bench_gate "$(BENCH_OUT)"
 
+ifeq ($(PROFILE),v2)
+agent-eval: agent-eval-intel
+else
 agent-eval:        ## run deterministic agent release evals with provider access disabled
 	@status=0; ARGUS_DISABLE_PROVIDER=1 ARGUS_AGENT_PROFILE=v1 uv run pytest tests/agent_evals --ignore-glob='*/test_intel_*.py' --junitxml="$(AGENT_EVAL_OUT)/pytest.xml" || status=$$?; \
 	uv run python -m scripts.agent_eval.offline_report "$(AGENT_EVAL_OUT)/pytest.xml" --out "$(AGENT_EVAL_OUT)/scorecard.json" || exit $$?; \
 	exit $$status
+endif
 
 agent-eval-intel:  ## require the v1 and v2 evals including the pinned v2 stage recordings
 	@status=0; ARGUS_DISABLE_PROVIDER=1 ARGUS_AGENT_PROFILE=v1 uv run pytest tests/agent_evals $(if $(filter 1,$(CUT_STL)),-k 'not test_e28') --junitxml="$(AGENT_INTEL_OUT)/pytest.xml" || status=$$?; \

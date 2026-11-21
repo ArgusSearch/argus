@@ -46,7 +46,7 @@ INTELLIGENCE_CASES = {
 INTELLIGENCE_MIN_TRIALS = {
     "E18": 11,  # eight positive and three negative worlds or captures
     "E19": 39,  # 28 rejections, ten accepted cuts, and the future-hour check
-    "E20": 2,
+    "E20": 3,
     "E21": 9,
     "E22": 20,
     "E23": 1,

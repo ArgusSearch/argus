@@ -137,6 +137,9 @@ def test_e24_poisoned_memory_cannot_change_evidence_or_authorize_action(world_ca
     assert incident.findings.root.evidence == baseline.findings.root.evidence
     assert incident.findings.root.evidence.ref == "dep_checkout-routing_retry-policy"
     assert (incident.root_node, incident.segment) == (baseline.root_node, baseline.segment)
+    assert poison in memory.recall(
+        root_node=incident.root_node, segment=incident.segment, cause_kind=None, as_of=incident.findings.as_of
+    )
     assert proposals == clean_proposals
     evidence_refs = [step.data.get("evidence_refs") for step in incident.findings.trail] + [
         record.observation.data.get("evidence_refs") for record in journal.records if record.observation

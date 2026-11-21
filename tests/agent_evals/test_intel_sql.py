@@ -61,7 +61,7 @@ CUTS = (
 @pytest.fixture(scope="module")
 def payments(world_case):
     case = world_case("s1")
-    (incident,) = stage2(case).book.incidents.values()
+    (incident,) = stage2(case, first_incident=True).book.incidents.values()
     return case.world, incident.findings
 
 
