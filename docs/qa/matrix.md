@@ -1,0 +1,66 @@
+# Scenario matrix
+
+Last run: Saturday 2026-11-21, 16:20–17:30 CET.
+
+Commits:
+
+- `fm/argus-api` @ `437fff5`: the S1 replay and S1 live rows.
+- `local/integration` @ `59ee8a7`: the quiet, S2, S3 and S4 rows. It is `fm/argus-api` `437fff5` merged with `fm/argus-investigate` `c1d9055`, `fm/argus-detect` `79025ea` and `fm/argus-graph` `d56d92e`, plus `tests/bench/test_bench_scenarios.py` from `fm/argus-bench` `74e2131`. Built exactly as in section 3.4 of the team prompt, merged without conflicts, and `make check` gives `249 passed, 2 skipped`.
+
+How each column was observed:
+
+- **Observed in UI.** The S1 replay was checked in Chromium by the Playwright suite (`e2e/`). The live rows were read from the API routes the page renders (`/incidents`, `/incidents/{id}`, `/notes`, `/digest`, `/events`, `POST /receipts/{id}/rerun`), running `uv run argus api --port <p> --world runs/<s>-<n>/world.duckdb --tick-seconds 0.2`.
+  - Each live run is 120 ticks and finishes in 29–32 s of wall time.
+  - Raw captures are kept outside the repo, under `qa-logs/live-*`.
+- **Observed in terminal.** `uv run python -m argus.investigate --world runs/<s>-7/world.duckdb --out runs/<s>-7/argus` (Stage-2) and `uv run argus-bench case <s> --seed 7` (default agent `argus` = the Stage-1 runtime the API uses).
+
+| Run | Expected | Observed in UI | Observed in terminal | Verdict ok | Bugs |
+| --- | --- | --- | --- | --- | --- |
+| S1 replay (`make api`) | one incident, `SUPPORTED_CAUSE` on `payment_success_rate` DE / android / PayCo, release ruled out, report | INC-0001 `SUPPORTED CAUSE`, segment DE / android / PayCo, android-app 8.3.0 under "Ruled out", Copy report gives the Markdown. Receipts open with SQL and `as_of`; re-run answers 409 in replay by design. | `make s1` ALL PASS (seed 7) | yes | — |
+| S1 live seed 7 (`make demo`) | same | INC-0001 `SUPPORTED_CAUSE`, segment {DE, android, PayCo}, evidence `ps_payco_degraded`, 8.3.0 refuted ("holdout normal"). Resolved 11-21 08:00 after 3 normal hours. €86,459. First visible after 17 s wall (sim 11-20 23:00, opened 21:00). Re-runs 5/5 same hash. | bench scorecard s1: 3x exact | yes | [#10](https://github.com/ArgusSearch/argus/issues/10) (report Impact shows 1 h only) |
+| S1 live seed 3 | same | same pattern, €163,454, resolved 11-21 20:00, first visible after 20 s. Re-runs 5/5 same hash. | — | yes | #10 |
+| S1 live seed 11 | same | same pattern, €71,646, resolved 11-21 06:00, first visible after 17 s. Re-runs 5/5 same hash. | — | yes | #10 |
+| quiet live seed 7 | zero incidents | 0 incidents, 0 notes. Digest has 6 lines and says "0 anomalys". | investigate: 0 incidents. Scorecard: 3x pass. | yes | [#11](https://github.com/ArgusSearch/argus/issues/11), [#12](https://github.com/ArgusSearch/argus/issues/12) |
+| S2 live seed 7 | `EXPECTED`, no incident, "didn't wake you" note citing `log_ad_budgets` | 0 incidents and **0 notes**. ad_spend peaks at \|z\| 2.94, under the alarm line of 5. The digest says 0 planned or harmless changes. Demo moment 2 does not appear. | Stage-2: 0 incidents, 0 notes. Bench `argus` and `argus-stage2`: grade 2 "silent", FAIL. `python -m argus.detect` alone does open `ad_spend[adv_03, FR] z=+5.4`, but it is not wired in. | **no** | [#3](https://github.com/ArgusSearch/argus/issues/3), [#2](https://github.com/ArgusSearch/argus/issues/2), [#1](https://github.com/ArgusSearch/argus/issues/1) |
+| S3 live seed 7 | `DATA_ISSUE`, no business incident, identity `orders = payment_successes` broken for the stalled hours, re-check after the backfill | 0 incidents. One `data_issue` note: "fact_orders_hourly 23:00 is only 55% delivered" (node null, no receipts). orders, gmv and cvr not scored for 4 ticks. `f_orders_payments` stays VALID, with no re-check event. | Stage-2: the same single freshness note. Bench: grade 4 PASS. The grader does not check the identity or ruled-out. | **partial** (correctly silent, but the reason is not shown) | [#5](https://github.com/ArgusSearch/argus/issues/5), [#9](https://github.com/ArgusSearch/argus/issues/9) |
+| S4 live seed 7 | `SUPPORTED_CAUSE` on the pacing ratio in DE or FR citing `dep_ad-pacer_1.7.0`, UK/ES/NL as holdout | INC `SUPPORTED_CAUSE` citing `dep_ad-pacer_1.7.0`, but root **`impressions_per_session`**, segment `{}` (all), nothing ruled out, €0, stays `explained`. Holdout says "nothing to hold out". Re-runs 5/5 same hash. | Stage-1 bench: `impressions_per_session [all]` grade 2, FAIL. Stage-2: `pacing_ratio`, segment `{}` grade 3. | **no** | [#1](https://github.com/ArgusSearch/argus/issues/1), [#4](https://github.com/ArgusSearch/argus/issues/4) |
+| Blind challenge `argus-bench blind --seed 11` | the sealed scenario is solved | Terminal only: revealed s4, `impressions_per_session [all]` grade 2, FAIL. The seal checks out (`verify`: match). | — | **no** | #1, [#8](https://github.com/ArgusSearch/argus/issues/8) |
+
+## Scorecard (integration branch, `uv run argus-bench`, 3 seeds per scenario)
+
+```
+agent      recall  cause  exact     TTD h  prec  FA/day quietFA expect   data grade pass@1 truth
+argus        100%    50%    50%       2/2  100%       0       0     0%   100%     3    60%    ok
+threshold    100%     0%     0%       2/2   60%    0.08       0     0%     0%     1    20%    ok
+```
+
+Argus beats the threshold baseline on every row. The gaps (S2 0% expected, S4 partial) all come from the Stage-2 investigator and the detect lane not being wired into the runtime (#1, #2).
+
+## Smoke suite
+
+See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
+
+## All QA issues
+
+| # | Area | Sev | Summary |
+| --- | --- | --- | --- |
+| [1](https://github.com/ArgusSearch/argus/issues/1) | brain | P0 | Stage-2 investigator not wired into the runtime (API, bench default agent, blind) |
+| [2](https://github.com/ArgusSearch/argus/issues/2) | brain | P0 | Detect lane not wired into the runtime |
+| [3](https://github.com/ArgusSearch/argus/issues/3) | brain | P0 | S2 silent: no EXPECTED / "didn't wake you" note |
+| [4](https://github.com/ArgusSearch/argus/issues/4) | brain | P1 | S4 Stage-2 segment `{}` although its own holdout localises DE, FR |
+| [5](https://github.com/ArgusSearch/argus/issues/5) | brain | P1 | S3 note is freshness-only: no broken identity, decoy not ruled out |
+| [6](https://github.com/ArgusSearch/argus/issues/6) | web | P1 | Offline banner never appears when the API stops |
+| [7](https://github.com/ArgusSearch/argus/issues/7) | bench | P2 | Progress output starts at [17/46] |
+| [8](https://github.com/ArgusSearch/argus/issues/8) | bench | P2 | `blind` runs only the first default agent |
+| [9](https://github.com/ArgusSearch/argus/issues/9) | graph | P1 | `f_orders_payments` never BROKEN during the S3 stall (28-day daily test) |
+| [10](https://github.com/ArgusSearch/argus/issues/10) | api | P1 | Report Impact frozen at 1 h vs severity total |
+| [11](https://github.com/ArgusSearch/argus/issues/11) | api | P2 | Digest says "0 anomalys" |
+| [12](https://github.com/ArgusSearch/argus/issues/12) | api | P2 | Receipts on quiet runs are world-independent; a zero-row receipt among samples |
+| [13](https://github.com/ArgusSearch/argus/issues/13) | web | P1 | Graph bar still says "checking …" after the verdict |
+| [14](https://github.com/ArgusSearch/argus/issues/14) | web | P1 | Sparkline drawn over the COUNT/RATE/EUR unit label |
+| [15](https://github.com/ArgusSearch/argus/issues/15) | web | P1 | One verdict, four labels (SUPPORTED_CAUSE / SUPPORTED CAUSE / ROOT CAUSE) |
+| [16](https://github.com/ArgusSearch/argus/issues/16) | web | P1 | Investigation trail is a sideways scroller; leftmost card cut through its text |
+| [17](https://github.com/ArgusSearch/argus/issues/17) | web | P2 | "INC-0001 explained" toast covers trail cards 12–13 |
+| [18](https://github.com/ArgusSearch/argus/issues/18) | web | P2 | "log_provider_status" overflows its pill |
+| [19](https://github.com/ArgusSearch/argus/issues/19) | web | P2 | Metric node text about 7–9 px at 1440x900 |
+| [20](https://github.com/ArgusSearch/argus/issues/20) | web | P2 | Incident money frozen at "€19,717 so far" for hours; receipt as_of vs opened time unexplained |
