@@ -174,6 +174,8 @@ export class SceneEngine {
   private frames = 0;
   private ready = false;
   private announced = false;
+  /** the layer's opening ran while this graph was not shown: the intro starts the moment it is */
+  private startedHidden = false;
   private readyAt = -1;
   private introStart = -1;
   private introDuration = 0;
@@ -258,8 +260,9 @@ export class SceneEngine {
     // a graph view that is not shown yet (another view is open) renders nothing and holds nobody up: the
     // layer hears "ready" at once, and the intro waits for the first time the graph is on screen
     this.mountVisible = opts.mount.getClientRects().length > 0;
+    this.startedHidden = !this.mountVisible;
     this.listen();
-    if (!this.mountVisible) this.announce();
+    if (this.startedHidden) this.announce();
     this.start();
   }
 
@@ -817,7 +820,7 @@ export class SceneEngine {
     if (this.ready && this.introStart < 0) {
       if (this.opts.preview) this.startIntro(1.2);
       else if (this.pendingIntro !== null) this.startIntro(this.pendingIntro);
-      else if (this.time - this.readyAt > INTRO_WAIT) this.startIntro(this.opts.skipIntro ? 0 : DEFAULT_INTRO);
+      else if (this.startedHidden || this.time - this.readyAt > INTRO_WAIT) this.startIntro(this.opts.skipIntro ? 0 : DEFAULT_INTRO);
     }
 
     this.updateHover();
