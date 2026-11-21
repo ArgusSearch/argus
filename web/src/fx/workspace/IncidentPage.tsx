@@ -153,6 +153,9 @@ function Story({
           </span>
         </div>
         <h1>{storyHeadline(graph, node, root?.change_pct.value ?? null, segment)}</h1>
+        <p className="ip-verdict-help">
+          <b>{verdict.label}:</b> {verdict.help}
+        </p>
         {root?.evidence && <p className="ip-cause-line">Cause: {root.evidence.description}</p>}
         <div className="ip-head-actions">
           <span className="ip-head-eur">

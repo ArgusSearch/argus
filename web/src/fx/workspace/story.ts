@@ -89,7 +89,7 @@ export function storyOf(graph: Graph, incident: Incident): Story {
       key: `cause:${evidence.ref}`,
       text: `Cause: ${evidence.description}`,
       kind: "cause",
-      focus: { nodes: [root], edges: [], logs: [evidence.log], tags: { [evidence.log]: "cause found" } },
+      focus: { nodes: [root], edges: [], logs: [evidence.log], tags: { [evidence.log]: "supported cause" } },
     });
   }
   for (const r of f.ruled_out) {
