@@ -13,6 +13,14 @@ export const PORTRAIT_YAW = Math.PI / 2 - 0.07;
 export const PORTRAIT_PITCH = 1.02;
 /** below this width-to-height ratio the safe rectangle counts as tall */
 export const PORTRAIT_BELOW = 0.95;
+/** above this ratio it counts as wide: the camera looks a little flatter so the rows take less height */
+export const WIDE_ABOVE = 2.1;
+export const WIDE_PITCH = 0.8;
+
+/** How much wider than natural the columns are laid out for a safe rectangle of `aspect`. */
+export function columnStretch(aspect: number): number {
+  return aspect > WIDE_ABOVE ? Math.min(1.22, aspect / WIDE_ABOVE) : 1;
+}
 
 /** The canvas and, inside it, the rectangle the graph is framed in (CSS pixels, canvas coordinates). */
 export interface SafeRect {
@@ -86,6 +94,32 @@ export function frame(points: ArrayLike<number>, yaw: number, pitch: number, fov
     const z = p.dot(back);
     distance = Math.max(distance, x / tanH + z, y / tanV + z);
   }
+  // perspective makes the far rows smaller than this estimate assumes: project for real and correct the center
+  // and the distance a few times, so the graph touches the padding on both ends of its tighter axis
+  const tan0 = Math.tan(((fov / 2) * Math.PI) / 180);
+  const limit = 1 - pad;
+  for (let iteration = 0; iteration < 6; iteration++) {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      p.set(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]).sub(c);
+      const depth = Math.max(distance - p.dot(back), 1e-3);
+      const nx = p.dot(right) / (depth * tan0 * aspect);
+      const ny = p.dot(up) / (depth * tan0);
+      x0 = Math.min(x0, nx);
+      x1 = Math.max(x1, nx);
+      y0 = Math.min(y0, ny);
+      y1 = Math.max(y1, ny);
+    }
+    const mx = (x0 + x1) / 2;
+    const my = (y0 + y1) / 2;
+    c.addScaledVector(right, mx * distance * tan0 * aspect).addScaledVector(up, my * distance * tan0);
+    const span = Math.max((x1 - x0) / 2, (y1 - y0) / 2) / limit;
+    if (Math.abs(mx) < 1e-4 && Math.abs(my) < 1e-4 && Math.abs(span - 1) < 1e-3) break;
+    distance *= span;
+  }
   out.center.copy(c);
   out.distance = distance;
   return out;
@@ -134,7 +168,7 @@ export class CameraRig {
     cam.aspect = this.aspect;
     const portrait = this.aspect < PORTRAIT_BELOW;
     this.yawGoal = portrait ? PORTRAIT_YAW : YAW;
-    this.pitchGoal = portrait ? PORTRAIT_PITCH : PITCH;
+    this.pitchGoal = portrait ? PORTRAIT_PITCH : this.aspect > WIDE_ABOVE ? WIDE_PITCH : PITCH;
     const inside = rect.x === 0 && rect.y === 0 && rect.width === rect.canvasWidth && rect.height === rect.canvasHeight;
     if (inside) cam.clearViewOffset();
     else cam.setViewOffset(rect.width, rect.height, -rect.x, -rect.y, rect.canvasWidth, rect.canvasHeight);
