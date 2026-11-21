@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-21T19:46:32.684604",
-  "git_commit": "f85616a-dirty",
-  "bench_commitment": "sha256:2c83807fc7974f268127b7e20ab5d6441ba503ae3c49446913d004a10a0c28f1",
+  "created_at": "2026-11-21T19:54:33.733484",
+  "git_commit": "5a67b15",
+  "bench_commitment": "sha256:50e79fe845d14fbac871a8a9bcc5f683c0fee0f8a8c2d0caffb31bafd7adf6ed",
   "seeds": [
     1,
     2,
@@ -49,7 +49,7 @@
       "mean_grade": 3.83,
       "pass_at_1": 1.0,
       "all_verified": true,
-      "agent_seconds": 144.1
+      "agent_seconds": 115.9
     },
     {
       "agent": "argus-stage1",
@@ -78,7 +78,7 @@
       "mean_grade": 2.67,
       "pass_at_1": 0.5,
       "all_verified": true,
-      "agent_seconds": 152.3
+      "agent_seconds": 122.1
     },
     {
       "agent": "threshold",
@@ -92,11 +92,11 @@
       "exact": 0,
       "ttd_median_h": 2.0,
       "ttd_max_h": 2.0,
-      "pages": 27,
+      "pages": 33,
       "true_pages": 12,
-      "precision": 0.444,
-      "false_alarms": 15,
-      "false_alarms_per_day": 0.167,
+      "precision": 0.364,
+      "false_alarms": 21,
+      "false_alarms_per_day": 0.233,
       "quiet_false_alarms_per_day": 0.0,
       "innocent": 6,
       "innocent_handled": 0,
@@ -104,10 +104,10 @@
       "data_handled": 0,
       "data_claims": 0,
       "data_precision": null,
-      "mean_grade": 0.83,
+      "mean_grade": 0.72,
       "pass_at_1": 0.167,
       "all_verified": true,
-      "agent_seconds": 20.9
+      "agent_seconds": 15.9
     }
   ],
   "rows": [
@@ -342,7 +342,7 @@
       "pass_hat_k": 0.0,
       "mean_grade": 1.0,
       "ttd_median_h": 2.0,
-      "false_alarms": 0,
+      "false_alarms": 1,
       "verdicts": [
         "paged, no cause",
         "paged, no cause",
@@ -357,11 +357,11 @@
       "pass_at_1": 0.0,
       "k": 3,
       "pass_hat_k": 0.0,
-      "mean_grade": 2.0,
+      "mean_grade": 1.33,
       "ttd_median_h": null,
-      "false_alarms": 0,
+      "false_alarms": 2,
       "verdicts": [
-        "silent",
+        "paged on a planned change",
         "silent",
         "silent"
       ]
@@ -410,7 +410,7 @@
       "pass_hat_k": 0.0,
       "mean_grade": 0.5,
       "ttd_median_h": 2.0,
-      "false_alarms": 9,
+      "false_alarms": 12,
       "verdicts": [
         "paged on a planned change",
         "paged on a planned change",
@@ -424,7 +424,7 @@
       "scenario": "quiet",
       "seed": 1,
       "agent": "argus",
-      "commitment": "sha256:b8bd200a3ece1e116af80f461480ec05d8affe62a3fe937235e52b78ee5aefc8",
+      "commitment": "sha256:517916be0068b00ae1addc4a63879ce84f2897541a436453ecc47e8ba1fd898e",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -433,7 +433,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 10.06,
+      "agent_seconds": 5.92,
       "error": null
     },
     {
@@ -441,7 +441,7 @@
       "scenario": "quiet",
       "seed": 1,
       "agent": "argus-stage1",
-      "commitment": "sha256:b8bd200a3ece1e116af80f461480ec05d8affe62a3fe937235e52b78ee5aefc8",
+      "commitment": "sha256:517916be0068b00ae1addc4a63879ce84f2897541a436453ecc47e8ba1fd898e",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -450,7 +450,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 8.66,
+      "agent_seconds": 5.05,
       "error": null
     },
     {
@@ -458,7 +458,7 @@
       "scenario": "quiet",
       "seed": 1,
       "agent": "threshold",
-      "commitment": "sha256:b8bd200a3ece1e116af80f461480ec05d8affe62a3fe937235e52b78ee5aefc8",
+      "commitment": "sha256:517916be0068b00ae1addc4a63879ce84f2897541a436453ecc47e8ba1fd898e",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -467,7 +467,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.27,
+      "agent_seconds": 0.72,
       "error": null
     },
     {
@@ -475,7 +475,7 @@
       "scenario": "quiet",
       "seed": 2,
       "agent": "argus",
-      "commitment": "sha256:a80754a1eb811d218cd42df172d69ad226d275cfba14f4be580ff9408016a664",
+      "commitment": "sha256:40bf72518f16f2dce58da310bdf1501b1c412469581fbfd226506019d0e09224",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -484,7 +484,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 7.98,
+      "agent_seconds": 5.07,
       "error": null
     },
     {
@@ -492,7 +492,7 @@
       "scenario": "quiet",
       "seed": 2,
       "agent": "argus-stage1",
-      "commitment": "sha256:a80754a1eb811d218cd42df172d69ad226d275cfba14f4be580ff9408016a664",
+      "commitment": "sha256:40bf72518f16f2dce58da310bdf1501b1c412469581fbfd226506019d0e09224",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -501,7 +501,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 7.3,
+      "agent_seconds": 5.05,
       "error": null
     },
     {
@@ -509,7 +509,7 @@
       "scenario": "quiet",
       "seed": 2,
       "agent": "threshold",
-      "commitment": "sha256:a80754a1eb811d218cd42df172d69ad226d275cfba14f4be580ff9408016a664",
+      "commitment": "sha256:40bf72518f16f2dce58da310bdf1501b1c412469581fbfd226506019d0e09224",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -518,7 +518,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 0.89,
+      "agent_seconds": 0.66,
       "error": null
     },
     {
@@ -526,7 +526,7 @@
       "scenario": "quiet",
       "seed": 3,
       "agent": "argus",
-      "commitment": "sha256:8762a38a9abd80966bd72dc63d6c0970fd738e60bf18f2cbc6a04657a7b2434d",
+      "commitment": "sha256:b8ef39221a7e4030edda48de46c6ffe4fd5fea5b7b457b20f6c8b7cb19c9b4b1",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -535,7 +535,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.71,
+      "agent_seconds": 5.15,
       "error": null
     },
     {
@@ -543,7 +543,7 @@
       "scenario": "quiet",
       "seed": 3,
       "agent": "argus-stage1",
-      "commitment": "sha256:8762a38a9abd80966bd72dc63d6c0970fd738e60bf18f2cbc6a04657a7b2434d",
+      "commitment": "sha256:b8ef39221a7e4030edda48de46c6ffe4fd5fea5b7b457b20f6c8b7cb19c9b4b1",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -552,7 +552,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.5,
+      "agent_seconds": 12.15,
       "error": null
     },
     {
@@ -560,7 +560,7 @@
       "scenario": "quiet",
       "seed": 3,
       "agent": "threshold",
-      "commitment": "sha256:8762a38a9abd80966bd72dc63d6c0970fd738e60bf18f2cbc6a04657a7b2434d",
+      "commitment": "sha256:b8ef39221a7e4030edda48de46c6ffe4fd5fea5b7b457b20f6c8b7cb19c9b4b1",
       "verified": true,
       "live_days": 5.0,
       "events": [],
@@ -569,7 +569,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 0.75,
+      "agent_seconds": 1.97,
       "error": null
     },
     {
@@ -577,7 +577,7 @@
       "scenario": "s1",
       "seed": 1,
       "agent": "argus",
-      "commitment": "sha256:2d29971f88aad57bfd181a2b23fc366f586d2735ee4ead887848eb449b929776",
+      "commitment": "sha256:5ddff734ae9c6b6ce225ebaf6e4c901bc6cdeb0342c00fe9d2252971e0125d0a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -597,7 +597,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.99,
+      "agent_seconds": 12.27,
       "error": null
     },
     {
@@ -605,7 +605,7 @@
       "scenario": "s1",
       "seed": 1,
       "agent": "argus-stage1",
-      "commitment": "sha256:2d29971f88aad57bfd181a2b23fc366f586d2735ee4ead887848eb449b929776",
+      "commitment": "sha256:5ddff734ae9c6b6ce225ebaf6e4c901bc6cdeb0342c00fe9d2252971e0125d0a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -625,7 +625,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.86,
+      "agent_seconds": 8.6,
       "error": null
     },
     {
@@ -633,7 +633,7 @@
       "scenario": "s1",
       "seed": 1,
       "agent": "threshold",
-      "commitment": "sha256:2d29971f88aad57bfd181a2b23fc366f586d2735ee4ead887848eb449b929776",
+      "commitment": "sha256:5ddff734ae9c6b6ce225ebaf6e4c901bc6cdeb0342c00fe9d2252971e0125d0a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -651,185 +651,187 @@
       "claims": 1,
       "pages": 1,
       "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 1.22,
+      "error": null
+    },
+    {
+      "case": "s1-2",
+      "scenario": "s1",
+      "seed": 2,
+      "agent": "argus",
+      "commitment": "sha256:4ff9b4ed72846336a04c59701682df9135b7cb29f0b16b27bde6acc10d48e65b",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 4,
+          "label": "exact",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 7.26,
+      "error": null
+    },
+    {
+      "case": "s1-2",
+      "scenario": "s1",
+      "seed": 2,
+      "agent": "argus-stage1",
+      "commitment": "sha256:4ff9b4ed72846336a04c59701682df9135b7cb29f0b16b27bde6acc10d48e65b",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 4,
+          "label": "exact",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 10.37,
+      "error": null
+    },
+    {
+      "case": "s1-2",
+      "scenario": "s1",
+      "seed": 2,
+      "agent": "threshold",
+      "commitment": "sha256:4ff9b4ed72846336a04c59701682df9135b7cb29f0b16b27bde6acc10d48e65b",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 1,
+          "label": "paged, no cause",
+          "claim": "INC-0001",
+          "claimed": "UNEXPLAINED",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 1.02,
+      "error": null
+    },
+    {
+      "case": "s1-3",
+      "scenario": "s1",
+      "seed": 3,
+      "agent": "argus",
+      "commitment": "sha256:a1b10fbba8ea12705971f7d4825185f1c714ebd89fb5f2f18de774b3da2ac15c",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 4,
+          "label": "exact",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 7.26,
+      "error": null
+    },
+    {
+      "case": "s1-3",
+      "scenario": "s1",
+      "seed": 3,
+      "agent": "argus-stage1",
+      "commitment": "sha256:a1b10fbba8ea12705971f7d4825185f1c714ebd89fb5f2f18de774b3da2ac15c",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 4,
+          "label": "exact",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 6.43,
+      "error": null
+    },
+    {
+      "case": "s1-3",
+      "scenario": "s1",
+      "seed": 3,
+      "agent": "threshold",
+      "commitment": "sha256:a1b10fbba8ea12705971f7d4825185f1c714ebd89fb5f2f18de774b3da2ac15c",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s1_payco_outage",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 1,
+          "label": "paged, no cause",
+          "claim": "INC-0002",
+          "claimed": "UNEXPLAINED",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 2,
+      "pages": 2,
+      "false_alarms": [
+        "INC-0001"
+      ],
       "data_claims": 0,
       "true_data_claims": 0,
       "agent_seconds": 0.76,
       "error": null
     },
     {
-      "case": "s1-2",
-      "scenario": "s1",
-      "seed": 2,
-      "agent": "argus",
-      "commitment": "sha256:b44f377a25d345e678ee304d5d24a6717ce7b2109ac6ece23214375b2b4de587",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 4,
-          "label": "exact",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 8.06,
-      "error": null
-    },
-    {
-      "case": "s1-2",
-      "scenario": "s1",
-      "seed": 2,
-      "agent": "argus-stage1",
-      "commitment": "sha256:b44f377a25d345e678ee304d5d24a6717ce7b2109ac6ece23214375b2b4de587",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 4,
-          "label": "exact",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 13.17,
-      "error": null
-    },
-    {
-      "case": "s1-2",
-      "scenario": "s1",
-      "seed": 2,
-      "agent": "threshold",
-      "commitment": "sha256:b44f377a25d345e678ee304d5d24a6717ce7b2109ac6ece23214375b2b4de587",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 1,
-          "label": "paged, no cause",
-          "claim": "INC-0001",
-          "claimed": "UNEXPLAINED",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 2.03,
-      "error": null
-    },
-    {
-      "case": "s1-3",
-      "scenario": "s1",
-      "seed": 3,
-      "agent": "argus",
-      "commitment": "sha256:375e2d74a1e83a7fdc99618b2cd97f7ddf303b19a1067a6acddcbc8af38537df",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 4,
-          "label": "exact",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 10.2,
-      "error": null
-    },
-    {
-      "case": "s1-3",
-      "scenario": "s1",
-      "seed": 3,
-      "agent": "argus-stage1",
-      "commitment": "sha256:375e2d74a1e83a7fdc99618b2cd97f7ddf303b19a1067a6acddcbc8af38537df",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 4,
-          "label": "exact",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 8.39,
-      "error": null
-    },
-    {
-      "case": "s1-3",
-      "scenario": "s1",
-      "seed": 3,
-      "agent": "threshold",
-      "commitment": "sha256:375e2d74a1e83a7fdc99618b2cd97f7ddf303b19a1067a6acddcbc8af38537df",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s1_payco_outage",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 1,
-          "label": "paged, no cause",
-          "claim": "INC-0001",
-          "claimed": "UNEXPLAINED",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 1.2,
-      "error": null
-    },
-    {
       "case": "s2-1",
       "scenario": "s2",
       "seed": 1,
       "agent": "argus",
-      "commitment": "sha256:17da1d42bac5907dbd97a9ec7573678e3173cb4eaa825a46e32857a0d9ad8731",
+      "commitment": "sha256:b1c2695a16e688ff2a8378ed612dbad27ed32ea4b7cc23fa56d08f997ac48a8e",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -849,7 +851,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.67,
+      "agent_seconds": 5.29,
       "error": null
     },
     {
@@ -857,7 +859,7 @@
       "scenario": "s2",
       "seed": 1,
       "agent": "argus-stage1",
-      "commitment": "sha256:17da1d42bac5907dbd97a9ec7573678e3173cb4eaa825a46e32857a0d9ad8731",
+      "commitment": "sha256:b1c2695a16e688ff2a8378ed612dbad27ed32ea4b7cc23fa56d08f997ac48a8e",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -879,7 +881,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 9.83,
+      "agent_seconds": 5.58,
       "error": null
     },
     {
@@ -887,7 +889,7 @@
       "scenario": "s2",
       "seed": 1,
       "agent": "threshold",
-      "commitment": "sha256:17da1d42bac5907dbd97a9ec7573678e3173cb4eaa825a46e32857a0d9ad8731",
+      "commitment": "sha256:b1c2695a16e688ff2a8378ed612dbad27ed32ea4b7cc23fa56d08f997ac48a8e",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -895,19 +897,22 @@
           "event_id": "s2_planned_budget_increase",
           "kind": "innocent",
           "expected": "EXPECTED",
-          "grade": 2,
-          "label": "silent",
-          "claim": null,
-          "claimed": null,
+          "grade": 0,
+          "label": "paged on a planned change",
+          "claim": "INC-0001",
+          "claimed": "UNEXPLAINED",
           "ttd_hours": null
         }
       ],
-      "claims": 0,
-      "pages": 0,
-      "false_alarms": [],
+      "claims": 2,
+      "pages": 2,
+      "false_alarms": [
+        "INC-0001",
+        "INC-0002"
+      ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.23,
+      "agent_seconds": 0.6,
       "error": null
     },
     {
@@ -915,7 +920,7 @@
       "scenario": "s2",
       "seed": 2,
       "agent": "argus",
-      "commitment": "sha256:a35416dba95a4adced971e5a70593284281ff9af5c930486b0e7ffbc1b5d1c42",
+      "commitment": "sha256:b721f6152e95e6f551537615b7a86f39cf44ca071115951f880cf54ea50c6af0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -927,7 +932,7 @@
           "label": "explained",
           "claim": "note_0001",
           "claimed": "EXPECTED",
-          "ttd_hours": 6.0
+          "ttd_hours": 4.0
         }
       ],
       "claims": 1,
@@ -935,7 +940,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 8.19,
+      "agent_seconds": 5.35,
       "error": null
     },
     {
@@ -943,7 +948,7 @@
       "scenario": "s2",
       "seed": 2,
       "agent": "argus-stage1",
-      "commitment": "sha256:a35416dba95a4adced971e5a70593284281ff9af5c930486b0e7ffbc1b5d1c42",
+      "commitment": "sha256:b721f6152e95e6f551537615b7a86f39cf44ca071115951f880cf54ea50c6af0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -965,7 +970,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.98,
+      "agent_seconds": 5.62,
       "error": null
     },
     {
@@ -973,7 +978,7 @@
       "scenario": "s2",
       "seed": 2,
       "agent": "threshold",
-      "commitment": "sha256:a35416dba95a4adced971e5a70593284281ff9af5c930486b0e7ffbc1b5d1c42",
+      "commitment": "sha256:b721f6152e95e6f551537615b7a86f39cf44ca071115951f880cf54ea50c6af0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -993,7 +998,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 0.83,
+      "agent_seconds": 0.92,
       "error": null
     },
     {
@@ -1001,7 +1006,7 @@
       "scenario": "s2",
       "seed": 3,
       "agent": "argus",
-      "commitment": "sha256:acbe328119f078df5c5ac9c720f397e96cb34bcaae89eb097ed13fcefeabbae6",
+      "commitment": "sha256:14a02a378b50d1edef132055508ace589fc12017c43148589f560160aa2d47b0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1021,7 +1026,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 7.64,
+      "agent_seconds": 6.68,
       "error": null
     },
     {
@@ -1029,7 +1034,7 @@
       "scenario": "s2",
       "seed": 3,
       "agent": "argus-stage1",
-      "commitment": "sha256:acbe328119f078df5c5ac9c720f397e96cb34bcaae89eb097ed13fcefeabbae6",
+      "commitment": "sha256:14a02a378b50d1edef132055508ace589fc12017c43148589f560160aa2d47b0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1051,7 +1056,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 11.47,
+      "agent_seconds": 8.15,
       "error": null
     },
     {
@@ -1059,7 +1064,7 @@
       "scenario": "s2",
       "seed": 3,
       "agent": "threshold",
-      "commitment": "sha256:acbe328119f078df5c5ac9c720f397e96cb34bcaae89eb097ed13fcefeabbae6",
+      "commitment": "sha256:14a02a378b50d1edef132055508ace589fc12017c43148589f560160aa2d47b0",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1079,7 +1084,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.95,
+      "agent_seconds": 0.91,
       "error": null
     },
     {
@@ -1087,7 +1092,7 @@
       "scenario": "s3",
       "seed": 1,
       "agent": "argus",
-      "commitment": "sha256:227e4613c35dfa28c78cd38fca4618b27ea734d84207084a63e9aea4285ec398",
+      "commitment": "sha256:30cbdbf18bad433c8b44207fa0dac3937c833643d07d1dd6596bed000817afec",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1107,7 +1112,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 9.86,
+      "agent_seconds": 6.2,
       "error": null
     },
     {
@@ -1115,7 +1120,7 @@
       "scenario": "s3",
       "seed": 1,
       "agent": "argus-stage1",
-      "commitment": "sha256:227e4613c35dfa28c78cd38fca4618b27ea734d84207084a63e9aea4285ec398",
+      "commitment": "sha256:30cbdbf18bad433c8b44207fa0dac3937c833643d07d1dd6596bed000817afec",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1135,7 +1140,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 7.9,
+      "agent_seconds": 5.87,
       "error": null
     },
     {
@@ -1143,7 +1148,7 @@
       "scenario": "s3",
       "seed": 1,
       "agent": "threshold",
-      "commitment": "sha256:227e4613c35dfa28c78cd38fca4618b27ea734d84207084a63e9aea4285ec398",
+      "commitment": "sha256:30cbdbf18bad433c8b44207fa0dac3937c833643d07d1dd6596bed000817afec",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1166,7 +1171,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.13,
+      "agent_seconds": 0.94,
       "error": null
     },
     {
@@ -1174,7 +1179,7 @@
       "scenario": "s3",
       "seed": 2,
       "agent": "argus",
-      "commitment": "sha256:28d1ae72a76a25c6575c6f1bdb55f96433494dcfcbb2e5a26190bbae7edff856",
+      "commitment": "sha256:4daa64521eb8a92a294cd88081a7616696eb73d23ebbccee818b0b47d5988df8",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1194,7 +1199,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 7.04,
+      "agent_seconds": 5.99,
       "error": null
     },
     {
@@ -1202,7 +1207,7 @@
       "scenario": "s3",
       "seed": 2,
       "agent": "argus-stage1",
-      "commitment": "sha256:28d1ae72a76a25c6575c6f1bdb55f96433494dcfcbb2e5a26190bbae7edff856",
+      "commitment": "sha256:4daa64521eb8a92a294cd88081a7616696eb73d23ebbccee818b0b47d5988df8",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1222,7 +1227,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 7.33,
+      "agent_seconds": 5.59,
       "error": null
     },
     {
@@ -1230,7 +1235,7 @@
       "scenario": "s3",
       "seed": 2,
       "agent": "threshold",
-      "commitment": "sha256:28d1ae72a76a25c6575c6f1bdb55f96433494dcfcbb2e5a26190bbae7edff856",
+      "commitment": "sha256:4daa64521eb8a92a294cd88081a7616696eb73d23ebbccee818b0b47d5988df8",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1253,7 +1258,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.0,
+      "agent_seconds": 0.65,
       "error": null
     },
     {
@@ -1261,7 +1266,7 @@
       "scenario": "s3",
       "seed": 3,
       "agent": "argus",
-      "commitment": "sha256:9f015e505ba69de5fa488b837cd45fdd6cfa9ddbbe7f576c215cb3c0fde5ffb6",
+      "commitment": "sha256:cce3947a59e668f22a346f612995f7a34c2422a984f94cb1ac17be5a02ccecea",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1281,7 +1286,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 8.47,
+      "agent_seconds": 5.36,
       "error": null
     },
     {
@@ -1289,7 +1294,7 @@
       "scenario": "s3",
       "seed": 3,
       "agent": "argus-stage1",
-      "commitment": "sha256:9f015e505ba69de5fa488b837cd45fdd6cfa9ddbbe7f576c215cb3c0fde5ffb6",
+      "commitment": "sha256:cce3947a59e668f22a346f612995f7a34c2422a984f94cb1ac17be5a02ccecea",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1309,7 +1314,7 @@
       "false_alarms": [],
       "data_claims": 1,
       "true_data_claims": 1,
-      "agent_seconds": 7.24,
+      "agent_seconds": 5.2,
       "error": null
     },
     {
@@ -1317,7 +1322,7 @@
       "scenario": "s3",
       "seed": 3,
       "agent": "threshold",
-      "commitment": "sha256:9f015e505ba69de5fa488b837cd45fdd6cfa9ddbbe7f576c215cb3c0fde5ffb6",
+      "commitment": "sha256:cce3947a59e668f22a346f612995f7a34c2422a984f94cb1ac17be5a02ccecea",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1340,7 +1345,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.5,
+      "agent_seconds": 0.78,
       "error": null
     },
     {
@@ -1348,7 +1353,7 @@
       "scenario": "s4",
       "seed": 1,
       "agent": "argus",
-      "commitment": "sha256:1fd6168a4a9f067ed36e86e8228c3698c2884d06d9aa06d5e0534eede415e65f",
+      "commitment": "sha256:10559a17b5f8ed5e207cab6bc673d5d2e2e1f5be3d1efbd5f10a3403351a1ee6",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1364,268 +1369,6 @@
         }
       ],
       "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 8.28,
-      "error": null
-    },
-    {
-      "case": "s4-1",
-      "scenario": "s4",
-      "seed": 1,
-      "agent": "argus-stage1",
-      "commitment": "sha256:1fd6168a4a9f067ed36e86e8228c3698c2884d06d9aa06d5e0534eede415e65f",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 2,
-          "label": "partial: segment or node off",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 7.08,
-      "error": null
-    },
-    {
-      "case": "s4-1",
-      "scenario": "s4",
-      "seed": 1,
-      "agent": "threshold",
-      "commitment": "sha256:1fd6168a4a9f067ed36e86e8228c3698c2884d06d9aa06d5e0534eede415e65f",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 1,
-          "label": "paged, no cause",
-          "claim": "INC-0001",
-          "claimed": "UNEXPLAINED",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 2,
-      "pages": 2,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 0.9,
-      "error": null
-    },
-    {
-      "case": "s4-2",
-      "scenario": "s4",
-      "seed": 2,
-      "agent": "argus",
-      "commitment": "sha256:1d4428d615cf8da9223f629bd323792e97c4955b37b5a527484d45f6082385ac",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 3,
-          "label": "right cause",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 6.9,
-      "error": null
-    },
-    {
-      "case": "s4-2",
-      "scenario": "s4",
-      "seed": 2,
-      "agent": "argus-stage1",
-      "commitment": "sha256:1d4428d615cf8da9223f629bd323792e97c4955b37b5a527484d45f6082385ac",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 2,
-          "label": "partial: segment or node off",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 13.09,
-      "error": null
-    },
-    {
-      "case": "s4-2",
-      "scenario": "s4",
-      "seed": 2,
-      "agent": "threshold",
-      "commitment": "sha256:1d4428d615cf8da9223f629bd323792e97c4955b37b5a527484d45f6082385ac",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 1,
-          "label": "paged, no cause",
-          "claim": "INC-0001",
-          "claimed": "UNEXPLAINED",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 2,
-      "pages": 2,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 1.5,
-      "error": null
-    },
-    {
-      "case": "s4-3",
-      "scenario": "s4",
-      "seed": 3,
-      "agent": "argus",
-      "commitment": "sha256:5f3ac6a13a12b030757eaf2775e684141585228e5befe9f7066b189020b35564",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 3,
-          "label": "right cause",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 11.14,
-      "error": null
-    },
-    {
-      "case": "s4-3",
-      "scenario": "s4",
-      "seed": 3,
-      "agent": "argus-stage1",
-      "commitment": "sha256:5f3ac6a13a12b030757eaf2775e684141585228e5befe9f7066b189020b35564",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 2,
-          "label": "partial: segment or node off",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 1,
-      "pages": 1,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 9.37,
-      "error": null
-    },
-    {
-      "case": "s4-3",
-      "scenario": "s4",
-      "seed": 3,
-      "agent": "threshold",
-      "commitment": "sha256:5f3ac6a13a12b030757eaf2775e684141585228e5befe9f7066b189020b35564",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s4_pacer_overburn",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 1,
-          "label": "paged, no cause",
-          "claim": "INC-0001",
-          "claimed": "UNEXPLAINED",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 2,
-      "pages": 2,
-      "false_alarms": [],
-      "data_claims": 0,
-      "true_data_claims": 0,
-      "agent_seconds": 1.13,
-      "error": null
-    },
-    {
-      "case": "s5-1",
-      "scenario": "s5",
-      "seed": 1,
-      "agent": "argus",
-      "commitment": "sha256:89c43800c25c4390e0d8e2c10f6b16a4d2763824f51376b45733ff5c5af27a14",
-      "verified": true,
-      "live_days": 5.0,
-      "events": [
-        {
-          "event_id": "s5_market_dip",
-          "kind": "innocent",
-          "expected": "EXPECTED",
-          "grade": 4,
-          "label": "explained",
-          "claim": "note_0001",
-          "claimed": "EXPECTED",
-          "ttd_hours": 2.0
-        },
-        {
-          "event_id": "s5_checkout_routing_fault",
-          "kind": "fault",
-          "expected": "SUPPORTED_CAUSE",
-          "grade": 4,
-          "label": "exact",
-          "claim": "INC-0001",
-          "claimed": "SUPPORTED_CAUSE",
-          "ttd_hours": 2.0
-        }
-      ],
-      "claims": 4,
       "pages": 1,
       "false_alarms": [],
       "data_claims": 0,
@@ -1634,11 +1377,273 @@
       "error": null
     },
     {
+      "case": "s4-1",
+      "scenario": "s4",
+      "seed": 1,
+      "agent": "argus-stage1",
+      "commitment": "sha256:10559a17b5f8ed5e207cab6bc673d5d2e2e1f5be3d1efbd5f10a3403351a1ee6",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 2,
+          "label": "partial: segment or node off",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 5.46,
+      "error": null
+    },
+    {
+      "case": "s4-1",
+      "scenario": "s4",
+      "seed": 1,
+      "agent": "threshold",
+      "commitment": "sha256:10559a17b5f8ed5e207cab6bc673d5d2e2e1f5be3d1efbd5f10a3403351a1ee6",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 1,
+          "label": "paged, no cause",
+          "claim": "INC-0001",
+          "claimed": "UNEXPLAINED",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 2,
+      "pages": 2,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 0.72,
+      "error": null
+    },
+    {
+      "case": "s4-2",
+      "scenario": "s4",
+      "seed": 2,
+      "agent": "argus",
+      "commitment": "sha256:96e78d08893c5e964eee4343c6a6ed3d50f767dfd424285d3bd2a1ecd95fd440",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 3,
+          "label": "right cause",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 5.41,
+      "error": null
+    },
+    {
+      "case": "s4-2",
+      "scenario": "s4",
+      "seed": 2,
+      "agent": "argus-stage1",
+      "commitment": "sha256:96e78d08893c5e964eee4343c6a6ed3d50f767dfd424285d3bd2a1ecd95fd440",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 2,
+          "label": "partial: segment or node off",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 5.23,
+      "error": null
+    },
+    {
+      "case": "s4-2",
+      "scenario": "s4",
+      "seed": 2,
+      "agent": "threshold",
+      "commitment": "sha256:96e78d08893c5e964eee4343c6a6ed3d50f767dfd424285d3bd2a1ecd95fd440",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 1,
+          "label": "paged, no cause",
+          "claim": "INC-0001",
+          "claimed": "UNEXPLAINED",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 2,
+      "pages": 2,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 0.65,
+      "error": null
+    },
+    {
+      "case": "s4-3",
+      "scenario": "s4",
+      "seed": 3,
+      "agent": "argus",
+      "commitment": "sha256:0b73885c8060b8abfe33e414a4c9b255b35a65667c862bf3a07f0fef047fa3c1",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 3,
+          "label": "right cause",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 5.35,
+      "error": null
+    },
+    {
+      "case": "s4-3",
+      "scenario": "s4",
+      "seed": 3,
+      "agent": "argus-stage1",
+      "commitment": "sha256:0b73885c8060b8abfe33e414a4c9b255b35a65667c862bf3a07f0fef047fa3c1",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 2,
+          "label": "partial: segment or node off",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 1,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 5.61,
+      "error": null
+    },
+    {
+      "case": "s4-3",
+      "scenario": "s4",
+      "seed": 3,
+      "agent": "threshold",
+      "commitment": "sha256:0b73885c8060b8abfe33e414a4c9b255b35a65667c862bf3a07f0fef047fa3c1",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s4_pacer_overburn",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 1,
+          "label": "paged, no cause",
+          "claim": "INC-0001",
+          "claimed": "UNEXPLAINED",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 2,
+      "pages": 2,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 0.68,
+      "error": null
+    },
+    {
+      "case": "s5-1",
+      "scenario": "s5",
+      "seed": 1,
+      "agent": "argus",
+      "commitment": "sha256:9ec11acde04be0089a45dd4af502e7b96645e8624ed54f0bf33fed7529602078",
+      "verified": true,
+      "live_days": 5.0,
+      "events": [
+        {
+          "event_id": "s5_market_dip",
+          "kind": "innocent",
+          "expected": "EXPECTED",
+          "grade": 4,
+          "label": "explained",
+          "claim": "note_0001",
+          "claimed": "EXPECTED",
+          "ttd_hours": 2.0
+        },
+        {
+          "event_id": "s5_checkout_routing_fault",
+          "kind": "fault",
+          "expected": "SUPPORTED_CAUSE",
+          "grade": 4,
+          "label": "exact",
+          "claim": "INC-0001",
+          "claimed": "SUPPORTED_CAUSE",
+          "ttd_hours": 2.0
+        }
+      ],
+      "claims": 4,
+      "pages": 1,
+      "false_alarms": [],
+      "data_claims": 0,
+      "true_data_claims": 0,
+      "agent_seconds": 6.58,
+      "error": null
+    },
+    {
       "case": "s5-1",
       "scenario": "s5",
       "seed": 1,
       "agent": "argus-stage1",
-      "commitment": "sha256:89c43800c25c4390e0d8e2c10f6b16a4d2763824f51376b45733ff5c5af27a14",
+      "commitment": "sha256:9ec11acde04be0089a45dd4af502e7b96645e8624ed54f0bf33fed7529602078",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1670,7 +1675,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 6.32,
+      "agent_seconds": 9.45,
       "error": null
     },
     {
@@ -1678,7 +1683,7 @@
       "scenario": "s5",
       "seed": 1,
       "agent": "threshold",
-      "commitment": "sha256:89c43800c25c4390e0d8e2c10f6b16a4d2763824f51376b45733ff5c5af27a14",
+      "commitment": "sha256:9ec11acde04be0089a45dd4af502e7b96645e8624ed54f0bf33fed7529602078",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1688,7 +1693,7 @@
           "expected": "EXPECTED",
           "grade": 0,
           "label": "paged on a planned change",
-          "claim": "INC-0001",
+          "claim": "INC-0002",
           "claimed": "UNEXPLAINED",
           "ttd_hours": null
         },
@@ -1698,21 +1703,22 @@
           "expected": "SUPPORTED_CAUSE",
           "grade": 1,
           "label": "paged, no cause",
-          "claim": "INC-0004",
+          "claim": "INC-0005",
           "claimed": "UNEXPLAINED",
           "ttd_hours": 2.0
         }
       ],
-      "claims": 4,
-      "pages": 4,
+      "claims": 5,
+      "pages": 5,
       "false_alarms": [
         "INC-0001",
         "INC-0002",
-        "INC-0003"
+        "INC-0003",
+        "INC-0004"
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 0.86,
+      "agent_seconds": 1.04,
       "error": null
     },
     {
@@ -1720,7 +1726,7 @@
       "scenario": "s5",
       "seed": 2,
       "agent": "argus",
-      "commitment": "sha256:f0fe50604455aeded7acf4624721f4032df2abb29c25c9aec1a3e90ec95539cd",
+      "commitment": "sha256:92a4e49e8362054d2750d17ebee4cfac9213049ccaebd757125e86dc089f023f",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1750,7 +1756,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 5.96,
+      "agent_seconds": 7.45,
       "error": null
     },
     {
@@ -1758,7 +1764,7 @@
       "scenario": "s5",
       "seed": 2,
       "agent": "argus-stage1",
-      "commitment": "sha256:f0fe50604455aeded7acf4624721f4032df2abb29c25c9aec1a3e90ec95539cd",
+      "commitment": "sha256:92a4e49e8362054d2750d17ebee4cfac9213049ccaebd757125e86dc089f023f",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1790,7 +1796,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 5.91,
+      "agent_seconds": 6.62,
       "error": null
     },
     {
@@ -1798,7 +1804,7 @@
       "scenario": "s5",
       "seed": 2,
       "agent": "threshold",
-      "commitment": "sha256:f0fe50604455aeded7acf4624721f4032df2abb29c25c9aec1a3e90ec95539cd",
+      "commitment": "sha256:92a4e49e8362054d2750d17ebee4cfac9213049ccaebd757125e86dc089f023f",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1808,7 +1814,7 @@
           "expected": "EXPECTED",
           "grade": 0,
           "label": "paged on a planned change",
-          "claim": "INC-0001",
+          "claim": "INC-0002",
           "claimed": "UNEXPLAINED",
           "ttd_hours": null
         },
@@ -1818,21 +1824,22 @@
           "expected": "SUPPORTED_CAUSE",
           "grade": 1,
           "label": "paged, no cause",
-          "claim": "INC-0004",
+          "claim": "INC-0005",
           "claimed": "UNEXPLAINED",
           "ttd_hours": 2.0
         }
       ],
-      "claims": 4,
-      "pages": 4,
+      "claims": 5,
+      "pages": 5,
       "false_alarms": [
         "INC-0001",
         "INC-0002",
-        "INC-0003"
+        "INC-0003",
+        "INC-0004"
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 0.86,
+      "agent_seconds": 0.8,
       "error": null
     },
     {
@@ -1840,7 +1847,7 @@
       "scenario": "s5",
       "seed": 3,
       "agent": "argus",
-      "commitment": "sha256:7628b3cf214ea50ff90eb688e3fc5c82f825b961ce6abfeef482932a43d6c11b",
+      "commitment": "sha256:58bbe4702f0d885beecf9db81f72be12c579618eaa9a69bd3dce10aa8e80bf9a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1870,7 +1877,7 @@
       "false_alarms": [],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 7.51,
+      "agent_seconds": 6.9,
       "error": null
     },
     {
@@ -1878,7 +1885,7 @@
       "scenario": "s5",
       "seed": 3,
       "agent": "argus-stage1",
-      "commitment": "sha256:7628b3cf214ea50ff90eb688e3fc5c82f825b961ce6abfeef482932a43d6c11b",
+      "commitment": "sha256:58bbe4702f0d885beecf9db81f72be12c579618eaa9a69bd3dce10aa8e80bf9a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1910,7 +1917,7 @@
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 8.91,
+      "agent_seconds": 6.07,
       "error": null
     },
     {
@@ -1918,7 +1925,7 @@
       "scenario": "s5",
       "seed": 3,
       "agent": "threshold",
-      "commitment": "sha256:7628b3cf214ea50ff90eb688e3fc5c82f825b961ce6abfeef482932a43d6c11b",
+      "commitment": "sha256:58bbe4702f0d885beecf9db81f72be12c579618eaa9a69bd3dce10aa8e80bf9a",
       "verified": true,
       "live_days": 5.0,
       "events": [
@@ -1928,7 +1935,7 @@
           "expected": "EXPECTED",
           "grade": 0,
           "label": "paged on a planned change",
-          "claim": "INC-0001",
+          "claim": "INC-0002",
           "claimed": "UNEXPLAINED",
           "ttd_hours": null
         },
@@ -1938,21 +1945,22 @@
           "expected": "SUPPORTED_CAUSE",
           "grade": 1,
           "label": "paged, no cause",
-          "claim": "INC-0004",
+          "claim": "INC-0005",
           "claimed": "UNEXPLAINED",
           "ttd_hours": 2.0
         }
       ],
-      "claims": 4,
-      "pages": 4,
+      "claims": 5,
+      "pages": 5,
       "false_alarms": [
         "INC-0001",
         "INC-0002",
-        "INC-0003"
+        "INC-0003",
+        "INC-0004"
       ],
       "data_claims": 0,
       "true_data_claims": 0,
-      "agent_seconds": 1.11,
+      "agent_seconds": 0.84,
       "error": null
     }
   ]

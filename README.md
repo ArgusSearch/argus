@@ -21,7 +21,7 @@ This one command simulates a fresh world, runs Argus over it hour by hour, and g
 ```
 S1 seed 7: PayCo DE-android success 0.95 -> 0.62 from 2026-11-20 21:00 to 06:00 (hidden truth, read by the bench only)
   PASS  supported_cause        INC-0001 SUPPORTED_CAUSE payment_success_rate DE/android/PayCo
-  PASS  release_ruled_out      dep_android-app_8.3.0: holdout normal: +0.3% (z +0.7) outside the segment vs -34.6% inside
+  PASS  release_ruled_out      dep_android-app_8.3.0: holdout normal: +0.9% (z +1.8) outside the segment vs -35.8% inside
   PASS  detected_within_3h     opened 0 h after onset (data hour), 2 h wall clock
   PASS  quiet_hours_silent     69 quiet hours, 0 anomalies before onset
   PASS  one_incident           1 incident(s), 1 anomalies, 0 suppressed, state resolved
