@@ -70,6 +70,9 @@ export interface StreamHeader {
 
 export type ConnectionState = "connecting" | "open" | "offline";
 
+/** How long to wait before reopening a stream the browser closed for good (it never retries those itself). */
+export const RETRY_CLOSED_MS = 2000;
+
 /** How long the stream may fail to reconnect before the page says the API is offline. */
 export const OFFLINE_AFTER_MS = 4000;
 
@@ -89,6 +92,7 @@ export function follow(handlers: {
   let frame = 0;
   let offline = false;
   let offlineTimer: ReturnType<typeof setTimeout> | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
 
   const flush = () => {
     frame = 0;
@@ -101,7 +105,7 @@ export function follow(handlers: {
 
   const open = () => {
     if (closed) return;
-    handlers.onState("connecting");
+    if (!offline) handlers.onState("connecting");
     const es = new EventSource("/events");
     source = es;
     es.onopen = () => {
@@ -118,6 +122,8 @@ export function follow(handlers: {
         offlineTimer = undefined;
         offline = true;
         handlers.onState("offline");
+        // a non-200 answer (the dev proxy while the API is down) closes the stream for good: reopen it ourselves
+        retry = setTimeout(open, RETRY_CLOSED_MS);
         return;
       }
       if (offline) return; // still down: keep the banner instead of flickering back to "connecting"
@@ -147,6 +153,7 @@ export function follow(handlers: {
     closed = true;
     if (frame) cancelAnimationFrame(frame);
     clearTimeout(offlineTimer);
+    clearTimeout(retry);
     source?.close();
   };
 }
