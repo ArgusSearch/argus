@@ -54,14 +54,14 @@ Argus:
 | --- | --- |
 | `make setup` | install the locked environment |
 | `make s1 [SEED=n]` | S1 end to end, graded against the hidden truth |
-| `make bench` | the scorecard: quiet, S1-S4 x 3 seeds, Argus against a threshold baseline, truth sealed first |
-| `make world [SCENARIO=s1] [SEED=n]` | generate a world into `runs/<scenario>-<seed>/` (world.duckdb, truth.duckdb, manifest.json); scenarios: quiet, s1, s2, s3, s4 |
+| `make bench` | the scorecard: quiet, S1-S5 x 3 seeds, Argus against a threshold baseline, truth sealed first |
+| `make world [SCENARIO=s1] [SEED=n]` | generate a world into `runs/<scenario>-<seed>/` (world.duckdb, truth.duckdb, manifest.json); scenarios: quiet, s1, s2, s3, s4, s5 |
 | `uv run argus run --world runs/s1-7/world.duckdb` | run Argus over a world and write its outputs next to it (`--stage 1` for the Stage-1 investigator) |
 | `make demo [SCENARIO=s1]` | API and Mission Control on port 8000 running Argus live over a fresh world, streaming events |
 | `make api [SCENARIO=s1]` | API and Mission Control replaying a recorded run: `fixtures/` for S1, `fixtures/<scenario>/` for the others (no world needed) |
 | `make check` | lint, format check, mypy, contract freshness, Mission Control tests and build, all tests (what CI runs) |
 | `make contracts` | regenerate `contracts/` from the pydantic models |
-| `make fixtures` | re-record `fixtures/` (S1) and `fixtures/<scenario>/` (quiet, S2, S3, S4), each graded after it is written |
+| `make fixtures` | re-record `fixtures/` (S1) and `fixtures/<scenario>/` (quiet, S2, S3, S4, S5), each graded after it is written |
 
 ## Architecture
 
@@ -92,7 +92,7 @@ One tick is one simulated hour:
 contracts/            generated contract artifacts: schema.sql and JSON Schemas (do not edit, run make contracts)
 graph/seed_graph.yml  hand-written seed metric graph: 27 nodes (shop funnel and ads business), 44 typed edges
 metrics/              C2 metric definitions (name, description, sql); new metrics are dropped here
-fixtures/             recorded runs for replay: S1 at the top level, quiet, s2, s3, s4 in fixtures/<scenario>/
+fixtures/             recorded runs for replay: S1 at the top level, quiet, s2, s3, s4, s5 in fixtures/<scenario>/
 src/argus/contracts/  the six contracts as pydantic models (single source of truth)
 src/argus/semantic/   SQL compiler for graph nodes, query runner, receipts with canonical hashes      lane G
 src/argus/graph/      seed graph loader, edge tests, changelog                                      lane G

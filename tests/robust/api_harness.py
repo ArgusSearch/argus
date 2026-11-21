@@ -17,7 +17,7 @@ import httpx2
 from argus.contracts.events import Event
 
 ROOT = Path(__file__).resolve().parents[2]
-SCENARIOS = ("quiet", "s1", "s2", "s3", "s4")
+SCENARIOS = ("quiet", "s1", "s2", "s3", "s4", "s5")
 RECORDING_SEED = 1  # `make fixtures` records every scenario at this seed.
 BOUND = re.compile(r"Uvicorn running on (http://127\.0\.0\.1:[0-9]+)")
 TIMEOUT = 45

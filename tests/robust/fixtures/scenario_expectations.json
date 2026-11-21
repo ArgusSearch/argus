@@ -17,5 +17,13 @@
     "root": "pacing_ratio",
     "segment": {},
     "cause": "dep_ad-pacer_1.7.0"
+  },
+  "s5": {
+    "anomalies": ["sessions", "orders", "gmv", "payment_success_rate"],
+    "notes": ["expected", "expected", "expected"],
+    "incident_states": ["explained", "monitoring", "resolved"],
+    "root": "payment_success_rate",
+    "segment": {"country": "DE", "platform": "android", "provider": "PayCo"},
+    "cause": "dep_checkout-routing_retry-policy"
   }
 }
