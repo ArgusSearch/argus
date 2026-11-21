@@ -26,6 +26,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
+from argus.agent.routes import router as agent_router
 from argus.api.digest import Digest, build_digest
 from argus.api.hub import EventHub
 from argus.api.rerun import RerunResult, RerunUnavailable
@@ -104,6 +105,12 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
     app.include_router(narrator_router(source))
     app.include_router(counterfactual_router(source))
+    app.include_router(agent_router(source))
+    remediation = getattr(source, "remediation", None)
+    if remediation is not None:
+        from argus.remediation import create_router as remediation_router
+
+        app.include_router(remediation_router(remediation))
     hub = source.bus
 
     # ------------------------------------------------------------------ run and stream
