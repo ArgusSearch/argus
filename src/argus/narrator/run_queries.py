@@ -11,6 +11,7 @@ from urllib.parse import quote, urlencode
 import duckdb
 from pydantic import BaseModel
 
+from argus.agent.types import ReceiptLink as AgentReceipt
 from argus.contracts.events import Event
 from argus.contracts.findings import Findings
 from argus.semantic.runner import canonical_hash
@@ -18,10 +19,10 @@ from argus.semantic.runner import canonical_hash
 
 class ReceiptLink(BaseModel):
     id: str
-    source: Literal["semantic", "run"]
+    source: Literal["semantic", "run", "agent"]
     href: str
-    rerun_href: str
-    rerun_method: Literal["GET", "POST"]
+    rerun_href: str | None
+    rerun_method: Literal["GET", "POST"] | None
 
 
 def semantic_link(receipt_id: str, prefix: str = "") -> ReceiptLink:
@@ -44,6 +45,11 @@ class RunWindow:
 
     def semantic_link(self, receipt_id: str) -> ReceiptLink:
         return semantic_link(receipt_id, self.prefix)
+
+    def agent_link(self, ref: AgentReceipt) -> ReceiptLink:
+        path = "/".join(quote(part, safe="") for part in (ref.run_id, ref.world_revision, ref.receipt_id))
+        href = f"/agent/receipts/{path}"
+        return ReceiptLink(id=ref.key(), source="agent", href=href, rerun_href=None, rerun_method=None)
 
     def event_link(self, event: Event) -> ReceiptLink:
         return self.link(f"event-{event.seq}")

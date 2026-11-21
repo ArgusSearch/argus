@@ -31,12 +31,12 @@
   },
   "factual": {
     "sql": "WITH t0 AS (SELECT ts, SUM(planned_spend) AS den FROM fact_ad_plan_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(ad_spend) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
-    "result_hash": "sha256:5a85068e6504a605",
+    "result_hash": "sha256:f73a31a6297cb821",
     "rows": 30
   },
   "counterfactual": {
     "sql": "WITH t0 AS (SELECT ts, SUM(planned_spend) AS den FROM fact_ad_plan_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(ad_spend) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
-    "result_hash": "sha256:aa46489da7e619cb",
+    "result_hash": "sha256:643e39e50d1a50d7",
     "rows": 30
   }
 }

@@ -1,0 +1,618 @@
+/* The Argus Ice workspace: Mission Control re-laid out as a dashboard app. A sidebar on the left, the header and
+   the section in the middle (dashboard, graph with its investigation band, or a view of the
+   view host) and the activity feed on the right. The wrappers of the existing page (.vh, .vh-body, .vh-graph,
+   .main, .left) become display: contents, so their panels are placed on the app's own grid without a change to
+   their markup. All under :root[data-fx]; the section comes from <html data-fx-section> (nav.ts). */
+
+:root[data-fx] .app {
+  --fx-side-w: 224px;
+  --fx-feed-w: 392px;
+  grid-template-columns: var(--fx-side-w) minmax(0, 1fr) var(--fx-feed-w);
+  grid-template-rows: 52px 0 minmax(0, 1fr) auto;
+  grid-template-areas:
+    "side head head"
+    "side tick tick"
+    "side body feed"
+    "side band feed";
+  column-gap: var(--fx-space-3);
+  row-gap: var(--fx-space-3);
+  padding: 0 var(--fx-space-3) var(--fx-space-3) 0;
+  min-width: 1180px;
+}
+
+:root[data-fx] :is(.vh, .vh-body, .vh-graph, .vh-graph[hidden], .main, .left) {
+  display: contents;
+}
+
+:root[data-fx] .vh-bar {
+  display: none;
+}
+
+:root[data-fx] .header {
+  grid-area: head;
+  gap: var(--fx-space-4);
+  padding: 0 var(--fx-space-1);
+  min-width: 0;
+}
+
+:root[data-fx] .header .brand {
+  display: none;
+}
+
+:root[data-fx] .ticker {
+  grid-area: tick;
+  margin: 0;
+  min-width: 0;
+}
+
+:root[data-fx] .graph {
+  grid-area: body;
+  min-height: 0;
+}
+
+:root[data-fx] .trail {
+  grid-area: band;
+  height: 244px;
+  min-width: 0;
+}
+
+:root[data-fx] .rail {
+  grid-column: 3;
+  grid-row: 3 / 5;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:root[data-fx] .vh-view,
+:root[data-fx] .fx-dash {
+  grid-column: 2;
+  grid-row: 3 / 5;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+}
+
+/* the ticker's counters are internal (series-hours, wiggles): the pages say the same in plain words */
+:root[data-fx] .ticker {
+  display: none;
+}
+
+/* sections: the workspace's own pages take the body and the feed's column; the graph waits behind them */
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"], [data-fx-section="agent"], [data-fx-section="village"]) :is(.trail, .vh-view, .rail) {
+  display: none;
+}
+
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"], [data-fx-section="agent"], [data-fx-section="village"]) .fx-dash {
+  grid-column: 2 / 4;
+}
+
+:root[data-fx][data-fx-section="graph"] .vh-view {
+  display: none;
+}
+
+/* the activity feed speaks the engine's language (raw titles, verdict codes, edge tests): the pages tell the same
+   in plain words, so the feed steps aside and the views take its column */
+:root[data-fx] .rail {
+  display: none;
+}
+
+:root[data-fx] .vh-view {
+  grid-column: 2 / 4;
+}
+
+:root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) .trail {
+  display: none;
+}
+
+/* graph section: the graph is the hero. The feed steps aside, so the graph and the investigation band under it
+   span both columns and the graph fits at a readable zoom (about 1.15 at 1920x1080). */
+:root[data-fx][data-fx-section="graph"] .rail {
+  display: none;
+}
+
+:root[data-fx][data-fx-section="graph"] .trail {
+  grid-column: 2 / 4;
+}
+
+/* the map on the left, the panel that explains it (StoryPanel) in the feed's column */
+:root[data-fx][data-fx-section="graph"] .graph {
+  grid-column: 2;
+}
+
+/* the visualization is the map alone: the investigation's steps have their own page (Live investigation) */
+:root[data-fx][data-fx-section="graph"] .trail {
+  display: none;
+}
+
+/* on short windows (1536x735) the band gets shorter and the legend floats over the bottom of the canvas, so the
+   graph keeps most of the height */
+@media (max-height: 900px) {
+
+  :root[data-fx][data-fx-section="graph"] .trail {
+    height: 204px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail-head {
+    padding-block: 8px 6px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-bar {
+    padding-top: 2px;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-foot {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-foot > * {
+    pointer-events: auto;
+  }
+}
+
+/* portrait windows (a 1200x2030 check window): a wide graph cannot fill a tall area, so its row stops near the
+   graph's own aspect and the investigation band takes the rest, its steps as a two-column grid of cards */
+@media (max-aspect-ratio: 1/1) {
+  :root[data-fx][data-fx-section="graph"] .app {
+    grid-template-rows: 52px 0 minmax(0, calc((100vw - var(--fx-side-w)) * 0.62)) minmax(244px, 1fr);
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail {
+    height: auto;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .tstep {
+    min-height: 150px;
+  }
+}
+
+/* the classic graph (no scene): the north-star metrics carry it, the rest steps back until it matters */
+:root[data-fx] .react-flow__node {
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx] .react-flow__edge {
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx] .react-flow__node-metric:not(:has(.mnode-star)):not(:has(.focus, .alarm, .root, .symptom, .wiggle)) {
+  opacity: 0.6;
+}
+
+:root[data-fx] .react-flow__node-log:not(:has(.focus)) {
+  opacity: 0.55;
+}
+
+:root[data-fx] .react-flow__node-metric:has(.mnode-star) .mnode {
+  border-color: var(--text-2);
+}
+
+:root[data-fx] .react-flow__node:hover {
+  opacity: 1;
+}
+
+/* while Argus checks something, its path stays lit and everything else recedes (the story of the video) */
+:root[data-fx] .graph:has(.mnode.focus, .lnode.focus) .react-flow__edge:not(.animated) {
+  opacity: 0.16;
+}
+
+:root[data-fx] .graph:has(.mnode.focus) .react-flow__node:not(:has(.focus, .root, .alarm)) {
+  opacity: 0.28;
+}
+
+/* the scene shows on the graph section only */
+/* The ice scene never leaves: on every page but the visualization it is the backdrop, under a veil of fog,
+   behind the glass. The graph panel stays laid out as the scene's framing rectangle (invisible, inert), and each
+   page gives it another place, so a page change is also a soft camera glide (the rig frames the rectangle). */
+:root[data-fx]:not([data-fx-section="graph"]) .graph {
+  grid-column: 2 / 4;
+  grid-row: 3 / 5;
+  z-index: 0;
+  margin: 34vh 0 0 46%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-fx][data-fx-section="incident"] .graph {
+  margin: 0 0 34vh 50%;
+}
+
+:root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) .graph {
+  margin: 8vh 4% 8vh 18%;
+}
+
+:root[data-fx]:not([data-fx-section="graph"]) :is(.fx-dash, .vh-view, .rail) {
+  position: relative;
+  z-index: 1;
+}
+
+/* the village brings its own world: the ice scene stops behind it */
+:root[data-fx][data-fx-section="village"] .graph {
+  display: none;
+}
+
+/* the view host hides the graph tab's panel, which would stop the scene: here it keeps running as the backdrop */
+:root[data-fx]:not([data-fx-section="graph"]):has(.vh-graph[hidden]) #fx-stage > * {
+  opacity: 1;
+}
+
+:root[data-fx] #fx-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 30% 10%, var(--fx-stage-hi), transparent 70%),
+    linear-gradient(180deg, var(--fx-stage) 30%, var(--fx-stage-lo));
+  opacity: 0.5;
+  transition: opacity var(--fx-dur-slow) var(--fx-ease-inout);
+}
+
+:root[data-fx][data-fx-section="graph"] #fx-stage::after {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+:root[data-fx] .fx-side {
+  grid-area: side;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  padding: var(--fx-space-4) var(--fx-space-3) var(--fx-space-4);
+  border-right: var(--fx-hair) solid var(--fx-glass-border);
+  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-2);
+  box-shadow: var(--fx-glass-shadow);
+}
+
+:root[data-fx] .fx-side-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-space-3);
+  padding: 2px var(--fx-space-2) var(--fx-space-5);
+}
+
+:root[data-fx] .fx-side-brand .brand-mark {
+  width: 28px;
+  height: 28px;
+}
+
+:root[data-fx] .fx-side-brand div {
+  display: grid;
+  gap: 2px;
+}
+
+:root[data-fx] .fx-side-brand b {
+  font: var(--fx-weight-medium) 14px / 1 var(--fx-font-mono);
+  letter-spacing: 0.32em;
+}
+
+:root[data-fx] .fx-side-brand span {
+  color: var(--fx-ink-2);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-side-nav {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-fx] .fx-side-group {
+  display: block;
+  padding: var(--fx-space-4) var(--fx-space-3) var(--fx-space-1);
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-side-nav > li:first-child .fx-side-group {
+  padding-top: 0;
+}
+
+:root[data-fx] .fx-side-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--fx-space-3);
+  width: 100%;
+  height: 38px;
+  padding: 0 var(--fx-space-3);
+  border: 0;
+  border-radius: var(--fx-radius-1);
+  background: transparent;
+  color: var(--fx-ink-1);
+  cursor: pointer;
+  font: 500 13.5px / 1 var(--fx-font-sans);
+  text-align: left;
+  transition:
+    background var(--fx-dur-fast) var(--fx-ease-out),
+    color var(--fx-dur-fast) var(--fx-ease-out);
+  --fx-bracket-inset: 2px 0;
+}
+
+:root[data-fx] .fx-side-item svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:root[data-fx] .fx-side-item:hover {
+  background: var(--fx-card);
+  color: var(--fx-ink-0);
+}
+
+:root[data-fx] .fx-side-item.on {
+  background: var(--fx-card-hover);
+  color: var(--fx-ink-0);
+}
+
+/* the bracket of the active section (A6) */
+:root[data-fx] .fx-side-item::after {
+  content: "";
+  position: absolute;
+  inset: var(--fx-bracket-inset);
+  pointer-events: none;
+  background:
+    linear-gradient(currentColor 0 0) left top / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) left top / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) right top / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) right top / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) left bottom / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) left bottom / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) right bottom / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) right bottom / 1px var(--fx-bracket);
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1.04, 1.25);
+  transition:
+    opacity var(--fx-dur-fast) var(--fx-ease-out),
+    transform var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .fx-side-item.on::after {
+  opacity: 1;
+  transform: none;
+}
+
+:root[data-fx] .fx-side-live {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--probe);
+  box-shadow: 0 0 0 3px var(--probe-bg);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+:root[data-fx] .fx-side-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: var(--fx-radius-1);
+  background: var(--alarm);
+  color: var(--fx-on-accent);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  font-style: normal;
+  text-align: center;
+}
+
+:root[data-fx] .fx-side-foot {
+  display: grid;
+  gap: var(--fx-space-3);
+  padding: var(--fx-space-4) var(--fx-space-2) 0;
+  border-top: var(--fx-hair) solid var(--line);
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-2xs);
+}
+
+:root[data-fx] .fx-side-foot dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+:root[data-fx] .fx-side-foot dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--fx-space-2);
+}
+
+:root[data-fx] .fx-side-foot dt {
+  color: var(--fx-ink-2);
+  font: 12px / 1.3 var(--fx-font-sans);
+}
+
+:root[data-fx] .fx-side-foot dd {
+  margin: 0;
+  color: var(--fx-ink-0);
+  font: var(--fx-weight-medium) 13px / 1.3 var(--fx-font-mono);
+}
+
+:root[data-fx] .fx-side-foot .human dd {
+  color: var(--ok);
+}
+
+/* ---------------------------------------------------------------- dashboard */
+
+:root[data-fx] .fx-dash {
+  display: grid;
+  align-content: start;
+  gap: var(--fx-space-4);
+  overflow-y: auto;
+  padding: 2px 2px var(--fx-space-2);
+  animation: fx-view-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .fx-card {
+  --panel: var(--fx-card);
+  --panel-2: var(--fx-card-hover);
+  --bg-2: var(--fx-well);
+  display: grid;
+  gap: var(--fx-space-3);
+  min-width: 0;
+  padding: var(--fx-space-4);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-1);
+  box-shadow: var(--fx-glass-shadow);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+  animation-delay: calc(4 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .fx-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fx-space-3);
+}
+
+:root[data-fx] .fx-card-head h2 {
+  margin: 0;
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .fx-empty {
+  margin: 0;
+  color: var(--fx-ink-2);
+}
+
+:root[data-fx] .fx-card-note {
+  margin: 0;
+  color: var(--fx-ink-3);
+  font-size: var(--fx-text-xs);
+}
+
+/* the affected path at incident time: the 3D scene's preview in a well (the scene fills its positioned parent) */
+:root[data-fx] .fx-path-scene {
+  position: relative;
+  height: clamp(200px, 27vh, 300px);
+  overflow: hidden;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-well);
+}
+
+:root[data-fx] .fx-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-space-3);
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- feed: a footer that fills a short list */
+
+:root[data-fx] .feed::after {
+  content: "// Argus keeps watching. New findings, held-back alerts and edge tests land here.";
+  margin-top: auto;
+  padding: var(--fx-space-5) var(--fx-space-3) var(--fx-space-3);
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.5 var(--fx-font-mono);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+:root[data-fx] .feed-empty {
+  color: var(--fx-ink-2);
+  font: var(--fx-weight-medium) var(--fx-text-xs) / 1.5 var(--fx-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------- narrower windows */
+
+@media (max-width: 1600px) {
+  :root[data-fx] .app {
+    --fx-side-w: 200px;
+    --fx-feed-w: 360px;
+  }
+
+  :root[data-fx] .progress,
+  :root[data-fx] .fresh-label {
+    display: none;
+  }
+
+  :root[data-fx] .tabs {
+    gap: 0;
+    padding-inline: 6px;
+  }
+
+  :root[data-fx] .tab {
+    padding: 0 6px;
+    letter-spacing: 0;
+  }
+}
+
+@media (max-width: 1400px) {
+  :root[data-fx] .app {
+    --fx-side-w: 64px;
+    --fx-feed-w: 320px;
+  }
+
+  :root[data-fx] .fx-side {
+    padding-inline: var(--fx-space-2);
+  }
+
+  :root[data-fx] .fx-side-brand div,
+  :root[data-fx] .fx-side-item span,
+  :root[data-fx] .fx-side-group,
+  :root[data-fx] .fx-side-foot {
+    display: none;
+  }
+
+  :root[data-fx] .fx-side-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  :root[data-fx] .fx-side-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  :root[data-fx] .fx-side-badge,
+  :root[data-fx] .fx-side-live {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    margin: 0;
+  }
+
+  :root[data-fx] .clock-sub,
+  :root[data-fx] .funnel-arrow {
+    display: none;
+  }
+
+
+  :root[data-fx] .tabs {
+    flex-wrap: wrap;
+  }
+}
