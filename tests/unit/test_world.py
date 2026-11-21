@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import duckdb
 
+from argus.contracts.world import ALL_TABLES
 from mockmart.truth import read_truth
 from mockmart.world import WorldPaths
 
@@ -73,13 +75,34 @@ def test_manifest_never_names_the_scenario(s1_world: WorldPaths) -> None:
     assert "s1" not in text and "payco" not in text and "scenario" not in text
 
 
-def test_same_seed_same_world(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_same_seed_same_world(tmp_path: Path) -> None:
+    """Two generations with the same seed are identical row by row, in every world and truth table.
+
+    Compares contents, not float aggregates: DuckDB sums DOUBLE values in a layout- and thread-dependent order,
+    which made an earlier version of this test flaky in the last bits (money is now DECIMAL, see C1).
+    """
     from mockmart.sim import WorldConfig
     from mockmart.world import generate
 
     cfg = WorldConfig(seed=11, days=40, live_days=4)
     a, b = generate("s1", cfg, tmp_path / "a"), generate("s1", cfg, tmp_path / "b")
-    q = "SELECT SUM(orders), SUM(gmv) FROM raw_orders_hourly"
-    ra = duckdb.connect(str(a.world), read_only=True).execute(q).fetchone()
-    rb = duckdb.connect(str(b.world), read_only=True).execute(q).fetchone()
-    assert ra == rb
+    con = duckdb.connect()
+    for alias, paths in (("wa", a), ("wb", b)):
+        con.execute(f"ATTACH '{paths.world}' AS {alias} (READ_ONLY)")
+        con.execute(f"ATTACH '{paths.truth}' AS t{alias} (READ_ONLY)")
+    pairs = [(f"wa.{t.raw_name}", f"wb.{t.raw_name}") for t in ALL_TABLES]
+    pairs += [(f"twa.{t}", f"twb.{t}") for t in ("injected_events", "world_params")]
+    for left, right in pairs:
+        rows = con.execute(f"SELECT COUNT(*) FROM {left}").fetchone()
+        diff = con.execute(
+            f"SELECT (SELECT COUNT(*) FROM (SELECT * FROM {left} EXCEPT ALL SELECT * FROM {right})) "
+            f"+ (SELECT COUNT(*) FROM (SELECT * FROM {right} EXCEPT ALL SELECT * FROM {left}))"
+        ).fetchone()
+        assert diff == (0,), f"{left} differs from {right} in {diff} rows (of {rows})"
+    assert (
+        con.execute("SELECT SUM(gmv) FROM wa.raw_orders_hourly").fetchone()
+        == con.execute("SELECT SUM(gmv) FROM wb.raw_orders_hourly").fetchone()
+    ), "money sums must be exact"
+    manifest_a, manifest_b = (json.loads(p.manifest.read_text()) for p in (a, b))
+    manifest_a.pop("seconds"), manifest_b.pop("seconds")
+    assert manifest_a == manifest_b
