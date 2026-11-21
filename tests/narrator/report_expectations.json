@@ -1,0 +1,33 @@
+{
+  "s1": {
+    "activity": {"anomalies": 1, "investigations": 1, "incidents": 1, "resolved_incidents": 1, "expected_notes": 0, "data_issue_notes": 0},
+    "lines": {
+      "INC-0001:verdict": ["SUPPORTED_CAUSE", "resolved", "PayCo"],
+      "INC-0001:refuted-1": ["android-app", "holdout normal"],
+      "INC-0001:uncertainty": ["Still uncertain", "PayCo integration"],
+      "INC-0001:impact": ["GMV", "EUR -19,717"],
+      "INC-0001:approval": ["approval required", "CardHub"]
+    },
+    "playbook": "revenue_drop"
+  },
+  "s2": {
+    "activity": {"anomalies": 1, "investigations": 1, "incidents": 0, "resolved_incidents": 0, "expected_notes": 1, "data_issue_notes": 0},
+    "lines": {"note:note_0001": ["Expected change", "delivery follows its plan", "Nimbus Games FR"]},
+    "playbook": "ads_spike"
+  },
+  "s3": {
+    "activity": {"anomalies": 0, "investigations": 0, "incidents": 0, "resolved_incidents": 0, "expected_notes": 0, "data_issue_notes": 1},
+    "lines": {"note:note_0001": ["Data issue", "fact_orders_hourly", "55% delivered"]},
+    "playbook": null
+  },
+  "s4": {
+    "activity": {"anomalies": 1, "investigations": 1, "incidents": 1, "resolved_incidents": 0, "expected_notes": 0, "data_issue_notes": 0},
+    "lines": {
+      "INC-0001:verdict": ["SUPPORTED_CAUSE", "explained", "ad-pacer"],
+      "INC-0001:impact": ["ad spend", "EUR +1,687"],
+      "INC-0001:remainder": ["0.4%"],
+      "INC-0001:approval": ["approval required", "Roll back"]
+    },
+    "playbook": "ads_spike"
+  }
+}
