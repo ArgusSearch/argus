@@ -1,0 +1,7 @@
+name: roas_by_advertiser
+description: Return on ad spend per advertiser
+sql: |
+  SELECT ts, advertiser_id, country,
+         SUM(attributed_gmv) / NULLIF(SUM(ad_spend), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL

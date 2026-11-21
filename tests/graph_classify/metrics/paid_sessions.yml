@@ -1,0 +1,7 @@
+name: paid_sessions
+description: Sessions from paid traffic
+sql: |
+  SELECT ts, country, SUM(sessions) AS value
+  FROM fact_funnel_hourly
+  WHERE channel = 'paid'
+  GROUP BY ALL

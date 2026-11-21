@@ -1,0 +1,8 @@
+name: payments_per_session
+description: Successful payments per session
+sql: |
+  SELECT ts, country, platform,
+         SUM(payment_successes)::DOUBLE / NULLIF(SUM(sessions), 0) AS value
+  FROM fact_payments_hourly
+  JOIN fact_funnel_hourly USING (ts, country, platform)
+  GROUP BY ALL
