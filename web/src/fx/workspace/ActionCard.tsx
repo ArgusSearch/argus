@@ -116,8 +116,8 @@ function Proposal({ proposal, compact }: { proposal: ProposalView; compact: bool
             <button className="btn" disabled={busy !== null} onClick={() => decide("deny")}>
               {busy === "deny" ? "Denying…" : "Deny"}
             </button>
-            <span className="ws-act-note">
-              expires {dayLabel(proposal.expires_at)} {hhmm(proposal.expires_at)}
+            <span className="ws-act-note" title="After this time the proposal lapses unapplied and nothing is changed">
+              approve by {dayLabel(proposal.expires_at)} {hhmm(proposal.expires_at)}
             </span>
           </>
         )}

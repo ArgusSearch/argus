@@ -13,7 +13,7 @@ import sampleUrl from "../../views/fixtures/scorecard.sample.json?url";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
 import { ActionCard } from "./ActionCard";
-import { proposalFor, useAgent } from "./agent";
+import { proposalFor, useAgent, useHumanActions } from "./agent";
 import { AvatarSlot } from "./AvatarSlot";
 import { roleOf } from "../../lib/agent";
 import { health, keyMetrics, tasks, tiles, type Check, type Health, type Task, type Tile } from "./health";
@@ -40,6 +40,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const todo = useMemo(() => tasks(incidents, graph, proposed), [incidents, graph, proposed]);
   const page = useRef<HTMLElement>(null);
   usePointerLight(page);
+  const humans = useHumanActions(view.stream);
   return (
     <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
@@ -48,7 +49,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
         <p>Argus checks the shop's key numbers every hour, explains every change it raises, and asks you only before acting.</p>
       </header>
       <section className="ws-tiles" aria-label="key figures">
-        {tiles(view, graph).map((t) => (
+        {tiles(view, graph, humans).map((t) => (
           <TileCard key={t.key} tile={t} />
         ))}
       </section>

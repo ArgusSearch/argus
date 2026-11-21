@@ -4,6 +4,7 @@
 // falls back to what the run itself carries (the findings' suggested action, the C5 investigation).
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useApprovalCount } from "./approvals";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
 
@@ -24,6 +25,14 @@ const Ctx = createContext<AgentState>(EMPTY);
 
 export function useAgent(): AgentState {
   return useContext(Ctx);
+}
+
+/** Decisions people made: approved or denied proposals (operator decisions), plus approvals kept in this browser. */
+export function useHumanActions(stream: string | null): number {
+  const agent = useAgent();
+  const local = useApprovalCount(stream);
+  const decided = agent.enabled ? agent.proposals.filter((p) => p.decision !== null).length : 0;
+  return decided + local;
 }
 
 /** The proposal for an incident (the newest one), if the agent made one. */

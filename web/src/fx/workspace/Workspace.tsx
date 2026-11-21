@@ -12,7 +12,7 @@ import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
 import { AgentDemoControl } from "./AgentDemoControl";
 import { AgentPage } from "./AgentPage";
-import { AgentProvider, useAgent } from "./agent";
+import { AgentProvider, useAgent, useHumanActions } from "./agent";
 import { AskPanel, setAskOpen, useAskOpen } from "./AskPanel";
 import { IncidentPage } from "./IncidentPage";
 import { Overview } from "./Overview";
@@ -179,6 +179,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const current = section === "incident" ? "incidents" : section;
   const agent = useAgent();
   const asking = useAskOpen();
+  const humans = useHumanActions(view.stream);
   const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
     <nav className="fx-side" aria-label="sections">
@@ -241,8 +242,8 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
             <dd>{value("investigations")}</dd>
           </div>
           <div className="human">
-            <dt>human actions</dt>
-            <dd>0</dd>
+            <dt title="Decisions people made: approvals and denials. Everything else Argus did on its own.">human actions</dt>
+            <dd>{humans}</dd>
           </div>
         </dl>
       </div>

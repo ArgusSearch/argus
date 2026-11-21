@@ -2378,3 +2378,46 @@
 :root[data-fx] .ip-verdict-help b {
   color: var(--fx-ink-1);
 }
+
+/* lane G's avatar in a slot: the canvas overscans 1.5x for hops, so the slot keeps the body's footprint */
+:root[data-fx] .ws-avatar-g {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  vertical-align: middle;
+}
+
+:root[data-fx] .ws-avatar-g b {
+  padding: 1px 5px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  color: var(--fx-ink-1);
+  font: 600 var(--fx-text-2xs) / 1.3 var(--fx-font-mono);
+  letter-spacing: 0.06em;
+}
+
+:root[data-fx] .ws-ask-a ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+:root[data-fx] .ws-ask-a .rcpt {
+  margin: 0 2px;
+  vertical-align: baseline;
+}
+
+:root[data-fx] .ws-ask-claims {
+  margin-top: 4px;
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .ws-ask-claimlist li {
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-sm);
+}
