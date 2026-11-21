@@ -106,3 +106,27 @@ describe("who did a step", () => {
     expect(AGENT_ROLES).toHaveLength(7);
   });
 });
+
+describe("a presentation's morning report", () => {
+  it("reads the narrator's run-scoped report as the digest, keeping every line's receipts", async () => {
+    const { digestOf } = await import("../../../src/views/MorningReport");
+    const link = { id: "r184", source: "semantic" as const, href: "/demo/receipts/r184", rerun_href: null, rerun_method: null };
+    const d = digestOf({
+      title: "While you slept",
+      stream: "demo-run",
+      through_seq: 9,
+      activity: { since: "2026-11-18T00:00:00", until: "2026-11-20T02:00:00", ticks: 50, series_hours: 350, anomalies: 1, investigations: 1, incidents: 1, resolved_incidents: 0 },
+      lines: [
+        { id: "a", section: "happened", text: "Monitored 50 hours", incident_id: null, note_id: null, receipts: [link] },
+        { id: "b", section: "asks", text: "Approve the rollback", incident_id: "INC-0001", note_id: null, receipts: [link] },
+      ],
+      markdown: "# While you slept",
+    });
+    expect(d.lines.map((l) => [l.label, l.tone])).toEqual([
+      ["Happened", "neutral"],
+      ["Asks you", "warn"],
+    ]);
+    expect(d.since).toBe("2026-11-18T00:00:00");
+    expect(d.links.b).toEqual([link]);
+  });
+});
