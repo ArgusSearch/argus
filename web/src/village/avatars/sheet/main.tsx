@@ -7,7 +7,8 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import { AgentAvatar } from "../AgentAvatar";
 import { AvatarPainter, OVERSCAN, type AvatarStatus } from "../painter";
-import { agentName, PERSONAS } from "../personas";
+import { calendarLooks, LOOKS, type Look } from "../costumes";
+import { agentName, PERSONAS, type Persona } from "../personas";
 import { ROLE_IDS, type RoleId } from "../../roles";
 import "./sheet.css";
 
@@ -50,9 +51,28 @@ function Sheet() {
   );
 }
 
+/** The optional 8th agent for the board: planned changes and the calendar. */
+const CALENDAR: Persona = {
+  role: "watcher",
+  title: "Calendar",
+  names: [
+    { acronym: "P.L.A.N.", meaning: "Planned Launches And Notices" },
+    { acronym: "T.E.M.P.O.", meaning: "Timed Events, Marketing Pushes, Outages" },
+  ],
+  body: "drop",
+  fur: "#ffb38a",
+  glow: "#ffd2b8",
+  detail: "page",
+  personality: "Courteous and organised; knows what was planned before anyone asks.",
+  voice: "Polite, precise about dates.",
+  ability: "Checks every alarm against the calendar of planned pushes, releases and outages.",
+  status: "Planned: ad push FR, 08:00-12:00",
+};
+
 /** Paints one agent at `size` into a new canvas, after `warm` seconds of idle motion so the fur is baked. */
-async function paintOne(role: RoleId, size: number, status: AvatarStatus = "idle"): Promise<HTMLCanvasElement> {
-  const painter = new AvatarPainter(PERSONAS[role], 0.37, false);
+async function paintOne(role: RoleId | "calendar", size: number, status: AvatarStatus = "idle", look?: Look | null): Promise<HTMLCanvasElement> {
+  const persona = role === "calendar" ? CALENDAR : PERSONAS[role];
+  const painter = new AvatarPainter(persona, 0.37, false, role === "calendar" && look === undefined ? calendarLooks[0] : look);
   painter.setStatus(status);
   const canvas = document.createElement("canvas");
   const px = Math.round(size * OVERSCAN);
@@ -138,6 +158,26 @@ async function singlePng(role: RoleId, opts: { transparent?: boolean; size?: num
   return canvas.toDataURL("image/png");
 }
 
-(window as unknown as Record<string, unknown>).argusAvatarSheet = { png: sheetPng, single: singlePng, roles: ROLE_IDS };
+/** One costume variant (1 or 2) of a role, or of the optional Calendar agent, on the fog or transparent. */
+async function variantPng(role: RoleId | "calendar", variant: 1 | 2, opts: { transparent?: boolean; size?: number } = {}): Promise<string> {
+  const size = opts.size ?? 360;
+  const looks = role === "calendar" ? calendarLooks : LOOKS[role];
+  const one = await paintOne(role, size, "idle", looks[variant - 1]);
+  const canvas = document.createElement("canvas");
+  canvas.width = one.width;
+  canvas.height = one.height;
+  const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+  if (!opts.transparent) {
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, "#c3c9d6");
+    g.addColorStop(1, "#a2a8b5");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.drawImage(one, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+(window as unknown as Record<string, unknown>).argusAvatarSheet = { png: sheetPng, single: singlePng, variant: variantPng, roles: ROLE_IDS };
 
 createRoot(document.getElementById("sheet") as HTMLElement).render(<Sheet />);

@@ -58,6 +58,7 @@ import { AgentAvatar } from "../village/avatars";
 
 `status`: `idle`, `working`, `waiting` (coral "!" badge), `done` (green check), `sleeping`.
 The bodies are `bot-avatars` (MIT, libraries.dev/bots); armor, names and colors are ours.
+Each agent wears a role costume over the armor (`avatars/costumes.ts`, two looks per role, our own vector shapes); look 1 is the default everywhere (`defaultLook`), and props stay close to the avatar's box so it can sit next to text.
 PNG sheets and single avatars: `web/public/village/avatars/` and the brand kit.
 
 ## Files

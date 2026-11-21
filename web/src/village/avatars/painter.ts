@@ -12,6 +12,7 @@ import {
   type BotAvatarDrawConfig,
   type BotAvatarState,
 } from "bot-avatars";
+import { defaultLook, type CostumeKit, type Look } from "./costumes";
 import type { Persona } from "./personas";
 
 /** The canvas is this many times the body box, as bot-avatars draws it (room for hops and fur). */
@@ -25,15 +26,23 @@ const STATE: Record<AvatarStatus, BotAvatarState> = { idle: "default", working: 
 
 const FUR = { length: 1, density: 1.6, fuzz: 0.9, clumps: 0.4, curl: 0.7, gravity: 0.9 };
 
+/** The top of the body at the face column (0..100 box). */
+function topAt(path: Path2D, u: number): number {
+  const probe = document.createElement("canvas").getContext("2d");
+  if (!probe) return 15;
+  for (let v = 0; v <= 100; v += 0.5) if (probe.isPointInPath(path, u, v)) return v;
+  return 15;
+}
+
 /** Half the body's width at height v (0..100 box), measured once from its outline. */
-function halfWidthAt(path: Path2D, v: number): number {
+function halfWidthAt(path: Path2D, v: number, fallback = 30): number {
   const probe = document.createElement("canvas").getContext("2d");
   if (!probe) return 30;
   let w = 0;
   for (let u = 50; u <= 100; u += 0.5) {
     if (probe.isPointInPath(path, u, v)) w = u - 50;
   }
-  return w || 30;
+  return w || fallback;
 }
 
 function rgba(hex: string, alpha: number): string {
@@ -52,11 +61,22 @@ export class AvatarPainter {
   private readonly fs: number;
   private status: AvatarStatus = "idle";
   private time = 0;
+  /** the role costume, or null for the plain armored bot */
+  readonly look: Look | null;
+  private readonly top: number;
+  private readonly halves = new Map<number, number>();
+  private readonly path: Path2D;
+  /** the costume's own layer, made on first paint */
+  private layer: HTMLCanvasElement | null = null;
 
-  constructor(persona: Persona, seed: number, still = false) {
+  /** `look`: the costume to wear; by default the role's default look (look 1), `null` for the plain armored bot. */
+  constructor(persona: Persona, seed: number, still = false, look?: Look | null) {
     this.persona = persona;
+    this.look = look === undefined ? defaultLook(persona.role) : look;
     const preset = botAvatarPresets[persona.body];
     const path = new Path2D(botAvatarShapes[persona.body]);
+    this.path = path;
+    this.top = topAt(path, preset.faceX) - 50;
     const parts = botAvatarParts[persona.body];
     this.fx = preset.faceX - 50;
     this.fy = preset.faceY - 50;
@@ -145,9 +165,72 @@ export class AvatarPainter {
     }
     if (!small) {
       this.ring(ctx, false);
-      this.detail(ctx);
+      if (!this.look) this.detail(ctx);
     }
     ctx.restore();
+    if (this.look) this.costume(ctx, this.look, a, size, dpr, [F * C, W * C, -W * S, F * S, ox, oy], pose.yaw, pose.pitch, small);
+  }
+
+  /**
+   * The costume on a layer of its own, then onto the avatar with one soft shadow: hats and props stand off the
+   * body, and a frame pays for one blur instead of one per curl and prop.
+   */
+  private costume(
+    ctx: CanvasRenderingContext2D,
+    look: Look,
+    a: number,
+    size: number,
+    dpr: number,
+    m: [number, number, number, number, number, number],
+    yaw: number,
+    pitch: number,
+    small: boolean,
+  ): void {
+    this.layer ??= document.createElement("canvas");
+    const layer = this.layer;
+    if (layer.width !== size) {
+      layer.width = size;
+      layer.height = size;
+    }
+    const lctx = layer.getContext("2d");
+    if (!lctx) return;
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.clearRect(0, 0, size, size);
+    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lctx.transform(...m);
+    look.draw(this.kit(lctx, yaw, pitch, small));
+    ctx.save();
+    ctx.shadowColor = "rgba(11,19,32,0.32)";
+    ctx.shadowBlur = 3 * dpr;
+    ctx.shadowOffsetY = 1.4 * dpr;
+    ctx.drawImage(layer, 0, 0, a, a);
+    ctx.restore();
+  }
+
+  private kit(ctx: CanvasRenderingContext2D, yaw: number, pitch: number, small: boolean): CostumeKit {
+    return {
+      ctx,
+      top: this.top,
+      half: (y: number) => {
+        const v = Math.round(y + 50);
+        let h = this.halves.get(v);
+        if (h === undefined) {
+          h = halfWidthAt(this.path, Math.max(1, Math.min(99, v)), 0);
+          this.halves.set(v, h);
+        }
+        return h;
+      },
+      fx: this.fx,
+      fy: this.fy,
+      fs: this.fs,
+      fur: this.persona.fur,
+      glow: this.persona.glow,
+      time: this.time,
+      busy: this.status === "working",
+      face: (x: number, y: number) => this.project(x, y, yaw, pitch),
+      yaw,
+      small,
+    };
   }
 
   /**
@@ -231,7 +314,7 @@ export class AvatarPainter {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
-    if (small) return;
+    if (small || this.look) return;
     // the forehead emitter: a small hexagon of light on a bridge above the visor
     const e = this.project(0, -11.5, yaw, pitch);
     const b = this.project(0, -4.8, yaw, pitch);
