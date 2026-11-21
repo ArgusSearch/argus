@@ -2,6 +2,7 @@
 // tooltip, the mini chart of the KPI tiles, and the hook that keeps the full incidents (with findings) current.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useAgentDemo } from "../../lib/agentDemo";
 import { api } from "../../lib/api";
 import type { RunView } from "../../lib/store";
 import type { Incident } from "../../lib/types";
@@ -87,6 +88,7 @@ export function Spark({ values, className }: { values: number[]; className?: str
  * stream, so the tasks and the incident list follow the run.
  */
 export function useIncidents(view: RunView): { incidents: Incident[]; failed: boolean } {
+  const demo = useAgentDemo();
   const [state, setState] = useState<{ incidents: Incident[]; failed: boolean }>({ incidents: [], failed: false });
   const version = Object.values(view.incidents)
     .map((i) => `${i.id}:${i.lastSeq}`)
@@ -105,11 +107,14 @@ export function useIncidents(view: RunView): { incidents: Incident[]; failed: bo
       live = false;
     };
   }, [version, view.stream]);
+  // the agent presentation carries its incidents in its snapshot
+  if (demo) return { incidents: demo.snapshot?.incidents ?? [], failed: false };
   return state;
 }
 
 /** One incident with its findings, re-read whenever it changes on the stream. */
 export function useIncident(id: string, version: number): { incident: Incident | null; error: string | null } {
+  const demo = useAgentDemo();
   const [state, setState] = useState<{ incident: Incident | null; error: string | null }>({ incident: null, error: null });
   useEffect(() => {
     let live = true;
@@ -121,5 +126,9 @@ export function useIncident(id: string, version: number): { incident: Incident |
       live = false;
     };
   }, [id, version]);
+  if (demo) {
+    const found = demo.snapshot?.incidents.find((i) => i.id === id) ?? null;
+    return { incident: found, error: found ? null : "not in the presentation yet" };
+  }
   return state;
 }

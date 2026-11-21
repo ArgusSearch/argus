@@ -2,6 +2,7 @@
 // src/argus/agent/types.py). The routes sit outside the C5 route table: `GET /agent/health` is the feature probe,
 // and every surface that uses them stays hidden (or falls back) while it answers 404.
 
+import { withRun } from "./agentDemo";
 import { ApiError } from "./api";
 import type { Receipt } from "./types";
 
@@ -135,6 +136,25 @@ export interface AgentHealth {
   usd: number;
 }
 
+/**
+ * A receipt as the agent routes serve it: the C4 receipt itself (live), or a recorded proof (the demo's sealed
+ * tape) that also carries the captured result rows and whether its hash was verified when it was captured.
+ */
+export interface AgentReceipt extends Receipt {
+  columns?: string[];
+  captured_rows?: unknown[][];
+  verified_at_capture?: boolean;
+}
+
+/** Either shape the routes answer with, as one receipt. */
+export function normalizeReceipt(raw: unknown): AgentReceipt {
+  const r = raw as { receipt?: Receipt; columns?: string[]; rows?: unknown; verified_at_capture?: boolean };
+  if (r && typeof r === "object" && r.receipt && typeof r.receipt === "object") {
+    return { ...r.receipt, columns: r.columns ?? [], captured_rows: Array.isArray(r.rows) ? (r.rows as unknown[][]) : [], verified_at_capture: r.verified_at_capture };
+  }
+  return raw as AgentReceipt;
+}
+
 export interface AskAnswer {
   status: string;
   answer: string;
@@ -178,15 +198,20 @@ export const agentApi = {
       return null;
     }
   },
-  activity: (since = 0) => call<{ stream: string; mode: AgentMode; records: ActivityRecord[] }>(`/agent/activity?since=${since}`),
-  runs: () => call<RunSummary[]>("/agent/runs"),
-  actions: () => call<ProposalView[]>("/agent/actions"),
+  // every agent route is pinned to the demo presentation while one plays (withRun appends its run_id)
+  activity: (since = 0) => call<{ stream: string; mode: AgentMode; records: ActivityRecord[] }>(withRun(`/agent/activity?since=${since}`)),
+  runs: () => call<RunSummary[]>(withRun("/agent/runs")),
+  actions: () => call<ProposalView[]>(withRun("/agent/actions")),
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
-    call<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, post({ digest, idempotency_key: key })),
+    call<ProposalView>(withRun(`/agent/actions/${encodeURIComponent(id)}/${verb}`), post({ digest, idempotency_key: key })),
   ask: (question: string, incidentId?: string | null, conversationId?: string | null) =>
-    call<AskAnswer>("/agent/ask", post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null })),
-  receipt: (link: ReceiptLink) =>
-    call<Receipt>(`/agent/receipts/${encodeURIComponent(link.run_id)}/${encodeURIComponent(link.world_revision)}/${encodeURIComponent(link.receipt_id)}`),
+    call<AskAnswer>(withRun("/agent/ask"), post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null })),
+  receipt: async (link: ReceiptLink): Promise<AgentReceipt> =>
+    normalizeReceipt(
+      await call<unknown>(withRun(`/agent/receipts/${encodeURIComponent(link.run_id)}/${encodeURIComponent(link.world_revision)}/${encodeURIComponent(link.receipt_id)}`)),
+    ),
+  /** A C4 receipt the demo presentation revealed (its own route, pinned to the presentation). */
+  demoReceipt: async (id: string): Promise<AgentReceipt> => normalizeReceipt(await call<unknown>(withRun(`/demo/receipts/${encodeURIComponent(id)}`))),
 };
 
 /** A proposal that is still moving: the page polls it until it settles. */

@@ -72,3 +72,20 @@ describe("tasks and proposals", () => {
     expect(idempotencyKey()).not.toBe(idempotencyKey());
   });
 });
+
+describe("the agent presentation's wire shapes", () => {
+  it("reads a recorded receipt proof as one receipt, and a live C4 receipt as it is", async () => {
+    const { normalizeReceipt } = await import("../../../src/lib/agent");
+    const receipt = { id: "r184", sql: "SELECT 1", as_of: "2026-11-20T02:00:00", result_hash: "sha256:ab", rows: 1, ms: 3.1, purpose: "pacing" };
+    const proof = normalizeReceipt({ receipt, columns: ["a", "b"], rows: [[1, 2]], verified_at_capture: true });
+    expect(proof).toMatchObject({ id: "r184", rows: 1, columns: ["a", "b"], captured_rows: [[1, 2]], verified_at_capture: true });
+    expect(normalizeReceipt(receipt)).toEqual(receipt);
+  });
+
+  it("pins agent and evidence routes to the presentation's run while one plays", async () => {
+    const { withRun, demoRunId } = await import("../../../src/lib/agentDemo");
+    expect(demoRunId()).toBeNull();
+    expect(withRun("/agent/actions")).toBe("/agent/actions");
+    expect(withRun("/agent/activity?since=3")).toBe("/agent/activity?since=3");
+  });
+});

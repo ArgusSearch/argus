@@ -10,6 +10,7 @@ import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
+import { AgentDemoControl } from "./AgentDemoControl";
 import { AgentPage } from "./AgentPage";
 import { AgentProvider, useAgent } from "./agent";
 import { AskPanel, setAskOpen, useAskOpen } from "./AskPanel";
@@ -223,6 +224,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
         ))}
       </ul>
       </div>
+      <AgentDemoControl />
       <div className="fx-side-foot">
         <span className="fx-hud">On its own</span>
         <dl>

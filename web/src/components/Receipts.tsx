@@ -1,10 +1,11 @@
 // Receipts: every number links to the query that produced it; the drawer re-runs it and compares hashes.
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { agentApi, type ReceiptLink } from "../lib/agent";
+import { agentApi, type AgentReceipt, type ReceiptLink } from "../lib/agent";
+import { demoRunId } from "../lib/agentDemo";
 import { api } from "../lib/api";
 import { hhmm, dayLabel, quantity } from "../lib/format";
-import type { Quantity, Receipt, RerunResult } from "../lib/types";
+import type { Quantity, RerunResult } from "../lib/types";
 
 /** A C4 receipt id of the run on screen, or an agent receipt qualified by its run and world revision. */
 export type ReceiptTarget = string | ReceiptLink;
@@ -133,7 +134,9 @@ function highlight(sql: string): ReactNode[] {
 function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: () => void }) {
   const agent = typeof target === "string" ? null : target;
   const id = typeof target === "string" ? target : target.receipt_id;
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receipt, setReceipt] = useState<AgentReceipt | null>(null);
+  // during the agent presentation a plain receipt id is one the presentation revealed: its own route
+  const demo = typeof target === "string" && demoRunId() !== null;
   const [error, setError] = useState<string | null>(null);
   const [rerun, setRerun] = useState<RerunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -143,14 +146,14 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
     setReceipt(null);
     setRerun(null);
     setError(null);
-    (agent ? agentApi.receipt(agent) : api.receipt(id)).then(
+    (agent ? agentApi.receipt(agent) : demo ? agentApi.demoReceipt(id) : (api.receipt(id) as Promise<AgentReceipt>)).then(
       (r) => live && setReceipt(r),
       (e: Error) => live && setError(e.message),
     );
     return () => {
       live = false;
     };
-  }, [id, agent]);
+  }, [id, agent, demo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -216,13 +219,41 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
                 </div>
               </div>
               <pre className="sql">{highlight(formatSql(receipt.sql))}</pre>
+              {receipt.columns && receipt.columns.length > 0 && receipt.captured_rows && receipt.captured_rows.length > 0 && (
+                <table className="captured">
+                  <thead>
+                    <tr>
+                      {receipt.columns.map((c) => (
+                        <th key={c}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receipt.captured_rows.slice(0, 8).map((row, i) => (
+                      <tr key={i}>
+                        {row.map((v, j) => (
+                          <td key={j} className="mono">
+                            {typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </>
           ) : (
             <div className="muted">{error ?? "Loading…"}</div>
           )}
         </div>
         <div className="modal-foot">
-          {!agent && (
+          {receipt?.verified_at_capture !== undefined && (
+            <span className={`verify ${receipt.verified_at_capture ? "ok" : "bad"}`}>
+              {receipt.verified_at_capture ? "✓ Verified at capture" : "✗ Not verified at capture"}
+              <span className="mono">recorded run · hash {receipt.result_hash.replace("sha256:", "").slice(0, 16)}</span>
+            </span>
+          )}
+          {!agent && !demo && (
             <button className="btn primary" onClick={run} disabled={!receipt || running}>
               {running ? "Re-running…" : "Re-run SQL"}
             </button>
@@ -234,11 +265,11 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
                 {rerun.result_hash.replace("sha256:", "")} · {rerun.rows} {rerun.rows === 1 ? "row" : "rows"} · {rerun.ms.toFixed(1)} ms · {rerun.world}
               </span>
             </span>
-          ) : (
+          ) : receipt?.verified_at_capture !== undefined ? null : (
             <span className="verify">
               {error && receipt
                 ? error
-                : agent
+                : agent || demo
                   ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
                   : "Runs the exact SQL again at the pinned as_of and compares the hash."}
             </span>

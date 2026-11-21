@@ -2180,3 +2180,81 @@
   align-items: center;
   gap: 6px;
 }
+
+/* the agent presentation's control, above the sidebar's foot */
+:root[data-fx] .fx-side {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+:root[data-fx] .fx-demo {
+  display: grid;
+  gap: var(--fx-space-2);
+  margin: var(--fx-space-2) 0 var(--fx-space-3);
+  padding: var(--fx-space-3);
+  border: var(--fx-hair) solid var(--line);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-card);
+}
+
+:root[data-fx] .fx-demo .fx-hud {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-2xs);
+}
+
+:root[data-fx] .fx-demo-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-fx] .fx-demo-state .mono {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .fx-demo-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+:root[data-fx] .fx-demo .btn {
+  padding-inline: 8px;
+}
+
+@media (max-width: 1400px) {
+  :root[data-fx] .fx-demo {
+    display: none;
+  }
+}
+
+/* a recorded receipt's captured rows, under its SQL */
+:root[data-fx] .captured {
+  width: 100%;
+  margin-top: var(--fx-space-3);
+  border-collapse: collapse;
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .captured th,
+:root[data-fx] .captured td {
+  padding: 4px 8px;
+  border-bottom: var(--fx-hair) solid var(--line);
+  text-align: left;
+}
+
+:root[data-fx] .captured th {
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:root[data-fx] .fx-demo .ws-pill {
+  white-space: normal;
+}

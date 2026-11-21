@@ -9,6 +9,7 @@ import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
+import { useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -126,16 +127,22 @@ export function App() {
   }, []);
   const closeDigest = useCallback(() => setDigestOpen(false), []);
   const closeNode = useCallback(() => setNodeId(null), []);
-  const latest = view.anomalies[view.anomalies.length - 1];
+  // during the agent presentation (lane F) the page shows the presentation's snapshot, not the live stream
+  const demo = useAgentDemo();
+  const shown = useMemo(
+    () => (demo?.snapshot ? foldAll(emptyView(`demo:${demo.runId}`, "replay", view.thresholds), demo.snapshot.events) : view),
+    [demo?.runId, demo?.snapshot, view],
+  );
+  const latest = shown.anomalies[shown.anomalies.length - 1];
   // the visualization's incident story lights its path on the map (style layer only; null otherwise)
   const story = useStoryFocus();
-  const sceneView = useMemo(() => (story ? { ...view, focus: story } : view), [view, story]);
+  const sceneView = useMemo(() => (story ? { ...shown, focus: story } : shown), [shown, story]);
 
   return (
     <ReceiptProvider>
       <div className="app">
         <Header
-          view={view}
+          view={shown}
           health={health}
           connection={connection}
           onDigest={() => {
@@ -143,15 +150,15 @@ export function App() {
             setToast(null);
           }}
         />
-        <Ticker view={view} />
-        <ViewHost graph={graph} view={view} health={health} onSelectNode={setNodeId} onOpenIncident={openIncident}>
+        <Ticker view={shown} />
+        <ViewHost graph={graph} view={shown} health={health} onSelectNode={setNodeId} onOpenIncident={openIncident}>
         <div className="main">
           <div className="left">
             <section className="graph" aria-label="metric graph">
               <div className="graph-bar">
                 <span className="panel-title">How your shop's numbers connect</span>
                 <span className="sub">Argus follows these lines to find the cause.</span>
-                {latest && view.focus && (
+                {latest && shown.focus && (
                   <span className="checking">
                     checking <b className="mono">{latest.node}</b>
                   </span>
@@ -167,20 +174,20 @@ export function App() {
               </div>
               <div className="graph-foot">
                 <Legend />
-                {graph && <AutonomyLegend view={view} graph={graph} />}
+                {graph && <AutonomyLegend view={shown} graph={graph} />}
               </div>
             </section>
-            <Trail view={view} />
+            <Trail view={shown} />
           </div>
-          <Feed view={view} graph={graph} onOpenIncident={openIncident} />
+          <Feed view={shown} graph={graph} onOpenIncident={openIncident} />
         </div>
         </ViewHost>
-        <FxWorkspace graph={graph} view={view} onOpenIncident={openIncident} onSelectNode={setNodeId} />
+        <FxWorkspace graph={graph} view={shown} onOpenIncident={openIncident} onSelectNode={setNodeId} />
       </div>
       {incidentId && (
-        <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} graph={graph} onClose={closeIncident} />
+        <IncidentSheet id={incidentId} summary={shown.incidents[incidentId]} graph={graph} onClose={closeIncident} />
       )}
-      {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={view} onClose={closeNode} />}
+      {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={shown} onClose={closeNode} />}
       {digestOpen && <DigestModal version={view.lastSeq} onClose={closeDigest} />}
       {toast && (
         <div className="toast" role="status">
