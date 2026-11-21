@@ -197,3 +197,16 @@ def test_callable_and_command_agents(tmp_path: Path, world):
     )
     cmd = resolve_agent(f"cmd:{sys.executable} {script} --world {{world}} --manifest {{manifest}} --out {{out}}")
     assert cmd.run(paths.world, paths.manifest).notes[0].reason == "quiet"
+
+
+def test_argus_runtime_runs_as_a_sealed_agent(tmp_path: Path):
+    """The default `argus` agent drives the real runtime over a sealed world and its output is graded.
+
+    Structural only: Argus's verdict quality is what the scorecard reports, not what this test pins."""
+    argus = resolve_agent("argus")
+    card = run_bench(["s3"], [1], [argus], tmp_path)
+    (run,) = card.runs
+    assert run.agent == "argus" and run.error is None and run.verified
+    assert run.claims >= 1 and run.agent_seconds > 0
+    recorded = tmp_path / "s3-1" / "agents" / "argus"
+    assert (recorded / "events.jsonl").exists() and json.loads((recorded / "notes.json").read_text())

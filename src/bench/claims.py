@@ -40,7 +40,10 @@ class Claim(BaseModel):
 
 
 def _from_incident(inc: Incident, anomaly_seen: dict[str, datetime]) -> Claim:
-    seen = [t.sim_ts for t in inc.history] + [anomaly_seen[a] for a in inc.anomalies if a in anomaly_seen]
+    # Detection time is the as_of of the tick that opened the first linked anomaly (C4 `Anomaly.detected_at`);
+    # the history is only a fallback because a runtime may stamp transitions with the data hour.
+    linked = [anomaly_seen[a] for a in inc.anomalies if a in anomaly_seen]
+    seen = linked or [t.sim_ts for t in inc.history]
     f = inc.findings
     evidence = [f.root.evidence.ref] if f.root is not None and f.root.evidence is not None else []
     ruled_out = [r.evidence.ref for r in f.ruled_out if r.result == "refuted" and r.evidence is not None]
