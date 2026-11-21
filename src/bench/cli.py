@@ -31,6 +31,7 @@ from bench.scorecard import render
 from bench.sealed import verify
 
 DEFAULT_AGENTS = "argus,threshold"
+CASE_SCENARIOS = (*BUILT_SCENARIOS, "s5")
 
 
 def _agents(spec: str) -> tuple[list[Agent], dict[str, str]]:
@@ -198,7 +199,7 @@ def _parser() -> argparse.ArgumentParser:
 
     run = sub.add_parser("run", help="every scenario x seed, then the scorecard (default)")
     common(run)
-    run.add_argument("--scenarios", default=",".join(BUILT_SCENARIOS))
+    run.add_argument("--scenarios", default=",".join(CASE_SCENARIOS))
     run.add_argument("--runs", type=int, default=3, help="seeds per scenario")
     run.add_argument("--base-seed", type=int, default=1)
     run.add_argument("--seeds", default="", help="explicit comma list, overrides --runs")
@@ -206,7 +207,7 @@ def _parser() -> argparse.ArgumentParser:
     run.set_defaults(fn=cmd_run)
 
     case = sub.add_parser("case", help="one sealed case, verbose")
-    case.add_argument("scenario", choices=BUILT_SCENARIOS)
+    case.add_argument("scenario", choices=CASE_SCENARIOS)
     case.add_argument("--seed", type=int, default=7)
     case.add_argument("--record", type=Path, default=None, help="write the first agent's output, grade and seal here")
     common(case)
@@ -226,7 +227,7 @@ def _parser() -> argparse.ArgumentParser:
     s1.set_defaults(fn=cmd_s1)
 
     rec = sub.add_parser("record", help="a replayable Argus run of one scenario, graded after it is written")
-    rec.add_argument("scenario", choices=BUILT_SCENARIOS)
+    rec.add_argument("scenario", choices=CASE_SCENARIOS)
     rec.add_argument("--seed", type=int, default=1)
     rec.add_argument("--out", type=Path, required=True, help="recording directory, e.g. fixtures/s3")
     rec.add_argument("--work", type=Path, default=DEFAULT_OUT / "record", help="where the sealed world goes")
@@ -240,7 +241,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] in BUILT_SCENARIOS and argv[0] != "s1":  # `argus-bench s3 --seed 7`
+    if argv and argv[0] in CASE_SCENARIOS and argv[0] != "s1":  # `argus-bench s3 --seed 7`
         argv = ["case", *argv]
     if not argv or argv[0].startswith("-"):
         argv = ["run", *argv]
