@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { emptyView, foldAll } from "../../src/lib/store";
-import type { ArgusEvent, Graph } from "../../src/lib/types";
+import type { ArgusEvent, Graph, TrailStep } from "../../src/lib/types";
 import { autonomyCounts } from "../../src/views/autonomy";
 import { beatFor, closedWithoutIncident, decidedIncidents, demoOptions, investigationStarted, withoutDemo } from "../../src/views/demo/demo";
 import { breadcrumb, chapters, scopeLabel, spreadOf, stepQuestion, suspects, verdictOf } from "../../src/views/investigation";
@@ -32,9 +32,18 @@ describe("investigation story", () => {
     const { node, crumbs } = breadcrumb(trail, "payment_success_rate");
     expect(node).toBe("payment_success_rate");
     expect(crumbs).toEqual([
+      { dim: "country", value: "DE" },
+      { dim: "platform", value: "android" },
+      { dim: "provider", value: "PayCo" },
+    ]);
+    // A walk that split by platform first reads platform first, whatever the key order of the segments.
+    const platformFirst = {
+      kind: "segment",
+      data: { path: [{ segment: { platform: "android" } }, { segment: { country: "DE", platform: "android" } }] },
+    } as unknown as TrailStep;
+    expect(breadcrumb([platformFirst], "payment_success_rate").crumbs).toEqual([
       { dim: "platform", value: "android" },
       { dim: "country", value: "DE" },
-      { dim: "provider", value: "PayCo" },
     ]);
   });
 
