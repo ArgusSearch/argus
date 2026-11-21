@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { TimeChart, type SeriesPoint } from "../../components/charts";
 import { Num, ReceiptChips } from "../../components/Receipts";
+import { useAgentDemo } from "../../lib/agentDemo";
 import { api } from "../../lib/api";
 import { dayLabel, eur, hhmm, humanize, pct, quantity } from "../../lib/format";
 import { isRuledOut, type RunView } from "../../lib/store";
@@ -71,8 +72,10 @@ function Step({ n, title, term, children }: { n: number; title: string; term?: s
 
 export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; graph: Graph | null; view: RunView; onSelectNode: (id: string) => void }) {
   const summary = view.incidents[id];
-  const { incident, error } = useIncident(id, summary?.lastSeq ?? 0);
+  const { incident, error } = useIncident(id, summary?.lastSeq ?? 0, view.stream);
+  const demo = useAgentDemo();
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   // Escape returns to the page the incident was opened from (demo mode closes it the same way)
   useEffect(() => {
@@ -85,9 +88,15 @@ export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; gr
   }, []);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(await api.report(id));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    setCopyError(null);
+    try {
+      const report = await api.report(id, demo?.runId);
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch (e) {
+      setCopyError(e instanceof Error ? e.message : "Could not copy the report.");
+    }
   };
 
   return (
@@ -102,6 +111,7 @@ export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; gr
       </nav>
       {!incident && <p className="fx-empty">{error ? `The incident could not be loaded: ${error}` : "Loading the incident…"}</p>}
       {incident && <Story incident={incident} graph={graph} view={view} onSelectNode={onSelectNode} copy={copy} copied={copied} />}
+      {copyError && <p className="ws-act-error" role="alert">{copyError}</p>}
     </main>
   );
 }
@@ -272,7 +282,7 @@ function Story({
                     </b>
                   </div>
                   <div>
-                    <span>{metricName(graph, f.impact.node)} lost per hour</span>
+                    <span>{metricName(graph, f.impact.node)} {incident.direction === "up" ? "increase" : "decrease"} per hour</span>
                     <b>
                       <Num q={{ ...f.impact.per_hour, value: Math.abs(f.impact.per_hour.value) }} />
                     </b>

@@ -30,9 +30,10 @@ export const api = {
   health: () => json<Health>("/health"),
   graph: () => json<Graph>("/graph"),
   incident: (id: string) => json<Incident>(`/incidents/${encodeURIComponent(id)}`),
-  report: async (id: string) => {
-    const res = await fetch(`/incidents/${encodeURIComponent(id)}/report`);
-    if (!res.ok) throw new Error(`${res.status}`);
+  report: async (id: string, demoRun?: string) => {
+    const path = `/incidents/${encodeURIComponent(id)}/report`;
+    const res = await fetch(demoRun ? `/demo${path}?run_id=${encodeURIComponent(demoRun)}` : path);
+    if (!res.ok) throw new ApiError(res.status, `The incident report could not be loaded (${res.status}).`);
     return res.text();
   },
   receipt: (id: string) => json<Receipt>(`/receipts/${encodeURIComponent(id)}`),
@@ -72,9 +73,8 @@ export interface StreamHeader {
 export type ConnectionState = "connecting" | "open" | "offline";
 
 /**
- * Follow `GET /events`. Events arrive in seq order, batched per animation frame. `onReset` fires when
- * the server starts a new stream (a replay restart, or a reconnect after one): drop the state, the
- * events that follow rebuild it. EventSource reconnects by itself and resumes with Last-Event-ID.
+ * Follow `GET /events`. Each connection starts with a stream header and a full snapshot of the event
+ * history. A fresh connection after an error avoids sending a cursor from an earlier API process.
  */
 export function follow(handlers: {
   onReset: (header: StreamHeader) => void;
@@ -85,6 +85,7 @@ export function follow(handlers: {
   let closed = false;
   let queue: ArgusEvent[] = [];
   let frame = 0;
+  let retry = 0;
 
   const flush = () => {
     frame = 0;
@@ -97,11 +98,14 @@ export function follow(handlers: {
 
   const open = () => {
     if (closed) return;
-    handlers.onState("connecting");
-    const es = new EventSource("/events");
+    const es = new EventSource("/events?include_stream=true");
     source = es;
     es.onopen = () => handlers.onState("open");
-    es.onerror = () => handlers.onState(es.readyState === EventSource.CLOSED ? "offline" : "connecting");
+    es.onerror = () => {
+      es.close();
+      handlers.onState("offline");
+      retry = window.setTimeout(open, 1500);
+    };
     es.addEventListener("stream", (msg) => {
       // events of the old stream still waiting for a frame are void
       queue = [];
@@ -118,6 +122,7 @@ export function follow(handlers: {
   open();
   return () => {
     closed = true;
+    window.clearTimeout(retry);
     if (frame) cancelAnimationFrame(frame);
     source?.close();
   };

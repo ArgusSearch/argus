@@ -4,6 +4,7 @@
 
 import { lazy, Suspense, useEffect, useLayoutEffect, type ComponentType, type ReactNode } from "react";
 import { Mark } from "../../components/Header";
+import { useAgentDemo } from "../../lib/agentDemo";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { autonomyCounts } from "../../views/autonomy";
@@ -59,6 +60,7 @@ const Village = importVillage
 
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
+  const demo = useAgentDemo();
   useLayoutEffect(() => {
     document.documentElement.dataset.fxSection = section;
   }, [section]);
@@ -79,7 +81,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
         </main>
       )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
-      <AskPanel incident={section === "incident" ? incident : null} />
+      <AskPanel key={demo?.runId} incident={section === "incident" ? incident : null} />
     </>
   );
 }

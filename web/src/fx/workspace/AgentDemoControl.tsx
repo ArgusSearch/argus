@@ -45,6 +45,17 @@ export function AgentDemoControl() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!available) return;
+    const restore = () => {
+      const run = new URLSearchParams(window.location.search).get("agentrun");
+      if (run && run !== demo?.runId) void joinAgentDemo(run);
+      else if (!run && demo) leaveAgentDemo();
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [available, demo?.runId]);
+
   const act = (fn: () => Promise<void>) => {
     setError(null);
     fn().catch((e: Error) => setError(e.message));
