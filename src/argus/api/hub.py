@@ -115,7 +115,7 @@ class EventHub(EventBus):
         with self._lock:
             return self.history[-1].seq if self.history else self.base_seq
 
-    async def follow(self, after: int = 0) -> AsyncIterator[StreamItem]:
+    async def follow(self, after: int = 0, *, include_stream: bool = False) -> AsyncIterator[StreamItem]:
         """Yield the history after seq `after`, then live events, until the client goes away.
 
         A restart while following, or an `after` from an older stream, yields a `stream` item first and
@@ -134,6 +134,8 @@ class EventHub(EventBus):
                         pending.append(StreamItem(stream, None))  # the client knows an older stream
                         sent = 0
                     else:
+                        if include_stream:
+                            pending.append(StreamItem(stream, None))
                         sent = sum(1 for e in history if e.seq <= after)
                 elif stream != current:
                     pending.append(StreamItem(stream, None))

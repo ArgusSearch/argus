@@ -144,12 +144,15 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
 
     @app.get("/events", response_class=EventSourceResponse)
     async def events(
-        since: int = 0, limit: int | None = None, last_event_id: str | None = Header(None)
+        since: int = 0,
+        limit: int | None = None,
+        last_event_id: str | None = Header(None),
+        include_stream: bool = False,
     ) -> AsyncIterator[ServerSentEvent]:
         """The history after `since` (or Last-Event-ID), then live events."""
         after = int(last_event_id) if last_event_id and last_event_id.isdigit() else since
         sent = 0
-        async for item in hub.follow(after):
+        async for item in hub.follow(after, include_stream=include_stream):
             if item.event is None:
                 header = {"stream": item.stream, "mode": source.mode}
                 yield ServerSentEvent(event="stream", raw_data=json.dumps(header))

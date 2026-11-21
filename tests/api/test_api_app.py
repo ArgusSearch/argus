@@ -97,6 +97,10 @@ def test_sse_wire_format_resume_and_stream_change() -> None:
     resumed = _blocks(client.get("/events", headers={"Last-Event-ID": "3"}).text)
     assert [b["id"] for b in resumed] == ["4", "5"]
     assert [b["id"] for b in _blocks(client.get("/events?since=1&limit=2").text)] == ["2", "3"]
+    identified = _blocks(client.get("/events?include_stream=true&limit=1").text)
+    assert identified[0]["event"] == "stream"
+    assert json.loads(identified[0]["data"]) == {"stream": source.bus.stream, "mode": "replay"}
+    assert identified[1]["id"] == "1"
 
     source.bus.reset()
     source.bus.publish(events[0].model_copy(update={"seq": 6}))
