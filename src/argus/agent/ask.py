@@ -83,6 +83,7 @@ class AskScope:
     graph: Graph
     incidents: list[Incident]
     world: Any  # path of the world the runner opens read-only
+    proposals: list[dict[str, Any]] = field(default_factory=list)  # ProposalView JSON, visible to the human
 
 
 @dataclass
@@ -108,6 +109,24 @@ class AskResult:
             "usd": self.usd,
             "activity_cursor": cursor,
         }
+
+
+def case_view(incident: Incident) -> dict[str, Any]:
+    """An incident as Ask context: what, where, when, the named cause and what was ruled out."""
+    f = incident.findings
+    evidence = f.root.evidence if f.root else None
+    return {
+        "id": incident.id,
+        "title": incident.title,
+        "verdict": incident.verdict.value,
+        "state": incident.state.value,
+        "root_node": incident.root_node,
+        "segment": incident.segment,
+        "window": f.window.model_dump(mode="json"),
+        "cause": evidence.model_dump(mode="json") if evidence else None,
+        "ruled_out": [r.evidence.ref if r.evidence else r.hypothesis for r in f.ruled_out],
+        "suggested_action": f.suggested_action.text if f.suggested_action else None,
+    }
 
 
 def fact_draft(store: EvidenceStore, ctx: RunContext, fact_id: str, wording: str) -> ClaimDraft | None:
@@ -224,7 +243,38 @@ class AskRunner:
             if history
             else ""
         )
-        scope_line = f"The question is about incident {ctx.incident_id}.\n" if ctx.incident_id else ""
+        scope_line = (
+            f"Data is complete through the data hour {scope.latest_hour:%Y-%m-%d %H:%M}. Every window must end at or "
+            "before that hour and span 1 to 48 whole hours; times are UTC without a zone. Segments use the "
+            "metric's own dimensions.\n"
+        )
+        if ctx.incident_id:
+            scope_line += f"The question is about incident {ctx.incident_id}.\n"
+        cases = [i for i in scope.incidents if i.id == ctx.incident_id] or scope.incidents[-3:]
+        if cases:
+            scope_line += (
+                "Incidents Argus filed (context; re-measure any figure you cite):\n<data>\n"
+                + json.dumps([case_view(i) for i in cases], indent=1, default=str)
+                + "\n</data>\n"
+            )
+        if scope.proposals:
+            actions = [
+                {
+                    "id": p.get("id"),
+                    "state": p.get("state"),
+                    "incident": p.get("incident_ref"),
+                    "action": p.get("action"),
+                    "approve_by": p.get("expires_at"),  # the last hour a human can approve it
+                    "takes_effect_at": p.get("effective_at"),  # the next budget day after approval
+                    "success_rule": p.get("success_rule"),
+                }
+                for p in scope.proposals
+            ]
+            scope_line += (
+                "Actions Argus proposed (a human decides them in the actions panel; you cannot):\n<data>\n"
+                + json.dumps(actions, indent=1)
+                + "\n</data>\n"
+            )
         messages: list[dict[str, Any]] = [
             {
                 "role": "user",
@@ -234,6 +284,7 @@ class AskRunner:
         ]
         calls = 0
         retried = False
+        nudged = False
         seen = FactBook()  # numbers the conversation has seen with receipts, for the activity log
         for round_ in range(1, MAX_REQUESTS + 1):
             usage = [u for u in self.journal.usage if u.run_id == ctx.run_id]
@@ -320,7 +371,16 @@ class AskRunner:
                     }
                 )
             if not results:
-                break
+                if nudged:
+                    break
+                nudged = True  # the model wrote its answer as text: ask once for the answer tool
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Call {ANSWER} with that answer: prose without digits, figures as claims.",
+                    }
+                )
+                continue
             messages.append({"role": "user", "content": results})
         return AskResult(status="unavailable", run_id=ctx.run_id, reason="no answer within the budget")
 
