@@ -1,0 +1,730 @@
+{
+  "$defs": {
+    "Certificate": {
+      "additionalProperties": false,
+      "description": "Placement certificate for an onboarded metric (lane G fills this in Stage 2).",
+      "properties": {
+        "edges": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "passed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Passed",
+          "type": "array"
+        },
+        "placed_as": {
+          "enum": [
+            "EXACT",
+            "NEW_DIMENSION",
+            "ALIAS",
+            "AMBIGUOUS",
+            "REJECTED"
+          ],
+          "title": "Placed As",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "tried": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tried",
+          "type": "array"
+        },
+        "uncertain": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Uncertain",
+          "type": "array"
+        }
+      },
+      "required": [
+        "metric",
+        "placed_as",
+        "summary"
+      ],
+      "title": "Certificate",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "properties": {
+        "dim": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "breakdown: the dimension",
+          "title": "Dim"
+        },
+        "expr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "formula: target = expr over source node ids",
+          "title": "Expr"
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "evidence: e.g. {'kind': ['deploy']}",
+          "title": "Filter"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EdgeKind"
+        },
+        "lag_hours": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cause: plausible lags",
+          "title": "Lag Hours"
+        },
+        "last_test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTestResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "default": "seed"
+        },
+        "sources": {
+          "description": "formula and cause: node ids; evidence: log ids; breakdown: empty",
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EdgeStatus"
+        },
+        "target": {
+          "description": "node id the edge points to (the parent / the effect)",
+          "title": "Target",
+          "type": "string"
+        },
+        "test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "weight": {
+          "default": 1.0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "target",
+        "status"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "EdgeKind": {
+      "enum": [
+        "formula",
+        "breakdown",
+        "cause",
+        "evidence"
+      ],
+      "title": "EdgeKind",
+      "type": "string"
+    },
+    "EdgeStatus": {
+      "enum": [
+        "VALID",
+        "SUPPORTED",
+        "PROBATION",
+        "PROPOSED",
+        "BROKEN"
+      ],
+      "title": "EdgeStatus",
+      "type": "string"
+    },
+    "EdgeTest": {
+      "additionalProperties": false,
+      "properties": {
+        "alpha": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "lagged_corr_bh: false discovery rate",
+          "title": "Alpha"
+        },
+        "kind": {
+          "$ref": "#/$defs/EdgeTestKind"
+        },
+        "lag_hours": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "lagged_corr_bh: lags to test",
+          "title": "Lag Hours"
+        },
+        "max_rel_err": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "children_sum: max relative error per hour",
+          "title": "Max Rel Err"
+        },
+        "median_max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "identity_residual: max median relative residual",
+          "title": "Median Max"
+        },
+        "p95_max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "identity_residual: max p95 relative residual",
+          "title": "P95 Max"
+        },
+        "window_days": {
+          "default": 28,
+          "title": "Window Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "EdgeTest",
+      "type": "object"
+    },
+    "EdgeTestKind": {
+      "enum": [
+        "identity_residual",
+        "children_sum",
+        "lagged_corr_bh",
+        "onset_alignment"
+      ],
+      "title": "EdgeTestKind",
+      "type": "string"
+    },
+    "EdgeTestResult": {
+      "additionalProperties": false,
+      "properties": {
+        "hours": {
+          "default": 0,
+          "title": "Hours",
+          "type": "integer"
+        },
+        "max_rel_err": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Rel Err"
+        },
+        "median_rel": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Median Rel"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "p95_rel": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P95 Rel"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when the test kind is not implemented yet",
+          "title": "Passed"
+        },
+        "ran_at": {
+          "description": "as_of the test ran at",
+          "format": "date-time",
+          "title": "Ran At",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ran_at",
+        "passed"
+      ],
+      "title": "EdgeTestResult",
+      "type": "object"
+    },
+    "Graph": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "logs": {
+          "items": {
+            "$ref": "#/$defs/LogSource"
+          },
+          "title": "Logs",
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "version": {
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "title": "Graph",
+      "type": "object"
+    },
+    "GraphChange": {
+      "additionalProperties": false,
+      "description": "One append-only changelog entry (`state/graph_changelog.jsonl`).",
+      "properties": {
+        "edge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge"
+        },
+        "kind": {
+          "enum": [
+            "node_added",
+            "edge_added",
+            "edge_status",
+            "node_retired",
+            "test_run"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "new_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "old_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sim_ts": {
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "sim_ts",
+        "kind"
+      ],
+      "title": "GraphChange",
+      "type": "object"
+    },
+    "LogSource": {
+      "additionalProperties": false,
+      "description": "A log table that evidence edges attach to nodes (rendered as a special source in the UI).",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "description": "log view name, e.g. log_deploys",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "description"
+      ],
+      "title": "LogSource",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ratio: additive node id",
+          "title": "Denominator"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "dims": {
+          "description": "dimensions this node can be broken down by",
+          "items": {
+            "type": "string"
+          },
+          "title": "Dims",
+          "type": "array"
+        },
+        "expr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "derived: arithmetic over node ids",
+          "title": "Expr"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "measure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "additive: the column that is summed",
+          "title": "Measure"
+        },
+        "north_star": {
+          "default": false,
+          "title": "North Star",
+          "type": "boolean"
+        },
+        "numerator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ratio: additive node id",
+          "title": "Numerator"
+        },
+        "source": {
+          "default": "seed",
+          "description": "'seed' or the metrics/*.yml file it came from",
+          "title": "Source",
+          "type": "string"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "C2 SQL form of the node, for display and receipts",
+          "title": "Sql"
+        },
+        "state": {
+          "default": "watching",
+          "enum": [
+            "watching",
+            "probation",
+            "proposed",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "table": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "additive: the fact view",
+          "title": "Table"
+        },
+        "unit": {
+          "enum": [
+            "count",
+            "eur",
+            "share",
+            "ratio",
+            "eur_per_unit"
+          ],
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "description",
+        "kind",
+        "unit",
+        "dims"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "NodeKind": {
+      "enum": [
+        "additive",
+        "ratio",
+        "derived"
+      ],
+      "title": "NodeKind",
+      "type": "string"
+    },
+    "Provenance": {
+      "enum": [
+        "seed",
+        "lineage",
+        "arithmetic",
+        "llm",
+        "learned"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "C3 metric graph",
+  "version": "1.0.0"
+}

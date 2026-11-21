@@ -1,0 +1,634 @@
+{
+  "version": "1.0.0",
+  "as_of_variable": "as_of",
+  "dimensions": {
+    "country": [
+      "DE",
+      "FR",
+      "UK",
+      "ES",
+      "NL"
+    ],
+    "platform": [
+      "android",
+      "ios",
+      "web"
+    ],
+    "channel": [
+      "organic",
+      "paid",
+      "email",
+      "direct"
+    ],
+    "category": [
+      "electronics",
+      "fashion",
+      "home",
+      "beauty",
+      "toys",
+      "grocery"
+    ],
+    "provider": [
+      "PayCo",
+      "CardHub",
+      "WalletGo"
+    ],
+    "advertiser_id": [
+      "adv_01",
+      "adv_02",
+      "adv_03",
+      "adv_04",
+      "adv_05",
+      "adv_06"
+    ]
+  },
+  "evidence_logs": [
+    "log_deploys",
+    "log_provider_status",
+    "log_calendar",
+    "log_ad_budgets"
+  ],
+  "tables": [
+    {
+      "name": "fact_funnel_hourly",
+      "kind": "fact",
+      "description": "Shop traffic funnel per hour and segment.",
+      "raw_table": "raw_funnel_hourly",
+      "grain": [
+        "ts",
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "measures": [
+        "sessions",
+        "product_views",
+        "carts",
+        "checkouts"
+      ],
+      "columns": [
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "time",
+          "description": "start of the hour, naive UTC"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of DE, FR, UK, ES, NL"
+        },
+        {
+          "name": "platform",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of android, ios, web"
+        },
+        {
+          "name": "channel",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of organic, paid, email, direct"
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of electronics, fashion, home, beauty, toys, grocery"
+        },
+        {
+          "name": "sessions",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "sessions that started in the hour"
+        },
+        {
+          "name": "product_views",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "sessions that viewed a product"
+        },
+        {
+          "name": "carts",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "sessions that added to cart"
+        },
+        {
+          "name": "checkouts",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "sessions that started checkout"
+        }
+      ]
+    },
+    {
+      "name": "fact_payments_hourly",
+      "kind": "fact",
+      "description": "Payment attempts and successes per hour, segment and payment provider.",
+      "raw_table": "raw_payments_hourly",
+      "grain": [
+        "ts",
+        "country",
+        "platform",
+        "provider"
+      ],
+      "measures": [
+        "payment_attempts",
+        "payment_successes"
+      ],
+      "columns": [
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "time",
+          "description": "start of the hour, naive UTC"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of DE, FR, UK, ES, NL"
+        },
+        {
+          "name": "platform",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of android, ios, web"
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of PayCo, CardHub, WalletGo"
+        },
+        {
+          "name": "payment_attempts",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "checkouts that attempted a payment"
+        },
+        {
+          "name": "payment_successes",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "successful payments (each one is an order)"
+        }
+      ]
+    },
+    {
+      "name": "fact_orders_hourly",
+      "kind": "fact",
+      "description": "Orders and gross merchandise value per hour and segment.",
+      "raw_table": "raw_orders_hourly",
+      "grain": [
+        "ts",
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "measures": [
+        "orders",
+        "gmv"
+      ],
+      "columns": [
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "time",
+          "description": "start of the hour, naive UTC"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of DE, FR, UK, ES, NL"
+        },
+        {
+          "name": "platform",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of android, ios, web"
+        },
+        {
+          "name": "channel",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of organic, paid, email, direct"
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of electronics, fashion, home, beauty, toys, grocery"
+        },
+        {
+          "name": "orders",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "orders placed (identity: equals payment_successes)"
+        },
+        {
+          "name": "gmv",
+          "type": "DOUBLE",
+          "role": "measure",
+          "description": "gross merchandise value in EUR"
+        }
+      ]
+    },
+    {
+      "name": "fact_ads_hourly",
+      "kind": "fact",
+      "description": "Advertising delivery per hour, advertiser and segment (the ads business).",
+      "raw_table": "raw_ads_hourly",
+      "grain": [
+        "ts",
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "measures": [
+        "ad_impressions",
+        "ad_clicks",
+        "ad_spend",
+        "ad_conversions",
+        "attributed_gmv"
+      ],
+      "columns": [
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "time",
+          "description": "start of the hour, naive UTC"
+        },
+        {
+          "name": "advertiser_id",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of adv_01, adv_02, adv_03, adv_04, adv_05, adv_06"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of DE, FR, UK, ES, NL"
+        },
+        {
+          "name": "platform",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of android, ios, web"
+        },
+        {
+          "name": "ad_impressions",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "ads served"
+        },
+        {
+          "name": "ad_clicks",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "ad clicks"
+        },
+        {
+          "name": "ad_spend",
+          "type": "DOUBLE",
+          "role": "measure",
+          "description": "advertiser spend in EUR (what the marketplace earns)"
+        },
+        {
+          "name": "ad_conversions",
+          "type": "BIGINT",
+          "role": "measure",
+          "description": "orders attributed to an ad click"
+        },
+        {
+          "name": "attributed_gmv",
+          "type": "DOUBLE",
+          "role": "measure",
+          "description": "GMV of attributed orders in EUR"
+        }
+      ]
+    },
+    {
+      "name": "fact_ad_plan_hourly",
+      "kind": "fact",
+      "description": "Pacing plan: planned spend per hour = daily budget x expected share of daily traffic in the hour.",
+      "raw_table": "raw_ad_plan_hourly",
+      "grain": [
+        "ts",
+        "advertiser_id",
+        "country"
+      ],
+      "measures": [
+        "planned_spend"
+      ],
+      "columns": [
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "time",
+          "description": "start of the hour, naive UTC"
+        },
+        {
+          "name": "advertiser_id",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of adv_01, adv_02, adv_03, adv_04, adv_05, adv_06"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "grain",
+          "description": "one of DE, FR, UK, ES, NL"
+        },
+        {
+          "name": "planned_spend",
+          "type": "DOUBLE",
+          "role": "measure",
+          "description": "planned spend in EUR for the hour"
+        }
+      ]
+    },
+    {
+      "name": "log_ingestion",
+      "kind": "log",
+      "description": "Loader log: one row per delivered micro-batch. Completeness of a table-hour = SUM(share).",
+      "raw_table": "raw_ingestion",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "table_name",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "fact view name, e.g. fact_orders_hourly"
+        },
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "hour the batch belongs to"
+        },
+        {
+          "name": "batch",
+          "type": "INTEGER",
+          "role": "attr",
+          "description": "micro-batch number"
+        },
+        {
+          "name": "share",
+          "type": "DOUBLE",
+          "role": "attr",
+          "description": "fraction of the hour's source events in this batch"
+        }
+      ]
+    },
+    {
+      "name": "log_deploys",
+      "kind": "log",
+      "description": "Deploys and releases (kind: deploy | release | config).",
+      "raw_table": "raw_deploys",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "stable id of the log entry, referenced by findings"
+        },
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "when the change happened (minute precision)"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "entry kind, see the table description"
+        },
+        {
+          "name": "scope",
+          "type": "JSON",
+          "role": "attr",
+          "description": "affected segments: {dim: [values]}; missing dim = all values"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "human readable text"
+        },
+        {
+          "name": "service",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "deployed service or app, e.g. android-app"
+        },
+        {
+          "name": "version",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "deployed version, e.g. 8.3.0"
+        }
+      ]
+    },
+    {
+      "name": "log_provider_status",
+      "kind": "log",
+      "description": "Status feed of external payment providers (kind: degraded | resolved | maintenance).",
+      "raw_table": "raw_provider_status",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "stable id of the log entry, referenced by findings"
+        },
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "when the change happened (minute precision)"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "entry kind, see the table description"
+        },
+        {
+          "name": "scope",
+          "type": "JSON",
+          "role": "attr",
+          "description": "affected segments: {dim: [values]}; missing dim = all values"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "human readable text"
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "payment provider"
+        }
+      ]
+    },
+    {
+      "name": "log_calendar",
+      "kind": "log",
+      "description": "Planned business events (kind: promo | holiday | campaign). `planned_uplift` = {node_id: relative uplift}.",
+      "raw_table": "raw_calendar",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "stable id of the log entry, referenced by findings"
+        },
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "when the change happened (minute precision)"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "entry kind, see the table description"
+        },
+        {
+          "name": "scope",
+          "type": "JSON",
+          "role": "attr",
+          "description": "affected segments: {dim: [values]}; missing dim = all values"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "human readable text"
+        },
+        {
+          "name": "end_ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "end of the planned event"
+        },
+        {
+          "name": "planned_uplift",
+          "type": "JSON",
+          "role": "attr",
+          "description": "expected relative change per node id"
+        }
+      ]
+    },
+    {
+      "name": "log_ad_budgets",
+      "kind": "log",
+      "description": "Advertiser budget and pacer changes (kind: budget_set | budget_change | pacer_change).",
+      "raw_table": "raw_ad_budgets",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "stable id of the log entry, referenced by findings"
+        },
+        {
+          "name": "ts",
+          "type": "TIMESTAMP",
+          "role": "attr",
+          "description": "when the change happened (minute precision)"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "entry kind, see the table description"
+        },
+        {
+          "name": "scope",
+          "type": "JSON",
+          "role": "attr",
+          "description": "affected segments: {dim: [values]}; missing dim = all values"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "human readable text"
+        },
+        {
+          "name": "advertiser_id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "advertiser"
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "country of the budget line"
+        },
+        {
+          "name": "daily_budget",
+          "type": "DOUBLE",
+          "role": "attr",
+          "description": "daily budget in EUR after the change"
+        },
+        {
+          "name": "pacer_version",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "pacer version serving this budget line"
+        }
+      ]
+    },
+    {
+      "name": "dim_advertiser",
+      "kind": "dim",
+      "description": "Static advertiser attributes.",
+      "raw_table": "dim_advertiser",
+      "grain": [],
+      "measures": [],
+      "columns": [
+        {
+          "name": "advertiser_id",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "advertiser id"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "display name (fictional)"
+        },
+        {
+          "name": "vertical",
+          "type": "VARCHAR",
+          "role": "attr",
+          "description": "mobile_games | retail"
+        }
+      ]
+    }
+  ]
+}

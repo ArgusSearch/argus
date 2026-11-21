@@ -1,0 +1,1042 @@
+{
+  "$defs": {
+    "Anomaly": {
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "description": "expected +- 2 sigma",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Band",
+          "type": "array"
+        },
+        "data_confidence": {
+          "default": 1.0,
+          "title": "Data Confidence",
+          "type": "number"
+        },
+        "detected_at": {
+          "description": "as_of of the tick that opened the anomaly",
+          "format": "date-time",
+          "title": "Detected At",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "number"
+        },
+        "hour": {
+          "description": "the scored data hour",
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "id": {
+          "description": "an_0001, ...",
+          "title": "Id",
+          "type": "string"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "observed": {
+          "title": "Observed",
+          "type": "number"
+        },
+        "onset": {
+          "description": "first hour of the run with |z| > 2",
+          "format": "date-time",
+          "title": "Onset",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "rule": {
+          "enum": [
+            "z_gt_4",
+            "two_of_three_gt_3",
+            "pacing"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "node",
+        "direction",
+        "hour",
+        "detected_at",
+        "onset",
+        "observed",
+        "expected",
+        "band",
+        "z",
+        "rule"
+      ],
+      "title": "Anomaly",
+      "type": "object"
+    },
+    "Contribution": {
+      "additionalProperties": false,
+      "description": "One factor of an exact LMDI split (shares sum to 1 over factors plus 'unexplained').",
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Receipt"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "value": {
+          "description": "absolute contribution to the change of the decomposed node",
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "node",
+        "share",
+        "value",
+        "receipt"
+      ],
+      "title": "Contribution",
+      "type": "object"
+    },
+    "Cost": {
+      "additionalProperties": false,
+      "properties": {
+        "eur": {
+          "default": 0.0,
+          "title": "Eur",
+          "type": "number"
+        },
+        "llm_calls": {
+          "default": 0,
+          "title": "Llm Calls",
+          "type": "integer"
+        },
+        "queries": {
+          "title": "Queries",
+          "type": "integer"
+        },
+        "seconds": {
+          "title": "Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "queries",
+        "seconds"
+      ],
+      "title": "Cost",
+      "type": "object"
+    },
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "log": {
+          "description": "log view, e.g. log_provider_status",
+          "title": "Log",
+          "type": "string"
+        },
+        "ref": {
+          "description": "id of the log row",
+          "title": "Ref",
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Scope",
+          "type": "object"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "log",
+        "ref",
+        "ts",
+        "kind",
+        "description"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    },
+    "Findings": {
+      "additionalProperties": false,
+      "description": "Structured result of one investigation. The narrator writes prose only from this object.",
+      "properties": {
+        "anomaly_id": {
+          "title": "Anomaly Id",
+          "type": "string"
+        },
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "cost": {
+          "$ref": "#/$defs/Cost"
+        },
+        "decomposed_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decomposed Node"
+        },
+        "decomposition": {
+          "items": {
+            "$ref": "#/$defs/Contribution"
+          },
+          "title": "Decomposition",
+          "type": "array"
+        },
+        "explained_share": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Explained Share",
+          "type": "number"
+        },
+        "headline": {
+          "title": "Headline",
+          "type": "string"
+        },
+        "impact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Impact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "incident_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Incident Id"
+        },
+        "observed": {
+          "$ref": "#/$defs/ObservedChange"
+        },
+        "root": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RootCause"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ruled_out": {
+          "items": {
+            "$ref": "#/$defs/RuledOut"
+          },
+          "title": "Ruled Out",
+          "type": "array"
+        },
+        "skeptic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SkepticResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "suggested_action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuggestedAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trail": {
+          "items": {
+            "$ref": "#/$defs/TrailStep"
+          },
+          "title": "Trail",
+          "type": "array"
+        },
+        "uncertain": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Uncertain",
+          "type": "array"
+        },
+        "unexplained_share": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Unexplained Share",
+          "type": "number"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "anomaly_id",
+        "verdict",
+        "headline",
+        "as_of",
+        "window",
+        "observed",
+        "explained_share",
+        "unexplained_share",
+        "cost"
+      ],
+      "title": "Findings",
+      "type": "object"
+    },
+    "Impact": {
+      "additionalProperties": false,
+      "properties": {
+        "eur_so_far": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "gmv_eur_per_hour": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "hours": {
+          "title": "Hours",
+          "type": "integer"
+        },
+        "node": {
+          "description": "north-star node the impact is measured on",
+          "title": "Node",
+          "type": "string"
+        },
+        "per_hour": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        }
+      },
+      "required": [
+        "node",
+        "segment",
+        "hours",
+        "per_hour",
+        "gmv_eur_per_hour",
+        "eur_so_far"
+      ],
+      "title": "Impact",
+      "type": "object"
+    },
+    "Incident": {
+      "additionalProperties": false,
+      "description": "One problem, one incident. Fingerprint = (root node, segment, direction).",
+      "properties": {
+        "anomalies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Anomalies",
+          "type": "array"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "findings": {
+          "$ref": "#/$defs/Findings"
+        },
+        "fingerprint": {
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/IncidentTransition"
+          },
+          "title": "History",
+          "type": "array"
+        },
+        "id": {
+          "description": "INC-0001, ...",
+          "title": "Id",
+          "type": "string"
+        },
+        "opened_at": {
+          "description": "data hour of the anomaly that opened it",
+          "format": "date-time",
+          "title": "Opened At",
+          "type": "string"
+        },
+        "reopened": {
+          "default": 0,
+          "title": "Reopened",
+          "type": "integer"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved At"
+        },
+        "root_node": {
+          "title": "Root Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "severity_eur": {
+          "description": "cumulative EUR impact against the expectation, not z",
+          "title": "Severity Eur",
+          "type": "number"
+        },
+        "state": {
+          "$ref": "#/$defs/IncidentState"
+        },
+        "symptoms": {
+          "description": "nodes whose alerts this incident silences",
+          "items": {
+            "type": "string"
+          },
+          "title": "Symptoms",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "id",
+        "fingerprint",
+        "title",
+        "verdict",
+        "state",
+        "root_node",
+        "segment",
+        "direction",
+        "severity_eur",
+        "opened_at",
+        "updated_at",
+        "findings"
+      ],
+      "title": "Incident",
+      "type": "object"
+    },
+    "IncidentState": {
+      "enum": [
+        "open",
+        "investigating",
+        "explained",
+        "monitoring",
+        "resolved"
+      ],
+      "title": "IncidentState",
+      "type": "string"
+    },
+    "IncidentTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "from_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IncidentState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "sim_ts": {
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        },
+        "to_state": {
+          "$ref": "#/$defs/IncidentState"
+        }
+      },
+      "required": [
+        "sim_ts",
+        "from_state",
+        "to_state",
+        "reason"
+      ],
+      "title": "IncidentTransition",
+      "type": "object"
+    },
+    "Note": {
+      "additionalProperties": false,
+      "description": "Something Argus noticed but did not page for (\"didn't wake you\"), or a data issue.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "expected",
+            "data_issue",
+            "suppressed"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "numbers": {
+          "items": {
+            "$ref": "#/$defs/Quantity"
+          },
+          "title": "Numbers",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "sim_ts": {
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "sim_ts",
+        "reason"
+      ],
+      "title": "Note",
+      "type": "object"
+    },
+    "ObservedChange": {
+      "additionalProperties": false,
+      "properties": {
+        "change_pct": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "expected": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "observed": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        }
+      },
+      "required": [
+        "node",
+        "segment",
+        "observed",
+        "expected",
+        "change_pct"
+      ],
+      "title": "ObservedChange",
+      "type": "object"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "receipt id; None only for values derived from other quantities",
+          "title": "Receipt"
+        },
+        "unit": {
+          "description": "count | eur | share | pct | ratio | z | hours",
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "receipt"
+      ],
+      "title": "Quantity",
+      "type": "object"
+    },
+    "Receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "description": "value of getvariable('as_of') when the query ran",
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "id": {
+          "description": "r1, r2, ... unique within a run",
+          "title": "Id",
+          "type": "string"
+        },
+        "ms": {
+          "title": "Ms",
+          "type": "number"
+        },
+        "purpose": {
+          "default": "",
+          "description": "why the query ran, shown in the receipt drawer",
+          "title": "Purpose",
+          "type": "string"
+        },
+        "result_hash": {
+          "description": "sha256 over canonical rows: sorted, floats at 10 significant digits",
+          "title": "Result Hash",
+          "type": "string"
+        },
+        "rows": {
+          "title": "Rows",
+          "type": "integer"
+        },
+        "sql": {
+          "description": "self-contained SQL (literals inlined), runs against the fact_/log_ views",
+          "title": "Sql",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "sql",
+        "as_of",
+        "result_hash",
+        "rows",
+        "ms"
+      ],
+      "title": "Receipt",
+      "type": "object"
+    },
+    "RootCause": {
+      "additionalProperties": false,
+      "properties": {
+        "change_pct": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        }
+      },
+      "required": [
+        "node",
+        "segment",
+        "direction",
+        "change_pct"
+      ],
+      "title": "RootCause",
+      "type": "object"
+    },
+    "RuledOut": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hypothesis": {
+          "title": "Hypothesis",
+          "type": "string"
+        },
+        "prediction": {
+          "title": "Prediction",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "result": {
+          "enum": [
+            "refuted",
+            "inconclusive"
+          ],
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis",
+        "prediction",
+        "result",
+        "reason"
+      ],
+      "title": "RuledOut",
+      "type": "object"
+    },
+    "SkepticResult": {
+      "additionalProperties": false,
+      "description": "Reserved for lane B (skeptic). Absent until the skeptic runs.",
+      "properties": {
+        "checks": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "verdict": {
+          "enum": [
+            "upheld",
+            "weakened",
+            "refuted"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict"
+      ],
+      "title": "SkepticResult",
+      "type": "object"
+    },
+    "SuggestedAction": {
+      "additionalProperties": false,
+      "properties": {
+        "needs_approval": {
+          "default": true,
+          "title": "Needs Approval",
+          "type": "boolean"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "SuggestedAction",
+      "type": "object"
+    },
+    "TrailStep": {
+      "additionalProperties": false,
+      "description": "One step of an investigation. The SQL behind it is in `receipts`.",
+      "properties": {
+        "data": {
+          "additionalProperties": true,
+          "description": "structured result for the UI",
+          "title": "Data",
+          "type": "object"
+        },
+        "decision": {
+          "title": "Decision",
+          "type": "string"
+        },
+        "hypothesis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hypothesis"
+        },
+        "kind": {
+          "enum": [
+            "freshness",
+            "identities",
+            "calendar",
+            "decompose",
+            "segment",
+            "events",
+            "holdout",
+            "impact",
+            "verdict"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prediction": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "written before the query runs",
+          "title": "Prediction"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        },
+        "tool": {
+          "description": "C6 tool name that produced the result",
+          "title": "Tool",
+          "type": "string"
+        },
+        "why": {
+          "default": "",
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "kind",
+        "tool",
+        "result",
+        "decision"
+      ],
+      "title": "TrailStep",
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "SUPPORTED_CAUSE",
+        "HYPOTHESIS",
+        "EXPECTED",
+        "DATA_ISSUE",
+        "UNEXPLAINED"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "Window": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "description": "last data hour (inclusive)",
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "start": {
+          "description": "first data hour (inclusive)",
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Window",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "C4 findings and incidents",
+  "version": "1.0.0"
+}

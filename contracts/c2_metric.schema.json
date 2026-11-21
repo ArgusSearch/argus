@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "MetricDefinition": {
+      "additionalProperties": false,
+      "description": "The C2 contract. Extra keys are rejected on purpose.",
+      "properties": {
+        "description": {
+          "description": "one sentence, used by the cartographer and the LLM",
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "description": "snake_case metric id, unique in the graph",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "sql": {
+          "description": "SELECT in the allowed form (see module docstring)",
+          "minLength": 1,
+          "title": "Sql",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "sql"
+      ],
+      "title": "MetricDefinition",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "C2 metric definition",
+  "version": "1.0.0"
+}

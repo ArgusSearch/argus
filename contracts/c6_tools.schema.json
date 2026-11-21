@@ -1,0 +1,1100 @@
+{
+  "$defs": {
+    "CheckFreshnessInput": {
+      "additionalProperties": false,
+      "properties": {
+        "tables": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tables",
+          "type": "array"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "tables",
+        "window"
+      ],
+      "title": "CheckFreshnessInput",
+      "type": "object"
+    },
+    "CheckFreshnessOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/TableFreshness"
+          },
+          "title": "Tables",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "ok",
+        "tables"
+      ],
+      "title": "CheckFreshnessOutput",
+      "type": "object"
+    },
+    "CheckIdentitiesInput": {
+      "additionalProperties": false,
+      "properties": {
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "window"
+      ],
+      "title": "CheckIdentitiesInput",
+      "type": "object"
+    },
+    "CheckIdentitiesOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "identities": {
+          "items": {
+            "$ref": "#/$defs/IdentityCheck"
+          },
+          "title": "Identities",
+          "type": "array"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "ok",
+        "identities"
+      ],
+      "title": "CheckIdentitiesOutput",
+      "type": "object"
+    },
+    "Contribution": {
+      "additionalProperties": false,
+      "description": "One factor of an exact LMDI split (shares sum to 1 over factors plus 'unexplained').",
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Receipt"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "value": {
+          "description": "absolute contribution to the change of the decomposed node",
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "node",
+        "share",
+        "value",
+        "receipt"
+      ],
+      "title": "Contribution",
+      "type": "object"
+    },
+    "CounterfactualImpactInput": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "segment",
+        "window"
+      ],
+      "title": "CounterfactualImpactInput",
+      "type": "object"
+    },
+    "CounterfactualImpactOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "gmv_eur_per_hour": {
+          "title": "Gmv Eur Per Hour",
+          "type": "number"
+        },
+        "per_hour": {
+          "title": "Per Hour",
+          "type": "number"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "so_far": {
+          "title": "So Far",
+          "type": "number"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "per_hour",
+        "so_far",
+        "gmv_eur_per_hour"
+      ],
+      "title": "CounterfactualImpactOutput",
+      "type": "object"
+    },
+    "DecomposeFormulaInput": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "window"
+      ],
+      "title": "DecomposeFormulaInput",
+      "type": "object"
+    },
+    "DecomposeFormulaOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "contributions": {
+          "items": {
+            "$ref": "#/$defs/Contribution"
+          },
+          "title": "Contributions",
+          "type": "array"
+        },
+        "factors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Factors",
+          "type": "array"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "residual": {
+          "description": "change minus the sum of contributions (LMDI: ~0)",
+          "title": "Residual",
+          "type": "number"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "node",
+        "factors",
+        "contributions",
+        "residual"
+      ],
+      "title": "DecomposeFormulaOutput",
+      "type": "object"
+    },
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "log": {
+          "description": "log view, e.g. log_provider_status",
+          "title": "Log",
+          "type": "string"
+        },
+        "ref": {
+          "description": "id of the log row",
+          "title": "Ref",
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Scope",
+          "type": "object"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "log",
+        "ref",
+        "ts",
+        "kind",
+        "description"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    },
+    "GetSeriesInput": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "window"
+      ],
+      "title": "GetSeriesInput",
+      "type": "object"
+    },
+    "GetSeriesOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "points"
+      ],
+      "title": "GetSeriesOutput",
+      "type": "object"
+    },
+    "HoldoutCheckInput": {
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "the anomalous segment",
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "event",
+        "node",
+        "segment",
+        "window"
+      ],
+      "title": "HoldoutCheckInput",
+      "type": "object"
+    },
+    "HoldoutCheckOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "holdout": {
+          "additionalProperties": true,
+          "description": "event scope minus the anomalous segment, as a SQL filter",
+          "title": "Holdout",
+          "type": "object"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "rel_change": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rel Change"
+        },
+        "result": {
+          "description": "consistent | refuted | not_applicable",
+          "title": "Result",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "z": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Z"
+        }
+      },
+      "required": [
+        "summary",
+        "holdout",
+        "rel_change",
+        "z",
+        "result"
+      ],
+      "title": "HoldoutCheckOutput",
+      "type": "object"
+    },
+    "IdentityCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "edge": {
+          "title": "Edge",
+          "type": "string"
+        },
+        "expr": {
+          "title": "Expr",
+          "type": "string"
+        },
+        "holds": {
+          "title": "Holds",
+          "type": "boolean"
+        },
+        "max_rel_residual": {
+          "title": "Max Rel Residual",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge",
+        "expr",
+        "max_rel_residual",
+        "holds"
+      ],
+      "title": "IdentityCheck",
+      "type": "object"
+    },
+    "LagTestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "lags": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Lags",
+          "type": "array"
+        },
+        "x": {
+          "title": "X",
+          "type": "string"
+        },
+        "y": {
+          "title": "Y",
+          "type": "string"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "LagTestInput",
+      "type": "object"
+    },
+    "LagTestOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "best_lag": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Best Lag"
+        },
+        "q_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Q Value"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "best_lag",
+        "q_value"
+      ],
+      "title": "LagTestOutput",
+      "type": "object"
+    },
+    "ListEventsInput": {
+      "additionalProperties": false,
+      "properties": {
+        "covering": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "only events whose scope covers this segment",
+          "title": "Covering"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "logs": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logs"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "ListEventsInput",
+      "type": "object"
+    },
+    "ListEventsOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "events"
+      ],
+      "title": "ListEventsOutput",
+      "type": "object"
+    },
+    "MixRateSplitInput": {
+      "additionalProperties": false,
+      "properties": {
+        "dim": {
+          "title": "Dim",
+          "type": "string"
+        },
+        "node": {
+          "description": "ratio node",
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "dim",
+        "window"
+      ],
+      "title": "MixRateSplitInput",
+      "type": "object"
+    },
+    "MixRateSplitOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "title": "Change",
+          "type": "number"
+        },
+        "mix": {
+          "title": "Mix",
+          "type": "number"
+        },
+        "rate": {
+          "title": "Rate",
+          "type": "number"
+        },
+        "rates_flat": {
+          "description": "every segment's own rate |z| < 2",
+          "title": "Rates Flat",
+          "type": "boolean"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "change",
+        "mix",
+        "rate",
+        "rates_flat"
+      ],
+      "title": "MixRateSplitOutput",
+      "type": "object"
+    },
+    "PlaceboTestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "weeks": {
+          "default": 8,
+          "title": "Weeks",
+          "type": "integer"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "segment",
+        "window"
+      ],
+      "title": "PlaceboTestInput",
+      "type": "object"
+    },
+    "PlaceboTestOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "hits": {
+          "title": "Hits",
+          "type": "integer"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "weeks": {
+          "title": "Weeks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "summary",
+        "hits",
+        "weeks"
+      ],
+      "title": "PlaceboTestOutput",
+      "type": "object"
+    },
+    "SegmentCell": {
+      "additionalProperties": false,
+      "properties": {
+        "ep": {
+          "description": "explanatory power: share of the total deviation in this cell",
+          "title": "Ep",
+          "type": "number"
+        },
+        "rel_change": {
+          "title": "Rel Change",
+          "type": "number"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "volume_share": {
+          "title": "Volume Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "segment",
+        "ep",
+        "volume_share",
+        "rel_change"
+      ],
+      "title": "SegmentCell",
+      "type": "object"
+    },
+    "SegmentSearchInput": {
+      "additionalProperties": false,
+      "properties": {
+        "dims": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "default: all dims of the node",
+          "title": "Dims"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "search inside this slice",
+          "title": "Segment",
+          "type": "object"
+        },
+        "window": {
+          "$ref": "#/$defs/Window"
+        }
+      },
+      "required": [
+        "node",
+        "window"
+      ],
+      "title": "SegmentSearchInput",
+      "type": "object"
+    },
+    "SegmentSearchOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "explained_share": {
+          "title": "Explained Share",
+          "type": "number"
+        },
+        "path": {
+          "description": "the cells chosen while descending, coarsest first",
+          "items": {
+            "$ref": "#/$defs/SegmentCell"
+          },
+          "title": "Path",
+          "type": "array"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "segment",
+        "explained_share",
+        "path"
+      ],
+      "title": "SegmentSearchOutput",
+      "type": "object"
+    },
+    "SeriesPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "hour": {
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "hour",
+        "value"
+      ],
+      "title": "SeriesPoint",
+      "type": "object"
+    },
+    "TableFreshness": {
+      "additionalProperties": false,
+      "properties": {
+        "completeness": {
+          "description": "0..1, SUM(share) of delivered batches",
+          "title": "Completeness",
+          "type": "number"
+        },
+        "hour": {
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "pending"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "table": {
+          "title": "Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "hour",
+        "completeness",
+        "status"
+      ],
+      "title": "TableFreshness",
+      "type": "object"
+    },
+    "Window": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "description": "last data hour (inclusive)",
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "start": {
+          "description": "first data hour (inclusive)",
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Window",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "C6 investigation tools",
+  "tools": [
+    {
+      "description": "Hourly values and expectation of a node in a segment.",
+      "implemented": false,
+      "input_model": "GetSeriesInput",
+      "name": "get_series",
+      "output_model": "GetSeriesOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Completeness of source tables for a window (data before business).",
+      "implemented": true,
+      "input_model": "CheckFreshnessInput",
+      "name": "check_freshness",
+      "output_model": "CheckFreshnessOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Do the cross-table formula identities hold in the window?",
+      "implemented": true,
+      "input_model": "CheckIdentitiesInput",
+      "name": "check_identities",
+      "output_model": "CheckIdentitiesOutput",
+      "owner": "G"
+    },
+    {
+      "description": "Exact LMDI split of a node's change along its formula edges.",
+      "implemented": true,
+      "input_model": "DecomposeFormulaInput",
+      "name": "decompose_formula",
+      "output_model": "DecomposeFormulaOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Split a ratio's change into segment mix and segment rate effects.",
+      "implemented": false,
+      "input_model": "MixRateSplitInput",
+      "name": "mix_rate_split",
+      "output_model": "MixRateSplitOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Smallest segment that explains >= 67% of the deviation, with descent.",
+      "implemented": true,
+      "input_model": "SegmentSearchInput",
+      "name": "segment_search",
+      "output_model": "SegmentSearchOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Log entries in a time range whose scope covers a segment.",
+      "implemented": true,
+      "input_model": "ListEventsInput",
+      "name": "list_events",
+      "output_model": "ListEventsOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Is the event's scope outside the anomalous segment normal?",
+      "implemented": true,
+      "input_model": "HoldoutCheckInput",
+      "name": "holdout_check",
+      "output_model": "HoldoutCheckOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Would the same analysis fire on the same hours of earlier weeks?",
+      "implemented": false,
+      "input_model": "PlaceboTestInput",
+      "name": "placebo_test",
+      "output_model": "PlaceboTestOutput",
+      "owner": "B"
+    },
+    {
+      "description": "Lagged correlation of de-seasonalised residuals, BH corrected.",
+      "implemented": false,
+      "input_model": "LagTestInput",
+      "name": "lag_test",
+      "output_model": "LagTestOutput",
+      "owner": "G"
+    },
+    {
+      "description": "Orders and EUR lost against the expectation.",
+      "implemented": true,
+      "input_model": "CounterfactualImpactInput",
+      "name": "counterfactual_impact",
+      "output_model": "CounterfactualImpactOutput",
+      "owner": "B"
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,1037 @@
+{
+  "$defs": {
+    "Anomaly": {
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "description": "expected +- 2 sigma",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Band",
+          "type": "array"
+        },
+        "data_confidence": {
+          "default": 1.0,
+          "title": "Data Confidence",
+          "type": "number"
+        },
+        "detected_at": {
+          "description": "as_of of the tick that opened the anomaly",
+          "format": "date-time",
+          "title": "Detected At",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "number"
+        },
+        "hour": {
+          "description": "the scored data hour",
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "id": {
+          "description": "an_0001, ...",
+          "title": "Id",
+          "type": "string"
+        },
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "observed": {
+          "title": "Observed",
+          "type": "number"
+        },
+        "onset": {
+          "description": "first hour of the run with |z| > 2",
+          "format": "date-time",
+          "title": "Onset",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "rule": {
+          "enum": [
+            "z_gt_4",
+            "two_of_three_gt_3",
+            "pacing"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "node",
+        "direction",
+        "hour",
+        "detected_at",
+        "onset",
+        "observed",
+        "expected",
+        "band",
+        "z",
+        "rule"
+      ],
+      "title": "Anomaly",
+      "type": "object"
+    },
+    "AttentionPayload": {
+      "additionalProperties": false,
+      "description": "Reserved (lane B): attention = business_weight x surprise x data_confidence x novelty.",
+      "properties": {
+        "scores": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Scores",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scores"
+      ],
+      "title": "AttentionPayload",
+      "type": "object"
+    },
+    "BenchProgressPayload": {
+      "additionalProperties": false,
+      "description": "Reserved (lane W): progress of a bench run.",
+      "properties": {
+        "done": {
+          "title": "Done",
+          "type": "integer"
+        },
+        "last": {
+          "additionalProperties": true,
+          "title": "Last",
+          "type": "object"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "done",
+        "total"
+      ],
+      "title": "BenchProgressPayload",
+      "type": "object"
+    },
+    "ChallengeStatePayload": {
+      "additionalProperties": false,
+      "description": "Reserved (lane W): blind challenge state (committed hash, then reveal).",
+      "properties": {
+        "commitment": {
+          "title": "Commitment",
+          "type": "string"
+        },
+        "reveal": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reveal"
+        },
+        "state": {
+          "enum": [
+            "committed",
+            "running",
+            "revealed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "commitment"
+      ],
+      "title": "ChallengeStatePayload",
+      "type": "object"
+    },
+    "EdgeStatus": {
+      "enum": [
+        "VALID",
+        "SUPPORTED",
+        "PROBATION",
+        "PROPOSED",
+        "BROKEN"
+      ],
+      "title": "EdgeStatus",
+      "type": "string"
+    },
+    "EdgeStatusPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "edge": {
+          "title": "Edge",
+          "type": "string"
+        },
+        "new_status": {
+          "$ref": "#/$defs/EdgeStatus"
+        },
+        "old_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "$ref": "#/$defs/EdgeTestResult"
+        }
+      },
+      "required": [
+        "edge",
+        "old_status",
+        "new_status",
+        "result"
+      ],
+      "title": "EdgeStatusPayload",
+      "type": "object"
+    },
+    "EdgeTestResult": {
+      "additionalProperties": false,
+      "properties": {
+        "hours": {
+          "default": 0,
+          "title": "Hours",
+          "type": "integer"
+        },
+        "max_rel_err": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Rel Err"
+        },
+        "median_rel": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Median Rel"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "p95_rel": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P95 Rel"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when the test kind is not implemented yet",
+          "title": "Passed"
+        },
+        "ran_at": {
+          "description": "as_of the test ran at",
+          "format": "date-time",
+          "title": "Ran At",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ran_at",
+        "passed"
+      ],
+      "title": "EdgeTestResult",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "seq": {
+          "description": "monotonic within one stream, also the SSE id",
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sim_ts": {
+          "description": "simulated wall clock (as_of) when the event happened",
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/EventType"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "sim_ts",
+        "payload"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "tick",
+        "attention",
+        "edge_status",
+        "anomaly_opened",
+        "investigation_step",
+        "skeptic_step",
+        "incident_updated",
+        "note_logged",
+        "graph_changed",
+        "bench_progress",
+        "challenge_state"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "GraphChange": {
+      "additionalProperties": false,
+      "description": "One append-only changelog entry (`state/graph_changelog.jsonl`).",
+      "properties": {
+        "edge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge"
+        },
+        "kind": {
+          "enum": [
+            "node_added",
+            "edge_added",
+            "edge_status",
+            "node_retired",
+            "test_run"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "new_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "old_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sim_ts": {
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "sim_ts",
+        "kind"
+      ],
+      "title": "GraphChange",
+      "type": "object"
+    },
+    "IncidentState": {
+      "enum": [
+        "open",
+        "investigating",
+        "explained",
+        "monitoring",
+        "resolved"
+      ],
+      "title": "IncidentState",
+      "type": "string"
+    },
+    "IncidentUpdatedPayload": {
+      "additionalProperties": false,
+      "description": "Summary for the feed; the full incident with findings is at GET /incidents/{id}.",
+      "properties": {
+        "change": {
+          "enum": [
+            "opened",
+            "updated",
+            "state",
+            "reopened"
+          ],
+          "title": "Change",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "root_node": {
+          "title": "Root Node",
+          "type": "string"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "severity_eur": {
+          "title": "Severity Eur",
+          "type": "number"
+        },
+        "state": {
+          "$ref": "#/$defs/IncidentState"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "state",
+        "verdict",
+        "root_node",
+        "segment",
+        "direction",
+        "severity_eur",
+        "change"
+      ],
+      "title": "IncidentUpdatedPayload",
+      "type": "object"
+    },
+    "InvestigationStepPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "anomaly_id": {
+          "title": "Anomaly Id",
+          "type": "string"
+        },
+        "incident_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Incident Id"
+        },
+        "step": {
+          "$ref": "#/$defs/TrailStep"
+        }
+      },
+      "required": [
+        "anomaly_id",
+        "step"
+      ],
+      "title": "InvestigationStepPayload",
+      "type": "object"
+    },
+    "Note": {
+      "additionalProperties": false,
+      "description": "Something Argus noticed but did not page for (\"didn't wake you\"), or a data issue.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "expected",
+            "data_issue",
+            "suppressed"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "numbers": {
+          "items": {
+            "$ref": "#/$defs/Quantity"
+          },
+          "title": "Numbers",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "segment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Segment",
+          "type": "object"
+        },
+        "sim_ts": {
+          "format": "date-time",
+          "title": "Sim Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "sim_ts",
+        "reason"
+      ],
+      "title": "Note",
+      "type": "object"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "properties": {
+        "receipt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "receipt id; None only for values derived from other quantities",
+          "title": "Receipt"
+        },
+        "unit": {
+          "description": "count | eur | share | pct | ratio | z | hours",
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "receipt"
+      ],
+      "title": "Quantity",
+      "type": "object"
+    },
+    "SkepticStepPayload": {
+      "additionalProperties": false,
+      "description": "Reserved (lane B): one refutation check of the skeptic.",
+      "properties": {
+        "check": {
+          "title": "Check",
+          "type": "string"
+        },
+        "incident_id": {
+          "title": "Incident Id",
+          "type": "string"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "incident_id",
+        "check",
+        "result"
+      ],
+      "title": "SkepticStepPayload",
+      "type": "object"
+    },
+    "TableFreshness": {
+      "additionalProperties": false,
+      "properties": {
+        "completeness": {
+          "description": "0..1, SUM(share) of delivered batches",
+          "title": "Completeness",
+          "type": "number"
+        },
+        "hour": {
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "pending"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "table": {
+          "title": "Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "hour",
+        "completeness",
+        "status"
+      ],
+      "title": "TableFreshness",
+      "type": "object"
+    },
+    "TickPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "freshness": {
+          "items": {
+            "$ref": "#/$defs/TableFreshness"
+          },
+          "title": "Freshness",
+          "type": "array"
+        },
+        "hour": {
+          "description": "data hour scored in this tick (as_of minus the delivery lag)",
+          "format": "date-time",
+          "title": "Hour",
+          "type": "string"
+        },
+        "max_abs_z": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "node -> |z| of this hour",
+          "title": "Max Abs Z",
+          "type": "object"
+        },
+        "open_incidents": {
+          "title": "Open Incidents",
+          "type": "integer"
+        },
+        "pending_nodes": {
+          "description": "not scored: source data incomplete",
+          "items": {
+            "type": "string"
+          },
+          "title": "Pending Nodes",
+          "type": "array"
+        },
+        "scored_nodes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Scored Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "as_of",
+        "hour",
+        "freshness",
+        "scored_nodes",
+        "open_incidents"
+      ],
+      "title": "TickPayload",
+      "type": "object"
+    },
+    "TrailStep": {
+      "additionalProperties": false,
+      "description": "One step of an investigation. The SQL behind it is in `receipts`.",
+      "properties": {
+        "data": {
+          "additionalProperties": true,
+          "description": "structured result for the UI",
+          "title": "Data",
+          "type": "object"
+        },
+        "decision": {
+          "title": "Decision",
+          "type": "string"
+        },
+        "hypothesis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hypothesis"
+        },
+        "kind": {
+          "enum": [
+            "freshness",
+            "identities",
+            "calendar",
+            "decompose",
+            "segment",
+            "events",
+            "holdout",
+            "impact",
+            "verdict"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prediction": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "written before the query runs",
+          "title": "Prediction"
+        },
+        "receipts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Receipts",
+          "type": "array"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        },
+        "tool": {
+          "description": "C6 tool name that produced the result",
+          "title": "Tool",
+          "type": "string"
+        },
+        "why": {
+          "default": "",
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "kind",
+        "tool",
+        "result",
+        "decision"
+      ],
+      "title": "TrailStep",
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "SUPPORTED_CAUSE",
+        "HYPOTHESIS",
+        "EXPECTED",
+        "DATA_ISSUE",
+        "UNEXPLAINED"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "event_types": {
+    "anomaly_opened": "Anomaly",
+    "attention": "AttentionPayload",
+    "bench_progress": "BenchProgressPayload",
+    "challenge_state": "ChallengeStatePayload",
+    "edge_status": "EdgeStatusPayload",
+    "graph_changed": "GraphChange",
+    "incident_updated": "IncidentUpdatedPayload",
+    "investigation_step": "InvestigationStepPayload",
+    "note_logged": "Note",
+    "skeptic_step": "SkepticStepPayload",
+    "tick": "TickPayload"
+  },
+  "reserved_event_types": [
+    "attention",
+    "bench_progress",
+    "challenge_state",
+    "graph_changed",
+    "skeptic_step"
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "owner": "U",
+      "path": "/health",
+      "status": "implemented",
+      "summary": "liveness and run mode"
+    },
+    {
+      "method": "GET",
+      "owner": "U",
+      "path": "/events",
+      "status": "implemented",
+      "summary": "SSE stream of Event"
+    },
+    {
+      "method": "GET",
+      "owner": "G",
+      "path": "/graph",
+      "status": "implemented",
+      "summary": "current Graph (C3)"
+    },
+    {
+      "method": "GET",
+      "owner": "B",
+      "path": "/incidents",
+      "status": "implemented",
+      "summary": "all incidents, newest first"
+    },
+    {
+      "method": "GET",
+      "owner": "B",
+      "path": "/incidents/{id}",
+      "status": "implemented",
+      "summary": "incident with findings and trail"
+    },
+    {
+      "method": "GET",
+      "owner": "U",
+      "path": "/incidents/{id}/report",
+      "status": "implemented",
+      "summary": "rendered report (markdown)"
+    },
+    {
+      "method": "GET",
+      "owner": "B",
+      "path": "/notes",
+      "status": "implemented",
+      "summary": "'didn't wake you' and data-issue notes"
+    },
+    {
+      "method": "GET",
+      "owner": "G",
+      "path": "/receipts/{id}",
+      "status": "implemented",
+      "summary": "one receipt"
+    },
+    {
+      "method": "POST",
+      "owner": "G",
+      "path": "/receipts/{id}/rerun",
+      "status": "implemented",
+      "summary": "re-run the SQL at its as_of, compare hash"
+    },
+    {
+      "method": "POST",
+      "owner": "G",
+      "path": "/metrics",
+      "status": "stub",
+      "summary": "onboard a metric YAML (C2)"
+    },
+    {
+      "method": "POST",
+      "owner": "W",
+      "path": "/chaos/inject",
+      "status": "stub",
+      "summary": "inject a scenario into the live world"
+    },
+    {
+      "method": "POST",
+      "owner": "W",
+      "path": "/challenge/commit",
+      "status": "stub",
+      "summary": "blind challenge: commit"
+    },
+    {
+      "method": "POST",
+      "owner": "W",
+      "path": "/challenge/reveal",
+      "status": "stub",
+      "summary": "blind challenge: reveal"
+    },
+    {
+      "method": "GET",
+      "owner": "W",
+      "path": "/bench/results",
+      "status": "stub",
+      "summary": "latest bench scorecard"
+    },
+    {
+      "method": "POST",
+      "owner": "B",
+      "path": "/incidents/{id}/feedback",
+      "status": "stub",
+      "summary": "approve, dismiss or 'wrong cause'"
+    }
+  ],
+  "title": "C5 event stream",
+  "version": "1.0.0"
+}
