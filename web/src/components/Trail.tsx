@@ -1,6 +1,6 @@
 // The live investigation: a fixed playbook, each step with its prediction, result, decision and receipts.
 
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { hhmm, humanize } from "../lib/format";
 import { isRuledOut, type RunView } from "../lib/store";
 import { ReceiptChips } from "./Receipts";
@@ -126,8 +126,17 @@ function Watchlist({ view }: { view: RunView }) {
       {top.map(([node, value]) => (
         <article key={node} className="tstep watch">
           <div className="tstep-head">
-            <span className="tstep-kind mono" style={{ textTransform: "none" }}>
-              {node}
+            <span className="tstep-kind mono watch-node" title={node}>
+              {node.split("_").map((part, i) => (
+                <Fragment key={i}>
+                  {i > 0 && (
+                    <>
+                      _<wbr />
+                    </>
+                  )}
+                  {part}
+                </Fragment>
+              ))}
             </span>
           </div>
           <div className="watch-z">

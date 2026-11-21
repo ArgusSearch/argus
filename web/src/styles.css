@@ -1968,6 +1968,19 @@ button {
   flex: 0 0 300px;
 }
 
+/* a long metric id (payment_success_rate) wraps after an underscore instead of being cut off; the head keeps
+   room for two lines so every card's number sits on the same baseline */
+.tstep.watch .tstep-head {
+  align-items: flex-start;
+  min-height: 34px;
+}
+
+.watch-node {
+  min-width: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 .watch-z {
   display: flex;
   align-items: baseline;
