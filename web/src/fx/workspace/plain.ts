@@ -2,8 +2,23 @@
 // stay out of headings, tiles and buttons; they live in the glossary and in the tooltips that open from it.
 // Pure: no React, no DOM, so the wording is tested once and reused by every page.
 
-import { segmentEntries } from "../../lib/format";
-import type { Graph, IncidentState, Segment, Verdict } from "../../lib/types";
+import type { Graph, Incident, IncidentState, Segment, Verdict } from "../../lib/types";
+
+/** Where something happens: a segment's single values, or a scope's lists (country: ["DE", "FR"]). */
+export type Where = Segment | Record<string, string | string[]>;
+
+/**
+ * Where an incident happens, for its headline: the root segment, else the incident's, else the scope of the logged
+ * change that caused it (S4: the pacer change scoped to DE and FR on a shop-wide ratio), so the words never say
+ * "the whole shop" while the action targets two countries.
+ */
+export function incidentWhere(incident: Pick<Incident, "segment" | "findings">): Where {
+  const root = incident.findings.root;
+  if (root && Object.keys(root.segment).length) return root.segment;
+  if (Object.keys(incident.segment).length) return incident.segment;
+  const scope = root?.evidence?.scope;
+  return scope && Object.keys(scope).length ? scope : {};
+}
 
 export type Tone = "ok" | "watch" | "alarm" | "probe" | "muted";
 
@@ -78,13 +93,20 @@ export interface WhereCell {
   value: string;
 }
 
-/** The segment as "where" cells, in the fixed dimension order of the reports. */
-export function whereCells(segment: Segment): WhereCell[] {
-  return segmentEntries(segment).map(([dim, value]) => ({ dim, name: dimensionName(dim), value: valueName(dim, value) }));
+const ORDER = ["country", "platform", "provider", "channel", "category", "advertiser_id"];
+
+/** The segment (or scope) as "where" cells, in the fixed dimension order of the reports; lists read "Germany and France". */
+export function whereCells(segment: Where): WhereCell[] {
+  const entries = Object.entries(segment).sort(([a], [b]) => ORDER.indexOf(a) - ORDER.indexOf(b));
+  return entries.map(([dim, value]) => {
+    const names = (Array.isArray(value) ? value : [value]).map((v) => valueName(dim, v));
+    const joined = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? "");
+    return { dim, name: dimensionName(dim), value: joined };
+  });
 }
 
 /** "Android in Germany via PayCo", or "the whole shop" for the empty segment. */
-export function wherePhrase(segment: Segment): string {
+export function wherePhrase(segment: Where): string {
   const cells = whereCells(segment);
   if (!cells.length) return "the whole shop";
   const by = Object.fromEntries(cells.map((c) => [c.dim, c.value]));
@@ -97,7 +119,7 @@ export function wherePhrase(segment: Segment): string {
 }
 
 /** "Payment success fell 33.6% for Android in Germany via PayCo" */
-export function storyHeadline(graph: Graph | null, node: string, changePct: number | null, segment: Segment): string {
+export function storyHeadline(graph: Graph | null, node: string, changePct: number | null, segment: Where): string {
   const name = metricName(graph, node);
   const where = wherePhrase(segment);
   if (changePct === null || !Number.isFinite(changePct)) return `${name} moved for ${where}`;

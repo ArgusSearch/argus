@@ -4,7 +4,7 @@ import { eur, dayLabel, hhmm } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph, Note } from "../../lib/types";
 import { openIncidentPage } from "../nav";
-import { GLOSSARY, metricName, STATE, storyHeadline, VERDICT, wherePhrase } from "./plain";
+import { GLOSSARY, incidentWhere, metricName, STATE, storyHeadline, VERDICT, wherePhrase } from "./plain";
 import { Card, Pill, Term, useIncidents } from "./ui";
 
 const HELD: Record<Note["kind"], { label: string; help: string }> = {
@@ -42,8 +42,10 @@ export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | 
             </thead>
             <tbody>
               {rows.map((inc) => {
-                const f = full.get(inc.id)?.findings;
+                const whole = full.get(inc.id);
+                const f = whole?.findings;
                 const root = f?.root;
+                const where = whole ? incidentWhere(whole) : inc.segment;
                 return (
                   <tr key={inc.id} onClick={() => onOpenIncident(inc.id)}>
                     <td className="mono">
@@ -53,10 +55,10 @@ export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | 
                       </span>
                     </td>
                     <td>
-                      <b>{storyHeadline(graph, root?.node ?? inc.root_node, root?.change_pct.value ?? null, root?.segment ?? inc.segment)}</b>
+                      <b>{storyHeadline(graph, root?.node ?? inc.root_node, root?.change_pct.value ?? null, where)}</b>
                       {root?.evidence && <span className="ws-sub">Cause: {root.evidence.description}</span>}
                     </td>
-                    <td>{wherePhrase(inc.segment)}</td>
+                    <td>{wherePhrase(where)}</td>
                     <td>
                       <span className="ws-pills">
                         <Pill tone={STATE[inc.state].tone} title={STATE[inc.state].help}>

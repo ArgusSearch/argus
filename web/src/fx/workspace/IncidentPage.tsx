@@ -14,7 +14,7 @@ import { back, go } from "../nav";
 import { ActionCard } from "./ActionCard";
 import { proposalFor, useAgent } from "./agent";
 import { affectedPath } from "./path";
-import { metricName, STATE, storyHeadline, VERDICT, wherePhrase, whereCells } from "./plain";
+import { incidentWhere, metricName, STATE, storyHeadline, VERDICT, wherePhrase, whereCells } from "./plain";
 import { Card, Pill, Term, useIncident } from "./ui";
 
 interface PathCell {
@@ -124,7 +124,7 @@ function Story({
   const f = incident.findings;
   const root = f.root;
   const node = root?.node ?? incident.root_node;
-  const segment = root?.segment ?? incident.segment;
+  const segment = incidentWhere(incident);
   const state = STATE[incident.state];
   const verdict = VERDICT[incident.verdict];
   const points = series(f.trail);
