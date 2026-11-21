@@ -5,6 +5,7 @@ for each tick (as_of advances one hour):
     freshness gate for the newest hour that should be complete (as_of - delivery lag)
     re-test every formula and breakdown edge once per simulated day
     score the north-star nodes; open anomalies
+    planned-change looks (argus.detect): a plan in force that delivery does not follow opens an anomaly
     for each anomaly not covered by an open incident: investigate (Stage 2), file findings
     advance the lifecycle of open incidents
     publish every step on the event bus
@@ -38,6 +39,7 @@ from argus.contracts.events import (
 )
 from argus.contracts.findings import Anomaly, Findings, Incident, TableFreshness, TrailStep
 from argus.contracts.graph import Graph
+from argus.detect import Watcher, WatcherConfig
 from argus.graph.edge_tests import EdgeStatusChange, EdgeTester
 from argus.graph.store import Changelog, load_seed_graph, write_graph
 from argus.incidents.lifecycle import IncidentBook
@@ -74,6 +76,10 @@ class Runtime:
         self.runner = Runner(self.world)
         self.tester = EdgeTester(graph or load_seed_graph(), self.runner, lag_hours=int(self.lag / HOUR))
         self.detector = Detector(self.graph, self.runner)
+        # The detect lane's watcher runs only its planned-change looks here; ids an_p* keep apart from an_*.
+        self.plan_watch = Watcher(
+            self.runner, self.graph, WatcherConfig(lag_hours=int(self.lag / HOUR), anomaly_prefix="an_p")
+        )
         self.book = IncidentBook(self.graph)
         self.changelog = Changelog()
         self.bus = bus or EventBus()
@@ -129,6 +135,7 @@ class Runtime:
                 for edge_change in self.tester.run_all(as_of, self.changelog):
                     self._emit_edge(edge_change, as_of)
                 self.book.graph = self.detector.graph = self.graph
+                self.plan_watch.update_graph(self.graph)
 
             tables = sorted(self.detector.all_tables())
             found = completeness(self.runner, tables, hour - STALE_LOOKBACK, hour, as_of)
@@ -160,6 +167,8 @@ class Runtime:
                 opened, _closed = self.detector.observe(score, as_of)
                 if opened is not None:
                     self._on_anomaly(opened, as_of)
+            for planned in self.plan_watch.check_plans(as_of):
+                self._on_anomaly(planned, as_of)
 
             for inc, change in self.book.monitor(self.runner, hour, as_of):
                 self._emit_incident(inc, change, as_of, inc.history[-1].reason)
