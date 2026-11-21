@@ -106,7 +106,7 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
     const checking = st.state === "checking";
     return (
       <li key={row.key} role="treeitem" aria-level={row.depth + 1} aria-expanded={hasKids ? expanded : undefined} className="tv-item">
-        <div className={`tv-row metric s-${st.state}${row.ref ? " ref" : ""}${checking ? " focus" : ""}`} style={indent}>
+        <div className={`tv-row metric s-${st.state}${row.ref ? " ref" : ""}${checking ? " focus" : ""}`} style={indent} data-node={row.ref ? undefined : row.id}>
           {hasKids ? (
             <button className="tv-toggle" onClick={() => toggle(row.key)} aria-label={expanded ? "Collapse" : "Expand"}>
               <Chevron open={expanded} />
