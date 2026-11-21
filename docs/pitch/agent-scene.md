@@ -36,7 +36,7 @@ Open the same URL in an isolated Chrome session for the two manual rehearsals. U
 
 ```sh
 export CHROME_DEVTOOLS_AXI_SESSION=argus-lane-f
-CHROME_DEVTOOLS_AXI_HEADED=1 chrome-devtools-axi open http://127.0.0.1:8014
+CHROME_DEVTOOLS_AXI_HEADED=1 chrome-devtools-axi open 'http://127.0.0.1:8014/?fx=1'
 chrome-devtools-axi resize 1600 900
 chrome-devtools-axi snapshot
 ```
