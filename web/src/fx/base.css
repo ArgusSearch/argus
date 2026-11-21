@@ -1,0 +1,203 @@
+/* Argus Ice, first paint: the stage behind the app, the boot veil and the loader (A1).
+   Loaded with the main bundle so the loader is on screen with the first frame; everything here is inert unless
+   <html data-fx> is set. The rest of the layer (fx.css) arrives as its own chunk while the loader shows. */
+
+:root[data-fx] {
+  /* fog: a lighter horizon at the top, the ground darker, a faint dot grid; the scene draws over it */
+  --fx-stage-paint:
+    radial-gradient(circle at center, var(--fx-dot) 0.8px, transparent 1.3px) 0 0 / 64px 64px,
+    radial-gradient(120% 70% at 50% 0%, var(--fx-stage-hi), transparent 70%),
+    linear-gradient(180deg, var(--fx-stage) 40%, var(--fx-stage-lo));
+}
+
+:root[data-fx] body {
+  background: var(--fx-stage);
+  color: var(--text);
+}
+
+:root[data-fx] #fx-stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--fx-z-stage);
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--fx-stage-paint);
+}
+
+/* the app floats over the stage */
+:root[data-fx] .app {
+  position: relative;
+  z-index: var(--fx-z-app);
+}
+
+/* until fx.css and the fonts are in, the app stays invisible (the loader or the bare stage shows instead) */
+:root[data-fx][data-fx-phase="boot"] .app {
+  visibility: hidden;
+}
+
+/* ---------------------------------------------------------------- loader */
+
+:root[data-fx] .fx-loader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--fx-z-loader);
+  display: grid;
+  place-items: center;
+  background: var(--fx-stage-paint);
+  color: var(--fx-hud);
+  font: var(--fx-weight-medium) var(--fx-text-lg) / var(--fx-leading-hud) var(--fx-font-mono);
+  letter-spacing: 0;
+  transition: opacity var(--fx-dur-reveal) var(--fx-ease-settle);
+}
+
+:root[data-fx] .fx-loader-core {
+  display: grid;
+  justify-items: center;
+  gap: var(--fx-space-4);
+  animation: fx-loader-in var(--fx-dur-fast) var(--fx-ease-linear) both;
+  transition: opacity 250ms var(--fx-ease-linear);
+}
+
+:root[data-fx] .fx-loader-line::before {
+  content: "[+=-········]";
+  white-space: pre;
+  animation: fx-loader-scan 1.6s steps(1, end) infinite;
+}
+
+:root[data-fx] .fx-loader .fx-corners {
+  transition: opacity 250ms var(--fx-ease-linear);
+}
+
+:root[data-fx] .fx-loader.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-fx] .fx-loader.leaving .fx-loader-core,
+:root[data-fx] .fx-loader.leaving .fx-corners {
+  opacity: 0;
+}
+
+@keyframes fx-loader-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* a scanning eye: the head sweeps right and back, its trail always behind it */
+@keyframes fx-loader-scan {
+  0% {
+    content: "[+=-········]";
+  }
+  5% {
+    content: "[=+·········]";
+  }
+  10% {
+    content: "[-=+········]";
+  }
+  15% {
+    content: "[·-=+·······]";
+  }
+  20% {
+    content: "[··-=+······]";
+  }
+  25% {
+    content: "[···-=+·····]";
+  }
+  30% {
+    content: "[····-=+····]";
+  }
+  35% {
+    content: "[·····-=+···]";
+  }
+  40% {
+    content: "[······-=+··]";
+  }
+  45% {
+    content: "[·······-=+·]";
+  }
+  50% {
+    content: "[········-=+]";
+  }
+  55% {
+    content: "[·········+=]";
+  }
+  60% {
+    content: "[········+=-]";
+  }
+  65% {
+    content: "[·······+=-·]";
+  }
+  70% {
+    content: "[······+=-··]";
+  }
+  75% {
+    content: "[·····+=-···]";
+  }
+  80% {
+    content: "[····+=-····]";
+  }
+  85% {
+    content: "[···+=-·····]";
+  }
+  90% {
+    content: "[··+=-······]";
+  }
+  95% {
+    content: "[·+=-·······]";
+  }
+}
+
+/* ---------------------------------------------------------------- corner HUD (A5), also used by the loader */
+
+:root[data-fx] .fx-corners {
+  position: absolute;
+  inset: 0;
+  z-index: var(--fx-z-hud);
+  pointer-events: none;
+  color: var(--fx-hud);
+  font: var(--fx-weight-medium) var(--fx-text-sm) / var(--fx-leading-hud) var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-corners.fixed {
+  position: fixed;
+}
+
+:root[data-fx] .fx-corner {
+  position: absolute;
+  display: grid;
+  gap: 6px;
+  max-width: 40%;
+}
+
+:root[data-fx] .fx-corner.tl {
+  top: var(--fx-corner-inset, var(--fx-edge));
+  left: var(--fx-corner-inset, var(--fx-edge));
+}
+
+:root[data-fx] .fx-corner.tr {
+  top: var(--fx-corner-inset, var(--fx-edge));
+  right: var(--fx-corner-inset, var(--fx-edge));
+  text-align: right;
+  justify-items: end;
+}
+
+:root[data-fx] .fx-corner.bl {
+  bottom: var(--fx-corner-inset, var(--fx-edge));
+  left: var(--fx-corner-inset, var(--fx-edge));
+}
+
+:root[data-fx] .fx-corner.br {
+  right: var(--fx-corner-inset, var(--fx-edge));
+  bottom: var(--fx-corner-inset, var(--fx-edge));
+  text-align: right;
+  justify-items: end;
+}
+
+/* the `//` prefix of a HUD label */
+:root[data-fx] .fx-hud::before {
+  content: "// ";
+  opacity: 0.7;
+}
