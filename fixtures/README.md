@@ -10,6 +10,7 @@ Recorded Argus runs, all seed 1, produced by `make fixtures`: the S1 run at the 
 | `fixtures/s2/` | S2 | planned FR budget increase: EXPECTED note, no page |
 | `fixtures/s3/` | S3 | orders loader stall: DATA_ISSUE note, no business incident |
 | `fixtures/s4/` | S4 | ad-pacer 1.7.0 overburn: SUPPORTED_CAUSE on pacing_ratio |
+| `fixtures/s5/` | S5 | market-wide demand dip: three EXPECTED notes from the market control; checkout-routing fault on DE/android/PayCo: SUPPORTED_CAUSE, resolved |
 
 The top-level S1 files:
 
