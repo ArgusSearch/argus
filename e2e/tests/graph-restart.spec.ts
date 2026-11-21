@@ -5,8 +5,6 @@ import { LIVE, openMissionControl, replay } from "./helpers";
 // visible the whole time (React Flow hides nodes it has not measured yet).
 test("the metric graph stays visible across a replay restart", async ({ page, request }) => {
   test.skip(LIVE, "restart is a replay control");
-  // remove test.fail once the fix for #33 (PR #39) is on main
-  test.fail(true, "graph goes blank after a restart: https://github.com/ArgusSearch/argus/issues/33");
   await replay(request, { action: "restart", speed: 64 });
   await replay(request, { action: "play" });
   await openMissionControl(page);
