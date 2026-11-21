@@ -111,7 +111,7 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [13](https://github.com/ArgusSearch/argus/issues/13) | web | P1 | Graph bar still says "checking …" after the verdict (fix: PR #41) |
 | [14](https://github.com/ArgusSearch/argus/issues/14) | web | P1 | Sparkline drawn over the COUNT/RATE/EUR unit label (fix: PR #40) |
 | [15](https://github.com/ArgusSearch/argus/issues/15) | web | P1 | One verdict, four labels (SUPPORTED_CAUSE / SUPPORTED CAUSE / ROOT CAUSE) (fix: PR #60) |
-| [16](https://github.com/ArgusSearch/argus/issues/16) | web | P1 | Investigation trail is a sideways scroller; leftmost card cut through its text |
+| [16](https://github.com/ArgusSearch/argus/issues/16) | web | P1 | Investigation trail is a sideways scroller; leftmost card cut through its text (fix: PR #61) |
 | [17](https://github.com/ArgusSearch/argus/issues/17) | web | P2 | "INC-0001 explained" toast covers trail cards 12–13 |
 | [18](https://github.com/ArgusSearch/argus/issues/18) | web | P2 | "log_provider_status" overflows its pill |
 | [19](https://github.com/ArgusSearch/argus/issues/19) | web | P2 | Metric node text about 7–9 px at 1440x900 |
