@@ -1,0 +1,124 @@
+# Seed metric graph (lane G). Hand-written at the start; every edge carries a test.
+# Loaded and validated by argus.graph.store into the C3 Graph model; exported as fixtures/graph.json.
+# `breakdowns` is authoring shorthand: each node x dim pair becomes a breakdown edge with a children_sum test.
+version: 1
+
+logs:
+  - {id: log_deploys, label: Deploys, description: "Deploys and app releases with their scope"}
+  - {id: log_provider_status, label: Provider status, description: "Payment provider status feed"}
+  - {id: log_calendar, label: Calendar, description: "Planned promos, holidays and campaigns with planned uplift"}
+  - {id: log_ad_budgets, label: Ad budgets, description: "Advertiser budget and pacer changes"}
+
+nodes:
+  # ---------------------------------------------------------------- shop funnel (additive)
+  - {id: sessions, label: Sessions, kind: additive, unit: count, north_star: true,
+     table: fact_funnel_hourly, measure: sessions, dims: [country, platform, channel, category],
+     description: "Sessions that started in the hour"}
+  - {id: product_views, label: Product views, kind: additive, unit: count,
+     table: fact_funnel_hourly, measure: product_views, dims: [country, platform, channel, category],
+     description: "Sessions that viewed a product"}
+  - {id: carts, label: Carts, kind: additive, unit: count,
+     table: fact_funnel_hourly, measure: carts, dims: [country, platform, channel, category],
+     description: "Sessions that added to cart"}
+  - {id: checkouts, label: Checkouts, kind: additive, unit: count,
+     table: fact_funnel_hourly, measure: checkouts, dims: [country, platform, channel, category],
+     description: "Sessions that started checkout"}
+  - {id: payment_attempts, label: Payment attempts, kind: additive, unit: count,
+     table: fact_payments_hourly, measure: payment_attempts, dims: [country, platform, provider],
+     description: "Checkouts that attempted a payment"}
+  - {id: payment_successes, label: Payment successes, kind: additive, unit: count,
+     table: fact_payments_hourly, measure: payment_successes, dims: [country, platform, provider],
+     description: "Successful payments"}
+  - {id: orders, label: Orders, kind: additive, unit: count, north_star: true,
+     table: fact_orders_hourly, measure: orders, dims: [country, platform, channel, category],
+     description: "Orders placed"}
+  - {id: gmv, label: GMV, kind: additive, unit: eur, north_star: true,
+     table: fact_orders_hourly, measure: gmv, dims: [country, platform, channel, category],
+     description: "Gross merchandise value in EUR"}
+  # ---------------------------------------------------------------- shop rates (ratio)
+  - {id: view_rate, label: View rate, kind: ratio, unit: share, numerator: product_views, denominator: sessions,
+     dims: [country, platform, channel, category], description: "Share of sessions that view a product"}
+  - {id: cart_rate, label: Cart rate, kind: ratio, unit: share, numerator: carts, denominator: product_views,
+     dims: [country, platform, channel, category], description: "Share of product viewers that add to cart"}
+  - {id: checkout_rate, label: Checkout rate, kind: ratio, unit: share, numerator: checkouts, denominator: carts,
+     dims: [country, platform, channel, category], description: "Share of carts that start checkout"}
+  - {id: attempt_rate, label: Attempt rate, kind: ratio, unit: share, numerator: payment_attempts,
+     denominator: checkouts, dims: [country, platform], description: "Share of checkouts that attempt a payment"}
+  - {id: payment_success_rate, label: Payment success rate, kind: ratio, unit: share, north_star: true,
+     numerator: payment_successes, denominator: payment_attempts, dims: [country, platform, provider],
+     description: "Share of payment attempts that succeed"}
+  - {id: cvr, label: Conversion rate, kind: ratio, unit: share, north_star: true, numerator: orders,
+     denominator: sessions, dims: [country, platform, channel, category], description: "Orders per session"}
+  - {id: aov, label: Average order value, kind: ratio, unit: eur_per_unit, numerator: gmv, denominator: orders,
+     dims: [country, platform, channel, category], description: "GMV per order in EUR"}
+  # ---------------------------------------------------------------- ads business (Almedia's money flow)
+  - {id: ad_impressions, label: Ad impressions, kind: additive, unit: count,
+     table: fact_ads_hourly, measure: ad_impressions, dims: [advertiser_id, country, platform],
+     description: "Ads served"}
+  - {id: ad_clicks, label: Ad clicks, kind: additive, unit: count,
+     table: fact_ads_hourly, measure: ad_clicks, dims: [advertiser_id, country, platform],
+     description: "Ad clicks"}
+  - {id: ad_spend, label: Ad spend, kind: additive, unit: eur, north_star: true,
+     table: fact_ads_hourly, measure: ad_spend, dims: [advertiser_id, country, platform],
+     description: "Advertiser spend in EUR"}
+  - {id: ad_conversions, label: Ad conversions, kind: additive, unit: count,
+     table: fact_ads_hourly, measure: ad_conversions, dims: [advertiser_id, country, platform],
+     description: "Orders attributed to an ad click"}
+  - {id: attributed_gmv, label: Attributed GMV, kind: additive, unit: eur,
+     table: fact_ads_hourly, measure: attributed_gmv, dims: [advertiser_id, country, platform],
+     description: "GMV of attributed orders in EUR"}
+  - {id: planned_spend, label: Planned spend, kind: additive, unit: eur,
+     table: fact_ad_plan_hourly, measure: planned_spend, dims: [advertiser_id, country],
+     description: "Pacing plan: daily budget x expected traffic share of the hour"}
+  - {id: ctr, label: CTR, kind: ratio, unit: share, numerator: ad_clicks, denominator: ad_impressions,
+     dims: [advertiser_id, country, platform], description: "Clicks per impression"}
+  - {id: cpc, label: CPC, kind: ratio, unit: eur_per_unit, numerator: ad_spend, denominator: ad_clicks,
+     dims: [advertiser_id, country, platform], description: "Spend per click in EUR"}
+  - {id: cpa, label: CPA, kind: ratio, unit: eur_per_unit, north_star: true, numerator: ad_spend,
+     denominator: ad_conversions, dims: [advertiser_id, country, platform], description: "Spend per conversion in EUR"}
+  - {id: roas, label: ROAS, kind: ratio, unit: ratio, numerator: attributed_gmv, denominator: ad_spend,
+     dims: [advertiser_id, country, platform], description: "Attributed GMV per EUR of spend"}
+  - {id: impressions_per_session, label: Impressions per session, kind: ratio, unit: ratio,
+     numerator: ad_impressions, denominator: sessions, dims: [country, platform],
+     description: "Ads served per shop session (did traffic grow, or did the ad system serve more?)"}
+  - {id: pacing_ratio, label: Pacing ratio, kind: ratio, unit: ratio, numerator: ad_spend,
+     denominator: planned_spend, dims: [advertiser_id, country],
+     description: "Delivered spend / planned spend in the hour (pacing health)"}
+
+edges:
+  # ---------------------------------------------------------------- formulas (exact, LMDI)
+  - {id: f_gmv, kind: formula, target: gmv, sources: [orders, aov], expr: "orders * aov"}
+  - {id: f_orders, kind: formula, target: orders, sources: [sessions, cvr], expr: "sessions * cvr"}
+  - {id: f_cvr, kind: formula, target: cvr,
+     sources: [view_rate, cart_rate, checkout_rate, attempt_rate, payment_success_rate],
+     expr: "view_rate * cart_rate * checkout_rate * attempt_rate * payment_success_rate",
+     note: "cross-table: holds exactly only while orders = payment_successes"}
+  - {id: f_orders_payments, kind: formula, target: orders, sources: [payment_successes], expr: "payment_successes",
+     note: "data-quality identity: every successful payment is an order. A late table breaks it."}
+  - {id: f_ad_spend, kind: formula, target: ad_spend, sources: [ad_clicks, cpc], expr: "ad_clicks * cpc"}
+  - {id: f_ad_clicks, kind: formula, target: ad_clicks, sources: [ad_impressions, ctr], expr: "ad_impressions * ctr"}
+  - {id: f_ad_impressions, kind: formula, target: ad_impressions, sources: [sessions, impressions_per_session],
+     expr: "sessions * impressions_per_session"}
+  # ---------------------------------------------------------------- cause (always "possible", never a fact)
+  - {id: c_ad_clicks_sessions, kind: cause, target: sessions, sources: [ad_clicks], lag_hours: [0, 1],
+     status: PROPOSED, note: "paid sessions should follow ad clicks; lag test is lane G Stage 2"}
+  # ---------------------------------------------------------------- evidence (first-cause candidates)
+  - {id: ev_deploys_sessions, kind: evidence, target: sessions, sources: [log_deploys]}
+  - {id: ev_deploys_cvr, kind: evidence, target: cvr, sources: [log_deploys]}
+  - {id: ev_deploys_payment_success_rate, kind: evidence, target: payment_success_rate, sources: [log_deploys]}
+  - {id: ev_provider_payment_success_rate, kind: evidence, target: payment_success_rate, sources: [log_provider_status]}
+  - {id: ev_calendar_sessions, kind: evidence, target: sessions, sources: [log_calendar]}
+  - {id: ev_calendar_orders, kind: evidence, target: orders, sources: [log_calendar]}
+  - {id: ev_budgets_ad_spend, kind: evidence, target: ad_spend, sources: [log_ad_budgets]}
+  - {id: ev_budgets_pacing_ratio, kind: evidence, target: pacing_ratio, sources: [log_ad_budgets]}
+  - {id: ev_deploys_ad_spend, kind: evidence, target: ad_spend, sources: [log_deploys]}
+
+breakdowns:
+  sessions: [country, platform, channel, category]
+  orders: [country, platform, channel, category]
+  gmv: [country, platform, channel, category]
+  cvr: [country, platform, channel, category]
+  payment_success_rate: [country, platform, provider]
+  ad_spend: [advertiser_id, country, platform]
+  cpa: [advertiser_id, country, platform]
+  pacing_ratio: [advertiser_id, country]
