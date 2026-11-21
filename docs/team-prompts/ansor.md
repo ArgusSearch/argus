@@ -1,3 +1,8 @@
+> **UPDATE (Saturday ~16:00): `main` has landed and now contains every lane (foundation, graph, investigation, bench, API/web, detection) - commit `1e44cd7`.**
+> Use `origin/main` as your base everywhere this prompt says `origin/fm/argus-api`, and open PRs with `--base main`.
+> Ignore the "local/integration" recipe and the Stage-1 runtime caveats below: the runtime on `main` already uses the Stage-2 investigator and the S2 plan watch, and all scenarios (quiet, S1-S4) run through the API into the web app (`make check`, `make s1` green).
+> Everything else in this prompt (your lane, owned folders, rules, checklist, time box) still applies.
+
 # Argus team prompt for Ansor (TheWingTheWong): end-to-end QA of Mission Control
 
 You are the coding agent of Ansor (GitHub `TheWingTheWong`), one of three human teammates on the Argus hackathon team.
