@@ -233,7 +233,7 @@
         },
         {
           "name": "gmv",
-          "type": "DOUBLE",
+          "type": "DECIMAL(18,2)",
           "role": "measure",
           "description": "gross merchandise value in EUR"
         }
@@ -296,7 +296,7 @@
         },
         {
           "name": "ad_spend",
-          "type": "DOUBLE",
+          "type": "DECIMAL(18,2)",
           "role": "measure",
           "description": "advertiser spend in EUR (what the marketplace earns)"
         },
@@ -308,7 +308,7 @@
         },
         {
           "name": "attributed_gmv",
-          "type": "DOUBLE",
+          "type": "DECIMAL(18,2)",
           "role": "measure",
           "description": "GMV of attributed orders in EUR"
         }
@@ -348,7 +348,7 @@
         },
         {
           "name": "planned_spend",
-          "type": "DOUBLE",
+          "type": "DECIMAL(18,2)",
           "role": "measure",
           "description": "planned spend in EUR for the hour"
         }
@@ -590,7 +590,7 @@
         },
         {
           "name": "daily_budget",
-          "type": "DOUBLE",
+          "type": "DECIMAL(18,2)",
           "role": "attr",
           "description": "daily budget in EUR after the change"
         },

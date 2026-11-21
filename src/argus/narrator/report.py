@@ -64,8 +64,9 @@ def render(incident: Incident, graph: Graph) -> str:
             "",
             "## Impact",
             "",
-            f"{fmt(i.per_hour)} {i.node} per hour, {fmt(i.gmv_eur_per_hour, eur=True)} GMV per hour, "
-            f"{fmt(i.eur_so_far, eur=True)} so far (over {i.hours} h).",
+            f"{i.per_hour.value:+,.1f} {i.node} per hour{tag(i.per_hour.receipt)}, "
+            f"EUR {i.gmv_eur_per_hour.value:+,.0f} GMV per hour{tag(i.gmv_eur_per_hour.receipt)}, "
+            f"EUR {i.eur_so_far.value:+,.0f} so far over {i.hours} h{tag(i.eur_so_far.receipt)}.",
         ]
     if f.decomposition:
         lines += [

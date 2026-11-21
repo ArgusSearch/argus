@@ -2,7 +2,7 @@
   {
     "id": "INC-0001",
     "fingerprint": "861e44ed8c09",
-    "title": "Payment success rate down in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany",
+    "title": "Payment success rate down in android / DE / PayCo",
     "verdict": "SUPPORTED_CAUSE",
     "state": "resolved",
     "root_node": "payment_success_rate",
@@ -62,7 +62,7 @@
       "anomaly_id": "an_0001",
       "incident_id": "INC-0001",
       "verdict": "SUPPORTED_CAUSE",
-      "headline": "Payment success rate down in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany",
+      "headline": "Payment success rate down in android / DE / PayCo",
       "as_of": "2026-11-21T20:00:00",
       "window": {
         "start": "2026-11-21T18:00:00",
@@ -564,7 +564,7 @@
       "skeptic": null,
       "cost": {
         "queries": 19,
-        "seconds": 0.051,
+        "seconds": 0.058,
         "llm_calls": 0,
         "eur": 0.0
       },

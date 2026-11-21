@@ -39,11 +39,11 @@ CREATE TABLE raw_orders_hourly (
     channel VARCHAR,
     category VARCHAR,
     orders BIGINT,
-    gmv DOUBLE,
+    gmv DECIMAL(18,2),
     batch INTEGER,
     ingested_at TIMESTAMP
 );
-CREATE VIEW fact_orders_hourly AS SELECT ts, country, platform, channel, category, CAST(SUM(orders) AS BIGINT) AS orders, CAST(SUM(gmv) AS DOUBLE) AS gmv FROM raw_orders_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, country, platform, channel, category;
+CREATE VIEW fact_orders_hourly AS SELECT ts, country, platform, channel, category, CAST(SUM(orders) AS BIGINT) AS orders, CAST(SUM(gmv) AS DECIMAL(18,2)) AS gmv FROM raw_orders_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, country, platform, channel, category;
 
 -- Advertising delivery per hour, advertiser and segment (the ads business).
 CREATE TABLE raw_ads_hourly (
@@ -53,24 +53,24 @@ CREATE TABLE raw_ads_hourly (
     platform VARCHAR,
     ad_impressions BIGINT,
     ad_clicks BIGINT,
-    ad_spend DOUBLE,
+    ad_spend DECIMAL(18,2),
     ad_conversions BIGINT,
-    attributed_gmv DOUBLE,
+    attributed_gmv DECIMAL(18,2),
     batch INTEGER,
     ingested_at TIMESTAMP
 );
-CREATE VIEW fact_ads_hourly AS SELECT ts, advertiser_id, country, platform, CAST(SUM(ad_impressions) AS BIGINT) AS ad_impressions, CAST(SUM(ad_clicks) AS BIGINT) AS ad_clicks, CAST(SUM(ad_spend) AS DOUBLE) AS ad_spend, CAST(SUM(ad_conversions) AS BIGINT) AS ad_conversions, CAST(SUM(attributed_gmv) AS DOUBLE) AS attributed_gmv FROM raw_ads_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, advertiser_id, country, platform;
+CREATE VIEW fact_ads_hourly AS SELECT ts, advertiser_id, country, platform, CAST(SUM(ad_impressions) AS BIGINT) AS ad_impressions, CAST(SUM(ad_clicks) AS BIGINT) AS ad_clicks, CAST(SUM(ad_spend) AS DECIMAL(18,2)) AS ad_spend, CAST(SUM(ad_conversions) AS BIGINT) AS ad_conversions, CAST(SUM(attributed_gmv) AS DECIMAL(18,2)) AS attributed_gmv FROM raw_ads_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, advertiser_id, country, platform;
 
 -- Pacing plan: planned spend per hour = daily budget x expected share of daily traffic in the hour.
 CREATE TABLE raw_ad_plan_hourly (
     ts TIMESTAMP,
     advertiser_id VARCHAR,
     country VARCHAR,
-    planned_spend DOUBLE,
+    planned_spend DECIMAL(18,2),
     batch INTEGER,
     ingested_at TIMESTAMP
 );
-CREATE VIEW fact_ad_plan_hourly AS SELECT ts, advertiser_id, country, CAST(SUM(planned_spend) AS DOUBLE) AS planned_spend FROM raw_ad_plan_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, advertiser_id, country;
+CREATE VIEW fact_ad_plan_hourly AS SELECT ts, advertiser_id, country, CAST(SUM(planned_spend) AS DECIMAL(18,2)) AS planned_spend FROM raw_ad_plan_hourly WHERE ingested_at <= getvariable('as_of') GROUP BY ts, advertiser_id, country;
 
 -- Loader log: one row per delivered micro-batch. Completeness of a table-hour = SUM(share).
 CREATE TABLE raw_ingestion (
@@ -129,7 +129,7 @@ CREATE TABLE raw_ad_budgets (
     description VARCHAR,
     advertiser_id VARCHAR,
     country VARCHAR,
-    daily_budget DOUBLE,
+    daily_budget DECIMAL(18,2),
     pacer_version VARCHAR,
     ingested_at TIMESTAMP
 );

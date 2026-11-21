@@ -283,7 +283,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         description="Orders and EUR lost against the expectation.",
         input_model="CounterfactualImpactInput",
         output_model="CounterfactualImpactOutput",
-        implemented=True,
+        implemented=False,
         owner="B",
     ),
 )

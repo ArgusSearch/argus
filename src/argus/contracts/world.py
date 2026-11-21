@@ -94,7 +94,8 @@ def _count(name: str, description: str) -> Column:
 
 
 def _amount(name: str, description: str) -> Column:
-    return Column(name, "DOUBLE", "measure", description)
+    # Money is exact: DECIMAL sums are deterministic, parallel DOUBLE sums differ in the last bits per run.
+    return Column(name, "DECIMAL(18,2)", "measure", description)
 
 
 def _log_common() -> tuple[Column, ...]:
@@ -229,7 +230,7 @@ LOG_TABLES: tuple[TableSpec, ...] = (
             *_log_common(),
             Column("advertiser_id", "VARCHAR", "attr", "advertiser"),
             Column("country", "VARCHAR", "attr", "country of the budget line"),
-            Column("daily_budget", "DOUBLE", "attr", "daily budget in EUR after the change"),
+            Column("daily_budget", "DECIMAL(18,2)", "attr", "daily budget in EUR after the change"),
             Column("pacer_version", "VARCHAR", "attr", "pacer version serving this budget line"),
         ),
     ),

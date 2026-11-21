@@ -257,8 +257,6 @@ class Investigation:
             why="aligned event, holdout not refuted" if evidence else "no aligned event survived the holdout",
         )
         headline = f"{focus_node.label} {a.direction} in {segment_text(seg)}"
-        if evidence is not None:
-            headline += f": {evidence.description}"
         return self._finish(
             verdict,
             observed,

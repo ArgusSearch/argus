@@ -1089,7 +1089,7 @@
     },
     {
       "description": "Orders and EUR lost against the expectation.",
-      "implemented": true,
+      "implemented": false,
       "input_model": "CounterfactualImpactInput",
       "name": "counterfactual_impact",
       "output_model": "CounterfactualImpactOutput",

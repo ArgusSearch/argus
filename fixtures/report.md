@@ -1,4 +1,4 @@
-# SUPPORTED CAUSE · Payment success rate down in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany
+# SUPPORTED CAUSE · Payment success rate down in android / DE / PayCo
 
 INC-0001 · state resolved · opened 2026-11-21 18:00 UTC · as_of 2026-11-21 20:00
 
@@ -10,7 +10,7 @@ Evidence: PayCo: elevated decline rates for Android SDK payments in Germany (log
 
 ## Impact
 
--280.0 [r236] orders per hour, EUR -19,717 [r243] GMV per hour, EUR -19,717 [r243] so far (over 1 h).
+-280.0 orders per hour [r236], EUR -19,717 GMV per hour [r243], EUR -19,717 so far over 1 h [r243].
 
 ## Where the change came from (LMDI on orders, exact)
 
@@ -64,4 +64,4 @@ Route android-DE payments from PayCo to CardHub until PayCo recovers.
 
 ## Cost of this investigation
 
-19 queries · 0.05 s · 0 LLM calls
+19 queries · 0.06 s · 0 LLM calls
