@@ -2235,6 +2235,7 @@ Checks the riskiest building blocks against the current library versions:
 7. numeric formula check, join fan-out detection, broken identity on a stalled table
 8. mix-vs-rate split on a Simpson's paradox traffic surge
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -2272,10 +2273,16 @@ T_SURGE = pd.Timestamp("2026-11-18 09:00")  # Spain traffic surge (innocent)
 T_STALL = pd.Timestamp("2026-11-17 03:00")  # orders table stalls for 3 h (data issue)
 
 # ---------------------------------------------------------------- 0. simulate
-seg = pd.DataFrame(list(itertools.product(COUNTRIES, PLATFORMS, CHANNELS, CATEGORIES)),
-                   columns=["country", "platform", "channel", "category"])
-seg["w"] = (seg.country.map(W["country"]) * seg.platform.map(W["platform"])
-            * seg.channel.map(W["channel"]) * seg.category.map(W["category"]))
+seg = pd.DataFrame(
+    list(itertools.product(COUNTRIES, PLATFORMS, CHANNELS, CATEGORIES)),
+    columns=["country", "platform", "channel", "category"],
+)
+seg["w"] = (
+    seg.country.map(W["country"])
+    * seg.platform.map(W["platform"])
+    * seg.channel.map(W["channel"])
+    * seg.category.map(W["category"])
+)
 how = HOURS.day_of_week * 24 + HOURS.hour
 season = (1 + 0.45 * np.sin((HOURS.hour - 14) / 24 * 2 * np.pi)) * np.where(HOURS.day_of_week >= 5, 1.15, 1.0)
 base = 120_000  # sessions per hour, whole marketplace
@@ -2342,9 +2349,14 @@ def to_batches(df: pd.DataFrame, measures: list[str], table: str) -> pd.DataFram
     return pd.concat(out, ignore_index=True)
 
 
-raw_funnel = to_batches(full[["ts", "country", "platform", "channel", "category", "sessions", "views", "carts",
-                              "checkouts", "attempts"]], ["sessions", "views", "carts", "checkouts", "attempts"], "raw_funnel")
-raw_orders = to_batches(full[["ts", "country", "platform", "channel", "category", "orders", "gmv"]], ["orders", "gmv"], "raw_orders")
+raw_funnel = to_batches(
+    full[["ts", "country", "platform", "channel", "category", "sessions", "views", "carts", "checkouts", "attempts"]],
+    ["sessions", "views", "carts", "checkouts", "attempts"],
+    "raw_funnel",
+)
+raw_orders = to_batches(
+    full[["ts", "country", "platform", "channel", "category", "orders", "gmv"]], ["orders", "gmv"], "raw_orders"
+)
 raw_payments = to_batches(pay, ["pay_attempts", "pay_successes"], "raw_payments")
 ref = full.groupby(["ts", "country", "category"], as_index=False)["orders"].sum()
 ref["refunds"] = rng.binomial(ref["orders"].to_numpy(), 0.04)
@@ -2355,17 +2367,28 @@ for name in ("raw_funnel", "raw_orders", "raw_payments", "raw_refunds"):
     con.execute(f"CREATE TABLE {name} AS SELECT * FROM {name}")
 con.execute("SET VARIABLE as_of = TIMESTAMP '2026-11-19 00:00:00'")
 VIEWS = {
-    "fact_funnel_hourly": ("raw_funnel", "ts, country, platform, channel, category", "sessions, views, carts, checkouts, attempts"),
+    "fact_funnel_hourly": (
+        "raw_funnel",
+        "ts, country, platform, channel, category",
+        "sessions, views, carts, checkouts, attempts",
+    ),
     "fact_orders_hourly": ("raw_orders", "ts, country, platform, channel, category", "orders, gmv"),
-    "fact_payments_hourly": ("raw_payments", "ts, country, platform, channel, category, provider", "pay_attempts, pay_successes"),
+    "fact_payments_hourly": (
+        "raw_payments",
+        "ts, country, platform, channel, category, provider",
+        "pay_attempts, pay_successes",
+    ),
     "fact_refunds_hourly": ("raw_refunds", "ts, country, category", "refunds"),
 }
 for view, (raw, keys, measures) in VIEWS.items():
     sums = ", ".join(f"SUM({m}) AS {m}" for m in measures.split(", "))
-    con.execute(f"CREATE VIEW {view} AS SELECT {keys}, {sums} FROM {raw} "
-                f"WHERE ingested_at <= getvariable('as_of') GROUP BY ALL")
-print(f"[0] world built: {len(raw_orders):,} order batch rows, {len(raw_payments):,} payment batch rows, "
-      f"{time.time() - t_start:.1f}s, duckdb {duckdb.__version__}, sqlglot {sqlglot.__version__}")
+    con.execute(
+        f"CREATE VIEW {view} AS SELECT {keys}, {sums} FROM {raw} WHERE ingested_at <= getvariable('as_of') GROUP BY ALL"
+    )
+print(
+    f"[0] world built: {len(raw_orders):,} order batch rows, {len(raw_payments):,} payment batch rows, "
+    f"{time.time() - t_start:.1f}s, duckdb {duckdb.__version__}, sqlglot {sqlglot.__version__}"
+)
 
 
 # ---------------------------------------------------------------- 1. receipts
@@ -2377,11 +2400,13 @@ def run(sql: str, as_of: str) -> tuple[list[tuple], str]:
 
 
 q = "SELECT country, SUM(orders) AS orders FROM fact_orders_hourly WHERE ts = TIMESTAMP '2026-11-17 04:00:00' GROUP BY ALL"
-_, h_early = run(q, "2026-11-17 05:30:00")   # during the stall: only batch 0 has arrived
-_, h_late = run(q, "2026-11-17 12:00:00")    # after the backfill
-_, h_rerun = run(q, "2026-11-17 05:30:00")   # re-run of the first receipt, pinned to its as_of
-print(f"[1] receipt hash as_of 05:30 = {h_early}, as_of 12:00 = {h_late}, re-run pinned to 05:30 = {h_rerun} "
-      f"-> reproducible: {h_early == h_rerun}, differs after late data: {h_early != h_late}")
+_, h_early = run(q, "2026-11-17 05:30:00")  # during the stall: only batch 0 has arrived
+_, h_late = run(q, "2026-11-17 12:00:00")  # after the backfill
+_, h_rerun = run(q, "2026-11-17 05:30:00")  # re-run of the first receipt, pinned to its as_of
+print(
+    f"[1] receipt hash as_of 05:30 = {h_early}, as_of 12:00 = {h_late}, re-run pinned to 05:30 = {h_rerun} "
+    f"-> reproducible: {h_early == h_rerun}, differs after late data: {h_early != h_late}"
+)
 
 # ---------------------------------------------------------------- 7a. broken identity during the stall
 ident = """
@@ -2410,10 +2435,16 @@ def robust_z(where: str, metric_sql: str, table: str) -> tuple[float, float, flo
     return actual, expected, z
 
 
-for label, where in (("total", "TRUE"), ("DE", "country = 'DE'"), ("DE-android", "country = 'DE' AND platform = 'android'"),
-                     ("FR-android", "country = 'FR' AND platform = 'android'")):
+for label, where in (
+    ("total", "TRUE"),
+    ("DE", "country = 'DE'"),
+    ("DE-android", "country = 'DE' AND platform = 'android'"),
+    ("FR-android", "country = 'FR' AND platform = 'android'"),
+):
     a, e, z = robust_z(where, "SUM(orders)", "fact_orders_hourly")
-    print(f"[2] orders {label:11s} actual {a:8.0f} expected {e:8.0f} change {100 * (a / e - 1):6.1f}%  robust z {z:6.1f}")
+    print(
+        f"[2] orders {label:11s} actual {a:8.0f} expected {e:8.0f} change {100 * (a / e - 1):6.1f}%  robust z {z:6.1f}"
+    )
 
 # ---------------------------------------------------------------- 3. LMDI along the formula
 FACTORS = ["sessions", "view_rate", "cart_rate", "checkout_rate", "attempt_rate", "pay_success"]
@@ -2427,8 +2458,15 @@ def funnel(where: str, ts_filter: str) -> dict[str, float]:
     s, v, c, ch, a, o = run(sql, AS_OF)[0][0]
     n = run(f"SELECT COUNT(DISTINCT ts) FROM fact_funnel_hourly WHERE {ts_filter}", AS_OF)[0][0][0]
     s, v, c, ch, a, o = (x / n for x in (s, v, c, ch, a, o))
-    return {"sessions": s, "view_rate": v / s, "cart_rate": c / v, "checkout_rate": ch / c,
-            "attempt_rate": a / ch, "pay_success": o / a, "orders": o}
+    return {
+        "sessions": s,
+        "view_rate": v / s,
+        "cart_rate": c / v,
+        "checkout_rate": ch / c,
+        "attempt_rate": a / ch,
+        "pay_success": o / a,
+        "orders": o,
+    }
 
 
 def lmdi(x0: dict[str, float], x1: dict[str, float]) -> dict[str, float]:
@@ -2437,15 +2475,19 @@ def lmdi(x0: dict[str, float], x1: dict[str, float]) -> dict[str, float]:
     return {k: L * math.log(x1[k] / x0[k]) for k in FACTORS}
 
 
-base_filter = (f"ts < TIMESTAMP '{T0}' AND dayofweek(ts) = dayofweek(TIMESTAMP '{NOW}') "
-               f"AND hour(ts) BETWEEN 11 AND 13")
+base_filter = f"ts < TIMESTAMP '{T0}' AND dayofweek(ts) = dayofweek(TIMESTAMP '{NOW}') AND hour(ts) BETWEEN 11 AND 13"
 now_filter = f"ts BETWEEN TIMESTAMP '{T0}' AND TIMESTAMP '{NOW}'"
 x0, x1 = funnel("country = 'DE'", base_filter), funnel("country = 'DE'", now_filter)
 eff = lmdi(x0, x1)
 delta = x1["orders"] - x0["orders"]
-print(f"[3] DE orders/h expected {x0['orders']:.0f} actual {x1['orders']:.0f} delta {delta:.1f}; "
-      f"LMDI effects sum {sum(eff.values()):.6f} (residual {abs(sum(eff.values()) - delta):.2e})")
-print("    shares: " + ", ".join(f"{k} {100 * v / delta:5.1f}%" for k, v in sorted(eff.items(), key=lambda kv: -abs(kv[1]))))
+print(
+    f"[3] DE orders/h expected {x0['orders']:.0f} actual {x1['orders']:.0f} delta {delta:.1f}; "
+    f"LMDI effects sum {sum(eff.values()):.6f} (residual {abs(sum(eff.values()) - delta):.2e})"
+)
+print(
+    "    shares: "
+    + ", ".join(f"{k} {100 * v / delta:5.1f}%" for k, v in sorted(eff.items(), key=lambda kv: -abs(kv[1])))
+)
 
 # ---------------------------------------------------------------- 4. segment search over all 15 cuboids
 DIMS = ["country", "platform", "channel", "category"]
@@ -2454,6 +2496,7 @@ DIMS = ["country", "platform", "channel", "category"]
 def js(p: float, q: float) -> float:
     def t(a: float, b: float) -> float:
         return 0.0 if a == 0 else a * math.log(2 * a / (a + b))
+
     return 0.5 * (t(p, q) + t(q, p))
 
 
@@ -2475,8 +2518,17 @@ for r in range(1, len(DIMS) + 1):
         for x in rows:
             f_, a_ = x[-2] or 0.0, x[-1] or 0.0
             ep = (a_ - f_) / (A - F)
-            cands.append({"cuboid": cub, "cell": dict(zip(cub, x[:-2])), "ep": ep, "surprise": js(f_ / F, a_ / A),
-                          "f": f_, "a": a_, "rel": (a_ - f_) / f_ if f_ else 0.0})
+            cands.append(
+                {
+                    "cuboid": cub,
+                    "cell": dict(zip(cub, x[:-2])),
+                    "ep": ep,
+                    "surprise": js(f_ / F, a_ / A),
+                    "f": f_,
+                    "a": a_,
+                    "rel": (a_ - f_) / f_ if f_ else 0.0,
+                }
+            )
 # simplest-first: smallest set of cells in the lowest-order cuboid that explains >= 67 %, ties broken by purity
 best = None
 for r in range(1, len(DIMS) + 1):
@@ -2494,15 +2546,22 @@ for r in range(1, len(DIMS) + 1):
             score = (sum(abs(c["rel"]) for c in chosen) / len(chosen)) / len(chosen)
             if best is None or score > best[0] * 1.15:
                 best = (score, cub, chosen, total)
-print(f"[4] segment search: {n_queries} queries over 15 cuboids, {len(cands)} cells, {1000 * (time.time() - t4):.0f} ms")
-print(f"    chosen cuboid {best[1]} cells {[c['cell'] for c in best[2]]} EP {best[3]:.2f} "
-      f"relative change {[round(c['rel'], 3) for c in best[2]]}")
+print(
+    f"[4] segment search: {n_queries} queries over 15 cuboids, {len(cands)} cells, {1000 * (time.time() - t4):.0f} ms"
+)
+print(
+    f"    chosen cuboid {best[1]} cells {[c['cell'] for c in best[2]]} EP {best[3]:.2f} "
+    f"relative change {[round(c['rel'], 3) for c in best[2]]}"
+)
 de = next(c for c in cands if c["cell"] == {"country": "DE"})
 kids = [c for c in cands if c["cuboid"] == ("country", "platform") and c["cell"]["country"] == "DE"]
-print(f"    naive rule (simplest cuboid with EP >= 0.67) would stop at {de['cell']}: EP {de['ep']:.2f}, rel {de['rel']:.3f}; "
-      f"its platform children are not uniform: " + ", ".join(f"{c['cell']['platform']} {c['rel']:+.3f}" for c in kids))
+print(
+    f"    naive rule (simplest cuboid with EP >= 0.67) would stop at {de['cell']}: EP {de['ep']:.2f}, rel {de['rel']:.3f}; "
+    f"its platform children are not uniform: " + ", ".join(f"{c['cell']['platform']} {c['rel']:+.3f}" for c in kids)
+)
 top = sorted(cands, key=lambda c: -c["surprise"])[:4]
 print("    top by surprise: " + "; ".join(f"{c['cell']} EP {c['ep']:.2f} rel {c['rel']:.2f}" for c in top))
+
 
 # ---------------------------------------------------------------- 5. holdout check for the release red herring
 def seg_change(where: str) -> float:
@@ -2515,11 +2574,16 @@ def seg_change(where: str) -> float:
 
 hold = seg_change("platform = 'android' AND country <> 'DE'")
 hit = seg_change("platform = 'android' AND country = 'DE'")
-prov = run(f"""SELECT provider, ROUND(SUM(CASE WHEN {base_filter} THEN pay_successes END) * 1.0 / SUM(CASE WHEN {base_filter} THEN pay_attempts END), 3),
+prov = run(
+    f"""SELECT provider, ROUND(SUM(CASE WHEN {base_filter} THEN pay_successes END) * 1.0 / SUM(CASE WHEN {base_filter} THEN pay_attempts END), 3),
                       ROUND(SUM(CASE WHEN {now_filter} THEN pay_successes END) * 1.0 / SUM(CASE WHEN {now_filter} THEN pay_attempts END), 3)
-               FROM fact_payments_hourly WHERE country = 'DE' AND platform = 'android' GROUP BY ALL ORDER BY 1""", AS_OF)[0]
-print(f"[5] release scope = android in all countries; anomalous segment DE-android {100 * hit:.1f}%, "
-      f"holdout (android, not DE) {100 * hold:.1f}% -> release {'rejected' if abs(hold) < 0.03 else 'kept'}")
+               FROM fact_payments_hourly WHERE country = 'DE' AND platform = 'android' GROUP BY ALL ORDER BY 1""",
+    AS_OF,
+)[0]
+print(
+    f"[5] release scope = android in all countries; anomalous segment DE-android {100 * hit:.1f}%, "
+    f"holdout (android, not DE) {100 * hold:.1f}% -> release {'rejected' if abs(hold) < 0.03 else 'kept'}"
+)
 print(f"    pay_success by provider in DE-android (before, after): {prov}")
 
 # ---------------------------------------------------------------- 6. sqlglot placement of the vision's example metric
@@ -2537,8 +2601,12 @@ group = tree.args.get("group")
 dims = [e.alias_or_name for e in tree.expressions if not e.find(exp.AggFunc)]
 value = next(e for e in tree.expressions if e.find(exp.AggFunc))
 div = value.find(exp.Div)
-print(f"[6] parsed: tables {tables}, aggregates {aggs}, dims {dims}, GROUP BY ALL = {bool(group and group.args.get('all'))}")
-print(f"    ratio detected: numerator `{div.left.sql(dialect='duckdb')}` / denominator `{div.right.sql(dialect='duckdb')}`")
+print(
+    f"[6] parsed: tables {tables}, aggregates {aggs}, dims {dims}, GROUP BY ALL = {bool(group and group.args.get('all'))}"
+)
+print(
+    f"    ratio detected: numerator `{div.left.sql(dialect='duckdb')}` / denominator `{div.right.sql(dialect='duckdb')}`"
+)
 bq = sqlglot.transpile(METRIC_SQL, read="duckdb", write="bigquery")[0]
 print(f"    BigQuery dialect: {bq}")
 with_dim = tree.copy()
@@ -2551,17 +2619,25 @@ except Exception as e:  # noqa: BLE001
 
 # ---------------------------------------------------------------- 7b. numeric formula check and join fan-out
 got = run(f"SELECT ts, country, category, value FROM ({METRIC_SQL}) WHERE ts >= TIMESTAMP '2026-11-10'", AS_OF)[0]
-truth = run("""
+truth = run(
+    """
 WITH r AS (SELECT ts, country, category, SUM(refunds) AS refunds FROM fact_refunds_hourly GROUP BY ALL),
      o AS (SELECT ts, country, category, SUM(orders) AS orders FROM fact_orders_hourly GROUP BY ALL)
 SELECT ts, country, category, refunds * 1.0 / NULLIF(orders, 0) FROM r JOIN o USING (ts, country, category)
-WHERE ts >= TIMESTAMP '2026-11-10'""", AS_OF)[0]
+WHERE ts >= TIMESTAMP '2026-11-10'""",
+    AS_OF,
+)[0]
 gd = {r[:3]: r[3] for r in got}
 td = {r[:3]: r[3] for r in truth}
 ratios = np.array([gd[k] / td[k] for k in td if td[k] and gd.get(k)])
-print(f"[7b] metric SQL as written vs. refunds / orders at equal grain: median ratio {np.median(ratios):.3f}, "
-      f"p5..p95 {np.percentile(ratios, 5):.3f}..{np.percentile(ratios, 95):.3f} over {len(ratios)} cells")
-print("     -> a constant integer ratio is the signature of a join fan-out (refunds repeated per platform x channel row)")
+print(
+    f"[7b] metric SQL as written vs. refunds / orders at equal grain: median ratio {np.median(ratios):.3f}, "
+    f"p5..p95 {np.percentile(ratios, 5):.3f}..{np.percentile(ratios, 95):.3f} over {len(ratios)} cells"
+)
+print(
+    "     -> a constant integer ratio is the signature of a join fan-out (refunds repeated per platform x channel row)"
+)
+
 
 # ---------------------------------------------------------------- 8. mix vs. rate on the Spain surge
 def mix_rate(t_base: str, t_now: str) -> tuple[float, float, float]:
@@ -2585,8 +2661,10 @@ def mix_rate(t_base: str, t_now: str) -> tuple[float, float, float]:
 b8 = "f.ts < TIMESTAMP '2026-11-17 00:00:00' AND dayofweek(f.ts) = 3 AND hour(f.ts) BETWEEN 9 AND 12"
 n8 = f"f.ts BETWEEN TIMESTAMP '{T_SURGE}' AND TIMESTAMP '2026-11-18 12:00:00'"
 d, mix, rate = mix_rate(b8, n8)
-print(f"[8] blended conversion change {100 * d:.3f} pts = mix {100 * mix:.3f} pts + rate {100 * rate:.3f} pts "
-      f"(residual {abs(d - mix - rate):.2e}) -> {'innocent mix shift' if abs(rate) < 0.2 * abs(mix) else 'rate change'}")
+print(
+    f"[8] blended conversion change {100 * d:.3f} pts = mix {100 * mix:.3f} pts + rate {100 * rate:.3f} pts "
+    f"(residual {abs(d - mix - rate):.2e}) -> {'innocent mix shift' if abs(rate) < 0.2 * abs(mix) else 'rate change'}"
+)
 print(f"[done] total runtime {time.time() - t_start:.1f}s")
 ```
 
