@@ -7,6 +7,7 @@ import s1Tape from "../tapes/s1.json";
 import s2Tape from "../tapes/s2.json";
 import s4Tape from "../tapes/s4.json";
 import s5Tape from "../tapes/s5.json";
+import metricTape from "../tapes/metric.json";
 
 const s1 = s1Tape as unknown as VillageTape;
 const s4 = s4Tape as unknown as VillageTape;
@@ -124,6 +125,29 @@ describe("the harmless change and the market dip", () => {
     expect(market.every((b) => b.done === "The whole market moved: expected")).toBe(true);
     expect(beats.filter((b) => b.kind === "note")).toHaveLength(3);
     expect(beats[beats.length - 1].gate).not.toBeNull();
+  });
+});
+
+describe("the new metric", () => {
+  const beats = buildBeats(metricTape as unknown as VillageTape, { decision: null });
+
+  it("places, holds and rejects the recorded metrics, the Skeptic screening correlations on the way", () => {
+    const verdicts = beats.filter((b) => b.kind === "verdict").map((b) => `${b.caseId}: ${b.done}`);
+    expect(verdicts).toEqual([
+      expect.stringMatching(/^cost_per_impression: Placed: cost_per_impression = ad_spend \/ ad_impressions/),
+      expect.stringMatching(/^conversions_per_impression: Placed:/),
+      expect.stringMatching(/^revenue_per_conversion: Placed:/),
+      "revenue_per_impression: Held: two formulas fit equally well, so it stays proposed",
+      expect.stringMatching(/^ad_spend_per_session: Rejected: ad_spend_per_session as written is 6\.72x/),
+    ]);
+    expect(beats.filter((b) => b.role === "skeptic").length).toBe(4);
+    expect(new Set(beats.map((b) => b.role))).toEqual(new Set(["cartographer", "skeptic"]));
+  });
+
+  it("logs every edge it tested", () => {
+    const edges = beats.find((b) => b.kind === "edges" && b.caseId === "cost_per_impression");
+    expect(edges?.log).toHaveLength(5);
+    expect(edges?.done).toBe("5 of 5 edges hold");
   });
 });
 

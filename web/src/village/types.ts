@@ -114,6 +114,19 @@ export interface TapePart {
   actions: ProposalView[];
 }
 
+/** A new metric placing itself in the graph (lane H, `GET /graph/metrics`, PlacementResult), as the village shows it. */
+export interface TapePlacement {
+  metric: { name: string; description: string };
+  placed_as: "EXACT" | "NEW_DIMENSION" | "ALIAS" | "AMBIGUOUS" | "REJECTED";
+  summary: string;
+  definition: string;
+  as_of: string;
+  tried: string[];
+  passed: string[];
+  uncertain: string[];
+  receipts: string[];
+}
+
 export interface VillageTape extends TapePart {
   version: 1;
   /** "s1", "s4", or "live" */
@@ -125,6 +138,8 @@ export interface VillageTape extends TapePart {
   labels: Record<string, string>;
   incidents: TapeIncident[];
   continuations: { approve?: TapePart; deny?: TapePart };
+  /** new metrics placed in the graph, in the order they were placed */
+  placements?: TapePlacement[];
 }
 
 export type Decision = "approve" | "deny";

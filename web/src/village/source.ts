@@ -6,15 +6,16 @@
 
 import { api, follow, type ConnectionState } from "../lib/api";
 import type { ArgusEvent, Incident } from "../lib/types";
-import type { ActivityRecord, ProposalView, TapeIncident, VillageTape } from "./types";
+import type { ActivityRecord, ProposalView, TapeIncident, TapePlacement, VillageTape } from "./types";
 
-export type SourceId = "s1" | "s2" | "s4" | "s5" | "live";
+export type SourceId = "s1" | "s2" | "metric" | "s4" | "s5" | "live";
 export type TapeId = Exclude<SourceId, "live">;
 
 export const SOURCES: readonly { id: SourceId; label: string; hint: string }[] = [
-  { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (recorded run)" },
   { id: "s1", label: "S1", hint: "Fault: PayCo payments fail on Android in Germany (recorded run)" },
   { id: "s2", label: "S2", hint: "Harmless change: a planned ad push, checked and logged, nobody woken (recorded run)" },
+  { id: "metric", label: "New metric", hint: "New metrics place themselves in the map: placed, held when two formulas fit, rejected when the SQL is wrong (recorded)" },
+  { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (recorded run)" },
   { id: "s5", label: "S5", hint: "The whole market dips (expected), and a routing fault hides inside it (recorded run)" },
   { id: "live", label: "Live", hint: "Follow the API's event stream and the agent's activity log" },
 ];
@@ -113,6 +114,42 @@ export function followLive(onTape: (tape: VillageTape) => void, onState: (state:
     if (!stopped) timer = window.setTimeout(pollAgent, 1500);
   };
 
+  // new metrics placing themselves (lane H): GET /graph/metrics, while the route exists
+  interface Placement {
+    metric: { name: string; description: string };
+    placed_as: TapePlacement["placed_as"];
+    summary: string;
+    definition: string;
+    as_of: string;
+    certificate: { tried: string[]; passed: string[]; uncertain: string[]; receipts: string[] };
+  }
+  let placed = 0;
+  const pollMetrics = async () => {
+    if (stopped) return;
+    const state = await getJson<{ placements: Placement[] }>("/graph/metrics");
+    if (state?.placements && state.placements.length !== placed) {
+      placed = state.placements.length;
+      tape = {
+        ...tape,
+        placements: state.placements.map((p) => ({
+          metric: p.metric,
+          placed_as: p.placed_as,
+          summary: p.summary,
+          definition: p.definition,
+          as_of: p.as_of,
+          tried: p.certificate.tried,
+          passed: p.certificate.passed,
+          uncertain: p.certificate.uncertain,
+          receipts: p.certificate.receipts,
+        })),
+      };
+      publish();
+    }
+    if (!stopped && state) metricsTimer = window.setTimeout(pollMetrics, 3000);
+  };
+  let metricsTimer = 0;
+  pollMetrics();
+
   getJson<AgentHealth>("/agent/health").then((h) => {
     agent = Boolean(h?.enabled);
     onState(connection, agent);
@@ -142,6 +179,7 @@ export function followLive(onTape: (tape: VillageTape) => void, onState: (state:
   return () => {
     stopped = true;
     window.clearTimeout(timer);
+    window.clearTimeout(metricsTimer);
     stop();
   };
 }
