@@ -114,19 +114,25 @@ export function ErrorState({ error, route, onRetry, compact = false }: { error: 
 }
 
 /**
- * The connection to the API, said once at the top of the page. Silent while connected; "Connecting" on the
- * first load; "Lost the API" with a running retry clock after a drop. EventSource retries on its own, so the
- * page recovers without a reload; a closed stream (offline) only comes back with a reload.
+ * The connection to the API, said once at the top of the page. Silent while connected; "Connecting" on a slow
+ * first load; "The API is not running" or "Lost the connection" with a running clock while it is down. The
+ * stream retries by itself; Reload is there for a stream that closed (before follow() reopened closed streams).
  */
 export function OfflineBanner({ connection, apiUp }: { connection: ConnectionState; apiUp?: boolean | null }) {
   const [everOpen, setEverOpen] = useState(false);
+  const [everClosed, setEverClosed] = useState(false);
   const [since, setSince] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const down = connection !== "open" || apiUp === false;
 
   useEffect(() => {
+    if (connection === "offline") setEverClosed(true);
+  }, [connection]);
+
+  useEffect(() => {
     if (!down) {
       setEverOpen(true);
+      setEverClosed(false);
       setSince(null);
       return;
     }
@@ -137,27 +143,20 @@ export function OfflineBanner({ connection, apiUp }: { connection: ConnectionSta
 
   if (!down) return null;
   const seconds = since ? Math.max(0, Math.round((now - since) / 1000)) : 0;
+  // the state flips between offline and connecting on every retry: what was seen once stays said
+  const notRunning = everClosed || connection === "offline" || apiUp === false;
   // a first connect that takes under 2 s is not worth a banner
-  if (!everOpen && connection === "connecting" && apiUp !== false && seconds < 2) return null;
+  if (!everOpen && !notRunning && seconds < 2) return null;
 
-  const closed = connection === "offline";
-  const title = everOpen ? "Lost the connection to the API" : closed || apiUp === false ? "The API is not running" : "Connecting to Argus";
+  const title = everOpen ? "Lost the connection to the API" : notRunning ? "The API is not running" : "Connecting to Argus";
   return (
-    <div className={`ui-offline${everOpen || closed || apiUp === false ? " down" : ""}`} role="status" aria-live="polite">
-      {!closed && <Spinner size={13} label="Retrying" />}
+    <div className={`ui-offline${everOpen || notRunning ? " down" : ""}`} role="status" aria-live="polite">
+      <Spinner size={13} label="Retrying" />
       <span className="ui-offline-title">{title}</span>
       <span className="ui-offline-detail">
-        {closed ? (
-          <>
-            Start it with <code>make api</code> or <code>make demo</code>, then
-          </>
-        ) : (
-          <>
-            Retrying on its own{seconds >= 2 ? ` · ${seconds} s` : ""}. Start it with <code>make api</code> or <code>make demo</code>.
-          </>
-        )}
+        Retrying on its own{seconds >= 2 ? ` · ${seconds} s` : ""}. Start it with <code>make api</code> or <code>make demo</code>.
       </span>
-      {closed && (
+      {notRunning && (
         <button className="btn" onClick={() => window.location.reload()}>
           Reload
         </button>
