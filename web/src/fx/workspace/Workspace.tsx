@@ -19,6 +19,13 @@ import { fxOn } from "../flag";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, useSection, watchHost, type Section } from "../nav";
 import { affectedPath, type PathSubject } from "./path";
+import { gloss } from "./plain";
+
+/** A glossary tooltip: the plain meaning of an internal term. */
+function tip(term: string): string | undefined {
+  const g = gloss(term);
+  return g ? `${g.term}: ${g.meaning}` : undefined;
+}
 
 export interface WorkspaceProps {
   graph: Graph | null;
@@ -49,13 +56,13 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
 
 /* ------------------------------------------------------------------ sidebar */
 
-const NAV: { id: Section; label: string; icon: ReactNode }[] = [
-  { id: "dashboard", label: "Dashboard", icon: <path d="M2.5 2.5h4.5v6h-4.5zM9 2.5h4.5v3.5h-4.5zM9 8h4.5v5.5h-4.5zM2.5 10.5h4.5v3h-4.5z" /> },
-  { id: "investigation", label: "Investigations", icon: <path d="M7 2.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9zM10.3 10.3l3.2 3.2" /> },
-  { id: "report", label: "Morning report", icon: <path d="M3.5 2.5h9v11h-9zM5.5 5.5h5M5.5 8h5M5.5 10.5h3" /> },
-  { id: "graph", label: "Metric graph", icon: <path d="M3.5 4.5a1.5 1.5 0 1 0 0 .01M12.5 3.5a1.5 1.5 0 1 0 0 .01M12.5 12.5a1.5 1.5 0 1 0 0 .01M5 4.6l6-1M5 5.2l6.4 6.4" /> },
-  { id: "tree", label: "Metric tree", icon: <path d="M3 3h4M5 3v10M5 7.5h3.5M5 12.5h3.5M10 6h3.5v3h-3.5zM10 11h3.5v3h-3.5z" /> },
-  { id: "scorecard", label: "Scorecard", icon: <path d="M2.5 13.5h11M4 13.5v-4M7 13.5v-7M10 13.5v-5M13 13.5v-9" /> },
+const NAV: { id: Section; group: string; label: string; icon: ReactNode }[] = [
+  { id: "dashboard", group: "Monitor", label: "Overview", icon: <path d="M2.5 2.5h4.5v6h-4.5zM9 2.5h4.5v3.5h-4.5zM9 8h4.5v5.5h-4.5zM2.5 10.5h4.5v3h-4.5z" /> },
+  { id: "investigation", group: "Monitor", label: "Investigations", icon: <path d="M7 2.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9zM10.3 10.3l3.2 3.2" /> },
+  { id: "report", group: "Monitor", label: "While you slept", icon: <path d="M3.5 2.5h9v11h-9zM5.5 5.5h5M5.5 8h5M5.5 10.5h3" /> },
+  { id: "graph", group: "Explore", label: "Visualization", icon: <path d="M3.5 4.5a1.5 1.5 0 1 0 0 .01M12.5 3.5a1.5 1.5 0 1 0 0 .01M12.5 12.5a1.5 1.5 0 1 0 0 .01M5 4.6l6-1M5 5.2l6.4 6.4" /> },
+  { id: "tree", group: "Explore", label: "Metric tree", icon: <path d="M3 3h4M5 3v10M5 7.5h3.5M5 12.5h3.5M10 6h3.5v3h-3.5zM10 11h3.5v3h-3.5z" /> },
+  { id: "scorecard", group: "Proof", label: "Track record", icon: <path d="M2.5 13.5h11M4 13.5v-4M7 13.5v-7M10 13.5v-5M13 13.5v-9" /> },
 ];
 
 function Sidebar({ section, view }: { section: Section; view: RunView }) {
@@ -73,8 +80,9 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
         </div>
       </div>
       <ul className="fx-side-nav">
-        {NAV.map((item) => (
+        {NAV.map((item, i) => (
           <li key={item.id}>
+            {item.group !== NAV[i - 1]?.group && <span className="fx-side-group">{item.group}</span>}
             <button className={`fx-side-item${section === item.id ? " on" : ""}`} aria-current={section === item.id ? "page" : undefined} onClick={() => go(item.id)}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 {item.icon}
@@ -94,7 +102,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
             <dd>{value("hours")}</dd>
           </div>
           <div>
-            <dt>edge tests</dt>
+            <dt title={tip("Edge test")}>formula checks</dt>
             <dd>{value("edges")}</dd>
           </div>
           <div>

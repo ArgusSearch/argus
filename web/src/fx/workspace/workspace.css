@@ -249,6 +249,19 @@
   list-style: none;
 }
 
+:root[data-fx] .fx-side-group {
+  display: block;
+  padding: var(--fx-space-4) var(--fx-space-3) var(--fx-space-1);
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-side-nav > li:first-child .fx-side-group {
+  padding-top: 0;
+}
+
 :root[data-fx] .fx-side-item {
   position: relative;
   display: flex;
