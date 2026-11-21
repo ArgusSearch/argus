@@ -59,7 +59,7 @@ class Proposer:
         proposal = event.proposal
         if event.kind == "action_proposed":
             with self._memory_lock:
-                note = self._pending.get(proposal.incident_ref)
+                note = self._pending.pop(proposal.incident_ref, None)
                 if note is not None:
                     self._proposed[proposal.id] = note
         self.journal.add(
@@ -120,6 +120,7 @@ class Proposer:
             notes = self._memory.recall(
                 root_node=note.root_node, segment=segment, cause_kind=note.cause_kind, as_of=ctx.as_of
             )
+            policy, remembered = matching_precedent(notes, PLAYBOOK, note.cause_ref)
         except Exception:
             self.journal.add(
                 "memory",
@@ -131,7 +132,6 @@ class Proposer:
                 text="Case memory unavailable. Applying the usual proposal policy.",
             )
             return True
-        policy, remembered = matching_precedent(notes, PLAYBOOK, note.cause_ref)
         if remembered is not None:
             when = remembered.sim_ts.isoformat(sep=" ", timespec="minutes")
             text = {
@@ -209,14 +209,20 @@ class Proposer:
             )
             if not self._memory_allows(ctx, note, root.segment):
                 return
-            with self._memory_lock:
-                self._pending[incident.id] = note
+            if run.mode != "replay":
+                with self._memory_lock:
+                    self._pending[incident.id] = note
+        pending = None
         try:
             result = self.service.propose(ctx, incident.id, PLAYBOOK, evidence)
         finally:
             if note is not None:
                 with self._memory_lock:
-                    self._pending.pop(incident.id, None)
+                    pending = self._pending.pop(incident.id, None)
+        if pending is not None and not isinstance(result, Rejection) and result.state == "AWAIT_OPERATOR":
+            # A persisted proposal can be returned without emitting action_proposed after a restart.
+            with self._memory_lock:
+                self._proposed.setdefault(result.id, pending)
         if isinstance(result, Rejection):
             self.journal.add(
                 "gate",

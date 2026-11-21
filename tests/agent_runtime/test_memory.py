@@ -102,6 +102,9 @@ def test_remediation_denial_is_stored_and_prevents_a_second_proposal(tmp_path: P
     first, service, _ = for_case(tmp_path / "first")
     first.on_incident(incident, "opened")
     (proposed,) = service.proposals()
+    # Reattaching to a pending proposal must also reattach its memory context.
+    restored, service, _ = for_case(tmp_path / "first")
+    restored.on_incident(incident, "opened")
     service.decide(proposed.id, proposed.digest, Decision(decision="deny", principal="operator", at=clock), "deny")
     clock += timedelta(hours=1)
     incident.findings.as_of = clock
