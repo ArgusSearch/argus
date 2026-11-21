@@ -36,7 +36,9 @@ from argus.contracts.events import ROUTES
 from argus.contracts.findings import Incident, Note, Receipt
 from argus.contracts.graph import Graph
 from argus.counterfactual.api import router as counterfactual_router
+from argus.demo.api import create_router as demo_router
 from argus.graph.store import REPO
+from argus.narrator.routes import router as narrator_router
 
 WEB_DIST = REPO / "web" / "dist"
 
@@ -100,7 +102,7 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
         lifespan=lifespan,
     )
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
-    app.include_router(__import__("argus.narrator.routes", fromlist=["router"]).router(source))
+    app.include_router(narrator_router(source))
     app.include_router(counterfactual_router(source))
     hub = source.bus
 
@@ -250,5 +252,5 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
                 "<p><a href='/docs'>API docs</a> · <a href='/health'>health</a></p></body>"
             )
 
-    app.include_router(__import__("argus.demo.api", fromlist=["create_router"]).create_router(hub))
+    app.include_router(demo_router(hub))
     return app
