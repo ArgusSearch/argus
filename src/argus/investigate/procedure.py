@@ -1,0 +1,813 @@
+"""Stage-2 investigation: the Stage-1 fixed opening plus a hypothesis ledger, placebo and claim labels.
+
+```
+1  freshness       data before business                                  (Stage 1)
+2  identities      cross-table identities hold                           (Stage 1)
+3  calendar        planned events in the window                          (Stage 1)
+4  decompose       exact LMDI walk, hop by hop; follow the largest contribution among factors that
+                   moved beyond their week-to-week spread, not just the largest contribution
+5  mix vs rate     ratio focus: a mix shift with every segment's rate flat is EXPECTED (Simpson)
+6  segment         segment search with the descent rule, inside the anomaly's own segment
+7  onset           the root segment's own onset
+8  events          log entries attached to the focus node by evidence edges, aligned with the onset
+9  hypotheses      one ledger entry per candidate event: prediction first, then the holdout check;
+                   an empty holdout falls back to a control group (never counted as support alone)
+10 placebo         would the same deviation show up in the same hours of earlier weeks?
+11 impact          orders and EUR against the expectation, exact split of the north star
+12 planner         only while > 20% stays unexplained: proposed typed checks, judged by the ledger
+13 verdict         labelled claims (evidence vs hypothesis), stopping rule, verdict
+```
+
+Verdicts: SUPPORTED_CAUSE needs a validated event hypothesis, a significant root and >= 20% explained,
+and a placebo that does not recur. HYPOTHESIS needs a localised, significant root. Anything else is
+UNEXPLAINED with the remainder stated as a number. `investigate()` keeps the Stage-1 signature, so the
+runtime can switch to it by changing one import.
+"""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+from datetime import datetime, timedelta
+from typing import Any
+
+from argus.contracts.findings import (
+    Anomaly,
+    EvidenceRef,
+    Findings,
+    Quantity,
+    RootCause,
+    RuledOut,
+    Segment,
+    SuggestedAction,
+    TrailStep,
+    Verdict,
+)
+from argus.contracts.graph import EdgeKind, Graph, NodeKind
+from argus.contracts.tools import HoldoutCheckInput, PlaceboTestInput, ToolOutput
+from argus.decompose.segments import Cell
+from argus.investigate import claims as cl
+from argus.investigate.ledger import TRAIL_KIND, Hypothesis, Ledger, LedgerEntry
+from argus.investigate.planner import MAX_PROPOSALS, Planner, PlannerContext
+from argus.investigate.tools import PLACEBO_WEEKS, StageTwoToolbox
+from argus.investigate.walk import FactorView, choose_factor, hops, subtree_share
+from argus.investigator.procedure import Investigation, segment_text
+from argus.investigator.tools import SearchResult
+from argus.semantic.compile import tables_of
+from argus.semantic.runner import Runner
+
+HOUR = timedelta(hours=1)
+EVENT_BEFORE = timedelta(hours=3)
+EVENT_AFTER = timedelta(hours=1)
+SUPPORTED_MIN_EXPLAINED = 0.20
+STOP_EXPLAINED = 0.80
+ROOT_Z = 3.0
+MIX_DOMINANT = 0.67
+PROCESS_NOTE = "No hypothesis planner is configured"
+
+DECISION: dict[str, dict[str, str]] = {
+    "holdout_check": {
+        "validated": "validated: keep as cause",
+        "refuted": "refuted: ruled out",
+        "inconclusive": "inconclusive: keep as hypothesis",
+    },
+    "placebo_test": {
+        "validated": "validated: the deviation is unusual",
+        "refuted": "refuted: deviations like this recur",
+        "inconclusive": "inconclusive: not clearly unusual",
+    },
+}
+DEFAULT_DECISION = {
+    "validated": "validated: as predicted",
+    "refuted": "refuted: contrary to the prediction",
+    "inconclusive": "inconclusive",
+}
+
+
+def _z(view: FactorView | None) -> float | None:
+    return round(view.z, 2) if view is not None and view.z is not None else None
+
+
+def pct(value: float) -> str:
+    return f"{value * 100:+.1f}%"
+
+
+class StageTwoInvestigation(Investigation):
+    def __init__(
+        self,
+        graph: Graph,
+        runner: Runner,
+        anomaly: Anomaly,
+        as_of: datetime,
+        on_step: Callable[[TrailStep], None] | None = None,
+        planner: Planner | None = None,
+    ):
+        super().__init__(graph, runner, anomaly, as_of, on_step)
+        self.tools: StageTwoToolbox = StageTwoToolbox(graph, runner, as_of)
+        self.ledger = Ledger()
+        self.planner = planner
+        self.claims: list[cl.Claim] = []
+        self.llm_calls = 0
+
+    # ------------------------------------------------------------------ main
+    def run(self) -> Findings:
+        started, queries0 = time.perf_counter(), self.runner.query_count
+        a = self.anomaly
+        node = self.graph.node(a.node)
+        observed = self._observed()
+        self.claims.append(
+            cl.evidence(
+                f"{node.label} moved {observed.change_pct.value:+.2f}% against its expectation "
+                f"in {segment_text(a.segment)}.",
+                "watcher: robust z against the same hours of 4 prior weeks",
+                [observed.change_pct.receipt] if observed.change_pct.receipt else [],
+            )
+        )
+
+        stop = self._data_checks()
+        if stop is not None:
+            return self._close(stop, observed, started, queries0, headline=f"{node.label}: {stop[1]}")
+
+        focus, focus_share, significant = self._walk()
+        focus_node = self.graph.node(focus)
+        seg0 = {d: v for d, v in a.segment.items() if d in focus_node.dims}
+
+        mix_dim = self._mix_check(focus, seg0) if focus_node.kind is NodeKind.RATIO else None
+        if mix_dim is not None:
+            return self._close(
+                (Verdict.EXPECTED, "mix shift"),
+                observed,
+                started,
+                queries0,
+                headline=f"{focus_node.label}: mix shift across {mix_dim}, every {mix_dim}'s own rate is flat",
+            )
+
+        search = self.tools.segment_search(focus, self.window, seg0)
+        seg = search.output.segment
+        localised = seg != seg0
+        self.step(
+            "segment",
+            "segment_search",
+            search.output.summary,
+            f"root segment {segment_text(seg)}" if localised else "no single segment carries the change",
+            receipts=search.output.receipts,
+            data={"path": [p.model_dump() for p in search.output.path], "start": seg0},
+        )
+        root_cell = search.final
+        root_z = root_cell.z
+        if localised:
+            self.claims.append(
+                cl.evidence(
+                    f"{segment_text(seg)} explains {search.output.explained_share:.0%} of the deviation of "
+                    f"{focus} ({pct(root_cell.rel_change)} inside, z {root_z:+.1f}).",
+                    "segment_search: descent while the deviation is concentrated",
+                    search.output.receipts,
+                )
+            )
+
+        onset = self._root_onset(focus, seg) if localised else a.onset
+        events = self._events(focus, seg, onset)
+        supported, ruled_out = self._test_events(events, focus, seg, root_cell.rel_change, onset)
+        placebo = self._placebo(focus, seg, a.direction)
+
+        explained = max(0.0, min(1.0, focus_share)) * search.output.explained_share if localised else 0.0
+        significant_root = abs(root_z) >= ROOT_Z
+        recurring = placebo is not None and placebo.status == "refuted"
+        if supported and significant_root and explained >= SUPPORTED_MIN_EXPLAINED and not recurring:
+            verdict = Verdict.SUPPORTED_CAUSE
+        elif (localised or (significant and focus != a.node)) and significant_root and not recurring:
+            verdict = Verdict.HYPOTHESIS
+        else:
+            verdict = Verdict.UNEXPLAINED
+            explained = 0.0
+
+        impact, decomposition, decomposed = (
+            self._impact(focus, seg, root_cell, search.final_receipt)
+            if verdict is not Verdict.UNEXPLAINED
+            else (None, [], None)
+        )
+        planner_ruled_out = self._plan(focus, seg, explained, events)
+        ruled_out += planner_ruled_out
+
+        evidence = self._pick(supported, onset) if verdict is Verdict.SUPPORTED_CAUSE else None
+        root = (
+            RootCause(
+                node=focus,
+                segment=seg,
+                direction=a.direction,
+                evidence=evidence,
+                change_pct=self._root_change(root_cell, search.final_receipt),
+            )
+            if verdict is not Verdict.UNEXPLAINED
+            else None
+        )
+        uncertain = self._uncertain_all(verdict, seg, evidence, explained, placebo, events)
+        self._cause_claims(verdict, focus, seg, evidence, placebo, impact, uncertain)
+        headline = self._headline(verdict, focus_node.label, seg, root_cell.rel_change, evidence, a)
+        stop_reason = (
+            f"explained {explained:.0%} >= {STOP_EXPLAINED:.0%}"
+            if explained >= STOP_EXPLAINED
+            else f"no candidate left; {1 - explained:.0%} stays unexplained"
+        )
+        self.step(
+            "verdict",
+            "verdict",
+            verdict.value,
+            f"stop: {stop_reason}",
+            why=self._why(verdict, evidence, significant_root, recurring, localised),
+            data={
+                "claims": [c.model_dump() for c in self.claims],
+                "ledger": [e.model_dump() for e in self.ledger.entries],
+                "explained_share": round(explained, 4),
+                "checks_used": len(self.ledger.entries),
+                "checks_budget": self.ledger.budget,
+            },
+        )
+        findings = self._finish(
+            verdict,
+            observed,
+            started,
+            queries0,
+            headline=headline,
+            root=root,
+            explained=explained,
+            impact=impact,
+            decomposition=decomposition,
+            decomposed=decomposed,
+            ruled_out=ruled_out,
+            uncertain=uncertain,
+            action=self._suggest(verdict, focus, seg, evidence, search),
+        )
+        return self._with_llm_cost(findings)
+
+    # ------------------------------------------------------------------ 1-3 data before business
+    def _data_checks(self) -> tuple[Verdict, str] | None:
+        tables = sorted(set(tables_of(self.graph, self.anomaly.node)) | self._identity_tables())
+        fresh = self.tools.check_freshness(tables, self.window)
+        self.step(
+            "freshness",
+            "check_freshness",
+            fresh.summary,
+            "continue" if fresh.ok else "stop: DATA_ISSUE",
+            receipts=fresh.receipts,
+            data={"tables": [t.model_dump(mode="json") for t in fresh.tables]},
+        )
+        if not fresh.ok:
+            self.claims.append(cl.evidence(f"Source data is incomplete: {fresh.summary}.", "check_freshness"))
+            return Verdict.DATA_ISSUE, "source data incomplete"
+        ident = self.tools.check_identities(self.window)
+        self.step(
+            "identities",
+            "check_identities",
+            ident.summary,
+            "continue" if ident.ok else "stop: DATA_ISSUE",
+            receipts=ident.receipts,
+            data={"identities": [i.model_dump() for i in ident.identities]},
+        )
+        if not ident.ok:
+            self.claims.append(
+                cl.evidence(f"A cross-table identity is broken: {ident.summary}.", "check_identities", ident.receipts)
+            )
+            return Verdict.DATA_ISSUE, "identity broken"
+        cal = self.tools.list_events(self.window.start - EVENT_BEFORE, self.window.end, logs=["log_calendar"])
+        self.step(
+            "calendar",
+            "list_events",
+            cal.summary if cal.events else "no planned event in the window",
+            "continue: not an expected change" if not cal.events else "continue: planned events noted",
+            receipts=cal.receipts,
+            data={"events": [e.model_dump(mode="json") for e in cal.events]},
+        )
+        return None
+
+    # ------------------------------------------------------------------ 4 significance-aware LMDI walk
+    def _walk(self) -> tuple[str, float, bool]:
+        """Returns (focus node, its share of the anomaly's change, whether the choice was significant)."""
+        a = self.anomaly
+        decomp = self.tools.decompose_formula(a.node, a.segment, self.window)
+        if decomp is None:
+            self.step(
+                "decompose",
+                "decompose_formula",
+                f"{a.node} has no formula children",
+                f"localise {a.node} directly",
+                why="leaf node: the exact split ends here",
+            )
+            return a.node, 1.0, True
+        common = set(self.graph.node(a.node).dims)
+        for f in decomp.factors:
+            common &= set(self.graph.node(f).dims)
+        stats, stat_receipts = self.tools.factor_stats(
+            decomp.factors, {d: v for d, v in a.segment.items() if d in common}, self.window
+        )
+        change = sum(c.value for c in decomp.contributions) + decomp.residual
+        views = [
+            FactorView(
+                node=c.node,
+                contribution=c.value,
+                share=c.share,
+                z=stats[c.node].z if c.node in stats else None,
+                rel_change=stats[c.node].rel_change if c.node in stats else None,
+            )
+            for c in decomp.contributions
+        ]
+        chosen, significant = choose_factor(views, change)
+        shares = {v.node: v.share for v in views}
+        by_node = {v.node: v for v in views}
+        receipts = [*decomp.receipts, *stat_receipts]
+        path = hops(self.graph, a.node, chosen.node)
+        others = [v for v in views if v.node != chosen.node and abs(v.share) >= 0.05]
+        quiet = [v for v in others if v.z is not None and abs(v.z) < 3]
+        why = (
+            f"largest contribution among factors that moved beyond their week-to-week spread: "
+            f"{chosen.node} {chosen.share:.0%} (z {chosen.z:+.1f})"
+            if significant and chosen.z is not None
+            else f"no factor moved beyond its week-to-week spread; {chosen.node} only carries the largest share (weak)"
+        )
+        if quiet:
+            why += "; within normal variation: " + ", ".join(
+                f"{v.node} {v.share:.0%} (z {v.z:+.1f})" for v in quiet if v.z is not None
+            )
+        if not path:
+            path_nodes = [a.node]
+            self.step(
+                "decompose",
+                "decompose_formula",
+                decomp.summary,
+                f"follow {chosen.node}",
+                why=why,
+                receipts=receipts,
+                data=self._factor_data(views, decomp.residual, a.node, [a.node, chosen.node]),
+            )
+        for i, hop in enumerate(path):
+            children = [
+                {"node": c, "share": round(subtree_share(self.graph, c, shares), 4), "z": _z(by_node.get(c))}
+                for c in hop.children
+            ]
+            text = ", ".join(f"{c['node']} {c['share']:.0%}" for c in children)
+            path_nodes = [a.node, *[h.follow for h in path]]
+            self.step(
+                "decompose",
+                "decompose_formula",
+                f"{hop.node} = {' x '.join(hop.children)}: {text}",
+                f"follow {hop.follow}",
+                why=why if i == len(path) - 1 else f"{hop.follow} contains {chosen.node}",
+                receipts=receipts,
+                data={
+                    "hop": i + 1,
+                    "node": hop.node,
+                    "children": children,
+                    "follow": hop.follow,
+                    "path": path_nodes,
+                    **(self._factor_data(views, decomp.residual, a.node, path_nodes) if i == 0 else {}),
+                },
+            )
+        claim = f"{chosen.node} carries {chosen.share:.0%} of the change of {a.node} (exact LMDI split" + (
+            f", z {chosen.z:+.1f})." if chosen.z is not None else ")."
+        )
+        self.claims.append(
+            cl.evidence(claim, "decompose_formula: LMDI, zero residual", receipts)
+            if significant
+            else cl.hypothesis(
+                claim,
+                "decompose_formula: largest share, but no factor moved beyond its normal spread",
+                "a factor whose move exceeds its week-to-week spread",
+                receipts,
+            )
+        )
+        return chosen.node, chosen.share, significant
+
+    @staticmethod
+    def _factor_data(views: list[FactorView], residual: float, node: str, path: list[str]) -> dict[str, Any]:
+        return {
+            "decomposed": node,
+            "path": path,
+            "factors": [
+                {
+                    "node": v.node,
+                    "share": round(v.share, 4),
+                    "value": round(v.contribution, 4),
+                    "z": round(v.z, 2) if v.z is not None else None,
+                    "rel_change": round(v.rel_change, 4) if v.rel_change is not None else None,
+                }
+                for v in views
+            ],
+            "residual": residual,
+        }
+
+    # ------------------------------------------------------------------ 5 mix vs rate
+    def _mix_check(self, focus: str, segment: Segment) -> str | None:
+        node = self.graph.node(focus)
+        outs = {d: self.tools.mix_rate(focus, d, segment, self.window) for d in node.dims if d not in segment}
+        mix_dim = next(
+            (
+                d
+                for d, o in outs.items()
+                if o.change and o.rates_flat and o.mix / o.change >= MIX_DOMINANT and o.mix * o.change > 0
+            ),
+            None,
+        )
+        receipts = sorted({r for o in outs.values() for r in o.receipts}, key=lambda r: int(r[1:]))
+        self.step(
+            "decompose",
+            "mix_rate_split",
+            "; ".join(f"{d}: mix {o.mix:+.5f}, rate {o.rate:+.5f}" for d, o in outs.items()),
+            f"mix shift across {mix_dim}: EXPECTED" if mix_dim else "rate effect: localise the rate",
+            why="a blended rate can move while every segment's own rate stays flat (Simpson's paradox)",
+            receipts=receipts,
+            data={d: o.model_dump() for d, o in outs.items()},
+        )
+        if mix_dim is not None:
+            self.claims.append(
+                cl.evidence(
+                    f"The change of {focus} is a mix shift across {mix_dim}: every {mix_dim}'s own rate is flat.",
+                    "mix_rate_split: exact midpoint split",
+                    outs[mix_dim].receipts,
+                )
+            )
+        return mix_dim
+
+    # ------------------------------------------------------------------ 7 onset, 8 events
+    def _root_onset(self, focus: str, seg: Segment) -> datetime:
+        a = self.anomaly
+        root_onset, rid = self.tools.segment_onset(focus, seg, a.hour, a.direction)
+        onset = a.onset
+        if root_onset is not None and root_onset < a.onset:
+            onset = root_onset
+            self.window = self.window.model_copy(update={"start": onset})
+        self.step(
+            "segment",
+            "get_series",
+            f"root segment deviates since {onset:%Y-%m-%d %H:%M}"
+            + (f", {int((a.onset - onset) / HOUR)} h before the symptom" if onset < a.onset else ""),
+            "align evidence with the root onset",
+            receipts=[rid],
+            data={"onset": onset.isoformat()},
+        )
+        return onset
+
+    def _events(self, focus: str, seg: Segment, onset: datetime) -> list[EvidenceRef]:
+        logs = sorted({src for e in self.graph.edges_into(focus, EdgeKind.EVIDENCE) for src in e.sources})
+        if not logs:
+            self.step(
+                "events",
+                "list_events",
+                f"no evidence log is attached to {focus} in the graph",
+                "no event to test",
+            )
+            return []
+        out = self.tools.list_events(
+            onset - EVENT_BEFORE, onset + EVENT_AFTER, logs=logs, covering=seg, node_dims=self.graph.node(focus).dims
+        )
+        # most specific scope first, then closest to the onset
+        events = sorted(out.events, key=lambda e: (-len(e.scope), abs((e.ts - onset).total_seconds())))
+        self.step(
+            "events",
+            "list_events",
+            out.summary + f" (logs attached to {focus}: {', '.join(logs)})",
+            f"test {len(events)} candidate(s) as hypotheses" if events else "no aligned event",
+            receipts=out.receipts,
+            data={"events": [e.model_dump(mode="json") for e in events], "logs": logs},
+        )
+        return events
+
+    # ------------------------------------------------------------------ 9 hypotheses from events
+    def _test_events(
+        self, events: list[EvidenceRef], focus: str, seg: Segment, root_rel: float, onset: datetime
+    ) -> tuple[list[EvidenceRef], list[RuledOut]]:
+        supported: list[EvidenceRef] = []
+        ruled_out: list[RuledOut] = []
+        exact = {k: [v] for k, v in seg.items()}
+        for i, ev in enumerate(events):
+            if self.ledger.remaining <= 1:  # keep one check for the placebo
+                self.claims.append(
+                    cl.hypothesis(
+                        f"{len(events) - i} candidate event(s) were not tested (check budget).",
+                        "stopping rule: at most 12 checks",
+                        "a re-run with a larger budget",
+                    )
+                )
+                break
+            confined = ev.scope == exact or all(d in ev.scope and ev.scope[d] == [v] for d, v in seg.items())
+            h = Hypothesis(
+                statement=f"{ev.description} ({ev.ref}) caused the change",
+                prediction=(
+                    f"the change is confined to {segment_text(seg)}; where the event did not apply, {focus} is normal"
+                    if confined
+                    else f"everything in the event's scope moves, not only {segment_text(seg)}"
+                ),
+                tool="holdout_check",
+                input=HoldoutCheckInput(event=ev, node=focus, segment=seg, window=self.window).model_dump(mode="json"),
+                expect="consistent",
+            )
+
+            def run(hyp: Hypothesis, ev: EvidenceRef = ev) -> ToolOutput:
+                return self.tools.holdout_or_control(ev, focus, seg, self.window, root_rel)
+
+            tested = self.ledger.test(h, run)
+            assert tested is not None
+            entry, out = tested
+            self._ledger_step(entry, out, data={"event": ev.model_dump(mode="json")})
+            if entry.status == "validated":
+                supported.append(ev)
+            elif entry.status == "refuted":
+                ruled_out.append(
+                    RuledOut(
+                        hypothesis=ev.description,
+                        prediction=h.prediction,
+                        result="refuted",
+                        reason=entry.summary,
+                        evidence=ev,
+                        receipts=entry.receipts,
+                    )
+                )
+                self.claims.append(
+                    cl.evidence(
+                        f"{ev.description} ({ev.ref}) did not cause it: {entry.summary}.",
+                        "holdout_check: refuted",
+                        entry.receipts,
+                    )
+                )
+        return supported, ruled_out
+
+    def _ledger_step(self, entry: LedgerEntry, out: ToolOutput | None, data: dict[str, Any] | None = None) -> None:
+        h = entry.hypothesis
+        extra: dict[str, Any] = {"ledger": entry.model_dump()}
+        if out is not None:
+            extra["output"] = out.model_dump(mode="json")
+        self.step(
+            TRAIL_KIND.get(h.tool, "holdout"),
+            h.tool,
+            entry.summary,
+            DECISION.get(h.tool, DEFAULT_DECISION)[entry.status],
+            hypothesis=h.statement,
+            prediction=h.prediction,
+            why=f"expected '{h.expect}', the check says '{entry.outcome or 'in between'}' ({h.source})",
+            receipts=entry.receipts,
+            data={**extra, **(data or {})},
+        )
+
+    # ------------------------------------------------------------------ 10 placebo
+    def _placebo(self, focus: str, seg: Segment, direction: str) -> LedgerEntry | None:
+        h = Hypothesis(
+            statement=f"the deviation of {focus} in {segment_text(seg)} is unusual for these hours of the week",
+            prediction=f"none of up to {PLACEBO_WEEKS} earlier weeks deviates with |z| >= 3 in the same direction",
+            tool="placebo_test",
+            input=PlaceboTestInput(node=focus, segment=seg, window=self.window, weeks=PLACEBO_WEEKS).model_dump(
+                mode="json"
+            ),
+            expect="unusual",
+        )
+        detail: dict[str, Any] = {}
+
+        def run(hyp: Hypothesis) -> ToolOutput:
+            out, more = self.tools.placebo_test(
+                focus, seg, self.window, PLACEBO_WEEKS, direction=-1.0 if direction == "down" else 1.0
+            )
+            detail.update(more)
+            return out
+
+        tested = self.ledger.test(h, run)
+        if tested is None:
+            return None
+        entry, out = tested
+        self._ledger_step(entry, out, data={"placebo": detail})
+        return entry
+
+    # ------------------------------------------------------------------ 12 planner
+    def _plan(self, focus: str, seg: Segment, explained: float, events: list[EvidenceRef]) -> list[RuledOut]:
+        if self.planner is None or explained >= STOP_EXPLAINED or self.ledger.remaining <= 0:
+            return []
+        ctx = PlannerContext(
+            anomaly=self.anomaly,
+            focus=focus,
+            segment=seg,
+            window=self.window,
+            explained_share=round(explained, 4),
+            neighbourhood=self._neighbourhood(focus),
+            edges=[
+                {"id": e.id, "kind": e.kind.value, "target": e.target, "sources": e.sources, "status": e.status.value}
+                for e in self.graph.edges
+                if e.target == focus or focus in e.sources
+            ],
+            events=events,
+            tried=list(self.ledger.entries),
+            budget=min(MAX_PROPOSALS, self.ledger.remaining),
+        )
+        proposals = self.planner.propose(ctx)[: ctx.budget]
+        if self.planner.uses_llm:
+            self.llm_calls += 1
+        ruled_out: list[RuledOut] = []
+        for h in proposals:
+            tested = self.ledger.test(h, lambda hyp: self.tools.run(hyp.tool, hyp.input))
+            if tested is None:
+                break
+            entry, out = tested
+            self._ledger_step(entry, out)
+            if entry.status == "refuted":
+                ruled_out.append(
+                    RuledOut(
+                        hypothesis=h.statement,
+                        prediction=h.prediction,
+                        result="refuted",
+                        reason=entry.summary,
+                        receipts=entry.receipts,
+                    )
+                )
+                self.claims.append(
+                    cl.evidence(f"Not the case: {h.statement} ({entry.summary}).", f"{h.tool}: refuted", entry.receipts)
+                )
+            elif entry.status == "validated":
+                self.claims.append(
+                    cl.evidence(
+                        f"Checked and true: {h.statement} ({entry.summary}).", f"{h.tool}: validated", entry.receipts
+                    )
+                )
+            else:
+                self.claims.append(
+                    cl.hypothesis(
+                        f"Open: {h.statement} ({entry.summary}).",
+                        f"{h.tool}: inconclusive",
+                        f"a {h.tool} result of '{h.expect}'",
+                        entry.receipts,
+                    )
+                )
+        return ruled_out
+
+    def _neighbourhood(self, focus: str) -> list[str]:
+        out: set[str] = set()
+        for e in self.graph.edges:
+            if e.kind is EdgeKind.EVIDENCE:
+                continue
+            if e.target == focus:
+                out.update(e.sources)
+            if focus in e.sources:
+                out.add(e.target)
+        out.discard(focus)
+        return sorted(out)
+
+    # ------------------------------------------------------------------ verdict helpers
+    @staticmethod
+    def _pick(supported: list[EvidenceRef], onset: datetime) -> EvidenceRef:
+        return min(supported, key=lambda e: (-len(e.scope), abs((e.ts - onset).total_seconds())))
+
+    @staticmethod
+    def _root_change(cell: Cell, receipt: str) -> Quantity:
+        return Quantity(value=round(cell.rel_change * 100, 2), unit="pct", receipt=receipt)
+
+    def _uncertain_all(
+        self,
+        verdict: Verdict,
+        seg: Segment,
+        evidence: EvidenceRef | None,
+        explained: float,
+        placebo: LedgerEntry | None,
+        events: list[EvidenceRef],
+    ) -> list[str]:
+        out: list[str] = []
+        if verdict is Verdict.UNEXPLAINED:
+            out.append("Nothing localises and no logged change explains it; 100% of the deviation stays unexplained.")
+        else:
+            out += self._uncertain(seg, evidence, explained)
+        if placebo is not None and placebo.status == "inconclusive":
+            out.append(f"Placebo: {placebo.summary}; the deviation is not clearly unusual.")
+        if placebo is not None and placebo.status == "refuted":
+            out.append(f"Placebo: {placebo.summary}; deviations like this recur, so it may be noise.")
+        if self.planner is None and explained < STOP_EXPLAINED:
+            out.append(f"{PROCESS_NOTE}, so the remainder was not explored further.")
+        return out
+
+    def _cause_claims(
+        self,
+        verdict: Verdict,
+        focus: str,
+        seg: Segment,
+        evidence: EvidenceRef | None,
+        placebo: LedgerEntry | None,
+        impact: Any,
+        uncertain: list[str],
+    ) -> None:
+        if placebo is not None:
+            text = f"Placebo on {focus} in {segment_text(seg)}: {placebo.summary}."
+            if placebo.status == "inconclusive":
+                self.claims.append(cl.hypothesis(text, "placebo_test", "no hit in the earlier weeks", placebo.receipts))
+            else:
+                self.claims.append(cl.evidence(text, f"placebo_test: {placebo.outcome}", placebo.receipts))
+        cause_entries = [
+            e for e in self.ledger.entries if e.hypothesis.tool == "holdout_check" and e.hypothesis.source == "graph"
+        ]
+        if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
+            entry = next((e for e in cause_entries if evidence.ref in e.hypothesis.statement), None)
+            self.claims.append(
+                cl.evidence(
+                    f"{evidence.description} ({evidence.ref}) caused it, logged at {evidence.ts:%Y-%m-%d %H:%M} "
+                    f"next to the onset: {entry.summary if entry else 'consistent'}.",
+                    "holdout_check: consistent, aligned with the onset",
+                    entry.receipts if entry else [],
+                )
+            )
+        elif verdict is Verdict.HYPOTHESIS:
+            open_events = [e for e in cause_entries if e.status == "inconclusive"]
+            self.claims.append(
+                cl.hypothesis(
+                    f"A change inside {segment_text(seg)} drives {focus}"
+                    + (
+                        f"; {', '.join(e.hypothesis.statement for e in open_events)} stays open."
+                        if open_events
+                        else "; no logged change confirms what it is."
+                    ),
+                    "segment_search + onset, no validated event",
+                    "a provider status entry, deploy or budget change in scope whose holdout check is consistent",
+                )
+            )
+        if impact is not None:
+            self.claims.append(
+                cl.evidence(
+                    f"Impact: {impact.per_hour.value:+,.1f} {impact.node} per hour, "
+                    f"EUR {impact.gmv_eur_per_hour.value:+,.0f} per hour.",
+                    "counterfactual_impact: against the 4-week expectation",
+                    [r for r in (impact.per_hour.receipt, impact.gmv_eur_per_hour.receipt) if r],
+                )
+            )
+        for text in uncertain:
+            if not text.startswith(PROCESS_NOTE):
+                self.claims.append(cl.Claim(text=text, label="hypothesis", basis="still uncertain"))
+
+    @staticmethod
+    def _headline(
+        verdict: Verdict, label: str, seg: Segment, rel: float, evidence: EvidenceRef | None, a: Anomaly
+    ) -> str:
+        if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
+            return f"{label} {a.direction} {pct(rel)} in {segment_text(seg)}: {evidence.description}"
+        if verdict is Verdict.HYPOTHESIS:
+            return f"{label} {a.direction} {pct(rel)} in {segment_text(seg)}: cause not confirmed"
+        return f"{label} {a.direction}: nothing localises and no logged change lines up"
+
+    @staticmethod
+    def _why(
+        verdict: Verdict, evidence: EvidenceRef | None, significant: bool, recurring: bool, localised: bool
+    ) -> str:
+        if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
+            return f"aligned event {evidence.ref} validated by its holdout or control check; placebo did not recur"
+        if recurring:
+            return "the placebo test finds deviations like this in earlier weeks"
+        if not localised:
+            return "no segment carries the change and no factor moved beyond its normal spread"
+        if not significant:
+            return "the root segment's own deviation is not significant"
+        return "localised and significant, but no aligned event survived its check"
+
+    def _suggest(
+        self, verdict: Verdict, focus: str, seg: Segment, evidence: EvidenceRef | None, search: SearchResult
+    ) -> SuggestedAction | None:
+        if verdict is Verdict.UNEXPLAINED:
+            return None
+        action = self._action(focus, seg, search.last_level)
+        if action is None and evidence is not None and evidence.log == "log_deploys":
+            action = SuggestedAction(text=f"Roll back {evidence.ref} for {segment_text(seg)} and watch {focus}.")
+        return action
+
+    def _close(
+        self, stop: tuple[Verdict, str], observed: Any, started: float, queries0: int, headline: str
+    ) -> Findings:
+        verdict = stop[0]
+        self.step(
+            "verdict",
+            "verdict",
+            verdict.value,
+            f"stop: {stop[1]}",
+            data={
+                "claims": [c.model_dump() for c in self.claims],
+                "ledger": [e.model_dump() for e in self.ledger.entries],
+                "explained_share": 1.0 if verdict is Verdict.EXPECTED else 0.0,
+                "checks_used": len(self.ledger.entries),
+                "checks_budget": self.ledger.budget,
+            },
+        )
+        return self._with_llm_cost(
+            self._finish(
+                verdict,
+                observed,
+                started,
+                queries0,
+                headline=headline,
+                explained=1.0 if verdict is Verdict.EXPECTED else 0.0,
+            )
+        )
+
+    def _with_llm_cost(self, findings: Findings) -> Findings:
+        if not self.llm_calls:
+            return findings
+        return findings.model_copy(update={"cost": findings.cost.model_copy(update={"llm_calls": self.llm_calls})})
+
+
+def investigate(
+    graph: Graph,
+    runner: Runner,
+    anomaly: Anomaly,
+    as_of: datetime,
+    on_step: Callable[[TrailStep], None] | None = None,
+    planner: Planner | None = None,
+) -> Findings:
+    """Drop-in replacement for `argus.investigator.procedure.investigate` with the Stage-2 layer."""
+    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner).run()
