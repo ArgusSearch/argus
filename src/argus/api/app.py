@@ -248,4 +248,5 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
                 "<p><a href='/docs'>API docs</a> · <a href='/health'>health</a></p></body>"
             )
 
+    app.include_router(__import__("argus.demo.api", fromlist=["create_router"]).create_router(hub))
     return app
