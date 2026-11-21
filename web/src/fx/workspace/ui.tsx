@@ -65,7 +65,8 @@ export function Term({ term, children }: { term: string; children?: ReactNode })
 export function Spark({ values, className }: { values: number[]; className?: string }) {
   const w = 200;
   const h = 44;
-  const top = Math.max(...values, 1e-9);
+  // a little headroom, so a series that sits at its maximum (a flat line) reads as a line, not a filled block
+  const top = Math.max(...values, 1e-9) * 1.25;
   const y = (v: number) => h - 2 - (v / top) * (h - 6);
   const x = (i: number) => (values.length < 2 ? 0 : (i * w) / (values.length - 1));
   const line = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");

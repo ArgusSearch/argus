@@ -8,12 +8,12 @@ import { useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 export type HostView = "graph" | "tree" | "investigation" | "report" | "scorecard";
-export type Page = "dashboard" | "incidents" | "incident" | "glossary";
+export type Page = "dashboard" | "incidents" | "incident" | "glossary" | "agent" | "village";
 export type Section = Page | HostView;
 
 const HOST_KEYS: Record<HostView, string> = { graph: "1", tree: "2", investigation: "3", report: "4", scorecard: "5" };
 const HOST_VIEWS = Object.keys(HOST_KEYS) as HostView[];
-const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary"];
+const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary", "agent", "village"];
 
 export function isHostView(value: string | null | undefined): value is HostView {
   return HOST_VIEWS.includes(value as HostView);

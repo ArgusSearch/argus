@@ -162,16 +162,20 @@ export interface Task {
   headline: string;
   /** euros the incident cost (positive) */
   eur: number;
+  /** the findings' suggested action; empty when only the agent proposed one */
   action: string;
   needsApproval: boolean;
   state: Incident["state"];
   verdict: Incident["verdict"];
 }
 
-/** This week's tasks: every incident with a proposed action, open ones first, then the most expensive. */
-export function tasks(incidents: Incident[], graph: Graph | null): Task[] {
+/**
+ * This week's tasks: every incident with a proposed action (in its findings, or from the agent: `proposed`), open
+ * ones first, then the most expensive.
+ */
+export function tasks(incidents: Incident[], graph: Graph | null, proposed: ReadonlySet<string> = new Set()): Task[] {
   return incidents
-    .filter((i) => i.findings.suggested_action)
+    .filter((i) => i.findings.suggested_action || proposed.has(i.id))
     .map((i) => {
       const f = i.findings;
       const root = f.root;
@@ -179,7 +183,7 @@ export function tasks(incidents: Incident[], graph: Graph | null): Task[] {
         id: i.id,
         headline: storyHeadline(graph, root?.node ?? i.root_node, root?.change_pct.value ?? null, root?.segment ?? i.segment),
         eur: Math.abs(i.severity_eur),
-        action: (f.suggested_action?.text ?? "").replace(/\.?$/, "."),
+        action: f.suggested_action ? f.suggested_action.text.replace(/\.?$/, ".") : "",
         needsApproval: f.suggested_action?.needs_approval ?? true,
         state: i.state,
         verdict: i.verdict,

@@ -12,7 +12,8 @@ import { isScorecard, type Scorecard } from "../../views/scorecard";
 import sampleUrl from "../../views/fixtures/scorecard.sample.json?url";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
-import { approve, useApproval } from "./approvals";
+import { ActionCard } from "./ActionCard";
+import { proposalFor, useAgent } from "./agent";
 import { health, keyMetrics, tasks, tiles, type Check, type Health, type Task, type Tile } from "./health";
 import { CountUp, useCountUp, usePointerLight } from "./motion";
 import { affectedPath, type PathSubject } from "./path";
@@ -32,7 +33,9 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const h = health(view, graph);
   const subject = affectedPath(view);
   const { incidents } = useIncidents(view);
-  const todo = useMemo(() => tasks(incidents, graph), [incidents, graph]);
+  const agent = useAgent();
+  const proposed = useMemo(() => new Set(agent.proposals.map((p) => p.incident_ref)), [agent.proposals]);
+  const todo = useMemo(() => tasks(incidents, graph, proposed), [incidents, graph, proposed]);
   const page = useRef<HTMLElement>(null);
   usePointerLight(page);
   return (
@@ -55,6 +58,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
         </div>
         <div className="ws-col">
           <TasksCard todo={todo} view={view} />
+          {agent.enabled && <AgentCard />}
           <TrackRecordCard />
         </div>
       </div>
@@ -174,7 +178,6 @@ function HealthCard({ h }: { h: Health }) {
 /* ------------------------------------------------------------------ tasks */
 
 function TaskItem({ task, view }: { task: Task; view: RunView }) {
-  const approvedAt = useApproval(view.stream, task.id);
   const state = STATE[task.state];
   const done = task.state === "resolved";
   return (
@@ -192,20 +195,14 @@ function TaskItem({ task, view }: { task: Task; view: RunView }) {
         </span>
       </div>
       <p className="ws-task-title">{task.headline}</p>
-      <p className="ws-task-action">
-        <span>Proposed</span>
-        {task.action}
-      </p>
+      <ActionCard
+        incidentId={task.id}
+        incidentState={task.state}
+        fallback={task.action ? { text: task.action, needsApproval: task.needsApproval } : null}
+        view={view}
+        compact
+      />
       <div className="ws-task-foot">
-        {approvedAt ? (
-          <span className="ws-approved">✓ Approved at {hhmm(approvedAt)}, handed to your team</span>
-        ) : done ? (
-          <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
-        ) : (
-          <button className="btn primary" onClick={() => approve(view.stream, task.id, view.simTs ?? "")} title="Argus never changes the business itself: approving hands the action to your team">
-            Approve action
-          </button>
-        )}
         <button className="btn" onClick={() => openIncidentPage(task.id)}>
           See why
         </button>
@@ -215,7 +212,12 @@ function TaskItem({ task, view }: { task: Task; view: RunView }) {
 }
 
 function TasksCard({ todo, view }: { todo: Task[]; view: RunView }) {
-  const open = todo.filter((t) => t.state !== "resolved").length;
+  const agent = useAgent();
+  // waiting = a proposal that awaits a decision, or (without the agent) an open incident with an action
+  const open = todo.filter((t) => {
+    const p = agent.enabled ? proposalFor(agent, t.id) : null;
+    return p ? p.state === "AWAIT_OPERATOR" : t.state !== "resolved";
+  }).length;
   return (
     <Card
       title="This week: your decisions"
@@ -240,6 +242,42 @@ function TasksCard({ todo, view }: { todo: Task[]; view: RunView }) {
             ))}
           </ul>
         </>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ agent */
+
+/** The agent at a glance: what it is doing now, its last steps, and the way to the full activity. */
+function AgentCard() {
+  const agent = useAgent();
+  const running = agent.runs.find((r) => r.status === "running");
+  const lines = agent.records.filter((r) => r.kind !== "watch").slice(-4);
+  return (
+    <Card
+      title="Argus agent"
+      className="ws-agent-card"
+      light
+      action={
+        <button className="btn" onClick={() => go("agent")}>
+          All activity
+        </button>
+      }
+    >
+      <p className="ws-agent-now">
+        <i className={running ? "on" : undefined} aria-hidden="true" />
+        {running ? `Working: ${running.kind === "ask" ? "answering a question" : running.kind === "verify_effect" ? "checking an action's effect" : "investigating"}` : "Watching. Quiet hours need no model call."}
+      </p>
+      {lines.length > 0 && (
+        <ol className="ws-agent-lines">
+          {lines.map((r) => (
+            <li key={r.seq}>
+              <span className="mono">{hhmm(r.sim_ts)}</span>
+              <span>{r.text || r.observation?.summary || r.kind.replace(/_/g, " ")}</span>
+            </li>
+          ))}
+        </ol>
       )}
     </Card>
   );

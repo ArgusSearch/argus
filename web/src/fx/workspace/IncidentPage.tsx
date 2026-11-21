@@ -11,7 +11,8 @@ import { isRuledOut, type RunView } from "../../lib/store";
 import type { Graph, Incident, IncidentState, Quantity, TrailStep } from "../../lib/types";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { back, go } from "../nav";
-import { approve, useApproval } from "./approvals";
+import { ActionCard } from "./ActionCard";
+import { proposalFor, useAgent } from "./agent";
 import { affectedPath } from "./path";
 import { metricName, STATE, storyHeadline, VERDICT, wherePhrase, whereCells } from "./plain";
 import { Card, Pill, Term, useIncident } from "./ui";
@@ -76,7 +77,7 @@ export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; gr
   // Escape returns to the page the incident was opened from (demo mode closes it the same way)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || document.querySelector(".modal, .sheet")) return;
+      if (e.key !== "Escape" || document.querySelector(".modal, .sheet, .ws-ask")) return;
       back();
     };
     window.addEventListener("keydown", onKey);
@@ -133,6 +134,8 @@ function Story({
   const live = Boolean(graph && sceneAvailable() && subject?.incident?.id === incident.id);
   const receipts = [...new Set(f.trail.flatMap((s) => s.receipts))];
   const topFactor = [...f.decomposition].sort((a, b) => Math.abs(b.share) - Math.abs(a.share))[0];
+  const agent = useAgent();
+  const proposal = agent.enabled ? proposalFor(agent, incident.id) : null;
 
   return (
     <>
@@ -278,7 +281,13 @@ function Story({
           </Step>
 
           <Step n={5} title="What to do">
-            {f.suggested_action ? <Action incident={incident} view={view} /> : <p className="ip-lead">No action proposed: {verdict.help}</p>}
+            <ActionCard
+              incidentId={incident.id}
+              incidentState={incident.state}
+              fallback={f.suggested_action ? { text: f.suggested_action.text, needsApproval: f.suggested_action.needs_approval } : null}
+              view={view}
+            />
+            {!f.suggested_action && !proposal && <p className="ip-lead">No action proposed: {verdict.help}</p>}
             {f.uncertain.length > 0 && (
               <div className="ip-open">
                 <h3>Still open</h3>
@@ -368,31 +377,5 @@ function Story({
         </aside>
       </div>
     </>
-  );
-}
-
-function Action({ incident, view }: { incident: Incident; view: RunView }) {
-  const approvedAt = useApproval(view.stream, incident.id);
-  const action = incident.findings.suggested_action;
-  if (!action) return null;
-  return (
-    <div className="ip-action">
-      <p>
-        <span>Proposed</span>
-        {action.text.replace(/\.?$/, ".")}
-      </p>
-      <div className="ip-action-foot">
-        {approvedAt ? (
-          <span className="ws-approved">✓ Approved at {hhmm(approvedAt)}, handed to your team</span>
-        ) : incident.state === "resolved" ? (
-          <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
-        ) : (
-          <button className="btn primary" onClick={() => approve(view.stream, incident.id, view.simTs ?? "")}>
-            Approve action
-          </button>
-        )}
-        <span className="ip-note">{action.needs_approval ? "Argus never changes the business by itself: this waits for you." : "Safe to run automatically."}</span>
-      </div>
-    </div>
   );
 }

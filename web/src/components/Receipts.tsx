@@ -1,24 +1,28 @@
 // Receipts: every number links to the query that produced it; the drawer re-runs it and compares hashes.
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { agentApi, type ReceiptLink } from "../lib/agent";
 import { api } from "../lib/api";
 import { hhmm, dayLabel, quantity } from "../lib/format";
 import type { Quantity, Receipt, RerunResult } from "../lib/types";
 
-const ReceiptContext = createContext<(id: string) => void>(() => {});
+/** A C4 receipt id of the run on screen, or an agent receipt qualified by its run and world revision. */
+export type ReceiptTarget = string | ReceiptLink;
 
-export function useOpenReceipt(): (id: string) => void {
+const ReceiptContext = createContext<(target: ReceiptTarget) => void>(() => {});
+
+export function useOpenReceipt(): (target: ReceiptTarget) => void {
   return useContext(ReceiptContext);
 }
 
 export function ReceiptProvider({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const openReceipt = useCallback((id: string) => setOpen(id), []);
+  const [open, setOpen] = useState<ReceiptTarget | null>(null);
+  const openReceipt = useCallback((target: ReceiptTarget) => setOpen(target), []);
   const close = useCallback(() => setOpen(null), []);
   return (
     <ReceiptContext.Provider value={openReceipt}>
       {children}
-      {open && <ReceiptDrawer id={open} onClose={close} />}
+      {open && <ReceiptDrawer key={typeof open === "string" ? open : linkKey(open)} target={open} onClose={close} />}
     </ReceiptContext.Provider>
   );
 }
@@ -43,6 +47,33 @@ export function ReceiptChips({ ids, max = 4 }: { ids: string[]; max?: number }) 
         </button>
       ))}
       {ids.length > max && <span className="muted mono">+{ids.length - max}</span>}
+    </span>
+  );
+}
+
+const linkKey = (l: ReceiptLink) => `${l.run_id}/${l.world_revision}/${l.receipt_id}`;
+
+/** Receipts of an agent run (qualified links): the same drawer, reading GET /agent/receipts/... */
+export function AgentReceiptChips({ links, max = 4 }: { links: ReceiptLink[]; max?: number }) {
+  const openReceipt = useOpenReceipt();
+  if (!links.length) return null;
+  const shown = links.slice(0, max);
+  return (
+    <span className="receipts">
+      {shown.map((l) => (
+        <button
+          key={linkKey(l)}
+          className="rcpt"
+          title={`Open the query behind this number (${l.run_id}, ${l.world_revision})`}
+          onClick={(e) => {
+            e.stopPropagation();
+            openReceipt(l);
+          }}
+        >
+          {l.receipt_id}
+        </button>
+      ))}
+      {links.length > max && <span className="muted mono">+{links.length - max}</span>}
     </span>
   );
 }
@@ -99,7 +130,9 @@ function highlight(sql: string): ReactNode[] {
   return out;
 }
 
-function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
+function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: () => void }) {
+  const agent = typeof target === "string" ? null : target;
+  const id = typeof target === "string" ? target : target.receipt_id;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rerun, setRerun] = useState<RerunResult | null>(null);
@@ -110,14 +143,14 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
     setReceipt(null);
     setRerun(null);
     setError(null);
-    api.receipt(id).then(
+    (agent ? agentApi.receipt(agent) : api.receipt(id)).then(
       (r) => live && setReceipt(r),
       (e: Error) => live && setError(e.message),
     );
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, agent]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -147,6 +180,11 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
               Receipt <span className="mono">{id}</span>
             </h2>
             <p>{receipt?.purpose || "The query behind this number, pinned to the data as it was at as_of."}</p>
+            {agent && (
+              <p className="mono muted">
+                agent run {agent.run_id} · world {agent.world_revision}
+              </p>
+            )}
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
@@ -184,9 +222,11 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
           )}
         </div>
         <div className="modal-foot">
-          <button className="btn primary" onClick={run} disabled={!receipt || running}>
-            {running ? "Re-running…" : "Re-run SQL"}
-          </button>
+          {!agent && (
+            <button className="btn primary" onClick={run} disabled={!receipt || running}>
+              {running ? "Re-running…" : "Re-run SQL"}
+            </button>
+          )}
           {rerun ? (
             <span className={`verify ${rerun.matches ? "ok" : "bad"}`}>
               {rerun.matches ? "✓ Same hash" : "✗ Hash differs"}
@@ -196,7 +236,11 @@ function ReceiptDrawer({ id, onClose }: { id: string; onClose: () => void }) {
             </span>
           ) : (
             <span className="verify">
-              {error && receipt ? error : "Runs the exact SQL again at the pinned as_of and compares the hash."}
+              {error && receipt
+                ? error
+                : agent
+                  ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
+                  : "Runs the exact SQL again at the pinned as_of and compares the hash."}
             </span>
           )}
         </div>

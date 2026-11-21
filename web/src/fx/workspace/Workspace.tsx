@@ -2,7 +2,7 @@
 // incident, glossary) as items of the app's grid; the other sections are the views of the view host. Every
 // number on these pages is one the API sent; the pages only pick, order and label them in plain words.
 
-import { useEffect, useLayoutEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, type ComponentType, type ReactNode } from "react";
 import { Mark } from "../../components/Header";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
@@ -10,6 +10,9 @@ import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
+import { AgentPage } from "./AgentPage";
+import { AgentProvider, useAgent } from "./agent";
+import { AskPanel, setAskOpen, useAskOpen } from "./AskPanel";
 import { IncidentPage } from "./IncidentPage";
 import { Overview } from "./Overview";
 import { GlossaryPage, IncidentsPage } from "./Pages";
@@ -26,8 +29,32 @@ export interface WorkspaceProps {
 /** Renders nothing without the flag; with it, the sidebar and the workspace's pages as items of the app's grid. */
 export function FxWorkspace(props: WorkspaceProps) {
   if (!fxOn()) return null;
-  return <Workspace {...props} />;
+  return (
+    <AgentProvider stream={props.view.stream}>
+      <Workspace {...props} />
+    </AgentProvider>
+  );
 }
+
+/** Lane G's village view, when its folder exists: `web/src/village/Village.tsx`, default (or `Village`) export. */
+export interface VillageProps {
+  graph: Graph | null;
+  view: RunView;
+  onSelectNode: (id: string) => void;
+}
+type VillageModule = { default?: ComponentType<VillageProps>; Village?: ComponentType<VillageProps> };
+// import.meta.glob instead of import(): an absent folder builds to an empty map instead of failing
+const villageFiles = import.meta.glob<VillageModule>("../../village/Village.tsx");
+const importVillage = villageFiles["../../village/Village.tsx"];
+const Village = importVillage
+  ? lazy(() =>
+      importVillage().then((m) => {
+        const component = m.default ?? m.Village;
+        if (!component) throw new Error("web/src/village/Village.tsx exports no component");
+        return { default: component };
+      }),
+    )
+  : null;
 
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
@@ -42,7 +69,16 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       {section === "incidents" && <IncidentsPage graph={graph} view={view} onOpenIncident={onOpenIncident} />}
       {section === "incident" && incident && <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />}
       {section === "glossary" && <GlossaryPage />}
+      {section === "agent" && <AgentPage />}
+      {section === "village" && Village && (
+        <main className="fx-dash ws-page ws-village" aria-label="village">
+          <Suspense fallback={<p className="fx-empty">Loading the village…</p>}>
+            <Village graph={graph} view={view} onSelectNode={onSelectNode} />
+          </Suspense>
+        </main>
+      )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
+      <AskPanel incident={section === "incident" ? incident : null} />
     </>
   );
 }
@@ -55,6 +91,8 @@ interface NavItem {
   label: string;
   hint: string;
   icon: ReactNode;
+  /** shown only when this says so (the agent's routes are mounted, lane G's view exists) */
+  when?: "agent" | "village";
 }
 
 const NAV: NavItem[] = [
@@ -80,6 +118,14 @@ const NAV: NavItem[] = [
     icon: <path d="M7 2.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9zM10.3 10.3l3.2 3.2" />,
   },
   {
+    id: "agent",
+    group: "Monitor",
+    label: "Agent activity",
+    hint: "Every step the Argus agent took, and what the verdict gate let through",
+    icon: <path d="M8 2.5v2M4.5 6.5h7a1.5 1.5 0 0 1 1.5 1.5v3.5a1.5 1.5 0 0 1-1.5 1.5h-7a1.5 1.5 0 0 1-1.5-1.5v-3.5a1.5 1.5 0 0 1 1.5-1.5zM6.2 9.4v.1M9.8 9.4v.1M1.5 9v1.5M14.5 9v1.5" />,
+    when: "agent",
+  },
+  {
     id: "report",
     group: "Monitor",
     label: "While you slept",
@@ -92,6 +138,14 @@ const NAV: NavItem[] = [
     label: "Visualization",
     hint: "The shop's metrics and how they depend on each other, in 3D",
     icon: <path d="M3.5 4.5a1.5 1.5 0 1 0 0 .01M12.5 3.5a1.5 1.5 0 1 0 0 .01M12.5 12.5a1.5 1.5 0 1 0 0 .01M5 4.6l6-1M5 5.2l6.4 6.4" />,
+  },
+  {
+    id: "village",
+    group: "Explore",
+    label: "Village",
+    hint: "The shop as a village: every metric a place you can walk to",
+    icon: <path d="M2 13.5h12M3.5 13.5v-5l3-2.5 3 2.5v5M9.5 13.5v-3.5l2.25-2 2.25 2v3.5M5.5 13.5v-2.5h2v2.5" />,
+    when: "village",
   },
   {
     id: "tree",
@@ -122,6 +176,9 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
   const open = Object.values(view.incidents).filter((i) => i.state !== "resolved").length;
   const current = section === "incident" ? "incidents" : section;
+  const agent = useAgent();
+  const asking = useAskOpen();
+  const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
     <nav className="fx-side" aria-label="sections">
       <div className="fx-side-brand">
@@ -131,10 +188,20 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
           <span>Shop monitor</span>
         </div>
       </div>
+      <div className="fx-side-main">
+      {agent.enabled && (
+        <button className={`fx-side-ask${asking ? " on" : ""}`} onClick={() => setAskOpen(!asking)} aria-expanded={asking} title="Ask Argus (/)">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2zM5.5 6.5h5M5.5 8.5h3" />
+          </svg>
+          <span>Ask Argus</span>
+          <kbd>/</kbd>
+        </button>
+      )}
       <ul className="fx-side-nav">
-        {NAV.map((item, i) => (
+        {items.map((item, i) => (
           <li key={item.id}>
-            {item.group !== NAV[i - 1]?.group && <span className="fx-side-group">{item.group}</span>}
+            {item.group !== items[i - 1]?.group && <span className="fx-side-group">{item.group}</span>}
             <button
               className={`fx-side-item${current === item.id ? " on" : ""}`}
               aria-current={current === item.id ? "page" : undefined}
@@ -155,6 +222,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
           </li>
         ))}
       </ul>
+      </div>
       <div className="fx-side-foot">
         <span className="fx-hud">On its own</span>
         <dl>

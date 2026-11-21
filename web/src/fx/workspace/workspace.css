@@ -78,11 +78,11 @@
 }
 
 /* sections: the workspace's own pages take the body and the feed's column; the graph waits behind them */
-:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) :is(.trail, .vh-view, .rail) {
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"], [data-fx-section="agent"], [data-fx-section="village"]) :is(.trail, .vh-view, .rail) {
   display: none;
 }
 
-:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) .fx-dash {
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"], [data-fx-section="agent"], [data-fx-section="village"]) .fx-dash {
   grid-column: 2 / 4;
 }
 
@@ -238,6 +238,11 @@
 :root[data-fx]:not([data-fx-section="graph"]) :is(.fx-dash, .vh-view, .rail) {
   position: relative;
   z-index: 1;
+}
+
+/* the village brings its own world: the ice scene stops behind it */
+:root[data-fx][data-fx-section="village"] .graph {
+  display: none;
 }
 
 /* the view host hides the graph tab's panel, which would stop the scene: here it keeps running as the backdrop */
