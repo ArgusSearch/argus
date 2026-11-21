@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { humanize } from "../lib/format";
-import { ALARM_Z, type RunView } from "../lib/store";
+import type { RunView } from "../lib/store";
 import type { EdgeTestResult, Graph, GraphEdge } from "../lib/types";
 import { Sparkline } from "./charts";
 import { ReceiptChips, formatSql } from "./Receipts";
@@ -36,6 +36,7 @@ export function NodeSheet({ id, graph, view, onClose }: { id: string; graph: Gra
   const log = graph.logs.find((l) => l.id === id);
   const touching = graph.edges.filter((e) => e.target === id || e.sources.includes(id));
   const history = view.zHistory[id] ?? [];
+  const alarm = view.thresholds.alarm_z;
   const z = view.tick?.max_abs_z[id];
   const status = (e: GraphEdge) => view.edges[e.id]?.status ?? e.status;
   const result = (e: GraphEdge) => view.edges[e.id]?.result ?? e.last_test;
@@ -65,10 +66,10 @@ export function NodeSheet({ id, graph, view, onClose }: { id: string; graph: Gra
               <h3>This hour</h3>
               <div className="node-now">
                 <div>
-                  <b className={z !== undefined && z >= ALARM_Z ? "alarm" : ""}>{z !== undefined ? z.toFixed(1) : "–"}</b>
-                  <span>|z| against the same hour of the last 4 weeks · alarm line {ALARM_Z}</span>
+                  <b className={z !== undefined && z >= alarm ? "alarm" : ""}>{z !== undefined ? z.toFixed(1) : "–"}</b>
+                  <span>|z| against the same hour of the last 4 weeks · alarm line {alarm}</span>
                 </div>
-                <Sparkline values={history} width={300} height={40} max={Math.max(ALARM_Z + 1, ...history)} tone="probe" />
+                <Sparkline values={history} width={300} height={40} max={Math.max(alarm + 1, ...history)} tone="probe" />
               </div>
             </div>
           )}

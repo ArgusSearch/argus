@@ -5,15 +5,18 @@ import type {
   ArgusEvent,
   EdgeStatus,
   EdgeTestResult,
+  EvidenceRef,
   IncidentUpdatedPayload,
   Note,
+  Segment,
   SkepticStepPayload,
   TickPayload,
+  Thresholds,
   TrailStep,
 } from "./types";
 
-export const ALARM_Z = 4;
-export const WIGGLE_Z = 2;
+/** The watcher's lines until /health reports them (argus.watcher.detect: Z_OPEN, Z_PAIR, Z_ONSET). */
+export const DEFAULT_THRESHOLDS: Thresholds = { alarm_z: 5, pair_z: 3.5, wiggle_z: 2 };
 const HISTORY = 36;
 
 export interface Focus {
@@ -54,6 +57,7 @@ export type FeedItem =
 export interface RunView {
   stream: string | null;
   mode: "replay" | "live" | null;
+  thresholds: Thresholds;
   lastSeq: number;
   simTs: string | null;
   tick: TickPayload | null;
@@ -62,6 +66,8 @@ export interface RunView {
   scoredSeries: number;
   wiggles: number;
   alarms: number;
+  /** every scored |z| so far, in buckets of 0.1 (bucket 37 holds 3.7 <= |z| < 3.8) */
+  zBuckets: Record<number, number>;
   zHistory: Record<string, number[]>;
   attention: Record<string, number>;
   edges: Record<string, { status: EdgeStatus; result: EdgeTestResult }>;
@@ -75,10 +81,15 @@ export interface RunView {
   feed: FeedItem[];
 }
 
-export function emptyView(stream: string | null = null, mode: RunView["mode"] = null): RunView {
+export function emptyView(
+  stream: string | null = null,
+  mode: RunView["mode"] = null,
+  thresholds: Thresholds = DEFAULT_THRESHOLDS,
+): RunView {
   return {
     stream,
     mode,
+    thresholds,
     lastSeq: 0,
     simTs: null,
     tick: null,
@@ -87,6 +98,7 @@ export function emptyView(stream: string | null = null, mode: RunView["mode"] = 
     scoredSeries: 0,
     wiggles: 0,
     alarms: 0,
+    zBuckets: {},
     zHistory: {},
     attention: {},
     edges: {},
@@ -101,9 +113,55 @@ export function emptyView(stream: string | null = null, mode: RunView["mode"] = 
   };
 }
 
-function focusOf(step: TrailStep): Focus {
-  const f = (step.data?.focus ?? {}) as Partial<Focus>;
-  return { nodes: f.nodes ?? [], edges: f.edges ?? [], logs: f.logs ?? [] };
+export function isRuledOut(decision: string): boolean {
+  return decision.startsWith("ruled out") || decision.startsWith("refuted");
+}
+
+const unique = (xs: string[]) => [...new Set(xs)];
+
+/**
+ * What a step touches on the graph. A step may say so itself (`data.focus`); otherwise it is read from
+ * the step's own data: the anomalous node, the logs it checks, the breakdowns it searches.
+ */
+export function focusOf(step: TrailStep, node: string | null, earlier: StepView[] = []): Focus {
+  const explicit = step.data?.focus as Partial<Focus> | undefined;
+  if (explicit) return { nodes: explicit.nodes ?? [], edges: explicit.edges ?? [], logs: explicit.logs ?? [] };
+  const d = step.data ?? {};
+  const nodes = node ? [node] : [];
+  const edges: string[] = [];
+  const logs: string[] = [];
+  switch (step.kind) {
+    case "identities":
+      for (const i of (d.identities as { edge: string }[] | undefined) ?? []) edges.push(i.edge);
+      break;
+    case "calendar":
+      logs.push("log_calendar");
+      break;
+    case "segment": {
+      const path = d.path as { segment: Segment }[] | undefined;
+      const last = path?.[path.length - 1];
+      if (last && node) for (const dim of Object.keys(last.segment)) edges.push(`b_${node}_${dim}`);
+      break;
+    }
+    case "events":
+      for (const e of (d.events as EvidenceRef[] | undefined) ?? []) logs.push(e.log);
+      break;
+    case "holdout": {
+      const e = d.event as EvidenceRef | undefined;
+      if (e) logs.push(e.log);
+      break;
+    }
+    case "impact":
+      if (typeof d.node === "string") nodes.push(d.node);
+      break;
+    case "verdict":
+      for (const s of earlier) {
+        const e = s.step.data?.event as EvidenceRef | undefined;
+        if (s.step.kind === "holdout" && e && !isRuledOut(s.step.decision)) logs.push(e.log);
+      }
+      break;
+  }
+  return { nodes: unique(nodes), edges: unique(edges), logs: unique(logs) };
 }
 
 export function fold(view: RunView, event: ArgusEvent): RunView {
@@ -113,13 +171,12 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
     case "tick": {
       const p = event.payload;
       const zHistory = { ...v.zHistory };
-      let wiggles = 0;
-      let alarms = 0;
+      const zBuckets = { ...v.zBuckets };
       for (const node of p.scored_nodes) {
-        const z = p.max_abs_z[node] ?? 0;
+        const z = Math.abs(p.max_abs_z[node] ?? 0);
         zHistory[node] = [...(zHistory[node] ?? []), z].slice(-HISTORY);
-        if (z >= ALARM_Z) alarms += 1;
-        else if (z >= WIGGLE_Z) wiggles += 1;
+        const bucket = Math.floor(z * 10 + 1e-9);
+        zBuckets[bucket] = (zBuckets[bucket] ?? 0) + 1;
       }
       return {
         ...v,
@@ -127,8 +184,8 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
         ticks: v.ticks + 1,
         firstHour: v.firstHour ?? p.hour,
         scoredSeries: v.scoredSeries + p.scored_nodes.length,
-        wiggles: v.wiggles + wiggles,
-        alarms: v.alarms + alarms,
+        ...recount(zBuckets, v.thresholds),
+        zBuckets,
         zHistory,
         // a new tick ends the walk of the previous investigation
         focus: null,
@@ -200,7 +257,9 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
         incidentId: p.incident_id,
         step: p.step,
       };
-      return { ...v, steps: [...v.steps, step], focus: focusOf(p.step) };
+      const node = v.anomalies.find((a) => a.id === p.anomaly_id)?.node ?? null;
+      const earlier = v.steps.filter((s) => s.anomalyId === p.anomaly_id);
+      return { ...v, steps: [...v.steps, step], focus: focusOf(p.step, node, earlier) };
     }
     case "skeptic_step":
       return { ...v, skeptic: [...v.skeptic, { ...event.payload, seq: event.seq }] };
@@ -227,6 +286,20 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
     default:
       return v;
   }
+}
+
+/** Series-hours at or above the alarm line, and between the wiggle and the alarm line (thresholds are multiples of 0.1). */
+export function recount(buckets: Record<number, number>, t: Thresholds): Pick<RunView, "wiggles" | "alarms"> {
+  const alarmAt = Math.round(t.alarm_z * 10);
+  const wiggleAt = Math.round(t.wiggle_z * 10);
+  let wiggles = 0;
+  let alarms = 0;
+  for (const [bucket, n] of Object.entries(buckets)) {
+    const b = Number(bucket);
+    if (b >= alarmAt) alarms += n;
+    else if (b >= wiggleAt) wiggles += n;
+  }
+  return { wiggles, alarms };
 }
 
 export function foldAll(view: RunView, events: ArgusEvent[]): RunView {

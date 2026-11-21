@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { eur, hhmm, segmentEntries } from "../lib/format";
-import { ALARM_Z, type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
+import { type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
 import type { Note } from "../lib/types";
 import { Num, ReceiptChips } from "./Receipts";
 
@@ -64,22 +64,22 @@ function noteKind(note: Note): { key: string; label: string } {
   return { key: "suppressed", label: "Noticed, not paged" };
 }
 
-function Gauge({ z }: { z: number }) {
-  const scale = ALARM_Z * 1.25;
+function Gauge({ z, alarm }: { z: number; alarm: number }) {
+  const scale = alarm * 1.25;
   const fill = Math.min(Math.abs(z) / scale, 1) * 100;
   return (
-    <div className="gauge" title={`|z| ${Math.abs(z).toFixed(1)} against the alarm line ${ALARM_Z}`}>
+    <div className="gauge" title={`|z| ${Math.abs(z).toFixed(1)} against the alarm line ${alarm}`}>
       <span>|z| {Math.abs(z).toFixed(1)}</span>
       <span className="gauge-bar">
         <span className="gauge-fill" style={{ width: `${fill}%`, opacity: 0.85 }} />
-        <span className="gauge-line" style={{ left: `${(ALARM_Z / scale) * 100}%` }} />
+        <span className="gauge-line" style={{ left: `${(alarm / scale) * 100}%` }} />
       </span>
-      <span>alarm {ALARM_Z.toFixed(0)}</span>
+      <span>alarm {alarm}</span>
     </div>
   );
 }
 
-function NoteCard({ note }: { note: Note }) {
+function NoteCard({ note, alarm }: { note: Note; alarm: number }) {
   const kind = noteKind(note);
   const z = note.numbers.find((n) => n.unit === "z");
   const values = note.numbers.filter((n) => n.unit !== "z");
@@ -103,7 +103,7 @@ function NoteCard({ note }: { note: Note }) {
           </span>
         </div>
       )}
-      {z && <Gauge z={z.value} />}
+      {z && <Gauge z={z.value} alarm={alarm} />}
     </article>
   );
 }
@@ -162,7 +162,7 @@ function FeedCard({ item, view, onOpen }: { item: FeedItem; view: RunView; onOpe
     const inc = view.incidents[item.id];
     return inc ? <IncidentCard inc={inc} onOpen={onOpen} /> : null;
   }
-  if (item.kind === "note") return <NoteCard note={item.note} />;
+  if (item.kind === "note") return <NoteCard note={item.note} alarm={view.thresholds.alarm_z} />;
   return <EdgesCard changes={item.changes} simTs={item.simTs} />;
 }
 

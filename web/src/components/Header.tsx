@@ -26,9 +26,9 @@ export function Header({
   connection: ConnectionState;
   onDigest: () => void;
 }) {
-  const replay = health?.replay ?? null;
-  const rec = health?.recording;
+  const replay = health?.run ?? null;
   const mode = connection === "offline" ? "offline" : (health?.mode ?? view.mode ?? "replay");
+  const world = health?.source.split("/").slice(-2, -1)[0];
   const control = (body: Parameters<typeof api.replay>[0]) => void api.replay(body).catch(() => undefined);
   return (
     <header className="header">
@@ -44,13 +44,9 @@ export function Header({
         {view.tick && <span className="clock-sub">scoring data hour {hhmm(view.tick.hour)}</span>}
       </div>
       <span className="spacer" />
-      <span className={`mode ${mode}`}>
+      <span className={`mode ${mode}`} title={health?.source}>
         <span className="dot" />
-        {mode === "offline"
-          ? "API offline"
-          : mode === "live"
-            ? "Live"
-            : `Replay${rec?.scenario ? ` · ${rec.scenario.toUpperCase()} seed ${rec.seed}` : ""}`}
+        {mode === "offline" ? "API offline" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
       </span>
       {replay && (
         <>
@@ -58,7 +54,7 @@ export function Header({
             <button
               className="ctl"
               aria-label={replay.playing ? "Pause" : "Play"}
-              onClick={() => control({ action: replay.playing ? "pause" : replay.finished ? "restart" : "play" })}
+              onClick={() => control({ action: replay.playing ? "pause" : replay.finished && mode === "replay" ? "restart" : "play" })}
             >
               {replay.playing ? (
                 <svg width="12" height="12" viewBox="0 0 12 12">
@@ -76,13 +72,15 @@ export function Header({
                 {s}×
               </button>
             ))}
-            <button className="ctl" aria-label="Restart" title="Restart the replay" onClick={() => control({ action: "restart" })}>
-              <svg width="13" height="13" viewBox="0 0 14 14">
-                <path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.8v2.4h2.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+            {mode === "replay" && (
+              <button className="ctl" aria-label="Restart" title="Restart the replay" onClick={() => control({ action: "restart" })}>
+                <svg width="13" height="13" viewBox="0 0 14 14">
+                  <path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.8v2.4h2.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
           </div>
-          <div className="progress" title={`${replay.position} of ${replay.total} events`}>
+          <div className="progress" title={`${replay.position} of ${replay.total} ${mode === "live" ? "hours" : "events"}`}>
             <div style={{ width: `${(100 * replay.position) / Math.max(replay.total, 1)}%` }} />
           </div>
         </>

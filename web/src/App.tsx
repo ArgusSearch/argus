@@ -10,7 +10,7 @@ import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { api, follow, type ConnectionState } from "./lib/api";
-import { emptyView, foldAll, type RunView } from "./lib/store";
+import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
 
 function Legend() {
@@ -52,20 +52,30 @@ export function App() {
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
 
-  useEffect(
-    () =>
-      follow({
-        onReset: (header) => {
-          setView(emptyView(header.stream, header.mode));
-          announced.current = new Set();
-          setToast(null);
-          api.graph().then(setGraph, () => undefined);
-        },
-        onEvents: (events) => setView((v) => foldAll(v, events)),
-        onState: setConnection,
-      }),
-    [],
-  );
+  useEffect(() => {
+    api.graph().then(setGraph, () => undefined);
+    return follow({
+      onReset: (header) => {
+        setView((v) => emptyView(header.stream, header.mode, v.thresholds));
+        announced.current = new Set();
+        setToast(null);
+        api.graph().then(setGraph, () => undefined);
+      },
+      onEvents: (events) => setView((v) => foldAll(v, events)),
+      onState: setConnection,
+    });
+  }, []);
+
+  // the watcher's lines come from the API; counters folded before they arrived are recounted
+  const thresholds = health?.thresholds;
+  useEffect(() => {
+    if (!thresholds) return;
+    setView((v) =>
+      v.thresholds.alarm_z === thresholds.alarm_z && v.thresholds.wiggle_z === thresholds.wiggle_z
+        ? v
+        : { ...v, thresholds, ...recount(v.zBuckets, thresholds) },
+    );
+  }, [thresholds]);
 
   useEffect(() => {
     let live = true;
@@ -91,11 +101,11 @@ export function App() {
         setToast({ text: `${inc.id} explained: ${inc.title}`, incident: inc.id });
       }
     }
-    if (health?.replay?.finished && view.lastSeq >= (health.replay.total || Infinity) && !announced.current.has("end")) {
+    if (health?.run.finished && view.lastSeq >= health.last_seq && !announced.current.has("end")) {
       announced.current.add("end");
       setToast({ text: "Run complete. Argus handled it alone.", digest: true });
     }
-  }, [view.incidents, view.lastSeq, health?.replay?.finished, health?.replay?.total]);
+  }, [view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
 
   useEffect(() => {
     if (!toast) return;
@@ -132,7 +142,7 @@ export function App() {
                 )}
               </div>
               <div className="graph-canvas">
-                {connection === "offline" && <div className="banner">The API is offline. Start it with make api.</div>}
+                {connection === "offline" && <div className="banner">The API is offline. Start it with make api or make demo.</div>}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphView graph={graph} view={view} onSelectNode={setNodeId} />

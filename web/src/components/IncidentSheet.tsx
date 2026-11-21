@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { dayLabel, eur, hhmm, humanize, pct, segmentLabel, share } from "../lib/format";
-import type { IncidentView } from "../lib/store";
+import { isRuledOut, type IncidentView } from "../lib/store";
 import type { Incident, IncidentState, TrailStep } from "../lib/types";
 import { Bars, TimeChart, type SeriesPoint } from "./charts";
 import { Segments } from "./Feed";
@@ -114,8 +114,11 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                 <div className="prose">
                   <strong>{f.headline}.</strong> <span className="mono">{f.observed.node}</span> for{" "}
                   {segmentLabel(f.observed.segment)} was <Num q={f.observed.observed} /> against an expected{" "}
-                  <Num q={f.observed.expected} /> (<Num q={f.observed.change_pct} />) in the hour from{" "}
-                  {hhmm(f.window.start)}.
+                  <Num q={f.observed.expected} /> (<Num q={f.observed.change_pct} />){" "}
+                  {f.window.start === f.window.end
+                    ? `in the hour from ${hhmm(f.window.start)}`
+                    : `from ${hhmm(f.window.start)} to ${hhmm(f.window.end)}`}
+                  .
                   {f.root && (
                     <>
                       {" "}
@@ -137,8 +140,8 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                 {series.length > 1 && (
                   <div style={{ marginTop: 14 }}>
                     <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                      Payment success in {segmentLabel(f.root?.segment ?? {})}, hourly, against the same hour of the last 4 weeks
-                      (dashed)
+                      {humanize(f.root?.node ?? f.observed.node)} in {segmentLabel(f.root?.segment ?? f.observed.segment)}, hourly,
+                      against the same hour of the last 4 weeks (dashed)
                     </div>
                     <TimeChart points={series} onset={f.window.start} />
                   </div>
@@ -150,7 +153,7 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                   <h3>Impact</h3>
                   <div className="kv">
                     <div>
-                      <label>orders per hour</label>
+                      <label>{humanize(f.impact.node)} per hour</label>
                       <span className="big">
                         <Num q={f.impact.per_hour} signed />
                       </span>
@@ -185,7 +188,7 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                             <div style={{ width: share(cell.ep) }} />
                           </div>
                           <div className="meta">
-                            {share(cell.ep)} of the loss · {share(cell.volume_share, 1)} of attempts · rate {pct(100 * cell.rel_change)}
+                            {share(cell.ep)} of the loss · {share(cell.volume_share, 1)} of the volume · {pct(100 * cell.rel_change)}
                           </div>
                         </div>
                       );
@@ -199,8 +202,7 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                   <h3>Where the change came from</h3>
                   <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
                     Exact LMDI split of the change in <span className="mono">{f.decomposed_node}</span> for{" "}
-                    {segmentLabel(stepData<{ segment: Record<string, string> }>(f.trail, "decompose")?.segment ?? {})}: the
-                    shares sum to 100%, nothing is left over.
+                    {segmentLabel(f.impact?.segment ?? f.root?.segment ?? {})}: the shares sum to 100%, nothing is left over.
                   </div>
                   <Bars
                     data={[...f.decomposition]
@@ -262,7 +264,7 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                   <h3>Suggested action</h3>
                   <div className="action">
                     <span className="pill">{f.suggested_action.needs_approval ? "needs your approval" : "automatic"}</span>
-                    <span>{f.suggested_action.text}.</span>
+                    <span>{f.suggested_action.text.replace(/\.?$/, ".")}</span>
                   </div>
                 </div>
               )}
@@ -281,8 +283,8 @@ export function IncidentSheet({ id, summary, onClose }: { id: string; summary: I
                       </div>
                       {s.prediction && <div className="tstep-pred">Predicts: {s.prediction}</div>}
                       <div className="tstep-result">{s.result}</div>
-                      <div className={`tstep-decision${s.decision.startsWith("refuted") ? " refuted" : ""}`}>
-                        <span>{s.decision.startsWith("refuted") ? "✗" : "→"}</span>
+                      <div className={`tstep-decision${isRuledOut(s.decision) ? " refuted" : ""}`}>
+                        <span>{isRuledOut(s.decision) ? "✗" : "→"}</span>
                         <span>
                           {s.decision}
                           {s.why ? ` (${s.why})` : ""}

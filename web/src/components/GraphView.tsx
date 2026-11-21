@@ -4,7 +4,7 @@
 import { Handle, MarkerType, Position, ReactFlow, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/base.css";
 import { memo, useEffect, useMemo, useRef } from "react";
-import { ALARM_Z, WIGGLE_Z, type Focus, type RunView } from "../lib/store";
+import type { Focus, RunView } from "../lib/store";
 import type { EdgeStatus, Graph, GraphEdge, GraphNode } from "../lib/types";
 import { Sparkline } from "./charts";
 
@@ -23,6 +23,7 @@ interface MetricData extends Record<string, unknown> {
   tone: Tone;
   focus: boolean;
   tag: string | null;
+  alarm: number;
 }
 
 interface LogData extends Record<string, unknown> {
@@ -41,7 +42,7 @@ const SHORT_LABEL: Record<string, string> = {
 };
 
 const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>>) {
-  const { node, z, history, heat, tone, focus, tag } = data;
+  const { node, z, history, heat, tone, focus, tag, alarm } = data;
   const glow = heat > 0.05 && !focus ? `0 0 ${10 + 26 * heat}px rgba(227, 166, 59, ${0.12 + 0.4 * heat})` : undefined;
   const sparkTone = tone === "alarm" || tone === "root" ? "alarm" : tone === "wiggle" ? "watch" : "muted";
   return (
@@ -59,7 +60,7 @@ const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>
       </div>
       <div className="mnode-foot">
         <span className="mnode-kind">{node.kind === "ratio" ? "rate" : node.unit}</span>
-        <Sparkline values={history} width={54} height={12} max={Math.max(ALARM_Z + 1, ...history)} tone={sparkTone} />
+        <Sparkline values={history} width={54} height={12} max={Math.max(alarm + 1, ...history)} tone={sparkTone} />
         <span className="mnode-z">{Number.isFinite(z) ? z.toFixed(1) : "–"}</span>
       </div>
     </div>
@@ -226,12 +227,12 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
       const z = view.tick?.max_abs_z[n.id] ?? Number.NaN;
       let tone: Tone = "normal";
       let tag: string | null = null;
-      if (z >= WIGGLE_Z) tone = "wiggle";
+      if (z >= view.thresholds.wiggle_z) tone = "wiggle";
       if (symptoms.has(n.id) && roots.size) {
         tone = "symptom";
         tag = "symptom";
       }
-      if (z >= ALARM_Z) tone = "alarm";
+      if (z >= view.thresholds.alarm_z) tone = "alarm";
       if (roots.has(n.id)) {
         tone = "root";
         tag = roots.get(n.id) ?? null;
@@ -254,6 +255,7 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
           tone,
           focus,
           tag,
+          alarm: view.thresholds.alarm_z,
         },
         draggable: false,
       };
@@ -271,7 +273,10 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
 
   const edges: Edge[] = allLinks.map((link) => {
     const status = link.edge ? (view.edges[link.edge.id]?.status ?? null) : null;
-    const focused = link.edge ? f.edges.has(link.edge.id) && (f.nodes.has(link.target) || f.nodes.size === 0 || f.logs.has(link.source) || f.nodes.has(link.source)) : false;
+    // an edge is in focus when the step names it, or when the step touches both of its ends
+    const named = link.edge ? f.edges.has(link.edge.id) && (f.nodes.size <= 1 || f.nodes.has(link.target) || f.nodes.has(link.source) || f.logs.has(link.source)) : false;
+    const ends = f.nodes.has(link.target) && (f.nodes.has(link.source) || f.logs.has(link.source));
+    const focused = named || ends;
     return {
       id: link.id,
       source: link.source,

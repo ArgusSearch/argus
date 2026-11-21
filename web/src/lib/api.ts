@@ -61,8 +61,9 @@ export interface StreamHeader {
 export type ConnectionState = "connecting" | "open" | "offline";
 
 /**
- * Follow `GET /events`. `onReset` fires for every new stream (first connect, replay restart);
- * the caller drops its state. Events arrive in seq order.
+ * Follow `GET /events`. Events arrive in seq order, batched per animation frame. `onReset` fires when
+ * the server starts a new stream (a replay restart, or a reconnect after one): drop the state, the
+ * events that follow rebuild it. EventSource reconnects by itself and resumes with Last-Event-ID.
  */
 export function follow(handlers: {
   onReset: (header: StreamHeader) => void;
@@ -70,7 +71,6 @@ export function follow(handlers: {
   onState: (state: ConnectionState) => void;
 }): () => void {
   let source: EventSource | null = null;
-  let stream: string | null = null;
   let closed = false;
   let queue: ArgusEvent[] = [];
   let frame = 0;
@@ -92,19 +92,9 @@ export function follow(handlers: {
     es.onopen = () => handlers.onState("open");
     es.onerror = () => handlers.onState(es.readyState === EventSource.CLOSED ? "offline" : "connecting");
     es.addEventListener("stream", (msg) => {
-      const header = JSON.parse((msg as MessageEvent).data) as StreamHeader;
-      handlers.onState("open");
-      if (stream !== null && header.stream !== stream) {
-        // the run restarted: rebuild from the first event on a fresh connection
-        stream = header.stream;
-        queue = [];
-        handlers.onReset(header);
-        es.close();
-        open();
-        return;
-      }
-      if (stream === null) handlers.onReset(header);
-      stream = header.stream;
+      // events of the old stream still waiting for a frame are void
+      queue = [];
+      handlers.onReset(JSON.parse((msg as MessageEvent).data) as StreamHeader);
     });
     for (const type of EVENT_TYPES) {
       es.addEventListener(type, (msg) => {

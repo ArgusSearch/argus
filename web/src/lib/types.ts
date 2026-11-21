@@ -114,7 +114,7 @@ export interface Anomaly {
   expected: number;
   band: [number, number];
   z: number;
-  rule: string;
+  rule: "z_gt_open" | "two_of_three" | "pacing";
   data_confidence: number;
   receipts: string[];
 }
@@ -309,14 +309,24 @@ export interface ReplayStatus {
   loop: boolean;
 }
 
+export interface Thresholds {
+  alarm_z: number;
+  pair_z: number;
+  wiggle_z: number;
+}
+
 export interface Health {
-  ok: boolean;
+  status: "ok";
   mode: "replay" | "live";
   contract_version: string;
   stream: string;
+  events: number;
   last_seq: number;
-  replay: ReplayStatus | null;
-  recording: { scenario: string | null; seed: number | null; source: string; description: string } | null;
+  sim_ts: string | null;
+  run: ReplayStatus;
+  thresholds: Thresholds;
+  source: string;
+  world_start: string | null;
   rerun: boolean;
 }
 

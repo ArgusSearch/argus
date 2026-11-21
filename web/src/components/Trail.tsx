@@ -2,15 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { hhmm, humanize } from "../lib/format";
-import { ALARM_Z, type RunView } from "../lib/store";
+import { isRuledOut, type RunView } from "../lib/store";
 import { ReceiptChips } from "./Receipts";
 
+// the fixed opening of argus.investigator.procedure, in order
 const PLAYBOOK: [string, string][] = [
   ["freshness", "freshness"],
   ["identities", "identities"],
   ["calendar", "calendar"],
+  ["decompose", "formula split"],
   ["segment", "segment search"],
-  ["decompose", "LMDI split"],
   ["events", "events"],
   ["holdout", "holdout"],
   ["impact", "impact"],
@@ -48,7 +49,7 @@ export function Trail({ view }: { view: RunView }) {
                 {label}
               </span>
             ))}
-            <span className={`pb-step${skeptic.length ? " done" : finished ? " now" : ""}`}>skeptic</span>
+            {skeptic.length > 0 && <span className="pb-step done">skeptic</span>}
           </span>
         ) : (
           <span className="muted">no anomaly yet: the watcher scores every metric each hour</span>
@@ -57,7 +58,7 @@ export function Trail({ view }: { view: RunView }) {
       {total ? (
         <div className="trail-steps" ref={scroller}>
           {steps.map(({ seq, step }) => {
-            const refuted = step.decision.startsWith("refuted");
+            const refuted = isRuledOut(step.decision);
             return (
               <article key={seq} className={`tstep${seq === latestSeq ? " latest" : ""}`}>
                 <div className="tstep-head">
@@ -108,7 +109,8 @@ function Watchlist({ view }: { view: RunView }) {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6);
   if (!top.length) return <div className="trail-empty">Waiting for the first tick…</div>;
-  const scale = ALARM_Z * 1.25;
+  const alarm = view.thresholds.alarm_z;
+  const scale = alarm * 1.25;
   return (
     <div className="trail-steps">
       <article className="tstep watch-intro">
@@ -129,11 +131,11 @@ function Watchlist({ view }: { view: RunView }) {
           </div>
           <div className="watch-z">
             <b>{value.toFixed(1)}</b>
-            <span>|z| of {ALARM_Z}</span>
+            <span>alarm line {alarm}</span>
           </div>
           <div className="gauge-bar">
-            <span className="gauge-fill" style={{ width: `${Math.min(value / scale, 1) * 100}%`, opacity: value >= 2 ? 0.9 : 0.4 }} />
-            <span className="gauge-line" style={{ left: `${(ALARM_Z / scale) * 100}%` }} />
+            <span className="gauge-fill" style={{ width: `${Math.min(value / scale, 1) * 100}%`, opacity: value >= view.thresholds.wiggle_z ? 0.9 : 0.4 }} />
+            <span className="gauge-line" style={{ left: `${(alarm / scale) * 100}%` }} />
           </div>
         </article>
       ))}
