@@ -28,8 +28,10 @@ The flag is read once and never stored, so other tabs and the end-to-end tests s
 - `StyleProvider` (in `main.tsx`) sets `<html data-fx="ice|night">` before the first paint, renders the fixed stage `#fx-stage` behind the app and the loader over it, and loads `fx.css` as its own chunk.
 - `tokens.css` remaps the variables of `styles.css` (`--bg`, `--panel`, `--text`, `--alarm`, ...), so every view that uses them follows the look without a change.
 - `fx.css` upgrades the existing class names from outside, all under `:root[data-fx]`: glass panels, mono HUD labels with `//` prefixes, brackets on the active tab, the opening choreography, view enter and card cascades.
-- `FxWorkspace` (in `App.tsx`) turns Mission Control into a dashboard app with the flag: a sidebar (Dashboard, Investigations, Morning report, Metric graph, Metric tree, Scorecard), the dashboard as the start page (KPI cards of the north-star metrics, incidents and the running investigation with its affected path, the morning report, autonomy, the bench scorecard) and the activity feed on the right.
-  `nav.ts` drives the view host's tabs through its own 1 to 5 shortcuts and follows demo mode; `workspace.css` places the existing panels on one grid with `display: contents` on their wrappers.
+- `FxWorkspace` (in `App.tsx`) turns Mission Control into a dashboard app with the flag, structured like an analytics suite and worded for a shop owner (internal terms live in the glossary and its tooltips, `workspace/plain.ts`).
+  The sidebar names its sections: Monitor (Overview, Incidents, Live investigation, While you slept), Explore (Visualization, Metric tree), Proof (Track record, Glossary).
+  The overview (`workspace/Overview.tsx`) has five KPI tiles, the shop health gauge (the plain average of four checks, `workspace/health.ts`), this week's decisions with an approve button, the key metrics in words and the track record; each incident has its own story page (`workspace/IncidentPage.tsx`: what happened, where, why, cost, what to do, evidence); the Visualization explains itself and plays the latest incident's path on the map (`workspace/StoryPanel.tsx`, `workspace/story.ts`).
+  `nav.ts` drives the view host's tabs through its own 1 to 5 shortcuts, follows demo mode and runs page changes as view transitions; `workspace.css` places the existing panels on one grid with `display: contents` on their wrappers, and keeps the 3D scene running behind every page as a veiled backdrop whose framing rectangle moves per page, so a page change is also a camera glide.
   On the graph view the feed and the ticker step aside so the graph gets the whole area; on portrait windows the investigation band takes the space under it.
 - `GraphStage` (in `App.tsx`) renders `GraphView` without the flag; with it, it lazy-loads `scene/GraphScene.tsx` (the 3D graph) and falls back to `GraphView` when that file is absent, WebGL2 is missing or the scene throws.
 - The opening: the loader holds until `fx.css` and the fonts are in and the graph area has its first frame (`fx:scene-ready`), at least 0.9 s, waiting for the scene at most until 2.2 s after navigation start (for the styles up to 8 s); then it fades, the shell arrives in a short cascade and `fx:intro` tells the scene to materialize.
@@ -45,7 +47,7 @@ The flag is read once and never stored, so other tabs and the end-to-end tests s
 | `tokens.css`, `base.css` | tokens; stage, loader and corner HUD (in the main bundle, inert without the flag) |
 | `fx.css` | everything else (its own chunk, only loaded with the flag) |
 | `ui/` | the primitives below |
-| `nav.ts`, `workspace/` | the sidebar, the dashboard and the section layout |
+| `nav.ts`, `workspace/` | the sidebar, the pages (overview, incidents, incident story, glossary, the visualization's story panel), their motion and the section layout |
 | `scene/` | the 3D graph (another package; do not import from it) |
 
 ## Adopting it in a view
@@ -57,7 +59,7 @@ To check and polish a view:
 2. Use the existing variables for every color (`var(--text)`, `var(--panel)`, `var(--line)`, `var(--alarm)`, ...).
    A hard-coded hex or `rgba()` is the usual reason something looks wrong in `ice`.
 3. Put content on a surface (`var(--panel)` or `GlassPanel`), not directly on the page background: the stage shows through.
-4. Numbers and ids in `var(--mono)`; never animate a number through values it did not have.
+4. Numbers and ids in `var(--mono)`; a number may count up (`workspace/motion.tsx`), but only from zero or the value shown before to the real value, in under a second and a half, and never with random digits.
 5. Optional one-liners from `web/src/fx`, each renders plain content without the flag (below).
 6. End-to-end tests stay on the plain URL; a smoke test may open `?fx=1&fxintro=0` and assert `html[data-fx]`.
 
