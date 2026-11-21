@@ -24,6 +24,7 @@ Base: `main` (every lane merged: Stage-2 runtime, detect, a recording per scenar
 | `verdict-labels.spec.ts` | the S1 verdict reads "SUPPORTED CAUSE" on the page and in the digest: no raw enum, no "root cause" | expected failure until #15 is fixed (PR #60) | skipped (replay-only) |
 | `trail-cards.spec.ts` | at 1920x1080 and 1440x900 every card visible in the investigation row is whole | expected failure until #16 is fixed (PR #61) | skipped (replay-only) |
 | `scenarios.spec.ts` | every recorded scenario on its own replay API (`--replay fixtures[/<s>]`) at 64x to `run.finished`: S1 one SUPPORTED CAUSE card in DE / android / PayCo; quiet no incident card; S2 no incident card and a "Didn't wake you" card about the budget (tab count > 0); S3 no incident card and a "Data issue · held back" card; S4 one SUPPORTED CAUSE card naming pacing and DE or FR; S5 three market "Didn't wake you" notes and one resolved SUPPORTED CAUSE card in DE / android / PayCo | runs (about 50 s) | skipped (replay-only) |
+| `fx.spec.ts` | the "Argus Ice" layer on its own replay API (`--replay fixtures`): `?fx=1&fxintro=0` sets `html[data-fx=ice]`, the loader leaves, one KPI card per north-star metric, no console errors or failed requests (501 stubs and 409s allowed); S1 at 64x puts INC-0001 SUPPORTED CAUSE in DE / android / PayCo on the dashboard and in the feed and "Open report" opens the sheet; every sidebar section opens by click and by the view keys 1-5; the metric graph view shows the 3D scene's canvas (headless Chromium has WebGL2 via SwiftShader) or the classic graph; `?fx=night` sets `data-fx=night`; the recording URL `/?demo=1&captions=1&fx=1` restarts the replay at 2x by itself, shows a caption from the start, switches to Investigations on the first step, captions the verdict, opens the INC-0001 report 3.5 s after it and closes it 12 s later back to the dashboard (the test fast-forwards the server, never touches the page). With `ARGUS_E2E_SHOTS=1` it also saves `fx-*.png` | runs (about 50 s); "key 1 on the dashboard opens the metric graph" is an expected failure (see below) | skipped (replay-only) |
 | `screenshots.spec.ts` | not a check: captures the QA screenshots, skipped unless `ARGUS_E2E_SHOTS=1` | skipped by default | skipped (replay-only) |
 
 ## Prerequisites
@@ -41,9 +42,10 @@ If `web/dist` is missing, the page says "not built yet" and every UI spec fails 
 
 ## Running
 
-Replay mode (default, about 2 min with the scenario spec): Playwright starts `uv run argus api --port 8010` from
-the repo root, which streams `fixtures/` (S1) through the real SSE path. `scenarios.spec.ts` and `offline.spec.ts`
-start and stop their own replay APIs next to it.
+Replay mode (default, about 3 min 45 s on an 8 GB Mac with the scenario and fx specs; `ARGUS_E2E_FX=0` saves about
+50 s, `ARGUS_E2E_SCENARIOS=0` about 40 s): Playwright starts `uv run argus api --port 8010` from
+the repo root, which streams `fixtures/` (S1) through the real SSE path. `scenarios.spec.ts`, `offline.spec.ts` and
+`fx.spec.ts` start and stop their own replay APIs next to it.
 
 ```sh
 npm --prefix e2e test
@@ -68,7 +70,9 @@ Environment flags:
 | `ARGUS_E2E_OFFLINE_PORT` | `offline.spec.ts`'s own server (default 8012) |
 | `ARGUS_E2E_SCENARIO_PORT` | `scenarios.spec.ts`'s own server (default 8013) |
 | `ARGUS_E2E_SCENARIOS=0` | skip `scenarios.spec.ts` (saves about 40 s) |
-| `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, and `scenario-<s>.png` from `scenarios.spec.ts`) |
+| `ARGUS_E2E_FX=0` | skip `fx.spec.ts` (saves about 50 s) |
+| `ARGUS_E2E_FX_PORT` | `fx.spec.ts`'s own server (default 8014) |
+| `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, `scenario-<s>.png` from `scenarios.spec.ts`, `fx-*.png` from `fx.spec.ts`) |
 | `ARGUS_E2E_ROOT` | the repository checkout whose `argus api` (and `web/dist`) the suite runs; default `..`. Use it to test a fix branch from another worktree |
 | `CI` | never reuse a running server; also write the HTML report |
 
@@ -80,6 +84,7 @@ QA screenshots (replay, 1920x1080 and 1440x900, into `docs/qa/screenshots/`; the
 
 ```sh
 ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots scenarios
+ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- fx          # fx-*.png: Argus Ice at 1920x1080 (dashboard also 1440x900)
 ```
 
 Failure traces and screenshots land in `e2e/test-results/`; `npx --prefix e2e playwright show-trace <trace.zip>`.
@@ -92,9 +97,10 @@ Failure traces and screenshots land in `e2e/test-results/`; `npx --prefix e2e pl
 | 8011 | main API, live mode |
 | 8012 | `offline.spec.ts` starts and stops its own replay API here (`ARGUS_E2E_OFFLINE_PORT`) |
 | 8013 | `scenarios.spec.ts` starts one replay API per scenario here, one at a time (`ARGUS_E2E_SCENARIO_PORT`) |
+| 8014 | `fx.spec.ts` starts one replay API for the whole spec here (`ARGUS_E2E_FX_PORT`) |
 
-8013-8015 are reserved for e2e; 8020-8029 belong to other agents' API servers, leave them alone.
-Both self-started servers go through `tests/own-api.ts`: bounded start (30 s), stop in `afterEach` (SIGINT to the
+8015 is reserved for e2e; 8020-8029 belong to other agents' API servers, leave them alone.
+The self-started servers go through `tests/own-api.ts`: bounded start (30 s), stop in `afterEach` (`afterAll` for `fx.spec.ts`; SIGINT to the
 process group, SIGKILL after 5 s), and a refusal to start when the port already answers.
 
 ## Why one worker
@@ -120,6 +126,15 @@ Re-checked on `main` @ f35b00a: still fails the same way (`web/src/lib/api.ts:10
 
 The spec stops its own server in `afterEach` (via `tests/own-api.ts`), so a failure or timeout never leaves port
 8012 busy, and it refuses to start if 8012 is already serving.
+
+## The expected failure in fx.spec.ts
+
+"key 1 on the dashboard opens the metric graph" is marked `test.fail(...)`. With `?fx=1` the dashboard sits on top of
+the view host's "Graph" tab, so pressing `1` on the dashboard selects a tab that is already selected: no
+`aria-selected` changes, `watchHost` in `web/src/fx/nav.ts` never hears it, and the dashboard stays. From any other
+section `1` opens the metric graph (covered by the keys test). There is no key for the dashboard and no `6`: the
+shortcuts are the view host's 1-5 (Graph, Tree, Investigation, Morning report, Scorecard), in a different order than
+the sidebar. Once fixed, the test passes, Playwright reports "expected to fail", and the `test.fail` line goes.
 
 ## Known flake source: blank graph after a stream reset
 
