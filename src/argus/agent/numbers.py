@@ -128,6 +128,24 @@ def check(report: str, facts: FactBook) -> NumberCheck:
     return NumberCheck(unbacked, untagged, unknown, cited)
 
 
+UNVERIFIED = "[unverified]"
+
+
+def scrub(text: str, facts: FactBook) -> str:
+    """Model-written text for the activity log: every number no receipted result of the run backs is replaced
+    by UNVERIFIED, so the log only carries numbers that passed verification."""
+    skipped = [m.span() for m in SKIP.finditer(text)]
+    out, last = [], 0
+    for m in NUMBER.finditer(text):
+        start, end = m.span()
+        if any(a <= start < b or a < end <= b for a, b in skipped) or facts.backs(m.group()):
+            continue
+        out += [text[last:start], UNVERIFIED]
+        last = end
+    out.append(text[last:])
+    return "".join(out)
+
+
 def _structural(token: str) -> bool:
     x = float(token.replace(",", ""))
     return token[0] not in "+-" and "." not in token and abs(x) <= 10

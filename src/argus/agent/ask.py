@@ -20,7 +20,7 @@ from typing import Any
 
 from argus.agent import prompts
 from argus.agent.journal import Journal
-from argus.agent.numbers import FactBook, check
+from argus.agent.numbers import FactBook, check, scrub
 from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
 from argus.agent.types import (
     AgentMode,
@@ -217,6 +217,7 @@ class AskRunner:
         ]
         calls = 0
         retried = False
+        seen = FactBook()  # numbers the conversation has seen with receipts, for the activity log
         for round_ in range(1, MAX_REQUESTS + 1):
             usage = [u for u in self.journal.usage if u.run_id == ctx.run_id]
             if sum(u.usd or 0.0 for u in usage) >= MAX_USD or any(u.usd is None for u in usage):
@@ -244,7 +245,7 @@ class AskRunner:
                         ctx.as_of,
                         ctx.run_id,
                         actor="model",
-                        text=str(block["text"]).strip(),
+                        text=scrub(str(block["text"]).strip(), seen),
                         model=response.model,
                     )
                 if block.get("type") != "tool_use":
@@ -269,6 +270,7 @@ class AskRunner:
                 calls += 1
                 self.journal.add("tool_call", "ACT", ctx.as_of, ctx.run_id, actor="model", tool=name, args=args)
                 obs = self.store.dispatch(ctx, name, args)
+                seen.add({"summary": obs.summary, "data": obs.data}, [r.receipt_id for r in obs.receipt_refs])
                 self.journal.add(
                     "tool_result",
                     "OBSERVE",
