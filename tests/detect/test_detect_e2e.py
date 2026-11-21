@@ -10,7 +10,7 @@ import pytest
 
 from argus.contracts.events import Event, EventType, TickPayload
 from argus.contracts.findings import Anomaly, Note
-from argus.contracts.graph import Graph
+from argus.contracts.graph import EdgeStatus, Graph
 from argus.detect import EventRecorder, Watcher
 from argus.semantic.runner import Runner
 from mockmart.sim import WorldParams
@@ -98,6 +98,19 @@ def test_events_follow_the_c5_contract(make_world: Callable[..., World], graph: 
     assert any(a.node == "payment_success_rate" for a in opened)
     attention = next(e for e in events if e.type is EventType.ATTENTION)
     assert "payment_success_rate[provider]" in attention.payload["scores"]
+
+    # a new graph version (an edge test broke a breakdown) takes effect at the next tick
+    broken = graph.model_copy(
+        update={
+            "edges": [
+                e.model_copy(update={"status": EdgeStatus.BROKEN}) if e.id == "b_orders_country" else e
+                for e in graph.edges
+            ]
+        }
+    )
+    watcher.update_graph(broken)
+    report = watcher.tick(fault["start_ts"] + timedelta(hours=4))
+    assert "orders[country]" not in report.attention.scores and "orders[platform]" in report.attention.scores
 
 
 def _stall_orders(world_start_offset_hours: int) -> Callable[[WorldParams], None]:

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from argus.contracts.graph import Graph
+from argus.contracts.graph import EdgeStatus, Graph
 from argus.detect.attention import AttentionBudget, Unit, candidate_units
 
 HOUR = datetime(2026, 11, 20, 12)
@@ -68,3 +68,16 @@ def test_payload_lists_every_candidate(graph: Graph) -> None:
     payload = AttentionBudget.payload(scores(budget, {}))
     assert set(payload.scores) == {u.key for u in budget.units}
     assert all(v >= 0 for v in payload.scores.values())
+
+
+def test_a_broken_breakdown_leaves_the_candidates(graph: Graph) -> None:
+    broken = graph.model_copy(
+        update={
+            "edges": [
+                e.model_copy(update={"status": EdgeStatus.BROKEN}) if e.id == "b_orders_country" else e
+                for e in graph.edges
+            ]
+        }
+    )
+    keys = {u.key for u in candidate_units(broken)}
+    assert "orders[country]" not in keys and "orders[platform]" in keys

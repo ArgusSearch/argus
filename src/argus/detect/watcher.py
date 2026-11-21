@@ -179,6 +179,19 @@ class Watcher:
         self._anomaly_seq = 0
         self._note_seq = 0
 
+    def update_graph(self, graph: Graph) -> None:
+        """Adopt a new graph version (after edge tests or onboarding); keeps what attention has seen so far."""
+        self.graph = graph
+        self.store.graph = graph
+        old = self.attention
+        self.attention = AttentionBudget(graph, self.config.budget)
+        self.attention.last_look.update(old.last_look)
+        self.attention.last_abs_z.update(old.last_abs_z)
+        self.nodes = watchable_nodes(graph)
+        self._tables = {n: source_tables(graph, n) for n in self.nodes}
+        self.north_stars = [n.id for n in graph.north_stars() if n.id in self._tables]
+        self._drivers = {n: d for n in self.nodes if (d := noise_drivers(graph, n))}
+
     # ------------------------------------------------------------------ loop
 
     def run(
