@@ -38,6 +38,7 @@ from argus.contracts.findings import Incident, Note, Receipt
 from argus.contracts.graph import Graph
 from argus.counterfactual.api import router as counterfactual_router
 from argus.demo.api import create_router as demo_router
+from argus.demo.playback import Playback
 from argus.graph.extension_api import create_router as graph_extension_router
 from argus.graph.extension_api import extension_for
 from argus.graph.store import REPO
@@ -107,7 +108,9 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
     app.include_router(narrator_router(source))
     app.include_router(counterfactual_router(source))
-    app.include_router(agent_router(source))
+    # a replay server plays the sealed agent presentation; the demo and agent routes share its one clock
+    playback = Playback() if source.mode == "replay" else None
+    app.include_router(agent_router(source, playback))
     remediation = getattr(source, "remediation", None)
     if remediation is not None:
         from argus.remediation import create_router as remediation_router
@@ -263,5 +266,5 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
                 "<p><a href='/docs'>API docs</a> · <a href='/health'>health</a></p></body>"
             )
 
-    app.include_router(demo_router(hub))
+    app.include_router(demo_router(hub, playback=playback, allow_agent=playback is not None))
     return app

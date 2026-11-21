@@ -2,14 +2,18 @@
 
 Live sources carry an `AgentService` (`source.agent`). Any other source answers health with `enabled: false`
 and an empty activity log, so the web can probe once and hide its panels.
+
+A replay server also carries the demo `Playback` (docs/pitch/agent-scene.md): a request with `run_id` reads the
+sealed agent presentation at its clock instead (activity, actions, Ask, receipts), and approve or deny decide its
+pending action through the same local operator gate as a live run.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -17,10 +21,14 @@ from argus.agent.ask import AskScope
 from argus.agent.journal import Journal
 from argus.agent.provider import ProviderUnavailable
 from argus.agent.service import AgentService
-from argus.agent.types import ReceiptLink, RunSummary
+from argus.agent.types import ProposalView, ReceiptLink, RunSummary
 from argus.api.sources import LiveSource, Source
 from argus.contracts.events import EventType
 from argus.contracts.findings import Receipt
+from argus.demo.agent import AgentView
+from argus.demo.bundle import AskAnswer, ReceiptProof
+from argus.demo.playback import ControlError, Playback
+from argus.remediation.api import DecisionBody, OperatorGate, OperatorSession
 
 
 class AskBody(BaseModel):
@@ -65,9 +73,24 @@ def _scope(source: Source) -> AskScope:
     )
 
 
-def router(source: Source) -> APIRouter:
+def router(source: Source, playback: Playback | None = None) -> APIRouter:
     routes = APIRouter(prefix="/agent", tags=["agent"])
     off = _service(source)
+    gate = OperatorGate() if playback is not None and getattr(source, "remediation", None) is None else None
+
+    def presentation(run_id: str) -> AgentView:
+        if playback is None:
+            raise HTTPException(409, "this server plays no agent presentation")
+        try:
+            return playback.agent_view(run_id)
+        except ControlError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    def proposal(view: AgentView, action_id: str) -> ProposalView:
+        found = next((p for p in view.actions if p.id == action_id), None)
+        if found is None:
+            raise HTTPException(404, f"no action {action_id}")
+        return found
 
     def service() -> AgentService:
         found = getattr(source, "agent", None)
@@ -78,7 +101,15 @@ def router(source: Source) -> APIRouter:
         return service().health()
 
     @routes.get("/activity")
-    def activity(since: int = 0) -> dict[str, Any]:
+    async def activity(since: int = 0, run_id: str | None = None) -> dict[str, Any]:
+        if run_id is not None:
+            shown = [r for r in presentation(run_id).activity if r.seq > since]
+            return {
+                "stream": f"demo:{run_id}",
+                "mode": "replay",
+                "records": [r.model_dump(mode="json") for r in shown],
+                "next_cursor": shown[-1].seq if shown else since,
+            }
         svc = service()
         records = svc.journal.since(since)
         return {
@@ -89,11 +120,17 @@ def router(source: Source) -> APIRouter:
         }
 
     @routes.get("/runs")
-    def runs() -> list[RunSummary]:
+    async def runs(run_id: str | None = None) -> list[RunSummary]:
+        if run_id is not None:
+            presentation(run_id)
+            return []
         return list(service().journal.runs.values())
 
     @routes.post("/ask")
-    async def ask(body: AskBody) -> dict[str, Any]:
+    async def ask(body: AskBody, run_id: str | None = None) -> dict[str, Any]:
+        if run_id is not None:
+            answer: AskAnswer = presentation(run_id).ask(body.question, body.incident_id, body.conversation_id)
+            return answer.model_dump(mode="json")
         svc = service()
         if not svc.enabled:
             raise HTTPException(409, svc.reason)
@@ -110,17 +147,57 @@ def router(source: Source) -> APIRouter:
     if getattr(source, "remediation", None) is None:  # otherwise lane C's operator router serves /agent/actions
 
         @routes.get("/actions")
-        def actions() -> list[dict[str, Any]]:
-            return []
+        async def actions(run_id: str | None = None) -> list[ProposalView]:
+            return presentation(run_id).actions if run_id is not None else []
 
-        @routes.get("/actions/{action_id}")
-        def action(action_id: str) -> dict[str, Any]:
-            raise HTTPException(404, f"no action {action_id}")
+        @routes.get("/actions/{action_id}", responses={404: {}})
+        async def action(action_id: str, run_id: str | None = None) -> ProposalView:
+            if run_id is None:
+                raise HTTPException(404, f"no action {action_id}")
+            return proposal(presentation(run_id), action_id)
 
-    @routes.get("/receipts/{run_id}/{world_revision}/{receipt_id}")
-    def receipt(run_id: str, world_revision: str, receipt_id: str) -> Receipt:
-        svc = service()
+    if gate is not None and playback is not None:
+        # the presentation's approval takes the same local operator session as a live run's (docs/ext/remediation.md)
+        @routes.post("/operator/session")
+        def open_session(request: Request, response: Response) -> OperatorSession:
+            return gate.open(request, response)
+
+        async def decide(
+            action_id: str, body: DecisionBody, request: Request, run_id: str | None, verb: Literal["approve", "deny"]
+        ) -> ProposalView:
+            gate.check(request)
+            if run_id is None:
+                raise HTTPException(404, f"no action {action_id}")
+            proposal(presentation(run_id), action_id)
+            try:
+                playback.decide(run_id, action_id, verb, body.digest, body.idempotency_key)
+            except ControlError as exc:
+                raise HTTPException(409, str(exc)) from exc
+            return proposal(presentation(run_id), action_id)
+
+        @routes.post("/actions/{action_id}/approve", responses={403: {}, 404: {}, 409: {}})
+        async def approve(
+            action_id: str, body: DecisionBody, request: Request, run_id: str | None = None
+        ) -> ProposalView:
+            return await decide(action_id, body, request, run_id, "approve")
+
+        @routes.post("/actions/{action_id}/deny", responses={403: {}, 404: {}, 409: {}})
+        async def deny(action_id: str, body: DecisionBody, request: Request, run_id: str | None = None) -> ProposalView:
+            return await decide(action_id, body, request, run_id, "deny")
+
+    @routes.get("/receipts/{run_id}/{world_revision}/{receipt_id}", response_model=None)
+    async def receipt(run_id: str, world_revision: str, receipt_id: str, request: Request) -> Receipt | ReceiptProof:
         ref = ReceiptLink(run_id=run_id, world_revision=world_revision, receipt_id=receipt_id)
+        if (presented := request.query_params.get("run_id")) is not None:
+            proof = presentation(presented).receipts.get(ref.key())
+            if proof is None:
+                raise HTTPException(404, f"no released receipt {ref.key()}")
+            return proof
+        return await run_in_threadpool(live_receipt, ref)
+
+    def live_receipt(ref: ReceiptLink) -> Receipt:
+        svc = service()
+        receipt_id = ref.receipt_id
         if svc.store is not None:
             ctx = svc.store.context_for(source.bus.stream, ref, through_seq=source.bus.last_seq, as_of=datetime.max)
             if ctx is not None:
