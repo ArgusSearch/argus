@@ -316,13 +316,6 @@
   stroke: var(--alarm);
 }
 
-:root[data-fx] .au-waiting {
-  color: var(--alarm);
-  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud);
-  text-transform: uppercase;
-}
-
 /* ------------------------------------------------------------------ evidence under an Ask answer */
 
 :root[data-fx] .au-evidence {
@@ -469,4 +462,10 @@
 
 :root[data-fx] .au-ask-body .au-jump {
   bottom: var(--fx-space-2);
+}
+
+/* Ask and Stop take the same room, so the box does not jump when one replaces the other */
+:root[data-fx] .ws-ask-form > .btn {
+  justify-content: center;
+  min-width: 76px;
 }

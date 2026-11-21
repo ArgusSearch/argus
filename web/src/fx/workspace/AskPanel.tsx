@@ -161,7 +161,8 @@ function Waiting({ turn, records, streaming }: { turn: Turn; records: ActivityRe
   );
 }
 
-let turnIds = 0;
+// unique across hot reloads and remounts: the runtime clock keys each wait by it
+let turnIds = Date.now();
 
 export function AskPanel({ incident }: { incident: string | null }) {
   const agent = useAgent();
