@@ -3,8 +3,9 @@
 
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Segments } from "../components/Feed";
-import { Num, ReceiptChips, useOpenReceipt } from "../components/Receipts";
-import { api, type Digest } from "../lib/api";
+import { AgentReceiptChips, Num, ReceiptChips, useOpenReceipt } from "../components/Receipts";
+import { demoMorningReport, useAgentDemo, withRun, type NarratorReceipt, type NarratorReport } from "../lib/agentDemo";
+import { api, type Digest, type DigestLine } from "../lib/api";
 import { dayLabel, eur, hhmm, share } from "../lib/format";
 import type { RunView } from "../lib/store";
 import type { Incident, Note } from "../lib/types";
@@ -111,7 +112,7 @@ export function Markdown({ blocks }: { blocks: Block[] }) {
   );
 }
 
-function IncidentReport({ incident, onOpenIncident }: { incident: Incident; onOpenIncident: (id: string) => void }) {
+function IncidentReport({ incident, onOpenIncident, scoped = false }: { incident: Incident; onOpenIncident: (id: string) => void; scoped?: boolean }) {
   const [md, setMd] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
@@ -119,6 +120,11 @@ function IncidentReport({ incident, onOpenIncident }: { incident: Incident; onOp
 
   useEffect(() => {
     let live = true;
+    // a presentation's incident has no report route of its own: the global one would be another run's
+    if (scoped) {
+      setFailed(true);
+      return;
+    }
     api.report(incident.id).then(
       (text) => live && (setMd(text), setFailed(false)),
       () => live && setFailed(true),
@@ -126,7 +132,7 @@ function IncidentReport({ incident, onOpenIncident }: { incident: Incident; onOp
     return () => {
       live = false;
     };
-  }, [incident.id, incident.updated_at, incident.state]);
+  }, [incident.id, incident.updated_at, incident.state, scoped]);
 
   const blocks = useMemo(() => (md ? parseMarkdown(md) : []), [md]);
   // the report repeats the title as its first heading; the card already shows it
@@ -188,17 +194,60 @@ function IncidentReport({ incident, onOpenIncident }: { incident: Incident; onOp
           {f.suggested_action.text}
         </div>
       )}
+{!scoped && (
+        <>
       <button className="mr-toggle no-print" onClick={() => setOpen(!open)} aria-expanded={open}>
         {open ? "Hide the full report" : "Read the full report"}
       </button>
       <div className={`mr-report${open ? " open" : ""}`}>
         {md ? <Markdown blocks={body} /> : <div className="muted">{failed ? "The report could not be loaded." : "Loading the report…"}</div>}
       </div>
+        </>
+      )}
     </article>
   );
 }
 
+const SECTION: Record<NarratorReport["lines"][number]["section"], string> = { happened: "Happened", decided: "Decided", asks: "Asks you" };
+
+/** The narrator's report in the digest's shape, so a presentation's run reads like the live one. */
+export function digestOf(report: NarratorReport): Digest & { links: Record<string, NarratorReceipt[]> } {
+  const links: Record<string, NarratorReceipt[]> = {};
+  const lines: DigestLine[] = report.lines.map((l) => {
+    links[l.id] = l.receipts;
+    return { key: l.id, label: SECTION[l.section], value: l.incident_id ?? "", detail: l.text, receipts: [], tone: l.section === "asks" ? "warn" : "neutral" };
+  });
+  return { title: report.title, since: report.activity.since, until: report.activity.until, lines, markdown: report.markdown, links };
+}
+
+/** A narrator receipt: C4 and agent receipts open in the drawer, a run query opens its JSON (pinned to the run). */
+function NarratorChips({ links }: { links: NarratorReceipt[] }) {
+  const semantic = links.filter((l) => l.source === "semantic").map((l) => l.id);
+  const agent = links
+    .filter((l) => l.source === "agent")
+    .map((l) => {
+      const [run_id, world_revision, receipt_id] = l.href.replace(/^.*\/agent\/receipts\//, "").split("?")[0].split("/").map(decodeURIComponent);
+      return { run_id, world_revision, receipt_id };
+    })
+    .filter((l) => l.receipt_id);
+  const run = links.filter((l) => l.source === "run");
+  return (
+    <>
+      <ReceiptChips ids={semantic} max={4} />
+      <AgentReceiptChips links={agent} max={4} />
+      {run.slice(0, 3).map((l) => (
+        <a key={l.id} className="rcpt" href={withRun(l.href)} target="_blank" rel="noreferrer" title="The run query behind this line (JSON)">
+          {l.id}
+        </a>
+      ))}
+    </>
+  );
+}
+
 export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenIncident: (id: string) => void }) {
+  // during the agent presentation the report, the incidents and the notes are the presentation's run
+  const demo = useAgentDemo();
+  const [scopedLinks, setScopedLinks] = useState<Record<string, NarratorReceipt[]> | null>(null);
   const [digest, setDigest] = useState<Digest | null>(null);
   const [incidents, setIncidents] = useState<Incident[] | null>(null);
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -208,8 +257,28 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
   const incidentSeq = Object.values(view.incidents).reduce((m, i) => Math.max(m, i.lastSeq), 0);
   const version = `${view.stream}:${incidentSeq}:${view.notes.length}:${Math.floor(view.ticks / 6)}`;
 
+  const demoIncidents = demo?.snapshot?.incidents;
   useEffect(() => {
     let live = true;
+    if (demo) {
+      setScopedLinks(null);
+      demoMorningReport().then(
+        (report) => {
+          if (!live) return;
+          const d = digestOf(report);
+          setDigest(d);
+          setScopedLinks(d.links);
+          setIncidents([...(demoIncidents ?? [])].sort((a, b) => a.opened_at.localeCompare(b.opened_at)));
+          setNotes(view.notes);
+          setError(null);
+        },
+        (e: unknown) => live && setError(explain(e, "The run's morning report")),
+      );
+      return () => {
+        live = false;
+      };
+    }
+    setScopedLinks(null);
     Promise.all([api.digest(), views.incidents(), views.notes()]).then(
       ([d, i, n]) => {
         if (!live) return;
@@ -223,7 +292,7 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
     return () => {
       live = false;
     };
-  }, [version]);
+  }, [version, demo?.runId, demoIncidents]);
 
   const alarm = view.thresholds.alarm_z;
   return (
@@ -261,7 +330,9 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
                   <span className="mr-line-value">{plainWords(line.value)}</span>
                   <span className="mr-line-detail">
                     {plainWords(line.detail)}
-                    {line.receipts.length > 0 ? (
+                    {scopedLinks?.[line.key] ? (
+                      <NarratorChips links={scopedLinks[line.key]} />
+                    ) : line.receipts.length > 0 ? (
                       <ReceiptChips ids={line.receipts} max={5} />
                     ) : (
                       <span className="muted mr-nocount"> · a count of what the monitor did, no query behind it</span>
@@ -278,7 +349,7 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
                 Incidents <span className="muted">· {incidents.length}</span>
               </h2>
               {incidents.length ? (
-                incidents.map((inc) => <IncidentReport key={inc.id} incident={inc} onOpenIncident={onOpenIncident} />)
+                incidents.map((inc) => <IncidentReport key={inc.id} incident={inc} onOpenIncident={onOpenIncident} scoped={demo !== null} />)
               ) : (
                 <div className="mr-quiet">No incident. Nothing crossed the alarm line long enough to page anyone.</div>
               )}

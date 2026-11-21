@@ -181,6 +181,6 @@ describe("server lines in plain words", () => {
     );
     expect(plainWords("payment_success_rate |z| 9.4 at 18:00")).toBe("Payment success far off its usual level at 18:00");
     expect(plainWords("34/34 edge tests pass")).toBe("34/34 formula checks pass");
-    expect(plainWords("SUPPORTED_CAUSE: x, 0 LLM calls")).toBe("Cause found: x, 0 AI calls");
+    expect(plainWords("SUPPORTED_CAUSE: x, 0 LLM calls")).toBe("Supported cause (evidenced): x, 0 AI calls");
   });
 });

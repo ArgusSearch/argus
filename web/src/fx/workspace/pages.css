@@ -2367,3 +2367,14 @@
   align-items: center;
   gap: 8px;
 }
+
+/* the verdict's plain meaning stays visible under the headline (lane I: the brief's own words) */
+:root[data-fx] .ip-verdict-help {
+  margin: 0;
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-md);
+}
+
+:root[data-fx] .ip-verdict-help b {
+  color: var(--fx-ink-1);
+}

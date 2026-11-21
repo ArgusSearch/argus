@@ -100,6 +100,30 @@ export function withRun(path: string): string {
   return `${path}${path.includes("?") ? "&" : "?"}run_id=${encodeURIComponent(id)}`;
 }
 
+/** A receipt of the narrator's report: a C4 receipt, a run query or an agent receipt, each with its own route. */
+export interface NarratorReceipt {
+  id: string;
+  source: "semantic" | "run" | "agent";
+  href: string;
+  rerun_href: string | null;
+  rerun_method: "GET" | "POST" | null;
+}
+
+/** The narrator's morning report (GET /report/morning, or /demo/report/morning for a presentation's run). */
+export interface NarratorReport {
+  title: string;
+  stream: string;
+  through_seq: number;
+  activity: { since: string | null; until: string | null; ticks: number; series_hours: number; anomalies: number; investigations: number; incidents: number; resolved_incidents: number };
+  lines: { id: string; section: "happened" | "decided" | "asks"; text: string; incident_id: string | null; note_id: string | null; receipts: NarratorReceipt[] }[];
+  markdown: string;
+}
+
+/** The presentation's own morning report, scoped to its run and its clock. */
+export async function demoMorningReport(): Promise<NarratorReport> {
+  return call<NarratorReport>(withRun("/demo/report/morning"));
+}
+
 /** The incidents the presentation shows right now (null outside a presentation). */
 export function demoIncidents(): Incident[] | null {
   return current?.snapshot?.incidents ?? null;

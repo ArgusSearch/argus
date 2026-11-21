@@ -297,7 +297,7 @@ function MetricsCard({ graph, view, onSelectNode }: { graph: Graph | null; view:
         {ids.map((id) => {
           const status = metricStatus(view, id);
           const words = unusualness(status.z, wiggle, alarm);
-          const special = status.state === "root" ? "cause found" : status.state === "symptom" ? "knock-on effect" : status.state === "checking" ? "being checked" : null;
+          const special = status.state === "root" ? "root of the incident" : status.state === "symptom" ? "knock-on effect" : status.state === "checking" ? "being checked" : null;
           const tone = status.state === "root" ? "alarm" : status.state === "checking" ? "probe" : words.tone;
           const fill = status.z === null ? 0 : Math.min(status.z / (alarm * 1.25), 1);
           return (

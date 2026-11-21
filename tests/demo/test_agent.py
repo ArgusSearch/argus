@@ -16,7 +16,8 @@ from argus.agent.types import INTERFACE_VERSION, ActivityRecord, Decision, Effec
 from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, load_recording
 from argus.api.state import RunState
-from argus.contracts.events import EventType, TickPayload
+from argus.contracts.events import Event, EventType, TickPayload
+from argus.contracts.findings import IncidentState
 from argus.demo.agent import _build_timeline
 from argus.demo.api import create_router
 from argus.demo.bundle import ReceiptProof, read_bundle, receipt_keys
@@ -53,7 +54,25 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
     morning = next(
         tick for tick in ticks if tick.sim_ts > checked_at and TickPayload.model_validate(tick.payload).hour.hour == 8
     )
-    approval_events = [event for event in ticks if event.seq <= morning.seq]
+    tail = next(event for event in ticks if event.seq > morning.seq)
+    resolved_event = Event.model_validate(
+        {
+            **_dump(prefix[-1]),
+            "sim_ts": checked_at,
+            "payload": {**prefix[-1].payload, "state": "resolved", "change": "state"},
+        }
+    )
+    approval_events = [
+        *[event for event in ticks if event.sim_ts <= checked_at],
+        resolved_event,
+        *[event for event in ticks if checked_at < event.sim_ts <= tail.sim_ts],
+    ]
+    approval_events = [
+        event.model_copy(update={"seq": snapshot.seq + index}) for index, event in enumerate(approval_events, 1)
+    ]
+    resolved_incident = snapshot.incident.model_copy(
+        update={"state": IncidentState.RESOLVED, "updated_at": checked_at, "resolved_at": checked_at}
+    )
     root = snapshot.incident.findings.root
     assert root is not None and root.change_pct.receipt
     proof_id = root.change_pct.receipt
@@ -154,6 +173,7 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
         "response": {
             "status": "answered",
             "run_id": "ask",
+            "conversation_id": "recorded-thread",
             "answer": "The recorded check points to pacing.",
             "claims": [],
             "receipt_links": [_dump(investigation_proof)],
@@ -195,6 +215,7 @@ def recording_dir(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str, 
         "approve/events.jsonl": [_dump(event) for event in approval_events],
         "approve/activity.jsonl": [_dump(record) for record in approved_activity],
         "approve/actions.json": [_dump(approved)],
+        "approve/incidents.json": [_dump(resolved_incident)],
         "approve/receipts.json": {key: proof(key) for key in (treated.key(), untreated.key())},
     }
     needed = set(receipt_keys(approve_docs["approve/events.jsonl"])) - required
@@ -257,6 +278,9 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         assert incident.updated_at < incident.findings.as_of == pending.state.sim_ts
         assert not any(record.kind in {"action_decided", "effect_checked"} for record in pending.activity)
         answer = pending.ask("Could  HIGHER traffic explain the spend", proposal.incident_ref)
+        assert answer.conversation_id == f"{run_id}:recorded-thread"
+        assert pending.ask(QUESTION, proposal.incident_ref, answer.conversation_id) == answer
+        assert pending.ask(QUESTION, proposal.incident_ref, "stale-run:recorded-thread").status == "unavailable"
         proof = pending.receipts[answer.receipt_links[0].key()]
         assert pending.ask("an unseen question").status == "unavailable"
         assert pending.ask(QUESTION, "different-case").status == "unavailable"
@@ -282,6 +306,7 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         now += 20
         done = playback.agent_view(run_id)
         assert done.state.status == "completed" and done.actions[0].state == "VERIFIED"
+        assert done.incidents[0].state is IncidentState.RESOLVED
         effect = done.actions[0].effect
         assert effect and done.state.sim_ts > effect.checked_at
         assert all(link.key() in done.receipts for link in effect.receipt_refs)
@@ -291,7 +316,14 @@ def test_cold_playback_holds_clock_and_repeats_ask_receipt_and_effect(recording_
         action_line = next(line for line in report.lines if line.id == f"agent:action:{proposal.id}")
         assert {ref.id for ref in action_line.receipts} >= {ref.key() for ref in effect.receipt_refs}
         assert report.activity.until == effect.checked_at
-        return (run_id, done.activity, answer, proof, effect, report)
+        return (
+            run_id,
+            done.activity,
+            answer.model_copy(update={"conversation_id": "recorded-thread"}),
+            proof,
+            effect,
+            report,
+        )
 
     first, second = cold(), cold()
     assert first[0] != second[0]

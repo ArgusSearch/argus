@@ -43,6 +43,8 @@ export function AskPanel({ incident }: { incident: string | null }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // the server's conversation: follow-ups keep its incident scope and its earlier turns
+  const [conversation, setConversation] = useState<{ id: string; incident: string | null } | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const list = useRef<HTMLOListElement>(null);
 
@@ -82,7 +84,9 @@ export function AskPanel({ incident }: { incident: string | null }) {
     const index = turns.length;
     setTurns((t) => [...t, { question: q, answer: null, error: null }]);
     try {
-      const answer = await agentApi.ask(q, incident);
+      const same = conversation && conversation.incident === incident ? conversation.id : null;
+      const answer = await agentApi.ask(q, incident, same);
+      if (answer.conversation_id) setConversation({ id: answer.conversation_id, incident });
       setTurns((t) => t.map((x, i) => (i === index ? { ...x, answer } : x)));
     } catch (e) {
       setTurns((t) => t.map((x, i) => (i === index ? { ...x, error: (e as Error).message } : x)));

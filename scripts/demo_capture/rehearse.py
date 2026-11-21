@@ -70,6 +70,74 @@ def receipt_path(link: dict[str, str]) -> str:
     return f"/agent/receipts/{key}"
 
 
+def showcase_prefix(api: LocalAPI) -> dict[str, Any]:
+    """Play the fault and expected change, then place the graph cases on a fresh stream."""
+    chapters = api.json("/demo/showcase")
+    require(
+        [chapter["id"] for chapter in chapters] == ["fault", "expected_change", "metric_placement", "agent"],
+        "unexpected showcase order",
+    )
+    placement = chapters[2]
+    catalog_path = placement["catalog"]
+    previous = api.json(catalog_path)["stream"]
+    api.json("/replay", {"action": "restart"})
+    api.json("/replay", {"action": "pause"})
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        catalog = api.json(catalog_path)
+        if catalog["stream"] != previous and not catalog["placements"]:
+            break
+        time.sleep(0.05)
+    else:
+        raise ValueError("the showcase could not start a fresh graph stream")
+
+    def play(chapter: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        started = api.json("/demo/start", chapter["start"] | {"speed": 100})
+        run_id = started["run_id"]
+        api.wait("completed", run_id)
+        return run_id, api.json("/demo/snapshot", run_id=run_id)
+
+    fault_id, fault = play(chapters[0])
+    incidents = fault["incidents"]
+    require(len(incidents) == 1 and incidents[0]["verdict"] == "SUPPORTED_CAUSE", "S1 lacks its supported fault")
+    root = incidents[0]["findings"]["root"]
+    require(root["node"] == "payment_success_rate", "S1 did not find the payment failure")
+    fault_receipt = quote(root["change_pct"]["receipt"], safe="")
+    fault_hash = api.json(f"/demo/receipts/{fault_receipt}", run_id=fault_id)["result_hash"]
+
+    expected_id, harmless = play(chapters[1])
+    notes = [
+        event["payload"]
+        for event in harmless["events"]
+        if event["type"] == "note_logged" and event["payload"]["kind"] == "expected"
+    ]
+    require(
+        not harmless["incidents"] and len(notes) == 1 and notes[0]["segment"].get("country") == "FR",
+        "S2 must record the planned FR change with zero incidents",
+    )
+    note_hashes = [
+        api.json(f"/demo/receipts/{quote(receipt, safe='')}", run_id=expected_id)["result_hash"]
+        for receipt in notes[0]["receipts"]
+    ]
+    require(note_hashes, "S2 note lacks evidence")
+
+    definitions = {metric["name"]: metric for metric in catalog["recorded"]}
+    certificates = []
+    for case in placement["cases"]:
+        found = api.json(placement["path"], definitions[case["name"]])
+        require(found["placed_as"] == case["placed_as"], f"{case['name']} placement changed")
+        if case["show"]:
+            require(found["certificate"]["receipts"], f"{case['name']} certificate lacks evidence")
+            certificates.append(found["certificate"])
+    return {
+        "fault": incidents[0],
+        "fault_hash": fault_hash,
+        "expected": notes[0],
+        "note_hashes": note_hashes,
+        "certificates": certificates,
+    }
+
+
 def cold_run(api: LocalAPI, hold: float) -> tuple[str, dict[str, Any]]:
     start = api.json("/demo/start", {"scenario": "s4", "variant": "agent", "speed": 100})
     run_id = start["run_id"]
@@ -90,6 +158,9 @@ def cold_run(api: LocalAPI, hold: float) -> tuple[str, dict[str, Any]]:
     question = {"question": QUESTION, "incident_id": proposal["incident_ref"]}
     answer = api.json("/agent/ask", question, run_id=run_id)
     require(answer["receipt_links"], "recorded Ask response has no evidence")
+    if thread := answer.get("conversation_id"):
+        require(thread.startswith(f"{run_id}:"), "Ask conversation is scoped to a different presentation")
+        answer["conversation_id"] = thread.split(":", 1)[1]
     asked = [api.json(receipt_path(link), run_id=run_id) for link in answer["receipt_links"]]
     time.sleep(hold)
     require(api.json("/demo/state") == held, "presentation clock moved during the hold")
@@ -125,15 +196,22 @@ def cold_run(api: LocalAPI, hold: float) -> tuple[str, dict[str, Any]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url")
+    parser.add_argument("--showcase", action="store_true", help="rehearse all four showcase chapters")
     args = parser.parse_args()
     try:
         api = LocalAPI(args.url)
+        first_prefix = showcase_prefix(api) if args.showcase else None
         first_id, first = cold_run(api, hold=0.1)
+        second_prefix = showcase_prefix(api) if args.showcase else None
         second_id, second = cold_run(api, hold=1.3)
-        require(first_id != second_id and first == second, "cold playbacks produced different evidence")
+        require(
+            first_id != second_id and first == second and first_prefix == second_prefix,
+            "cold playbacks produced different evidence",
+        )
     except (OSError, ValueError, KeyError, http.client.HTTPException) as exc:
         parser.exit(1, f"Offline rehearsal failed. {exc}\n")
-    checksum = hashlib.sha256(json.dumps(first, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    evidence = first if first_prefix is None else {"showcase": first_prefix, "agent": first}
+    checksum = hashlib.sha256(json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     print(
         json.dumps(
             {
