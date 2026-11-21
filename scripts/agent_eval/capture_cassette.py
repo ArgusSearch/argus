@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from scripts.agent_eval.bundle import Bundle, canonical_json, receipt_keys, seal, sha256
+from scripts.agent_eval.bundle import Bundle, canonical_json, read_bundle, receipt_keys, seal, sha256
+from scripts.agent_eval.replay_config import V1_REPLAY, ReplayConfig, add_profile_options, profile_options
 
-from argus.agent.investigate import AgentSelector, tool_specs
+from argus.agent.investigate import tool_specs
 from argus.agent.journal import Journal
 from argus.agent.prompts import SELECT
 from argus.agent.provider import Cassette, ReplayClient
@@ -41,48 +44,105 @@ class _OrderedReplay(ReplayClient):
         super().__init__(cassette)
         self.expected = [line["key"] for line in cassette.lines]
         self.position = 0
+        self.investigation_pins: tuple[str, str] | None = None
 
     def create(self, request: LlmRequest) -> LlmResponse:
         if self.position >= len(self.expected) or request.key != self.expected[self.position]:
             raise ValueError(f"unexpected cassette request at turn {self.position + 1}")
         response = super().create(request)
         self.position += 1
+        if request.key.startswith("investigate:"):
+            pins = sha256(request.system.encode()), sha256(canonical_json(request.tools))
+            if self.investigation_pins is not None and self.investigation_pins != pins:
+                raise CaptureMismatch("detective prompt or tools changed within the capture")
+            self.investigation_pins = pins
         return response
 
+    def pins(self, config: ReplayConfig) -> tuple[str, str]:
+        if config.profile == "v1":
+            return sha256(SELECT.encode()), sha256(canonical_json(tool_specs()))
+        if self.investigation_pins is None:
+            raise CaptureMismatch("capture has no investigative prompt and tool pins")
+        return self.investigation_pins
 
-def stage_recording(source: Path, output: Path, scenario: str, seed: int, source_commit: str) -> Bundle:
-    cassette = Cassette.load(source / "turns.jsonl")
-    replayer = _OrderedReplay(cassette)
-    recorded_activity = _read_lines(source / "activity.jsonl")
-    recorded_events = _read_lines(source / "events.jsonl")
-    recorded_incidents = json.loads((source / "incidents.json").read_bytes())
+
+@contextmanager
+def _replay_cassette(
+    source: Path, world: Path, config: ReplayConfig, state: Path
+) -> Iterator[tuple[Runtime, _OrderedReplay]]:
+    replayer = _OrderedReplay(Cassette.load(source / "turns.jsonl"))
+    journal = Journal()
+    runtime: Runtime
+    selector = config.selector(replayer, journal, lambda: runtime.bus.history[-1].seq, state)
+    runtime = Runtime(world, selector=selector)
+    try:
+        runtime.run()
+        if (
+            runtime.fallbacks
+            or replayer.position != len(replayer.expected)
+            or any(run.status != "done" for run in journal.runs.values())
+        ):
+            raise CaptureMismatch(f"model exchange did not replay through turn {replayer.position + 1}")
+        for name, actual in (
+            ("activity.jsonl", [record.model_dump(mode="json") for record in journal.records]),
+            ("events.jsonl", [event.model_dump(mode="json") for event in runtime.bus.history]),
+        ):
+            _compare(name, actual, _read_lines(source / name))
+        yield runtime, replayer
+    finally:
+        runtime.runner.close()
+
+
+def verify_cassette(directory: Path, digest: str, world: Path) -> Bundle:
+    bundle = read_bundle(directory, expected_digest=digest, presentation=False)
+    config = ReplayConfig.from_manifest(bundle.manifest, directory)
+    with (
+        tempfile.TemporaryDirectory(prefix="argus-cassette-replay-") as state,
+        _replay_cassette(directory, world, config, Path(state)) as (runtime, replayer),
+    ):
+        if replayer.pins(config) != (bundle.manifest.prompt_sha, bundle.manifest.tools_sha):
+            raise CaptureMismatch("detective prompt or tools do not match the seal")
+        if sha256(canonical_json(runtime.graph.model_dump(mode="json"))) != bundle.manifest.graph_sha:
+            raise CaptureMismatch("graph differs from the seal")
+        for receipt_id, result_hash in {
+            value["receipt"]["id"]: value["receipt"]["result_hash"]
+            for value in bundle.documents["receipts.json"].values()
+        }.items():
+            if runtime.runner.rerun(receipt_id) != (result_hash, True):
+                raise CaptureMismatch(f"receipt {receipt_id} differs from the seal")
+    return bundle
+
+
+def stage_recording(
+    source: Path,
+    output: Path,
+    scenario: str,
+    seed: int,
+    source_commit: str,
+    *,
+    config: ReplayConfig = V1_REPLAY,
+) -> Bundle:
     summaries = [RunSummary.model_validate(row) for row in json.loads((source / "runs.json").read_bytes())]
     if not summaries or any(
         run.mode != "record" or run.status != "done" or run.fallback or run.llm_calls < 2 for run in summaries
     ):
         raise CaptureMismatch("the live export has an incomplete or fallback investigation")
 
-    # Store output only after the real tools have reproduced the captured events.
+    recorded_incidents = json.loads((source / "incidents.json").read_bytes())
     with tempfile.TemporaryDirectory(prefix="argus-cassette-world-") as work:
         world = generate(scenario, WorldConfig(seed=seed), Path(work))
-        journal = Journal()
-        runtime: Runtime
-        selector = AgentSelector(replayer, journal, mode="replay", through_seq=lambda: runtime.bus.history[-1].seq)
-        runtime = Runtime(world.world, selector=selector)
-        try:
-            runtime.run()
-            if replayer.position != len(replayer.expected) or any(
-                run.status != "done" for run in journal.runs.values()
-            ):
-                raise CaptureMismatch(f"model exchange did not replay through turn {replayer.position + 1}")
-            _compare(
-                "activity",
-                [record.model_dump(mode="json") for record in journal.records],
-                recorded_activity,
-            )
-            _compare("C5 events", [event.model_dump(mode="json") for event in runtime.bus.history], recorded_events)
+        with _replay_cassette(source, world.world, config, Path(work) / "memory") as (runtime, replayer):
             graph = runtime.graph.model_dump(mode="json")
-            keys = set(receipt_keys([recorded_activity, recorded_events, recorded_incidents, graph]))
+            keys = set(
+                receipt_keys(
+                    [
+                        _read_lines(source / "activity.jsonl"),
+                        _read_lines(source / "events.jsonl"),
+                        recorded_incidents,
+                        graph,
+                    ]
+                )
+            )
             proofs_by_id: dict[str, Any] = {}
             receipts = {}
             for key in sorted(keys):
@@ -104,10 +164,9 @@ def stage_recording(source: Path, output: Path, scenario: str, seed: int, source
                 receipts[key] = proofs_by_id[receipt_id]
             world_manifest = json.loads(world.manifest.read_bytes())
             world_manifest.pop("seconds", None)
-        finally:
-            runtime.runner.close()
 
     output.mkdir(parents=True, exist_ok=False)
+    prompt_sha, tools_sha = replayer.pins(config)
     documents = {
         "manifest.json": {
             "schema_version": 1,
@@ -116,10 +175,11 @@ def stage_recording(source: Path, output: Path, scenario: str, seed: int, source
             "scenario": scenario,
             "seed": seed,
             "interface_version": INTERFACE_VERSION,
-            "prompt_sha": sha256(SELECT.encode()),
-            "tools_sha": sha256(canonical_json(tool_specs())),
-            "models": sorted({turn["response"]["model"] for turn in cassette.lines}),
+            "prompt_sha": prompt_sha,
+            "tools_sha": tools_sha,
+            "models": sorted({turn["response"]["model"] for turn in _read_lines(source / "turns.jsonl")}),
             "world": world_manifest,
+            **config.metadata(output),
         },
         "graph.json": graph,
         "receipts.json": receipts,
@@ -138,9 +198,12 @@ def main() -> None:
     parser.add_argument("--scenario", choices=("s1", "s4"), required=True)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--source-commit", required=True)
+    add_profile_options(parser)
     args = parser.parse_args()
     try:
-        bundle = stage_recording(args.source, args.output, args.scenario, args.seed, args.source_commit)
+        bundle = stage_recording(
+            args.source, args.output, args.scenario, args.seed, args.source_commit, config=profile_options(args)
+        )
     except CaptureMismatch as exc:
         parser.exit(1, f"Cassette staging failed: {exc}\n")
     except (KeyError, OSError, TypeError, ValueError):

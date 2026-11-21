@@ -30,6 +30,32 @@ CASES = {
     "E16": "same-tick Stage 2 on provider errors",
     "E17": "quiet world with no paid calls",
 }
+INTELLIGENCE_CASES = {
+    "E18": "hypothesis board matches independent cause and rejected alternatives",
+    "E19": "SQL allowlist, as-of isolation and receipt integrity",
+    "E20": "self-written checks cannot grant a verdict",
+    "E21": "counter-check catches a decoy without false vetoes",
+    "E22": "critic independence, caps and monotone verdicts",
+    "E23": "denials and verified precedents govern proposals",
+    "E24": "case memory cannot contribute evidence",
+    "E25": "receipted cause chains and impact",
+    "E26": "investigation caps, cost accounting and zero replay spend",
+    "E27": "v1 immutability and v2 cold replay",
+    "E28": "advisory STL agreement on pages and quiet hours",
+}
+INTELLIGENCE_MIN_TRIALS = {
+    "E18": 11,  # eight positive and three negative worlds or captures
+    "E19": 39,  # 28 rejections, ten accepted cuts, and the future-hour check
+    "E20": 2,
+    "E21": 9,
+    "E22": 20,
+    "E23": 1,
+    "E24": 4,
+    "E25": 9,
+    "E26": 1,
+    "E27": 4,
+    "E28": 1,
+}
 CASE_NAME = re.compile(r"test_(e\d{2})(?:_|\[|$)", re.IGNORECASE)
 FIRST_DIFFERENCE = re.compile(r"(?:turn|observation) (\d+)", re.IGNORECASE)
 SCENARIO_MATRIX = {
@@ -39,8 +65,9 @@ SCENARIO_MATRIX = {
 }
 
 
-def summarize(xml: Path, commit: str) -> dict[str, object]:
-    tests: dict[str, list[dict[str, str | int | None]]] = {case: [] for case in CASES}
+def summarize(xml: Path, commit: str, *, intelligence: bool = False, cut_stl: bool = False) -> dict[str, object]:
+    index = CASES | INTELLIGENCE_CASES if intelligence else CASES
+    tests: dict[str, list[dict[str, str | int | None]]] = {case: [] for case in index}
     try:
         tree = ElementTree.parse(xml)
     except (OSError, ElementTree.ParseError):
@@ -78,13 +105,14 @@ def summarize(xml: Path, commit: str) -> dict[str, object]:
             "id": case,
             "invariant": invariant,
             "passed": (
-                bool(tests[case])
+                len({test["test"] for test in tests[case]}) >= INTELLIGENCE_MIN_TRIALS.get(case, 1)
                 and all(test["outcome"] == "pass" for test in tests[case])
                 and (case != "E01" or matrix_complete)
             ),
             "trials": tests[case],
         }
-        for case, invariant in CASES.items()
+        for case, invariant in index.items()
+        if case != "E28" or not cut_stl
     ]
     return {
         "commit": commit,
@@ -94,6 +122,7 @@ def summarize(xml: Path, commit: str) -> dict[str, object]:
         "junit": str(xml),
         "scenario_matrix": matrix,
         "cases": cases,
+        **({"cuts": ["E28"] if cut_stl else []} if intelligence else {}),
     }
 
 
@@ -101,9 +130,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("xml", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--intelligence", action="store_true", help="include the v2 intelligence evals")
+    parser.add_argument("--cut-stl", action="store_true", help="mark the optional STL feature as cut")
     args = parser.parse_args()
+    if args.cut_stl and not args.intelligence:
+        parser.error("--cut-stl requires --intelligence")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    report = summarize(args.xml, head)
+    report = summarize(args.xml, head, intelligence=args.intelligence, cut_stl=args.cut_stl)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2) + "\n")
     print(f"Deterministic agent evals: {report['passed']}/{report['required']}; scorecard: {args.out}")

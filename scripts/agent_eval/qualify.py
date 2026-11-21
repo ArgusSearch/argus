@@ -154,7 +154,9 @@ def check_adaptive(bundle: Bundle, investigation_ids: set[str]) -> bool:
     return False
 
 
-def assess_trial(trial: Trial, directory: Path, source_commit: str) -> tuple[list[str], float]:
+def assess_trial(
+    trial: Trial, directory: Path, source_commit: str, *, profile: Literal["v1", "v2"] = "v1"
+) -> tuple[list[str], float]:
     failures = check_usage(trial)
     if trial.source_commit != source_commit:
         failures.append("trial came from a different source commit")
@@ -185,7 +187,9 @@ def assess_trial(trial: Trial, directory: Path, source_commit: str) -> tuple[lis
             trial.source_commit,
         ):
             failures.append("capture metadata differs from trial")
-        if not check_adaptive(bundle, {run.run_id for run in investigations}):
+        if (bundle.manifest.profile or "v1") != profile:
+            failures.append("capture profile differs from qualification profile")
+        if profile == "v1" and not check_adaptive(bundle, {run.run_id for run in investigations}):
             failures.append("no model tool choice after a receipted observation")
         if trial.scenario == "s1" and any(
             item["kind"] == "action_applied" for item in bundle.documents["activity.jsonl"]
@@ -291,9 +295,15 @@ def main() -> None:
     parser.add_argument("trials", type=Path, help="the retained trial directories, including failures")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--text-review", type=Path, help="optional text-quality judge results")
+    parser.add_argument("--profile", choices=("v1", "v2"), default="v1")
     args = parser.parse_args()
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    report = score(args.trials, head)
+    if args.profile == "v2":
+        from scripts.agent_eval.qualify_intel import score_intelligence
+
+        report = score_intelligence(args.trials, head)
+    else:
+        report = score(args.trials, head)
     if args.text_review:
         report["text_quality"] = show_quality(args.text_review)
     args.out.parent.mkdir(parents=True, exist_ok=True)

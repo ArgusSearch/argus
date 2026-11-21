@@ -8,9 +8,11 @@ REPLAY ?= fixtures$(if $(filter s1,$(SCENARIO)),,/$(SCENARIO))
 BENCH_OUT ?= runs/bench
 S1_OUT ?= runs
 AGENT_EVAL_OUT ?= runs/agent-eval
+AGENT_INTEL_OUT ?= runs/agent-intel
+PROFILE ?= v1
 CONTRACTS_BASE := 2c36e8204f3082aa1a9ddfd613ab545247fdc5ef
 
-.PHONY: setup check lint format typecheck test test-app test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval agent-eval-live world demo api fixtures clean
+.PHONY: setup check lint format typecheck test test-app test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval agent-eval-intel agent-eval-live world demo api fixtures clean
 
 setup:            ## install the locked environment
 	uv sync
@@ -35,7 +37,7 @@ test-app:
 	uv run pytest --ignore=tests/agent_evals
 
 test-fast:        ## unit tests only, skips the end-to-end scenario runs
-	uv run pytest -m "not e2e"
+	uv run pytest -m "not e2e" --ignore-glob='*/test_intel_*.py'
 
 contracts:        ## regenerate contracts/ from src/argus/contracts
 	uv run python -m argus.contracts.export
@@ -59,13 +61,18 @@ bench:            ## the scorecard: every scenario x 3 seeds, Argus against the 
 	uv run python -m scripts.agent_eval.bench_gate "$(BENCH_OUT)"
 
 agent-eval:        ## run deterministic agent release evals with provider access disabled
-	@status=0; ARGUS_DISABLE_PROVIDER=1 uv run pytest tests/agent_evals --junitxml="$(AGENT_EVAL_OUT)/pytest.xml" || status=$$?; \
+	@status=0; ARGUS_DISABLE_PROVIDER=1 ARGUS_AGENT_PROFILE=v1 uv run pytest tests/agent_evals --ignore-glob='*/test_intel_*.py' --junitxml="$(AGENT_EVAL_OUT)/pytest.xml" || status=$$?; \
 	uv run python -m scripts.agent_eval.offline_report "$(AGENT_EVAL_OUT)/pytest.xml" --out "$(AGENT_EVAL_OUT)/scorecard.json" || exit $$?; \
+	exit $$status
+
+agent-eval-intel:  ## require the v1 and v2 evals including the pinned v2 stage recordings
+	@status=0; ARGUS_DISABLE_PROVIDER=1 ARGUS_AGENT_PROFILE=v1 uv run pytest tests/agent_evals $(if $(filter 1,$(CUT_STL)),-k 'not test_e28') --junitxml="$(AGENT_INTEL_OUT)/pytest.xml" || status=$$?; \
+	uv run python -m scripts.agent_eval.offline_report "$(AGENT_INTEL_OUT)/pytest.xml" --out "$(AGENT_INTEL_OUT)/scorecard.json" --intelligence $(if $(filter 1,$(CUT_STL)),--cut-stl) || exit $$?; \
 	exit $$status
 
 agent-eval-live:   ## score retained paid trials from TRIALS and write the live stage decision
 	@test -n "$(TRIALS)" || { printf '%s\n' 'Set TRIALS to the paid qualification archive.' >&2; exit 2; }
-	uv run python -m scripts.agent_eval.qualify "$(TRIALS)" --out "$(AGENT_EVAL_OUT)/qualification.json" $(if $(TEXT_REVIEW),--text-review "$(TEXT_REVIEW)")
+	uv run python -m scripts.agent_eval.qualify "$(TRIALS)" --out "$(if $(filter v2,$(PROFILE)),$(AGENT_INTEL_OUT),$(AGENT_EVAL_OUT))/qualification.json" --profile "$(PROFILE)" $(if $(TEXT_REVIEW),--text-review "$(TEXT_REVIEW)")
 
 world:            ## generate a $(SCENARIO) world into runs/$(SCENARIO)-$(SEED)
 	uv run mockmart generate --scenario $(SCENARIO) --seed $(SEED) --out runs/$(SCENARIO)-$(SEED)

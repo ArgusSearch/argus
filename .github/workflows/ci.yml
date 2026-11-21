@@ -53,12 +53,22 @@ jobs:
         run: uv sync --frozen
       - name: Run all 17 deterministic agent evals offline
         run: make agent-eval
+      - name: Qualify the pinned intelligence recordings offline
+        if: ${{ hashFiles('fixtures/agent/v2/*/manifest.json') != '' }}
+        run: |
+          if uv run python -c 'from importlib.util import find_spec; raise SystemExit(find_spec("argus.detect.second_opinion") is None)'; then
+            make agent-eval-intel
+          else
+            make agent-eval-intel CUT_STL=1
+          fi
       - name: Upload offline agent evaluation results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent-eval-${{ github.sha }}
-          path: runs/agent-eval/
+          path: |
+            runs/agent-eval/
+            runs/agent-intel/
           if-no-files-found: warn
 
   bench:
