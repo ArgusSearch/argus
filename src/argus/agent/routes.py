@@ -58,7 +58,9 @@ def _scope(source: Source) -> AskScope:
         latest_hour=hub.state.last_tick.hour,
         graph=source.graph(),
         incidents=source.incidents(),
-        world=source.runtime.world,
+        # the world the run reads now: after an applied action that is the treated branch, not the factual one
+        world=source.runtime.runner.world_path,
+        world_revision=source.world_revision(),
         proposals=[p.model_dump(mode="json") for p in source.remediation.proposals()] if source.remediation else [],
     )
 

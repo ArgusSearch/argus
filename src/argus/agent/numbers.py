@@ -20,7 +20,7 @@ TAG = re.compile(r"\[((?:[ra]\d+)(?:\s*,\s*[ra]\d+)*)\]")
 SKIP = re.compile(
     r"\[[ra]\d+(?:\s*,\s*[ra]\d+)*\]|\b[ra]\d+\b|`[^`]*`|INC-\d+|\ban_p?\d+\b|\b(?:act|rep|run|h)_?\d+\b"
     r"|\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\b\d{1,2}:\d{2}\b|^\s*\d+\.\s|^#+.*$"
-    r"|\b\d+\.\d+\.\d+\b|\b[A-Za-z]+[-_]\d[\w.\-]*"
+    r"|\b\d+\.\d+\.\d+\b|\b[A-Za-z]+[-_]\d[\w.\-]*|\b(?:[Vv]ersion|pacer|v)\s*\d+(?:\.\d+)+"
     r"|\b\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b"
     r"|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}\b"
 )

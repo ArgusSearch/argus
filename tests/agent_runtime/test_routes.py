@@ -121,3 +121,31 @@ def test_follow_up_keeps_the_conversation(source: LiveSource) -> None:
         opening = fake.requests[before].messages[0]["content"]
         assert "What broke?" in opening and "INC-0001" in opening
         assert c.post("/agent/ask", json={"question": "x", "conversation_id": "conv_9999"}).status_code == 404
+
+
+class _Applied:
+    """Stands in for lane C's service after an applied action: the run reads the treated branch."""
+
+    def __init__(self, world: object) -> None:
+        self.world = world
+
+    def active_world(self) -> tuple[object, str]:
+        return self.world, "act_0001-treated"
+
+    def proposals(self) -> list[object]:
+        return []
+
+    def receipt(self, link: object) -> None:
+        return None
+
+
+def test_ask_reads_the_branch_the_run_reads(source: LiveSource) -> None:
+    """After an approved action Ask must measure the treated world, never the untreated factual one."""
+    with client(source, asker("Pacing is back on plan.")) as c:
+        source.remediation = _Applied(source.runtime.runner.world_path)
+        try:
+            body = c.post("/agent/ask", json={"question": "Did it work?"}).json()
+        finally:
+            source.remediation = None
+        assert body["status"] == "answered"
+        assert {link["world_revision"] for link in body["receipt_links"]} == {"act_0001-treated"}
