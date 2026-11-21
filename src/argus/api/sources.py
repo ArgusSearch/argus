@@ -155,6 +155,7 @@ class LiveSource:
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._to_end = False
+        self.bus.pace_steps = lambda: 0.0 if self._to_end else 0.45 * self.seconds_per_tick / self.speed
         self._thread: threading.Thread | None = None
 
     # ------------------------------------------------------------------ run

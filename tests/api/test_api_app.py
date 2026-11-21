@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import time
 from pathlib import Path
@@ -11,8 +12,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from argus.api.app import create_app
+from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, load_recording
 from argus.api.sources import LiveSource, ReplaySource
+from argus.api.state import RunState
 from argus.contracts.events import Event, EventType
 from argus.contracts.findings import IncidentState
 from mockmart.world import WorldPaths
@@ -52,7 +55,7 @@ def test_replay_to_end_then_read_everything(tmp_path: Path) -> None:
         keys = {line["key"] for line in digest["lines"]}
         assert {"watched", "wiggles", "held_back", "anomalies", "incident:INC-0001", "edges", "cost"} <= keys
         line = next(line for line in digest["lines"] if line["key"] == "incident:INC-0001")
-        assert line["receipts"] and line["tone"] == "good"
+        assert line["receipts"] and len(set(line["receipts"])) == len(line["receipts"]) and line["tone"] == "good"
         assert digest["markdown"].startswith("## While you slept")
 
         assert client.get("/incidents/INC-9999").status_code == 404
@@ -129,6 +132,35 @@ def test_replay_serves_incidents_as_of_the_stream() -> None:
     seen = asyncio.run(asyncio.wait_for(run(), timeout=30))
     assert seen and all(event == served for event, served in seen)
     assert seen[-1][0] == IncidentState.RESOLVED.value
+
+
+def test_live_tail_paces_investigation_steps_but_not_the_history() -> None:
+    async def run() -> list[float]:
+        recording = load_recording(FIXTURES)
+        steps = [e for e in recording.events if e.type is EventType.INVESTIGATION_STEP][:5]
+        hub = EventHub(RunState(recording.graph))
+        hub.bind(asyncio.get_running_loop())
+        hub.pace_steps = lambda: 0.05
+        for event in steps[:2]:
+            hub.publish(event)
+        times: list[float] = []
+
+        async def consume() -> None:
+            async for _ in hub.follow():
+                times.append(time.perf_counter())
+                if len(times) == len(steps):
+                    return
+
+        task = asyncio.create_task(consume())
+        await asyncio.sleep(0.01)
+        for event in steps[2:]:
+            hub.publish(event)
+        await asyncio.wait_for(task, timeout=5)
+        return times
+
+    times = asyncio.run(run())
+    assert times[1] - times[0] < 0.02, "history arrives at full speed"
+    assert all(b - a >= 0.04 for a, b in itertools.pairwise(times[2:])), "live steps are paced"
 
 
 @pytest.mark.e2e

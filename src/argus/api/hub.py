@@ -8,18 +8,24 @@ A stream has an id. Restarting a replay starts a new stream whose `seq` continue
 so `seq` stays strictly increasing for the whole process and a `Last-Event-ID` from an old stream is
 recognisable: it lies before the new stream's first seq. Such a client, and every client connected
 during the restart, first gets a `stream` item and then the new stream from its first event.
+
+A live runtime investigates in a fraction of a second. With `pace_steps` set, each SSE client receives
+the investigation steps of the live tail at a readable pace (the history always arrives at full speed);
+the runtime and the REST routes are never slowed down.
 """
 
 from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 
 from argus.api.state import RunState
-from argus.contracts.events import Event
+from argus.contracts.events import Event, EventType
 from argus.runtime.bus import EventBus
+
+PACED = frozenset({EventType.ANOMALY_OPENED, EventType.INVESTIGATION_STEP, EventType.SKEPTIC_STEP})
 
 
 @dataclass(frozen=True)
@@ -40,6 +46,7 @@ class EventHub(EventBus):
         self.state = state
         self.stream = _new_stream_id()
         self.base_seq = 0  # every seq of the current stream is greater than this
+        self.pace_steps: Callable[[], float] | None = None  # seconds to hold each live investigation step
         self._loop: asyncio.AbstractEventLoop | None = None
         self._changed: asyncio.Event | None = None
 
@@ -108,6 +115,7 @@ class EventHub(EventBus):
         """
         current: str | None = None
         sent = 0  # index into the history of `current`
+        live = False  # the first pass is history: no pacing
         while True:
             changed = self._changed
             pending: list[StreamItem] = []
@@ -127,6 +135,9 @@ class EventHub(EventBus):
                 sent = len(history)
             for item in pending:
                 yield item
+                if live and self.pace_steps and item.event is not None and item.event.type in PACED:
+                    await asyncio.sleep(self.pace_steps())
+            live = True
             if changed is None:
                 return
             await changed.wait()

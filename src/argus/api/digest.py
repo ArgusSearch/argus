@@ -128,7 +128,7 @@ def build_digest(state: RunState, incidents: list[Incident], graph: Graph) -> Di
                 label=inc.id,
                 value=f"€{inc.severity_eur:,.0f}",
                 detail=f"{f.verdict.value}: {inc.title} ({segment_label(inc.segment)}), {state_text}",
-                receipts=receipts,
+                receipts=list(dict.fromkeys(receipts)),
                 tone="good" if inc.state is IncidentState.RESOLVED else "bad",
             )
         )
@@ -167,7 +167,7 @@ def build_digest(state: RunState, incidents: list[Incident], graph: Graph) -> Di
             detail=f"{seconds:.2f} s of investigation, {_plural(llm, 'LLM call')}: the math decides, not a model",
         )
     )
-    window = f"{since:%a %H:%M} to {until:%a %H:%M}" if since and until else "no data yet"
+    window = f"{since:%a %d %b %H:%M} to {until:%a %d %b %H:%M}" if since and until else "no data yet"
     title = f"While you slept ({window})"
     md = [f"## {title}", ""]
     md += [
