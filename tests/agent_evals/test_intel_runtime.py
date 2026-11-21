@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
@@ -287,6 +288,7 @@ def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):
     (summary,) = replay_journal.runs.values()
     assert summary.status == "done"
     board = build_board(replay_journal.records, replayed.findings, summary)
-    assert board.cost.usd == round(sum(u.usd or 0 for u in replay_journal.usage), 6) > 0
+    billed = sum(Decimal(str(u.usd)) for u in replay_journal.usage if u.usd is not None)
+    assert Decimal(str(board.cost.usd)) == billed > 0
     assert board.cost.replayed
     assert not replay_path.exists() or replay_path.read_bytes() == b""

@@ -72,7 +72,7 @@ agent-eval-intel:  ## require the v1 and v2 evals including the pinned v2 stage 
 
 agent-eval-live:   ## score retained paid trials from TRIALS and write the live stage decision
 	@test -n "$(TRIALS)" || { printf '%s\n' 'Set TRIALS to the paid qualification archive.' >&2; exit 2; }
-	uv run python -m scripts.agent_eval.qualify "$(TRIALS)" --out "$(if $(filter v2,$(PROFILE)),$(AGENT_INTEL_OUT),$(AGENT_EVAL_OUT))/qualification.json" --profile "$(PROFILE)" $(if $(TEXT_REVIEW),--text-review "$(TEXT_REVIEW)")
+	uv run python -m scripts.agent_eval.qualify "$(TRIALS)" --out "$(if $(filter v2,$(PROFILE)),$(AGENT_INTEL_OUT),$(AGENT_EVAL_OUT))/qualification.json" --profile "$(PROFILE)" $(if $(SOURCE_COMMIT),--source-commit "$(SOURCE_COMMIT)") $(if $(TEXT_REVIEW),--text-review "$(TEXT_REVIEW)")
 
 world:            ## generate a $(SCENARIO) world into runs/$(SCENARIO)-$(SEED)
 	uv run mockmart generate --scenario $(SCENARIO) --seed $(SEED) --out runs/$(SCENARIO)-$(SEED)

@@ -296,12 +296,19 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--text-review", type=Path, help="optional text-quality judge results")
     parser.add_argument("--profile", choices=("v1", "v2"), default="v1")
+    parser.add_argument("--source-commit", help="full v2 capture commit when the pins landed separately")
     args = parser.parse_args()
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    if args.source_commit and args.profile != "v2":
+        parser.error("--source-commit is for v2 qualification")
     if args.profile == "v2":
         from scripts.agent_eval.qualify_intel import score_intelligence
 
-        report = score_intelligence(args.trials, head)
+        commit = args.source_commit or head
+        if len(commit) != 40 or any(char not in "0123456789abcdef" for char in commit):
+            parser.error("expected a full Git commit SHA")
+        report = score_intelligence(args.trials, commit)
+        report["checkout_commit"] = head
     else:
         report = score(args.trials, head)
     if args.text_review:

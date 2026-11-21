@@ -53,6 +53,7 @@ def test_e27_v2_presentation_replays_cold_twice(scenario, monkeypatch, tmp_path)
     for _ in range(2):
         bundle = verify_presentation(root / scenario, digest)
         assert (bundle.manifest.scenario, bundle.manifest.seed, bundle.manifest.profile) == (scenario, 1, "v2")
+        assert {"critic", "sql", "hypotheses"} <= set(bundle.manifest.features or [])
         (incident,) = [Incident.model_validate(row) for row in bundle.documents["incidents.json"]]
         records = [ActivityRecord.model_validate(row) for row in bundle.documents["activity.jsonl"]]
         board = build_board(records, incident.findings, None)
