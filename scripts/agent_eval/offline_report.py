@@ -9,6 +9,8 @@ import subprocess
 from pathlib import Path
 from xml.etree import ElementTree
 
+from scripts.agent_eval.bench_gate import SCENARIOS, SEEDS
+
 CASES = {
     "E01": "scenario disposition",
     "E02": "root cause and segment",
@@ -30,6 +32,11 @@ CASES = {
 }
 CASE_NAME = re.compile(r"test_(e\d{2})(?:_|\[|$)", re.IGNORECASE)
 FIRST_DIFFERENCE = re.compile(r"(?:turn|observation) (\d+)", re.IGNORECASE)
+SCENARIO_MATRIX = {
+    f"test_e01_disposition_on_sealed_scenarios[{seed}-{scenario}]": (scenario, seed)
+    for scenario in SCENARIOS
+    for seed in SEEDS
+}
 
 
 def summarize(xml: Path, commit: str) -> dict[str, object]:
@@ -60,11 +67,21 @@ def summarize(xml: Path, commit: str) -> dict[str, object]:
                 "first_bad_turn": int(difference[1]) if difference else None,
             }
         )
+    dispositions = {test["test"]: test["outcome"] for test in tests["E01"]}
+    matrix = [
+        {"scenario": scenario, "seed": seed, "outcome": dispositions.get(name, "missing")}
+        for name, (scenario, seed) in SCENARIO_MATRIX.items()
+    ]
+    matrix_complete = all(run["outcome"] == "pass" for run in matrix)
     cases = [
         {
             "id": case,
             "invariant": invariant,
-            "passed": bool(tests[case]) and all(test["outcome"] == "pass" for test in tests[case]),
+            "passed": (
+                bool(tests[case])
+                and all(test["outcome"] == "pass" for test in tests[case])
+                and (case != "E01" or matrix_complete)
+            ),
             "trials": tests[case],
         }
         for case, invariant in CASES.items()
@@ -75,6 +92,7 @@ def summarize(xml: Path, commit: str) -> dict[str, object]:
         "required": len(cases),
         "passed": sum(bool(case["passed"]) for case in cases),
         "junit": str(xml),
+        "scenario_matrix": matrix,
         "cases": cases,
     }
 

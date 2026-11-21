@@ -12,6 +12,7 @@ from typing import Any
 
 import duckdb
 import pytest
+from scripts.agent_eval.bench_gate import SCENARIOS, SEEDS
 
 from argus.agent.fake import FakeLlmClient, tool_use
 from argus.agent.investigate import AgentSelector, Budget
@@ -35,8 +36,6 @@ from bench.agents import output_from_runtime
 from bench.runner import SealedCase, grade_case, prepare_case, reveal
 
 Responder = Callable[[LlmRequest], LlmResponse]
-SCENARIOS = ("quiet", "s1", "s2", "s3", "s4", "s5")
-SEEDS = (1, 2, 3)
 CHECKS = {"hypothesis": "The candidate explains the deviation.", "prediction": "The outside scope stays normal."}
 QUERY_TOOLS = {
     "get_series",
@@ -343,6 +342,29 @@ def test_e08_external_log_cannot_give_the_model_action_authority(
     assert incident.verdict == Verdict.SUPPORTED_CAUSE
     assert incident.findings.root is not None and incident.findings.root.evidence is not None
     assert incident.findings.root.evidence.ref == "ps_payco_degraded"
+
+
+def test_e08_an_old_payco_explanation_cannot_authorize_a_new_causal_claim(
+    world_case: Callable[[str, int], SealedCase],
+) -> None:
+    def respond(request: LlmRequest) -> LlmResponse:
+        turn = int(request.key.rsplit(":", 1)[1])
+        if turn == 2:
+            prior = {"log": "log_provider_status", "ref": "ps_payco_degraded"}
+            return call(
+                request,
+                "holdout_check",
+                {**series_args(request), **CHECKS, "event": prior, "expect": "consistent"},
+            )
+        if turn == 3:
+            assert response_data(request)["availability"] == "rejected"
+        return scripted(request)
+
+    product = run(world_case("s5", 1), FakeLlmClient(responder=respond), first_incident=True)
+    (incident,) = product.runtime.book.incidents.values()
+    assert incident.findings.root is not None and incident.findings.root.evidence is not None
+    assert incident.findings.root.evidence.ref == "dep_checkout-routing_retry-policy"
+    assert any(item.observation and item.observation.availability == "rejected" for item in product.journal.records)
 
 
 def test_e11_repeated_tool_calls_stop_at_bounded_cost(world_case: Callable[[str, int], SealedCase]) -> None:

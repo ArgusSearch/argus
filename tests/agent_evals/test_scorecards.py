@@ -27,6 +27,7 @@ def test_offline_scorecard_rejects_missing_skipped_and_failed_cases(tmp_path: Pa
     assert report["required"] == len(CASES) == 17
     assert report["passed"] == 1
     assert report["commit"] == "release-sha"
+    assert len(report["scenario_matrix"]) == 18
 
 
 def test_live_scorecard_keeps_all_unattempted_trials_visible(tmp_path: Path) -> None:
