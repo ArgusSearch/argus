@@ -9,7 +9,8 @@ outside the accepted scenario directories.
 Lane A owns the provider adapter, request hash and cassette matcher. Each line of
 `turns.jsonl` is one completed `LlmClient.create` exchange in capture order.
 It contains `key`, `request_sha`, and the frozen `LlmResponse` under `response`.
-The key is `<kind>:<subject>:<round>`. The hash covers the model, prompt, tool
+The key is `<kind>:<subject>:<round>`. The request digest uses the adapter's
+`sha256:<hex>` format. The hash covers the model, prompt, tool
 schemas and ordered messages after normalizing provider tool IDs. The response
 preserves the returned model, stop reason, token usage and visible text/tool calls.
 Use deterministic tool IDs and omit provider request IDs and private reasoning.
@@ -57,6 +58,14 @@ Once the real cassette dispatch and event playback pass, install the bundle in
 its scenario directory and add its digest to `accepted.json`, an object mapping
 `"s1"` and `"s4"` to their seed-one bundle hashes. Include the C4 incident snapshot
 in each root and the resolved snapshot in the S4 approval continuation for grading.
+
+The initial live investigations are sealed separately under `cassettes/{s1,s4}/`,
+with independent pins in `cassettes/accepted.json`. They include the live
+provider exchange, activity, C4/C5 exports, and the graph and receipt proofs
+recovered by a strict cold replay. Use
+`uv run python -m scripts.agent_eval.capture_cassette RAW_EXPORT STAGING --scenario s4 --source-commit SHA`
+to rebuild an investigation cassette. A cassette has no operator decision or
+recorded Ask, so a full presentation requires a separate release bundle.
 
 1. Strict cassette replay matches the next key and request hash and dispatches
    real tools on the matching world. A miss fails offline with the first bad turn.

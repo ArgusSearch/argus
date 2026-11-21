@@ -29,10 +29,11 @@ CASES = {
     "E17": "quiet world with no paid calls",
 }
 CASE_NAME = re.compile(r"test_(e\d{2})(?:_|\[|$)", re.IGNORECASE)
+FIRST_DIFFERENCE = re.compile(r"(?:turn|observation) (\d+)", re.IGNORECASE)
 
 
 def summarize(xml: Path, commit: str) -> dict[str, object]:
-    tests: dict[str, list[dict[str, str | None]]] = {case: [] for case in CASES}
+    tests: dict[str, list[dict[str, str | int | None]]] = {case: [] for case in CASES}
     try:
         tree = ElementTree.parse(xml)
     except (OSError, ElementTree.ParseError):
@@ -50,7 +51,15 @@ def summarize(xml: Path, commit: str) -> dict[str, object]:
                 outcome = kind
                 diagnostic = child.get("message")
                 break
-        tests[case].append({"test": name, "outcome": outcome, "diagnostic": diagnostic})
+        difference = FIRST_DIFFERENCE.search(diagnostic or "")
+        tests[case].append(
+            {
+                "test": name,
+                "outcome": outcome,
+                "diagnostic": diagnostic,
+                "first_bad_turn": int(difference[1]) if difference else None,
+            }
+        )
     cases = [
         {
             "id": case,

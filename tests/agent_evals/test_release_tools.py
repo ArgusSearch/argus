@@ -99,7 +99,7 @@ def staging(tmp_path: Path) -> Path:
         [
             {
                 "key": "investigate:an_0001:1",
-                "request_sha": "4" * 64,
+                "request_sha": "sha256:" + "4" * 64,
                 "response": {
                     "model": "test-model",
                     "content": [{"type": "text", "text": "Ready to check"}],
@@ -126,6 +126,7 @@ def staging(tmp_path: Path) -> Path:
         }
         if branch == "approve":
             records.append(activity(3, "action_applied"))
+            records.append(activity(4, "effect_checked"))
             twin = LINK | {"receipt_id": "r2", "world_revision": "untouched"}
             result["effect"] = {
                 "state": "VERIFIED",

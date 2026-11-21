@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import re
+import tempfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +26,7 @@ SHA256 = re.compile(r"[a-f0-9]{64}")
 GIT_SHA = re.compile(r"[a-f0-9]{40}")
 REQUIRED = {"turns.jsonl", "events.jsonl", "activity.jsonl", "actions.json", "receipts.json", "graph.json", "ask.jsonl"}
 OPTIONAL = {"incidents.json", "notes.json"}
+CASSETTE_FILES = {"turns.jsonl", "events.jsonl", "activity.jsonl", "receipts.json", "graph.json", "incidents.json"}
 BRANCH_REQUIRED = {"events.jsonl", "activity.jsonl", "actions.json"}
 BRANCH_OPTIONAL = {"receipts.json", "ask.jsonl"} | OPTIONAL
 BRANCHES = ("approve", "deny")
@@ -121,10 +124,11 @@ def _scan(value: Any, path: str, secrets: tuple[str, ...]) -> None:
         raise ValueError(f"{path}: contains credential-like data")
 
 
-def _files(directory: Path, scenario: str) -> dict[str, bytes]:
-    required = set(REQUIRED)
-    allowed = REQUIRED | OPTIONAL
-    if scenario == "s4":
+def _files(directory: Path, scenario: str, presentation: bool) -> dict[str, bytes]:
+    required = set(REQUIRED if presentation else CASSETTE_FILES)
+    allowed = required | OPTIONAL
+    branches = presentation and scenario == "s4"
+    if branches:
         for branch in BRANCHES:
             required.update(f"{branch}/{file}" for file in BRANCH_REQUIRED)
             allowed.update(f"{branch}/{file}" for file in BRANCH_REQUIRED | BRANCH_OPTIONAL)
@@ -133,7 +137,7 @@ def _files(directory: Path, scenario: str) -> dict[str, bytes]:
         name = path.relative_to(directory).as_posix()
         if path.is_symlink():
             raise ValueError(f"{name}: symlink in recording directory")
-        if path.is_dir() and scenario == "s4" and name in BRANCHES:
+        if path.is_dir() and branches and name in BRANCHES:
             continue
         if name == "manifest.json":
             continue
@@ -159,7 +163,7 @@ def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
                 not isinstance(key, str)
                 or not re.fullmatch(r"(?:investigate|ask|morning|verify_effect):.+:[1-9]\d*", key)
                 or key in seen
-                or not SHA256.fullmatch(turn["request_sha"])
+                or not re.fullmatch(r"sha256:[a-f0-9]{64}", turn["request_sha"])
                 or not response.stop_reason
                 or response.request_id is not None
                 or any(block["type"] not in {"text", "tool_use"} for block in response.content)
@@ -175,28 +179,28 @@ def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
         raise ValueError("turns.jsonl: returned models do not match manifest")
 
 
+def receipt_keys(value: Any) -> Iterator[str]:
+    if isinstance(value, dict):
+        if {"run_id", "world_revision", "receipt_id"} <= value.keys():
+            yield "/".join(value[field] for field in ("run_id", "world_revision", "receipt_id"))
+        for field, child in value.items():
+            if field == "receipt" and isinstance(child, str):
+                yield child
+            elif field == "receipts" and isinstance(child, list):
+                yield from (item for item in child if isinstance(item, str))
+            yield from receipt_keys(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from receipt_keys(child)
+
+
 def _links(value: Any, receipts: dict[str, ReceiptProof], visible_at: datetime | None = None) -> None:
-    def check(key: str, label: str) -> None:
+    for key in receipt_keys(value):
+        label = "qualified" if "/" in key else "C4"
         if key not in receipts:
             raise ValueError(f"missing {label} receipt {key}")
         if visible_at is not None and receipts[key].receipt.as_of > visible_at:
             raise ValueError(f"future {label} receipt {key}")
-
-    if isinstance(value, dict):
-        if {"run_id", "world_revision", "receipt_id"} <= value.keys():
-            check("/".join(value[field] for field in ("run_id", "world_revision", "receipt_id")), "qualified")
-        for field, child in value.items():
-            ids: list[str] = []
-            if field == "receipt" and isinstance(child, str):
-                ids.append(child)
-            elif field == "receipts" and isinstance(child, list):
-                ids.extend(item for item in child if isinstance(item, str))
-            for receipt_id in ids:
-                check(receipt_id, "C4")
-            _links(child, receipts, visible_at)
-    elif isinstance(value, list):
-        for child in value:
-            _links(child, receipts, visible_at)
 
 
 def _receipts(raw: dict[str, Any], require_verified: bool) -> dict[str, ReceiptProof]:
@@ -258,18 +262,22 @@ def _cut(documents: dict[str, Any]) -> None:
         applied = [item for item in activity if item["kind"] == "action_applied"]
         if branch == "approve":
             effect = actions[0]["effect"]
+            checked = [item for item in activity if item["kind"] == "effect_checked"]
             if (
                 len(applied) != 1
                 or applied[0].get("action_id") != action["id"]
                 or effect["state"] != "VERIFIED"
                 or len(effect["receipt_refs"]) < 2
+                or not any(
+                    item["seq"] > applied[0]["seq"] and item.get("action_id") == action["id"] for item in checked
+                )
             ):
                 raise ValueError("S4 approval requires one application and receipted treated/twin effect")
         elif applied or any(item["kind"] == "effect_checked" for item in activity):
             raise ValueError("S4 denial contains application or effect activity")
 
 
-def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
+def _validate_documents(documents: dict[str, Any], manifest: Manifest, presentation: bool) -> None:
     if sha256(canonical_json(documents["graph.json"])) != manifest.graph_sha:
         raise ValueError("graph identity does not match manifest")
     Graph.model_validate(documents["graph.json"])
@@ -282,7 +290,8 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
     prefix_clock = {
         event.seq: event.sim_ts for event in (Event.model_validate(raw) for raw in documents["events.jsonl"])
     }
-    for prefix in ("", *(f"{branch}/" for branch in BRANCHES if manifest.scenario == "s4")):
+    branches = BRANCHES if presentation and manifest.scenario == "s4" else ()
+    for prefix in ("", *(f"{branch}/" for branch in branches)):
         receipts = base_receipts
         through_seq = latest_event
         if prefix:
@@ -302,7 +311,7 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
         for raw in documents[f"{prefix}activity.jsonl"]:
             activity = ActivityRecord.model_validate(raw)
             _links(raw, receipts, activity.sim_ts)
-        for action in documents[f"{prefix}actions.json"]:
+        for action in documents.get(f"{prefix}actions.json", []):
             ProposalView.model_validate(action)
         for answer in documents.get(f"{prefix}ask.jsonl", []):
             if not answer["question"].strip() or answer["through_seq"] not in clock:
@@ -310,15 +319,11 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest) -> None:
             _links(answer["response"], receipts, clock[answer["through_seq"]])
         for filename in (*OPTIONAL, "actions.json"):
             _links(documents.get(f"{prefix}{filename}"), receipts, clock[through_seq])
-    if manifest.scenario == "s4":
+    if branches:
         _cut(documents)
 
 
-def read_bundle(directory: Path, *, expected_digest: str, require_live: bool = True) -> Bundle:
-    """Check a separately pinned digest before parsing and trusting any payload."""
-    if (directory / "manifest.json").is_symlink():
-        raise ValueError("manifest.json: symlink in recording directory")
-    raw = _json((directory / "manifest.json").read_bytes())
+def _validate_bundle(directory: Path, raw: Any, expected_digest: str, require_live: bool, presentation: bool) -> Bundle:
     manifest = Manifest.model_validate(raw)
     body = manifest.model_dump(exclude={"bundle_sha"})
     if not SHA256.fullmatch(expected_digest) or manifest.bundle_sha != expected_digest:
@@ -335,7 +340,7 @@ def read_bundle(directory: Path, *, expected_digest: str, require_live: bool = T
         or any(not SHA256.fullmatch(value) for value in (manifest.prompt_sha, manifest.tools_sha, manifest.graph_sha))
     ):
         raise ValueError("unsupported recording manifest metadata or provenance")
-    artifacts = _files(directory, manifest.scenario)
+    artifacts = _files(directory, manifest.scenario, presentation)
     if {key: sha256(content) for key, content in artifacts.items()} != manifest.artifacts:
         raise ValueError("recording artifacts do not match the pinned manifest")
     secrets = tuple(
@@ -345,30 +350,43 @@ def read_bundle(directory: Path, *, expected_digest: str, require_live: bool = T
     documents = {name: _decode(name, content) for name, content in artifacts.items()}
     for name, document in documents.items():
         _scan(document, name, secrets)
-    _validate_documents(documents, manifest)
+    _validate_documents(documents, manifest, presentation)
     return Bundle(manifest, documents)
 
 
-def seal(directory: Path) -> Bundle:
+def read_bundle(
+    directory: Path, *, expected_digest: str, require_live: bool = True, presentation: bool = True
+) -> Bundle:
+    """Check a separately pinned digest before parsing and trusting any payload."""
+    path = directory / "manifest.json"
+    if path.is_symlink():
+        raise ValueError("manifest.json: symlink in recording directory")
+    return _validate_bundle(directory, _json(path.read_bytes()), expected_digest, require_live, presentation)
+
+
+def seal(directory: Path, *, presentation: bool = True) -> Bundle:
     """Fill hashes in a staged capture manifest and verify the complete bundle."""
     path = directory / "manifest.json"
     if path.is_symlink():
         raise ValueError("manifest.json: symlink in recording directory")
-    original = path.read_bytes()
-    metadata = _json(original)
-    artifacts = _files(directory, metadata["scenario"])
+    metadata = _json(path.read_bytes())
+    artifacts = _files(directory, metadata["scenario"], presentation)
     metadata.update(
         graph_sha=sha256(canonical_json(_decode("graph.json", artifacts["graph.json"]))),
         artifacts={name: sha256(content) for name, content in artifacts.items()},
     )
     metadata.pop("bundle_sha", None)
     digest = sha256(canonical_json(metadata))
-    path.write_bytes(canonical_json(metadata | {"bundle_sha": digest}) + b"\n")
+    sealed = metadata | {"bundle_sha": digest}
+    bundle = _validate_bundle(directory, sealed, digest, False, presentation)
+    file_descriptor, temporary = tempfile.mkstemp(dir=directory)
     try:
-        return read_bundle(directory, expected_digest=digest, require_live=False)
-    except Exception:
-        path.write_bytes(original)
-        raise
+        with os.fdopen(file_descriptor, "wb") as stream:
+            stream.write(canonical_json(sealed) + b"\n")
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return bundle
 
 
 def main() -> None:
