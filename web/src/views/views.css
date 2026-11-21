@@ -893,6 +893,16 @@
   cursor: pointer;
 }
 
+.iv-spread {
+  color: var(--text-2);
+  line-height: 1.9;
+}
+
+.iv-spread b {
+  color: var(--text);
+  font-weight: 500;
+}
+
 .iv-sep {
   color: var(--faint);
 }

@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { emptyView, foldAll } from "../../src/lib/store";
 import type { ArgusEvent, Graph } from "../../src/lib/types";
 import { autonomyCounts } from "../../src/views/autonomy";
-import { beatFor, decidedIncidents, demoOptions, investigationStarted, withoutDemo } from "../../src/views/demo/demo";
-import { breadcrumb, chapters, scopeLabel, stepQuestion, suspects, verdictOf } from "../../src/views/investigation";
+import { beatFor, closedWithoutIncident, decidedIncidents, demoOptions, investigationStarted, withoutDemo } from "../../src/views/demo/demo";
+import { breadcrumb, chapters, scopeLabel, spreadOf, stepQuestion, suspects, verdictOf } from "../../src/views/investigation";
 import { investigations, metricStatus } from "../../src/views/model";
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
@@ -112,5 +112,37 @@ describe("autonomy counts and metric state", () => {
     expect(metricStatus(open, "payment_success_rate").state).toMatch(/root|checking/);
     expect(metricStatus(full, "payment_success_rate").state).toBe("resolved");
     expect(metricStatus(full, "gmv").state).not.toBe("root");
+  });
+});
+
+describe("the other scenarios on main (fixtures/s2, fixtures/s4)", () => {
+  const load = (dir: string) =>
+    foldAll(
+      emptyView("s", "replay"),
+      read(`../../../fixtures/${dir}/events.jsonl`)
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as ArgusEvent),
+    );
+
+  it("S2: a planned budget increase ends EXPECTED, without an incident, and the caption says it did not wake anyone", () => {
+    const v = load("s2");
+    expect(Object.keys(v.incidents)).toHaveLength(0);
+    expect(verdictOf(v.steps.map((s) => s.step))).toBe("EXPECTED");
+    expect(closedWithoutIncident(v)).toEqual([v.anomalies[0].id]);
+    expect(beatFor(v, graph).id).toBe("held");
+    expect(decidedIncidents(v)).toEqual([]);
+  });
+
+  it("S4: no single segment, so the case file names where the kept cause applied", () => {
+    const v = load("s4");
+    const steps = v.steps.filter((s) => s.anomalyId === v.anomalies[0].id);
+    expect(breadcrumb(steps.map((s) => s.step), v.anomalies[0].node).crumbs).toEqual([]);
+    const spread = spreadOf(suspects(steps));
+    expect(spread?.kept).toBe(true);
+    expect(spread?.scope.country?.slice().sort()).toEqual(["DE", "FR"]);
+    expect(steps.map((s) => stepQuestion(s.step))).toContain("Is it the mix or the rate?");
+    expect(steps.map((s) => stepQuestion(s.step))).toContain("Is this unusual for these hours of the week?");
+    expect(investigations(v)[0].incidentId).toBe("INC-0001");
   });
 });

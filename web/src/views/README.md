@@ -63,9 +63,13 @@ options, autonomy counts, metric state, the Markdown reader against `fixtures/re
 
 - `GET /bench/results` is a 501 stub (bench lane); the scorecard falls back to the recorded sample and says so.
   Its shape is `Scorecard` in `src/bench/scorecard.py` on `fm/argus-bench`.
-  The sample was recorded on a local integration of `fm/argus-api` + investigate + detect + graph + bench
-  (`uv run argus-bench run --runs 3`): Argus passes quiet, S1 and S3 3/3 and misses S2 and S4 3/3; that is the honest state.
-- The views show what the Stage-1 runtime on `fm/argus-api` streams (S1). S2–S4 appear once the runtime is integrated.
+  The sample was recorded before `main` landed, on a local integration of the lane branches
+  (`uv run argus-bench run --runs 3`): Argus passes quiet, S1 and S3 3/3 and misses S2 and S4 3/3. Re-record it on
+  `main` with `make bench` + `--json web/src/views/fixtures/scorecard.sample.json`, or wait for the route.
+- On `main` every scenario streams through the API (`make api SCENARIO=s2|s3|s4` replays `fixtures/<scenario>`):
+  S1 walks to a supported cause with the release struck through; S2 ends EXPECTED with no incident (caption
+  "did not wake anyone", demo mode returns to the graph); S3 is a data-issue note (morning report, caption);
+  S4 has no single segment, so the case file names where the kept cause applied (`country DE, FR`).
 - Checked in a real Chrome window at 1536×735 and at 1920×1080 through Playwright. In a backgrounded
   automation browser Chrome throttles frames, and React Flow then keeps graph nodes hidden; that is the browser,
   not the page (a foreground window renders them).

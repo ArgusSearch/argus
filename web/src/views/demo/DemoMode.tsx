@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { RunView } from "../../lib/store";
 import type { Graph, Health } from "../../lib/types";
-import { beatFor, decidedIncidents, demoOptions, investigationStarted, withoutDemo, type Beat, type DemoOptions } from "./demo";
+import { beatFor, closedWithoutIncident, decidedIncidents, demoOptions, investigationStarted, withoutDemo, type Beat, type DemoOptions } from "./demo";
 
 export type DemoTab = "graph" | "tree" | "investigation" | "report" | "scorecard";
 
@@ -102,6 +102,12 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
         closeSheets();
         setTab("graph");
       });
+    }
+    // a walk that ends without an incident (planned change, late data) stays readable for `hold`, then back to the graph
+    for (const id of closedWithoutIncident(view)) {
+      if (s.opened.has(id)) continue;
+      s.opened.add(id);
+      later(options.hold * 1000, () => setTab("graph"));
     }
     if (options.endOnReport && finished && !s.ended) {
       s.ended = true;

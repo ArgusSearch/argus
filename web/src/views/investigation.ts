@@ -18,6 +18,8 @@ const QUESTION: Record<string, string> = {
 };
 
 export function stepQuestion(step: TrailStep): string {
+  if (step.tool === "mix_rate_split") return "Is it the mix or the rate?";
+  if (step.tool === "placebo_test") return "Is this unusual for these hours of the week?";
   if (step.kind === "segment" && step.tool === "get_series") return "When did it start?";
   if (step.kind === "impact" && step.tool === "counterfactual_impact") return "How much money is it?";
   if (step.kind === "impact") return "Which factor carries the change?";
@@ -132,6 +134,18 @@ export function suspects(steps: StepView[]): Suspect[] {
     });
   }
   return out;
+}
+
+/**
+ * When no single segment carries the change, it sits where the kept cause applied: the kept suspect with the
+ * narrowest scope (fewest dimensions, then the shortest description). Null when no kept suspect has a scope.
+ */
+export function spreadOf(list: Suspect[]): Suspect | null {
+  return (
+    list
+      .filter((s) => s.kept && Object.keys(s.scope).length > 0)
+      .sort((a, b) => Object.keys(a.scope).length - Object.keys(b.scope).length || a.description.length - b.description.length)[0] ?? null
+  );
 }
 
 /** "platform android, all countries" from an event scope; an empty scope means everyone. */

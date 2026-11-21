@@ -9,7 +9,7 @@
 import { segmentLabel } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
-import { breadcrumb, chapterOf, suspects } from "../investigation";
+import { breadcrumb, chapterOf, suspects, verdictOf } from "../investigation";
 import { investigations, nodeLabel } from "../model";
 
 export interface DemoOptions {
@@ -75,6 +75,13 @@ export function beatFor(view: RunView, graph: Graph | null): Beat {
   }
   if (current) {
     const steps = view.steps.filter((s) => s.anomalyId === current.anomalyId);
+    const verdict = verdictOf(steps.map((s) => s.step));
+    if (!incident && verdict === "EXPECTED") {
+      return { id: "held", text: "It looked like an anomaly, but it was planned and delivered as planned. Argus did not wake anyone." };
+    }
+    if (!incident && verdict === "DATA_ISSUE") {
+      return { id: "held", text: "The data is late, not the business: Argus holds the alert and re-checks after the backfill." };
+    }
     const last = steps[steps.length - 1];
     const tested = suspects(steps);
     const out = tested.filter((s) => !s.kept);
@@ -110,6 +117,13 @@ export function beatFor(view: RunView, graph: Graph | null): Beat {
 /** True once any step of the investigation exists: the moment demo mode switches to the investigation view. */
 export function investigationStarted(view: RunView): boolean {
   return view.steps.length > 0;
+}
+
+/** Investigations that ended without an incident (EXPECTED, DATA_ISSUE): demo mode returns to the graph. */
+export function closedWithoutIncident(view: RunView): string[] {
+  return investigations(view)
+    .filter((i) => !i.incidentId && verdictOf(view.steps.filter((s) => s.anomalyId === i.anomalyId).map((s) => s.step)) !== null)
+    .map((i) => i.anomalyId);
 }
 
 /** Incidents that reached a verdict other than UNEXPLAINED, in the order they did. */

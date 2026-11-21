@@ -7,7 +7,7 @@ import { dayLabel, hhmm, segmentLabel } from "../lib/format";
 import { isRuledOut, type RunView, type StepView } from "../lib/store";
 import type { Graph, Quantity } from "../lib/types";
 import { investigations, nodeLabel } from "./model";
-import { breadcrumb, chapters, CHAPTER_TITLE, scopeLabel, stepQuestion, suspects, verdictOf } from "./investigation";
+import { breadcrumb, chapters, CHAPTER_TITLE, scopeLabel, spreadOf, stepQuestion, suspects, verdictOf } from "./investigation";
 
 interface Props {
   graph: Graph | null;
@@ -90,6 +90,8 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
   const trail = steps.map((s) => s.step);
   const crumbs = breadcrumb(trail, anomaly?.node ?? null);
   const suspectList = suspects(steps);
+  // no segment path: the change is spread over the scope of the cause that was kept (S4: country DE, FR)
+  const spread = spreadOf(suspectList);
   const verdict = verdictOf(trail);
   const latestSeq = steps.length ? steps[steps.length - 1].seq : -1;
   const end = useRef<HTMLDivElement>(null);
@@ -247,6 +249,11 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
                   </span>
                 ))}
               </nav>
+            ) : spread ? (
+              <div className="iv-spread">
+                No single segment carries it. It sits where <b>{spread.description}</b> applied:{" "}
+                <span className="iv-crumb">{scopeLabel(spread.scope)}</span>
+              </div>
             ) : (
               <div className="muted">{steps.some((s) => s.step.kind === "segment") ? "No single segment carries it." : "The segment search has not run yet."}</div>
             )}
