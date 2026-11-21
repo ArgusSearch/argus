@@ -70,6 +70,6 @@ options, autonomy counts, metric state, the Markdown reader against `fixtures/re
   S1 walks to a supported cause with the release struck through; S2 ends EXPECTED with no incident (caption
   "did not wake anyone", demo mode returns to the graph); S3 is a data-issue note (morning report, caption);
   S4 has no single segment, so the case file names where the kept cause applied (`country DE, FR`).
-- Checked in a real Chrome window at 1536×735 and at 1920×1080 through Playwright. In a backgrounded
-  automation browser Chrome throttles frames, and React Flow then keeps graph nodes hidden; that is the browser,
-  not the page (a foreground window renders them).
+- Checked in a real Chrome window at 1536×735 and at 1920×1080 through Playwright.
+- Demo mode restarts the replay, and right after a restart the Graph view can blank for a few seconds: that is
+  #33 in `GraphView.tsx` (fix in #39), not something in this folder. Record the video with #39 merged.
