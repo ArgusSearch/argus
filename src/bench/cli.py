@@ -5,6 +5,7 @@ argus-bench run --scenarios s1,s3 --runs 5   choose scenarios and seeds
 argus-bench s1 --seed 7 [--record fixtures]  S1 exit criteria in detail (lane lead's S1 bench)
 argus-bench case s3 --seed 7                 one sealed case of any scenario, verbose (also `argus-bench s3`)
 argus-bench blind [--seed N]                 hidden scenario, commitment first, then reveal
+argus-bench record s3 --seed 1 --out DIR     a replayable Argus run of any scenario (fixtures/<scenario>)
 argus-bench verify runs/bench/s1-1           recompute a case's commitment from its reveal
 """
 
@@ -23,6 +24,7 @@ from bench.agents import Agent, AgentUnavailable, resolve_agent
 from bench.blind import blind_challenge
 from bench.claims import Claim, claims_from_output
 from bench.grade import RunGrade
+from bench.record import record
 from bench.runner import BUILT_SCENARIOS, DEFAULT_OUT, grade_case, prepare_case, reveal, run_agent, run_bench
 from bench.s1 import record_fixtures, run_s1
 from bench.scorecard import render
@@ -169,6 +171,14 @@ def cmd_s1(args: argparse.Namespace) -> int:
     return 0 if all_passed else 1
 
 
+def cmd_record(args: argparse.Namespace) -> int:
+    started = time.perf_counter()
+    g = record(args.scenario, args.seed, args.out, args.work)
+    print(f"{args.scenario} seed {args.seed}: recorded to {args.out} ({time.perf_counter() - started:.1f} s)")
+    print("\n".join(_grade_lines(g)))
+    return 0 if g.passed else 1
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     commit = json.loads((args.case / "commitment.json").read_text())
     doc = json.loads((args.case / "reveal.json").read_text())
@@ -214,6 +224,13 @@ def _parser() -> argparse.ArgumentParser:
     s1.add_argument("--runs-dir", type=Path, default=Path("runs"))
     s1.add_argument("--record", type=Path, help="copy the run's outputs into this fixtures directory")
     s1.set_defaults(fn=cmd_s1)
+
+    rec = sub.add_parser("record", help="a replayable Argus run of one scenario, graded after it is written")
+    rec.add_argument("scenario", choices=BUILT_SCENARIOS)
+    rec.add_argument("--seed", type=int, default=1)
+    rec.add_argument("--out", type=Path, required=True, help="recording directory, e.g. fixtures/s3")
+    rec.add_argument("--work", type=Path, default=DEFAULT_OUT / "record", help="where the sealed world goes")
+    rec.set_defaults(fn=cmd_record)
 
     ver = sub.add_parser("verify", help="recompute a case's commitment from its reveal")
     ver.add_argument("case", type=Path)

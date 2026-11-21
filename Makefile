@@ -1,13 +1,17 @@
 # The only commands anyone needs. Everything runs through uv, which installs the locked environment on demand.
 SEED ?= 7
 PORT ?= 8000
+# SCENARIO picks the world for world, demo and api: quiet, s1, s2, s3 or s4.
+SCENARIO ?= s1
+RECORDED := quiet s2 s3 s4
+REPLAY ?= fixtures$(if $(filter s1,$(SCENARIO)),,/$(SCENARIO))
 
-.PHONY: setup check lint format typecheck test test-fast contracts contracts-check s1 world demo api fixtures clean
+.PHONY: setup check lint format typecheck test test-fast contracts contracts-check web s1 bench world demo api fixtures clean
 
 setup:            ## install the locked environment
 	uv sync
 
-check: lint typecheck contracts-check test   ## everything CI runs
+check: lint typecheck contracts-check web test   ## everything CI runs
 
 lint:
 	uv run ruff check .
@@ -32,20 +36,29 @@ contracts:        ## regenerate contracts/ from src/argus/contracts
 contracts-check:
 	uv run python -m argus.contracts.export --check
 
+web:              ## Mission Control: install its locked dependencies if missing, test, typecheck and build web/dist
+	@[ -d web/node_modules ] || npm --prefix web ci
+	npm --prefix web test
+	npm --prefix web run build
+
 s1:               ## S1 end to end: simulate PayCo outage + release red herring, run Argus, grade against truth
 	uv run argus-bench s1 --seed $(SEED)
 
-world:            ## generate an S1 world into runs/s1-$(SEED)
-	uv run mockmart generate --scenario s1 --seed $(SEED) --out runs/s1-$(SEED)
+bench:            ## the scorecard: every scenario x 3 seeds, Argus against the threshold baseline
+	uv run argus-bench
 
-api:              ## API with SSE replaying fixtures/events.jsonl
-	uv run argus api --port $(PORT)
+world:            ## generate a $(SCENARIO) world into runs/$(SCENARIO)-$(SEED)
+	uv run mockmart generate --scenario $(SCENARIO) --seed $(SEED) --out runs/$(SCENARIO)-$(SEED)
 
-demo: world       ## API that runs Argus live over the S1 world and streams events
-	uv run argus api --port $(PORT) --world runs/s1-$(SEED)/world.duckdb
+api:              ## API with SSE replaying a recorded run: fixtures/ (S1), or fixtures/$(SCENARIO) for the others
+	uv run argus api --port $(PORT) --replay $(REPLAY)
 
-fixtures:         ## re-record fixtures/ from an S1 run (graph.json, events.jsonl, findings.json, ...)
+demo: world       ## API that runs Argus live over a fresh $(SCENARIO) world and streams events
+	uv run argus api --port $(PORT) --world runs/$(SCENARIO)-$(SEED)/world.duckdb
+
+fixtures:         ## re-record fixtures/ (S1, seed 1) and fixtures/<scenario> for quiet, s2, s3 and s4
 	uv run argus-bench s1 --seed 1 --record fixtures
+	for s in $(RECORDED); do uv run argus-bench record $$s --seed 1 --out fixtures/$$s || exit 1; done
 
 clean:
 	rm -rf runs state .pytest_cache .ruff_cache .mypy_cache
