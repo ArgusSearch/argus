@@ -1,9 +1,9 @@
 # The only commands anyone needs. Everything runs through uv, which installs the locked environment on demand.
 SEED ?= 7
 PORT ?= 8000
-# SCENARIO picks the world for world, demo and api: quiet, s1, s2, s3 or s4.
+# SCENARIO picks the world for world, demo and api: quiet, s1, s2, s3, s4 or s5.
 SCENARIO ?= s1
-RECORDED := quiet s2 s3 s4
+RECORDED := quiet s2 s3 s4 s5
 REPLAY ?= fixtures$(if $(filter s1,$(SCENARIO)),,/$(SCENARIO))
 
 .PHONY: setup check lint format typecheck test test-fast contracts contracts-check web s1 bench world demo api fixtures clean
@@ -56,7 +56,7 @@ api:              ## API with SSE replaying a recorded run: fixtures/ (S1), or f
 demo: world       ## API that runs Argus live over a fresh $(SCENARIO) world and streams events
 	uv run argus api --port $(PORT) --world runs/$(SCENARIO)-$(SEED)/world.duckdb
 
-fixtures:         ## re-record fixtures/ (S1, seed 1) and fixtures/<scenario> for quiet, s2, s3 and s4
+fixtures:         ## re-record fixtures/ (S1, seed 1) and fixtures/<scenario> for quiet, s2, s3, s4 and s5
 	uv run argus-bench s1 --seed 1 --record fixtures
 	for s in $(RECORDED); do uv run argus-bench record $$s --seed 1 --out fixtures/$$s || exit 1; done
 

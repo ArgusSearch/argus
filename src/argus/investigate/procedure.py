@@ -1069,11 +1069,11 @@ class StageTwoInvestigation(Investigation):
     ) -> SuggestedAction | None:
         if verdict is Verdict.UNEXPLAINED:
             return None
-        action = self._action(focus, seg, search.last_level)
-        if action is None and evidence is not None and evidence.log == "log_deploys":
+        if evidence is not None and evidence.log == "log_deploys":
+            # The supported cause is our own change: undo it rather than route around the segment it hit.
             where = segment_text(seg) if seg else scope_text(evidence.scope)
-            action = SuggestedAction(text=f"Roll back {evidence.ref} for {where} and watch {focus}.")
-        return action
+            return SuggestedAction(text=f"Roll back {evidence.ref} for {where} and watch {focus}.")
+        return self._action(focus, seg, search.last_level)
 
     def _close(
         self, stop: tuple[Verdict, str], observed: Any, started: float, queries0: int, headline: str
