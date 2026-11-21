@@ -356,7 +356,8 @@ class Investigation:
 
     def _uncertain(self, seg: Segment, evidence: EvidenceRef | None, explained: float) -> list[str]:
         out = []
-        if "provider" in seg:
+        if "provider" in seg and (evidence is None or evidence.log != "log_deploys"):
+            # A supported deploy of ours already answers whether the fault sits inside the provider.
             out.append(f"Whether the fault is inside {seg['provider']} or in our {seg['provider']} integration.")
         if evidence is None:
             out.append(
