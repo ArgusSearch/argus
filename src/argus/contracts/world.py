@@ -14,7 +14,7 @@ Rules (frozen, change only with agreement of producer and consumers):
 * Dimension names and values are identical in every table (see `DIMENSIONS`).
 * A log row carries `scope`, a JSON object mapping dimension names to lists of values.
   A missing dimension means "all values"; `{}` means global.
-* Ground truth lives in a separate `truth.duckdb`; Argus never receives a path to it.
+* Ground truth lives in a separate database owned by the simulator; Argus never receives a path to it.
 """
 
 from __future__ import annotations

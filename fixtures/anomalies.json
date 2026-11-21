@@ -1,0 +1,23 @@
+[
+  {
+    "id": "an_0001",
+    "node": "payment_success_rate",
+    "segment": {},
+    "direction": "down",
+    "hour": "2026-11-21T18:00:00",
+    "detected_at": "2026-11-21T20:00:00",
+    "onset": "2026-11-21T18:00:00",
+    "observed": 0.928971,
+    "expected": 0.948293,
+    "band": [
+      0.942386,
+      0.954238
+    ],
+    "z": -6.59,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r225"
+    ]
+  }
+]

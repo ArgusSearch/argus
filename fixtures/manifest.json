@@ -1,0 +1,19 @@
+{
+  "contract_version": "1.0.0",
+  "world_start": "2026-10-12T00:00:00",
+  "world_end": "2026-11-23T00:00:00",
+  "live_start": "2026-11-18T00:00:00",
+  "delivery_lag_hours": 2,
+  "raw_rows": {
+    "raw_funnel_hourly": 494640,
+    "raw_payments_hourly": 61830,
+    "raw_orders_hourly": 494640,
+    "raw_ads_hourly": 65952,
+    "raw_ad_plan_hourly": 16128,
+    "raw_deploys": 121,
+    "raw_provider_status": 16,
+    "raw_calendar": 0,
+    "raw_ad_budgets": 16
+  },
+  "seconds": 1.36
+}

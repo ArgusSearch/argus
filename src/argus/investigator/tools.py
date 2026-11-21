@@ -278,19 +278,19 @@ class Toolbox:
         hour = end
         while hour >= start:
             cur = by_ts.get(hour)
-            base = [by_ts.get(hour - k * WEEK) for k in range(1, 5)]
-            if cur is None or any(b is None for b in base):
+            base = [b for k in range(1, 5) if (b := by_ts.get(hour - k * WEEK)) is not None]
+            if cur is None or len(base) < 4:
                 break
             if node.kind is NodeKind.RATIO:
                 cell = Cell(
                     "h",
                     float(cur["num"] or 0),
-                    sum(float(b["num"] or 0) for b in base) / 4,  # type: ignore[index]
+                    sum(float(b["num"] or 0) for b in base) / 4,
                     float(cur["den"] or 0),
-                    sum(float(b["den"] or 0) for b in base) / 4,  # type: ignore[index]
+                    sum(float(b["den"] or 0) for b in base) / 4,
                 )
             else:
-                cell = Cell("h", float(cur["value"] or 0), sum(float(b["value"] or 0) for b in base) / 4)  # type: ignore[index]
+                cell = Cell("h", float(cur["value"] or 0), sum(float(b["value"] or 0) for b in base) / 4)
             if not (abs(cell.z) > ONSET_Z and cell.z * sign > 0):
                 break
             onset = hour

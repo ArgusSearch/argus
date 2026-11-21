@@ -1,0 +1,577 @@
+[
+  {
+    "id": "INC-0001",
+    "fingerprint": "861e44ed8c09",
+    "title": "Payment success rate down in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany",
+    "verdict": "SUPPORTED_CAUSE",
+    "state": "resolved",
+    "root_node": "payment_success_rate",
+    "segment": {
+      "platform": "android",
+      "country": "DE",
+      "provider": "PayCo"
+    },
+    "direction": "down",
+    "severity_eur": 99646.8,
+    "opened_at": "2026-11-21T18:00:00",
+    "updated_at": "2026-11-22T02:00:00",
+    "resolved_at": "2026-11-22T02:00:00",
+    "reopened": 0,
+    "anomalies": [
+      "an_0001"
+    ],
+    "symptoms": [
+      "cvr",
+      "gmv",
+      "orders",
+      "payment_success_rate"
+    ],
+    "history": [
+      {
+        "sim_ts": "2026-11-21T18:00:00",
+        "from_state": null,
+        "to_state": "open",
+        "reason": "an_0001"
+      },
+      {
+        "sim_ts": "2026-11-21T18:00:00",
+        "from_state": "open",
+        "to_state": "investigating",
+        "reason": "fixed opening started"
+      },
+      {
+        "sim_ts": "2026-11-21T18:00:00",
+        "from_state": "investigating",
+        "to_state": "explained",
+        "reason": "SUPPORTED_CAUSE"
+      },
+      {
+        "sim_ts": "2026-11-22T00:00:00",
+        "from_state": "explained",
+        "to_state": "monitoring",
+        "reason": "root segment z -0.3 at 2026-11-22 00:00"
+      },
+      {
+        "sim_ts": "2026-11-22T02:00:00",
+        "from_state": "monitoring",
+        "to_state": "resolved",
+        "reason": "3 consecutive normal hours"
+      }
+    ],
+    "findings": {
+      "anomaly_id": "an_0001",
+      "incident_id": "INC-0001",
+      "verdict": "SUPPORTED_CAUSE",
+      "headline": "Payment success rate down in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany",
+      "as_of": "2026-11-21T20:00:00",
+      "window": {
+        "start": "2026-11-21T18:00:00",
+        "end": "2026-11-21T18:00:00"
+      },
+      "observed": {
+        "node": "payment_success_rate",
+        "segment": {},
+        "observed": {
+          "value": 0.928971,
+          "unit": "value",
+          "receipt": "r225"
+        },
+        "expected": {
+          "value": 0.948293,
+          "unit": "value",
+          "receipt": "r225"
+        },
+        "change_pct": {
+          "value": -2.04,
+          "unit": "pct",
+          "receipt": "r225"
+        }
+      },
+      "root": {
+        "node": "payment_success_rate",
+        "segment": {
+          "platform": "android",
+          "country": "DE",
+          "provider": "PayCo"
+        },
+        "direction": "down",
+        "evidence": {
+          "log": "log_provider_status",
+          "ref": "ps_payco_degraded",
+          "ts": "2026-11-21T17:53:00",
+          "kind": "degraded",
+          "description": "PayCo: elevated decline rates for Android SDK payments in Germany",
+          "scope": {
+            "country": [
+              "DE"
+            ],
+            "platform": [
+              "android"
+            ],
+            "provider": [
+              "PayCo"
+            ]
+          }
+        },
+        "change_pct": {
+          "value": -33.57,
+          "unit": "pct",
+          "receipt": "r236"
+        }
+      },
+      "decomposition": [
+        {
+          "node": "payment_success_rate",
+          "share": 0.9843,
+          "value": -272.3972,
+          "receipt": "r242"
+        },
+        {
+          "node": "sessions",
+          "share": 0.1944,
+          "value": -53.8033,
+          "receipt": "r241"
+        },
+        {
+          "node": "cart_rate",
+          "share": -0.1307,
+          "value": 36.1785,
+          "receipt": "r241"
+        },
+        {
+          "node": "checkout_rate",
+          "share": -0.1088,
+          "value": 30.1045,
+          "receipt": "r241"
+        },
+        {
+          "node": "view_rate",
+          "share": 0.0316,
+          "value": -8.758,
+          "receipt": "r241"
+        },
+        {
+          "node": "attempt_rate",
+          "share": 0.0292,
+          "value": -8.0745,
+          "receipt": "r242"
+        }
+      ],
+      "decomposed_node": "orders",
+      "impact": {
+        "node": "orders",
+        "segment": {
+          "platform": "android",
+          "country": "DE",
+          "provider": "PayCo"
+        },
+        "hours": 1,
+        "per_hour": {
+          "value": -280.0,
+          "unit": "count",
+          "receipt": "r236"
+        },
+        "gmv_eur_per_hour": {
+          "value": -19717.0,
+          "unit": "eur",
+          "receipt": "r243"
+        },
+        "eur_so_far": {
+          "value": -19717.0,
+          "unit": "eur",
+          "receipt": "r243"
+        }
+      },
+      "ruled_out": [
+        {
+          "hypothesis": "checkout-service 1.2.6 (all users)",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+          "result": "refuted",
+          "reason": "holdout normal",
+          "evidence": {
+            "log": "log_deploys",
+            "ref": "dep_checkout-service_1.2.6",
+            "ts": "2026-11-21T16:42:00",
+            "kind": "deploy",
+            "description": "checkout-service 1.2.6 (all users)",
+            "scope": {}
+          },
+          "receipts": [
+            "r239"
+          ]
+        },
+        {
+          "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+          "result": "refuted",
+          "reason": "holdout normal",
+          "evidence": {
+            "log": "log_deploys",
+            "ref": "dep_android-app_8.3.0",
+            "ts": "2026-11-21T17:54:00",
+            "kind": "release",
+            "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+            "scope": {
+              "platform": [
+                "android"
+              ]
+            }
+          },
+          "receipts": [
+            "r240"
+          ]
+        }
+      ],
+      "uncertain": [
+        "Whether the fault is inside PayCo or in our PayCo integration.",
+        "0% of the deviation is outside the root segment."
+      ],
+      "explained_share": 1.0,
+      "unexplained_share": 0.0,
+      "trail": [
+        {
+          "step": 1,
+          "kind": "freshness",
+          "tool": "check_freshness",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "all source tables complete",
+          "decision": "continue",
+          "why": "",
+          "receipts": [
+            "r226"
+          ],
+          "data": {
+            "tables": [
+              {
+                "table": "fact_orders_hourly",
+                "hour": "2026-11-21T18:00:00",
+                "completeness": 1.0,
+                "status": "ok"
+              },
+              {
+                "table": "fact_payments_hourly",
+                "hour": "2026-11-21T18:00:00",
+                "completeness": 1.0,
+                "status": "ok"
+              }
+            ]
+          }
+        },
+        {
+          "step": 2,
+          "kind": "identities",
+          "tool": "check_identities",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "identities hold",
+          "decision": "continue",
+          "why": "",
+          "receipts": [
+            "r227",
+            "r228"
+          ],
+          "data": {
+            "identities": [
+              {
+                "edge": "f_orders_payments",
+                "expr": "orders = payment_successes",
+                "max_rel_residual": 0.0,
+                "holds": true
+              }
+            ]
+          }
+        },
+        {
+          "step": 3,
+          "kind": "calendar",
+          "tool": "list_events",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "no planned event in the window",
+          "decision": "continue: not an expected change",
+          "why": "",
+          "receipts": [
+            "r229"
+          ],
+          "data": {
+            "events": []
+          }
+        },
+        {
+          "step": 4,
+          "kind": "decompose",
+          "tool": "decompose_formula",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "payment_success_rate has no formula children",
+          "decision": "localise payment_success_rate directly",
+          "why": "leaf node: the exact split ends here",
+          "receipts": [],
+          "data": {}
+        },
+        {
+          "step": 5,
+          "kind": "segment",
+          "tool": "segment_search",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "platform=android AND country=DE AND provider=PayCo explains 100% of the deviation (-33.6%)",
+          "decision": "root segment android / DE / PayCo",
+          "why": "",
+          "receipts": [
+            "r230",
+            "r231",
+            "r232",
+            "r233",
+            "r234",
+            "r235",
+            "r236"
+          ],
+          "data": {
+            "path": [
+              {
+                "segment": {
+                  "platform": "android"
+                },
+                "ep": 1.0,
+                "volume_share": 0.4027,
+                "rel_change": -0.0575
+              },
+              {
+                "segment": {
+                  "platform": "android",
+                  "country": "DE"
+                },
+                "ep": 1.0,
+                "volume_share": 0.3423,
+                "rel_change": -0.1594
+              },
+              {
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
+                  "provider": "PayCo"
+                },
+                "ep": 1.0,
+                "volume_share": 0.4919,
+                "rel_change": -0.3357
+              }
+            ]
+          }
+        },
+        {
+          "step": 6,
+          "kind": "segment",
+          "tool": "get_series",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "root segment deviates since 2026-11-21 18:00",
+          "decision": "align evidence with the root onset",
+          "why": "",
+          "receipts": [
+            "r237"
+          ],
+          "data": {
+            "onset": "2026-11-21T18:00:00"
+          }
+        },
+        {
+          "step": 7,
+          "kind": "events",
+          "tool": "list_events",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "3 of 5 log entries cover the segment",
+          "decision": "test 3 candidate(s)",
+          "why": "",
+          "receipts": [
+            "r238"
+          ],
+          "data": {
+            "events": [
+              {
+                "log": "log_deploys",
+                "ref": "dep_checkout-service_1.2.6",
+                "ts": "2026-11-21T16:42:00",
+                "kind": "deploy",
+                "description": "checkout-service 1.2.6 (all users)",
+                "scope": {}
+              },
+              {
+                "log": "log_provider_status",
+                "ref": "ps_payco_degraded",
+                "ts": "2026-11-21T17:53:00",
+                "kind": "degraded",
+                "description": "PayCo: elevated decline rates for Android SDK payments in Germany",
+                "scope": {
+                  "country": [
+                    "DE"
+                  ],
+                  "platform": [
+                    "android"
+                  ],
+                  "provider": [
+                    "PayCo"
+                  ]
+                }
+              },
+              {
+                "log": "log_deploys",
+                "ref": "dep_android-app_8.3.0",
+                "ts": "2026-11-21T17:54:00",
+                "kind": "release",
+                "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+                "scope": {
+                  "platform": [
+                    "android"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "step": 8,
+          "kind": "holdout",
+          "tool": "holdout_check",
+          "hypothesis": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) caused the change",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+          "result": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+          "decision": "ruled out",
+          "why": "",
+          "receipts": [
+            "r239"
+          ],
+          "data": {
+            "event": {
+              "log": "log_deploys",
+              "ref": "dep_checkout-service_1.2.6",
+              "ts": "2026-11-21T16:42:00",
+              "kind": "deploy",
+              "description": "checkout-service 1.2.6 (all users)",
+              "scope": {}
+            },
+            "result": "refuted"
+          }
+        },
+        {
+          "step": 9,
+          "kind": "holdout",
+          "tool": "holdout_check",
+          "hypothesis": "PayCo: elevated decline rates for Android SDK payments in Germany (ps_payco_degraded) caused the change",
+          "prediction": "the change is confined to android / DE / PayCo",
+          "result": "the event's scope is exactly the anomalous segment: nothing to hold out",
+          "decision": "keep as cause",
+          "why": "",
+          "receipts": [],
+          "data": {
+            "event": {
+              "log": "log_provider_status",
+              "ref": "ps_payco_degraded",
+              "ts": "2026-11-21T17:53:00",
+              "kind": "degraded",
+              "description": "PayCo: elevated decline rates for Android SDK payments in Germany",
+              "scope": {
+                "country": [
+                  "DE"
+                ],
+                "platform": [
+                  "android"
+                ],
+                "provider": [
+                  "PayCo"
+                ]
+              }
+            },
+            "result": "not_applicable"
+          }
+        },
+        {
+          "step": 10,
+          "kind": "holdout",
+          "tool": "holdout_check",
+          "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries (dep_android-app_8.3.0) caused the change",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+          "result": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
+          "decision": "ruled out",
+          "why": "",
+          "receipts": [
+            "r240"
+          ],
+          "data": {
+            "event": {
+              "log": "log_deploys",
+              "ref": "dep_android-app_8.3.0",
+              "ts": "2026-11-21T17:54:00",
+              "kind": "release",
+              "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+              "scope": {
+                "platform": [
+                  "android"
+                ]
+              }
+            },
+            "result": "refuted"
+          }
+        },
+        {
+          "step": 11,
+          "kind": "impact",
+          "tool": "decompose_formula",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "orders -16.2% per hour: payment_success_rate carries 98% of the change",
+          "decision": "where the change came from",
+          "why": "",
+          "receipts": [
+            "r241",
+            "r242"
+          ],
+          "data": {
+            "node": "orders",
+            "residual": 6.821210263296962e-13
+          }
+        },
+        {
+          "step": 12,
+          "kind": "impact",
+          "tool": "counterfactual_impact",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "-280.0 payment_successes/h, EUR -19,717/h, EUR -19,717 so far",
+          "decision": "severity = cumulative EUR impact",
+          "why": "",
+          "receipts": [
+            "r236",
+            "r243"
+          ],
+          "data": {}
+        },
+        {
+          "step": 13,
+          "kind": "verdict",
+          "tool": "verdict",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "SUPPORTED_CAUSE",
+          "decision": "stop: explained 100% >= 80%",
+          "why": "aligned event, holdout not refuted",
+          "receipts": [],
+          "data": {}
+        }
+      ],
+      "skeptic": null,
+      "cost": {
+        "queries": 19,
+        "seconds": 0.051,
+        "llm_calls": 0,
+        "eur": 0.0
+      },
+      "suggested_action": {
+        "text": "Route android-DE payments from PayCo to CardHub until PayCo recovers.",
+        "needs_approval": true
+      }
+    }
+  }
+]

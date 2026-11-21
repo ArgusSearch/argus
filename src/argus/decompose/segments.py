@@ -47,7 +47,7 @@ class Cell:
 
     @property
     def volume(self) -> float:
-        return float(self.cur_den if self.is_ratio else self.base) or 0.0
+        return (self.cur_den or 0.0) if self.is_ratio else self.base
 
     @property
     def rel_change(self) -> float:

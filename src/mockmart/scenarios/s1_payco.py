@@ -25,6 +25,8 @@ QUIET_LIVE_HOURS = 48
 def apply_s1(params: WorldParams, rng: np.random.Generator) -> None:
     cfg = params.cfg
     live_h = params.hour_index(cfg.live_start)
+    if cfg.live_days * 24 < QUIET_LIVE_HOURS + 12 + 24:
+        raise ValueError(f"S1 needs at least {QUIET_LIVE_HOURS + 36} live hours (live_days >= 4)")
     duration = int(rng.integers(6, 13))
     onset_h = int(rng.integers(live_h + QUIET_LIVE_HOURS, cfg.hours - 24 - duration + 1))
     p_fault = float(rng.uniform(0.60, 0.72))

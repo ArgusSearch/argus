@@ -137,6 +137,8 @@ def unbacked_numbers(report: str, findings: Findings, extra: dict[str, Any] | No
             x = float(m.replace(",", ""))
             decimals = len(m.split(".")[1]) if "." in m else 0
             tol = 0.5 * 10**-decimals + 1e-9
-            if not any(abs(abs(x) - abs(v)) <= tol for v in candidates):
+            signed = m[0] in "+-"
+            # an explicitly signed number must match with its sign; an unsigned one matches the magnitude
+            if not any(abs((x if signed else abs(x)) - (v if signed else abs(v))) <= tol for v in candidates):
                 bad.append(m)
     return bad

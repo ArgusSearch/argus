@@ -1,0 +1,8 @@
+# C2 form of a seed node, for reference: the seed graph already contains it as a ratio node.
+name: payment_success_rate
+description: Share of payment attempts that succeed, per country, platform and payment provider
+sql: |
+  SELECT ts, country, platform, provider,
+         SUM(payment_successes)::DOUBLE / NULLIF(SUM(payment_attempts), 0) AS value
+  FROM fact_payments_hourly
+  GROUP BY ALL

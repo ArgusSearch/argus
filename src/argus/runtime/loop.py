@@ -10,7 +10,7 @@ for each tick (as_of advances one hour):
     publish every step on the event bus
 ```
 
-Argus sees only world.duckdb (and its public manifest). It never receives a path to truth.duckdb.
+Argus sees only world.duckdb (and its public manifest). It never receives a path to the hidden ground truth.
 """
 
 from __future__ import annotations
@@ -111,8 +111,8 @@ class Runtime:
             day = hour.replace(hour=0)
             if self._last_edge_test_day != day:
                 self._last_edge_test_day = day
-                for change in self.tester.run_all(as_of, self.changelog):
-                    self._emit_edge(change, as_of)
+                for edge_change in self.tester.run_all(as_of, self.changelog):
+                    self._emit_edge(edge_change, as_of)
                 self.book.graph = self.detector.graph = self.graph
 
             tables = sorted(self.detector.all_tables())

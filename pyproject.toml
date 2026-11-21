@@ -23,7 +23,7 @@ argus-bench = "bench.cli:main"
 
 [dependency-groups]
 dev = [
-    "httpx>=0.27",
+    "httpx2>=2.16.2",
     "mypy>=1.11",
     "pytest>=8.0",
     "ruff>=0.6",

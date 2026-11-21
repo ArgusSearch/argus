@@ -1,0 +1,2205 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "sessions",
+      "label": "Sessions",
+      "description": "Sessions that started in the hour",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": true,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_funnel_hourly",
+      "measure": "sessions",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(sessions) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "product_views",
+      "label": "Product views",
+      "description": "Sessions that viewed a product",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_funnel_hourly",
+      "measure": "product_views",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(product_views) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "carts",
+      "label": "Carts",
+      "description": "Sessions that added to cart",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_funnel_hourly",
+      "measure": "carts",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(carts) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "checkouts",
+      "label": "Checkouts",
+      "description": "Sessions that started checkout",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_funnel_hourly",
+      "measure": "checkouts",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(checkouts) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "payment_attempts",
+      "label": "Payment attempts",
+      "description": "Checkouts that attempted a payment",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "provider"
+      ],
+      "table": "fact_payments_hourly",
+      "measure": "payment_attempts",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, provider, SUM(payment_attempts) AS value\nFROM fact_payments_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "payment_successes",
+      "label": "Payment successes",
+      "description": "Successful payments",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "provider"
+      ],
+      "table": "fact_payments_hourly",
+      "measure": "payment_successes",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, provider, SUM(payment_successes) AS value\nFROM fact_payments_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "orders",
+      "label": "Orders",
+      "description": "Orders placed",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": true,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_orders_hourly",
+      "measure": "orders",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(orders) AS value\nFROM fact_orders_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "gmv",
+      "label": "GMV",
+      "description": "Gross merchandise value in EUR",
+      "kind": "additive",
+      "unit": "eur",
+      "north_star": true,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": "fact_orders_hourly",
+      "measure": "gmv",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(gmv) AS value\nFROM fact_orders_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "view_rate",
+      "label": "View rate",
+      "description": "Share of sessions that view a product",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "product_views",
+      "denominator": "sessions",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(product_views)::DOUBLE / NULLIF(SUM(sessions), 0) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "cart_rate",
+      "label": "Cart rate",
+      "description": "Share of product viewers that add to cart",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "carts",
+      "denominator": "product_views",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(carts)::DOUBLE / NULLIF(SUM(product_views), 0) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "checkout_rate",
+      "label": "Checkout rate",
+      "description": "Share of carts that start checkout",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "checkouts",
+      "denominator": "carts",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(checkouts)::DOUBLE / NULLIF(SUM(carts), 0) AS value\nFROM fact_funnel_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "attempt_rate",
+      "label": "Attempt rate",
+      "description": "Share of checkouts that attempt a payment",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "payment_attempts",
+      "denominator": "checkouts",
+      "expr": null,
+      "sql": null,
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "payment_success_rate",
+      "label": "Payment success rate",
+      "description": "Share of payment attempts that succeed",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": true,
+      "dims": [
+        "country",
+        "platform",
+        "provider"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "payment_successes",
+      "denominator": "payment_attempts",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, provider, SUM(payment_successes)::DOUBLE / NULLIF(SUM(payment_attempts), 0) AS value\nFROM fact_payments_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "cvr",
+      "label": "Conversion rate",
+      "description": "Orders per session",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": true,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "orders",
+      "denominator": "sessions",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(orders)::DOUBLE / NULLIF(SUM(sessions), 0) AS value\nFROM fact_orders_hourly JOIN fact_funnel_hourly USING (ts, country, platform, channel, category)\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "aov",
+      "label": "Average order value",
+      "description": "GMV per order in EUR",
+      "kind": "ratio",
+      "unit": "eur_per_unit",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform",
+        "channel",
+        "category"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "gmv",
+      "denominator": "orders",
+      "expr": null,
+      "sql": "SELECT ts, country, platform, channel, category, SUM(gmv)::DOUBLE / NULLIF(SUM(orders), 0) AS value\nFROM fact_orders_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "ad_impressions",
+      "label": "Ad impressions",
+      "description": "Ads served",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": "fact_ads_hourly",
+      "measure": "ad_impressions",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_impressions) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "ad_clicks",
+      "label": "Ad clicks",
+      "description": "Ad clicks",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": "fact_ads_hourly",
+      "measure": "ad_clicks",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_clicks) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "ad_spend",
+      "label": "Ad spend",
+      "description": "Advertiser spend in EUR",
+      "kind": "additive",
+      "unit": "eur",
+      "north_star": true,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": "fact_ads_hourly",
+      "measure": "ad_spend",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_spend) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "ad_conversions",
+      "label": "Ad conversions",
+      "description": "Orders attributed to an ad click",
+      "kind": "additive",
+      "unit": "count",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": "fact_ads_hourly",
+      "measure": "ad_conversions",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_conversions) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "attributed_gmv",
+      "label": "Attributed GMV",
+      "description": "GMV of attributed orders in EUR",
+      "kind": "additive",
+      "unit": "eur",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": "fact_ads_hourly",
+      "measure": "attributed_gmv",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(attributed_gmv) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "planned_spend",
+      "label": "Planned spend",
+      "description": "Pacing plan: daily budget x expected traffic share of the hour",
+      "kind": "additive",
+      "unit": "eur",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country"
+      ],
+      "table": "fact_ad_plan_hourly",
+      "measure": "planned_spend",
+      "numerator": null,
+      "denominator": null,
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, SUM(planned_spend) AS value\nFROM fact_ad_plan_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "ctr",
+      "label": "CTR",
+      "description": "Clicks per impression",
+      "kind": "ratio",
+      "unit": "share",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "ad_clicks",
+      "denominator": "ad_impressions",
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_clicks)::DOUBLE / NULLIF(SUM(ad_impressions), 0) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "cpc",
+      "label": "CPC",
+      "description": "Spend per click in EUR",
+      "kind": "ratio",
+      "unit": "eur_per_unit",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "ad_spend",
+      "denominator": "ad_clicks",
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_spend)::DOUBLE / NULLIF(SUM(ad_clicks), 0) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "cpa",
+      "label": "CPA",
+      "description": "Spend per conversion in EUR",
+      "kind": "ratio",
+      "unit": "eur_per_unit",
+      "north_star": true,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "ad_spend",
+      "denominator": "ad_conversions",
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(ad_spend)::DOUBLE / NULLIF(SUM(ad_conversions), 0) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "roas",
+      "label": "ROAS",
+      "description": "Attributed GMV per EUR of spend",
+      "kind": "ratio",
+      "unit": "ratio",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "attributed_gmv",
+      "denominator": "ad_spend",
+      "expr": null,
+      "sql": "SELECT ts, advertiser_id, country, platform, SUM(attributed_gmv)::DOUBLE / NULLIF(SUM(ad_spend), 0) AS value\nFROM fact_ads_hourly\nGROUP BY ALL",
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "impressions_per_session",
+      "label": "Impressions per session",
+      "description": "Ads served per shop session (did traffic grow, or did the ad system serve more?)",
+      "kind": "ratio",
+      "unit": "ratio",
+      "north_star": false,
+      "dims": [
+        "country",
+        "platform"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "ad_impressions",
+      "denominator": "sessions",
+      "expr": null,
+      "sql": null,
+      "source": "seed",
+      "state": "watching"
+    },
+    {
+      "id": "pacing_ratio",
+      "label": "Pacing ratio",
+      "description": "Delivered spend / planned spend in the hour (pacing health)",
+      "kind": "ratio",
+      "unit": "ratio",
+      "north_star": false,
+      "dims": [
+        "advertiser_id",
+        "country"
+      ],
+      "table": null,
+      "measure": null,
+      "numerator": "ad_spend",
+      "denominator": "planned_spend",
+      "expr": null,
+      "sql": null,
+      "source": "seed",
+      "state": "watching"
+    }
+  ],
+  "edges": [
+    {
+      "id": "f_gmv",
+      "kind": "formula",
+      "target": "gmv",
+      "sources": [
+        "orders",
+        "aov"
+      ],
+      "expr": "orders * aov",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 1.3881008479236818e-16,
+        "p95_rel": 3.1333471069140926e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r244",
+          "r245",
+          "r246"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "f_orders",
+      "kind": "formula",
+      "target": "orders",
+      "sources": [
+        "sessions",
+        "cvr"
+      ],
+      "expr": "sessions * cvr",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 1.663820181599303e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r245",
+          "r247",
+          "r248"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "f_cvr",
+      "kind": "formula",
+      "target": "cvr",
+      "sources": [
+        "view_rate",
+        "cart_rate",
+        "checkout_rate",
+        "attempt_rate",
+        "payment_success_rate"
+      ],
+      "expr": "view_rate * cart_rate * checkout_rate * attempt_rate * payment_success_rate",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 2.1795120206493895e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r248",
+          "r249",
+          "r250",
+          "r251",
+          "r252",
+          "r253"
+        ],
+        "note": ""
+      },
+      "note": "cross-table: holds exactly only while orders = payment_successes"
+    },
+    {
+      "id": "f_orders_payments",
+      "kind": "formula",
+      "target": "orders",
+      "sources": [
+        "payment_successes"
+      ],
+      "expr": "payment_successes",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 0.0,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r245",
+          "r254"
+        ],
+        "note": ""
+      },
+      "note": "data-quality identity: every successful payment is an order. A late table breaks it."
+    },
+    {
+      "id": "f_ad_spend",
+      "kind": "formula",
+      "target": "ad_spend",
+      "sources": [
+        "ad_clicks",
+        "cpc"
+      ],
+      "expr": "ad_clicks * cpc",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 2.7295979294629953e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r255",
+          "r256",
+          "r257"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "f_ad_clicks",
+      "kind": "formula",
+      "target": "ad_clicks",
+      "sources": [
+        "ad_impressions",
+        "ctr"
+      ],
+      "expr": "ad_impressions * ctr",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 1.4002903356751286e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r256",
+          "r258",
+          "r259"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "f_ad_impressions",
+      "kind": "formula",
+      "target": "ad_impressions",
+      "sources": [
+        "sessions",
+        "impressions_per_session"
+      ],
+      "expr": "sessions * impressions_per_session",
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "identity_residual",
+        "window_days": 28,
+        "median_max": 0.005,
+        "p95_max": 0.02,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": 0.0,
+        "p95_rel": 1.5722889918001633e-16,
+        "max_rel_err": null,
+        "hours": 672,
+        "receipts": [
+          "r258",
+          "r247",
+          "r260"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "c_ad_clicks_sessions",
+      "kind": "cause",
+      "target": "sessions",
+      "sources": [
+        "ad_clicks"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": [
+        0,
+        1
+      ],
+      "filter": null,
+      "status": "PROPOSED",
+      "weight": 0.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "lagged_corr_bh",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": 0.05,
+        "lag_hours": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "lagged correlation test not implemented yet (lane G, Stage 2)"
+      },
+      "note": "paid sessions should follow ad clicks; lag test is lane G Stage 2"
+    },
+    {
+      "id": "ev_deploys_sessions",
+      "kind": "evidence",
+      "target": "sessions",
+      "sources": [
+        "log_deploys"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_deploys_cvr",
+      "kind": "evidence",
+      "target": "cvr",
+      "sources": [
+        "log_deploys"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_deploys_payment_success_rate",
+      "kind": "evidence",
+      "target": "payment_success_rate",
+      "sources": [
+        "log_deploys"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_provider_payment_success_rate",
+      "kind": "evidence",
+      "target": "payment_success_rate",
+      "sources": [
+        "log_provider_status"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_calendar_sessions",
+      "kind": "evidence",
+      "target": "sessions",
+      "sources": [
+        "log_calendar"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_calendar_orders",
+      "kind": "evidence",
+      "target": "orders",
+      "sources": [
+        "log_calendar"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_budgets_ad_spend",
+      "kind": "evidence",
+      "target": "ad_spend",
+      "sources": [
+        "log_ad_budgets"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_budgets_pacing_ratio",
+      "kind": "evidence",
+      "target": "pacing_ratio",
+      "sources": [
+        "log_ad_budgets"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "ev_deploys_ad_spend",
+      "kind": "evidence",
+      "target": "ad_spend",
+      "sources": [
+        "log_deploys"
+      ],
+      "expr": null,
+      "dim": null,
+      "lag_hours": null,
+      "filter": null,
+      "status": "SUPPORTED",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "onset_alignment",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": null,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": null,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": null,
+        "hours": 0,
+        "receipts": [],
+        "note": "checked per investigation: onset alignment and scope match"
+      },
+      "note": ""
+    },
+    {
+      "id": "b_sessions_country",
+      "kind": "breakdown",
+      "target": "sessions",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r261"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_sessions_platform",
+      "kind": "breakdown",
+      "target": "sessions",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r262"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_sessions_channel",
+      "kind": "breakdown",
+      "target": "sessions",
+      "sources": [],
+      "expr": null,
+      "dim": "channel",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r263"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_sessions_category",
+      "kind": "breakdown",
+      "target": "sessions",
+      "sources": [],
+      "expr": null,
+      "dim": "category",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r264"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_orders_country",
+      "kind": "breakdown",
+      "target": "orders",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r265"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_orders_platform",
+      "kind": "breakdown",
+      "target": "orders",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r266"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_orders_channel",
+      "kind": "breakdown",
+      "target": "orders",
+      "sources": [],
+      "expr": null,
+      "dim": "channel",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r267"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_orders_category",
+      "kind": "breakdown",
+      "target": "orders",
+      "sources": [],
+      "expr": null,
+      "dim": "category",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r268"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_gmv_country",
+      "kind": "breakdown",
+      "target": "gmv",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r269"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_gmv_platform",
+      "kind": "breakdown",
+      "target": "gmv",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r270"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_gmv_channel",
+      "kind": "breakdown",
+      "target": "gmv",
+      "sources": [],
+      "expr": null,
+      "dim": "channel",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r271"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_gmv_category",
+      "kind": "breakdown",
+      "target": "gmv",
+      "sources": [],
+      "expr": null,
+      "dim": "category",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r272"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cvr_country",
+      "kind": "breakdown",
+      "target": "cvr",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r273",
+          "r274"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cvr_platform",
+      "kind": "breakdown",
+      "target": "cvr",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r275",
+          "r276"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cvr_channel",
+      "kind": "breakdown",
+      "target": "cvr",
+      "sources": [],
+      "expr": null,
+      "dim": "channel",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r277",
+          "r278"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cvr_category",
+      "kind": "breakdown",
+      "target": "cvr",
+      "sources": [],
+      "expr": null,
+      "dim": "category",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r279",
+          "r280"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_payment_success_rate_country",
+      "kind": "breakdown",
+      "target": "payment_success_rate",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r281",
+          "r282"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_payment_success_rate_platform",
+      "kind": "breakdown",
+      "target": "payment_success_rate",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r283",
+          "r284"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_payment_success_rate_provider",
+      "kind": "breakdown",
+      "target": "payment_success_rate",
+      "sources": [],
+      "expr": null,
+      "dim": "provider",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r285",
+          "r286"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_ad_spend_advertiser_id",
+      "kind": "breakdown",
+      "target": "ad_spend",
+      "sources": [],
+      "expr": null,
+      "dim": "advertiser_id",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r287"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_ad_spend_country",
+      "kind": "breakdown",
+      "target": "ad_spend",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r288"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_ad_spend_platform",
+      "kind": "breakdown",
+      "target": "ad_spend",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r289"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cpa_advertiser_id",
+      "kind": "breakdown",
+      "target": "cpa",
+      "sources": [],
+      "expr": null,
+      "dim": "advertiser_id",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r290",
+          "r291"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cpa_country",
+      "kind": "breakdown",
+      "target": "cpa",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r292",
+          "r293"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_cpa_platform",
+      "kind": "breakdown",
+      "target": "cpa",
+      "sources": [],
+      "expr": null,
+      "dim": "platform",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r294",
+          "r295"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_pacing_ratio_advertiser_id",
+      "kind": "breakdown",
+      "target": "pacing_ratio",
+      "sources": [],
+      "expr": null,
+      "dim": "advertiser_id",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r296",
+          "r297"
+        ],
+        "note": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "b_pacing_ratio_country",
+      "kind": "breakdown",
+      "target": "pacing_ratio",
+      "sources": [],
+      "expr": null,
+      "dim": "country",
+      "lag_hours": null,
+      "filter": null,
+      "status": "VALID",
+      "weight": 1.0,
+      "provenance": "seed",
+      "test": {
+        "kind": "children_sum",
+        "window_days": 28,
+        "median_max": null,
+        "p95_max": null,
+        "max_rel_err": 0.005,
+        "alpha": null,
+        "lag_hours": null
+      },
+      "last_test": {
+        "ran_at": "2026-11-22T02:00:00",
+        "passed": true,
+        "median_rel": null,
+        "p95_rel": null,
+        "max_rel_err": 0.0,
+        "hours": 672,
+        "receipts": [
+          "r298",
+          "r299"
+        ],
+        "note": ""
+      },
+      "note": ""
+    }
+  ],
+  "logs": [
+    {
+      "id": "log_deploys",
+      "label": "Deploys",
+      "description": "Deploys and app releases with their scope"
+    },
+    {
+      "id": "log_provider_status",
+      "label": "Provider status",
+      "description": "Payment provider status feed"
+    },
+    {
+      "id": "log_calendar",
+      "label": "Calendar",
+      "description": "Planned promos, holidays and campaigns with planned uplift"
+    },
+    {
+      "id": "log_ad_budgets",
+      "label": "Ad budgets",
+      "description": "Advertiser budget and pacer changes"
+    }
+  ]
+}

@@ -141,7 +141,7 @@ def base_params(cfg: WorldConfig, rng: np.random.Generator) -> WorldParams:
     ).to_numpy()
 
     hod = hours.hour.to_numpy()
-    weekend = hours.dayofweek.to_numpy() >= 5
+    weekend = hours.day_of_week.to_numpy() >= 5
     season = (1.0 + 0.5 * np.sin(2 * np.pi * (hod - 10) / 24)) * np.where(weekend, 1.12, 1.0)
 
     n_h, n_s = len(hours), len(seg)
