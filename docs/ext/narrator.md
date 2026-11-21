@@ -13,7 +13,7 @@ curl -fsS 'http://localhost:8000/report/morning?format=markdown'
 curl -fsS http://localhost:8000/autonomy
 ```
 
-Substitute `SCENARIO=s2`, `s3`, or `s4` to see the other recordings.
+Substitute `SCENARIO=s2`, `s3`, `s4`, or `s5` to see the other recordings.
 Use `make demo SCENARIO=s1 SEED=1` for a live run with warehouse receipt re-runs enabled.
 
 ## GET /report/morning
@@ -109,6 +109,8 @@ The full response also contains `activity_receipt`, a link for the structured ac
 Returns `decides_alone` and `asks_first` as arrays of policy rules with stable `id` values, a `when` condition, and a `behavior` description.
 `probation` contains visible graph nodes and edges marked PROBATION.
 It identifies cases that need evidence or review before promotion.
+Every bundled recording serves an empty list.
+A node appears once metric onboarding places it on probation, for example `{"kind": "node", "id": "app_crash_rate", "status": "PROBATION"}`.
 Actual recorded recommendations and uncertainty appear in the report's `asks` section.
 
 Example response excerpt.
@@ -129,7 +131,7 @@ Example response excerpt.
       "behavior": "Keep it on PROBATION and ask for stronger evidence or a human decision before promotion."
     }
   ],
-  "probation": [{"kind": "node", "id": "app_crash_rate", "status": "PROBATION"}],
+  "probation": [],
   "playbooks": [
     {
       "id": "revenue_drop",
@@ -170,6 +172,11 @@ Example mapping excerpt for an in-progress investigation.
   ]
 }
 ```
+
+## Demo playback
+
+[Demo playback](demo.md) serves this report for its own recording at `GET /demo/report/morning`, linked from the morning-report beat.
+The lines, playbooks and queries are the same; links start with `/demo/` instead of `/`.
 
 ## Optional narration
 

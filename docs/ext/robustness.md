@@ -83,6 +83,7 @@ Live mode matches the recorded event types and simulated timestamps while indepe
 | S2 | Pass | Pass | 163 | Planned spending change produces one `expected` note |
 | S3 | Pass | Pass | 155 | Delayed data produces one `data_issue` note, holds scoring on orders, and recovers |
 | S4 | Pass | Pass | 170 | Ad pacer deployment produces one `SUPPORTED_CAUSE` incident |
+| S5 | Pass | Pass | 193 | Market-wide dip produces three `expected` notes; the checkout-routing fault produces one `SUPPORTED_CAUSE` incident that resolves |
 
 ## Fault injection
 
@@ -128,3 +129,5 @@ One run per row on an Apple Silicon Mac Studio with 32 GiB RAM, macOS 27.0.1, Py
 | S3 | Live | 1.554 | 1.661 | 10.998 | 296.2 |
 | S4 | Replay | 0.746 | 0.747 | 0.778 | 105.2 |
 | S4 | Live | 1.671 | 1.743 | 9.178 | 302.2 |
+| S5 | Replay | 1.029 | 1.032 | 1.080 | 108.6 |
+| S5 | Live | 1.733 | 1.802 | 10.034 | 297.5 |

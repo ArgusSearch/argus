@@ -15,7 +15,8 @@ make demo SCENARIO=s5
 The default `uv run argus-bench` scorecard includes S5.
 The bench seals both injected events before starting Argus and grades each event after revealing the truth.
 Use `uv run argus-bench verify runs/bench/s5-7` to independently verify the case commitment.
-Use `uv run argus-bench record s5 --seed 7 --out runs/s5-replay` to create a recording for `uv run argus api --replay runs/s5-replay`.
+`make api SCENARIO=s5` replays the checked-in seed 1 recording in `fixtures/s5`.
+Use `uv run argus-bench record s5 --seed 7 --out runs/s5-replay` to create a recording of another seed for `uv run argus api --replay runs/s5-replay`.
 
 ## Mission Control contract
 

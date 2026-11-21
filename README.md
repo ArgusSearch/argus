@@ -62,6 +62,8 @@ Argus:
 | `make check` | lint, format check, mypy, contract freshness, Mission Control tests and build, all tests (what CI runs) |
 | `make contracts` | regenerate `contracts/` from the pydantic models |
 | `make fixtures` | re-record `fixtures/` (S1) and `fixtures/<scenario>/` (quiet, S2, S3, S4, S5), each graded after it is written |
+| `uv run argus demo [--scenario s4]` | print the 90-second demo cue timeline that `POST /demo/start` plays ([docs/ext/demo.md](docs/ext/demo.md)) |
+| `uv run argus counterfactual --scenario s4` | replay an incident with its named cause switched off and verify the paired receipts ([docs/ext/counterfactual.md](docs/ext/counterfactual.md)) |
 
 ## Architecture
 
@@ -105,14 +107,17 @@ src/argus/investigate/   Stage-2 investigator the runtime uses: hypothesis ledge
 src/argus/incidents/  fingerprints, symptom silencing, lifecycle, severity                          lane B
 src/argus/runtime/    tick loop and event bus                                                       lane B
 src/argus/skeptic/, src/argus/llm/  Stage 2 placeholders                                            lane B
-src/argus/narrator/   template report and the number check                                          lane U
+src/argus/narrator/   template report, the number check, morning report, autonomy and playbooks     lane U
+src/argus/market/     S5 market control: metric against an independent demand index
+src/argus/counterfactual/  paired MockMart replay with the named cause switched off
+src/argus/demo/       90-second demo playback over the recorded S1 and S4 runs
 src/argus/api/        FastAPI REST routes and the SSE stream                                         lane U
 src/argus/mcp/        MCP server (Stage 3 placeholder)                                               lane U
 src/mockmart/         simulator: causal world, micro-batch delivery, decoy logs, scenarios, truth   lane W
 src/bench/            sealed scorecard, S1 criteria, recordings (the only code that reads truth.duckdb)  lane W
 web/                  Mission Control: React page over the SSE stream                               lane U
 tests/unit, tests/e2e one test per S1 exit criterion on three seeds, plus unit tests per module
-docs/                 contracts.md, lanes.md, decisions.md
+docs/                 contracts.md, lanes.md, decisions.md; docs/ext/ for the extension contracts
 ```
 
 `docs/lanes.md` explains how the four people build in parallel from here.
@@ -158,7 +163,9 @@ Done (Stage 0 and the S1 skeleton): repo layout, the six contracts with generate
 
 Integrated since: the Stage-2 investigator in the runtime, the detect lane's planned-change looks, scenarios S2-S4 with the sealed scorecard and blind challenge, metric self-classification (`src/argus/graph/classify.py`), and Mission Control over live and recorded runs of every scenario.
 
-Next (see `docs/lanes.md`): metric onboarding through the API, the LLM planner and the skeptic, scenarios S5 and S6.
+Extensions (contracts in `docs/ext/`): S5 with a market control group, the receipt-backed morning report with the autonomy boundary and playbooks (`GET /report/morning`, `GET /autonomy`), counterfactual replay (`GET /incidents/{id}/counterfactual`), one-click demo playback (`/demo/*`) and the API robustness suite.
+
+Next (see `docs/lanes.md`): metric onboarding through the API, the LLM planner and the skeptic, scenario S6.
 
 ## Source attributions
 
