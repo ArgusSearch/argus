@@ -21,12 +21,12 @@ This one command simulates a fresh world, runs Argus over it hour by hour, and g
 ```
 S1 seed 7: PayCo DE-android success 0.95 -> 0.62 from 2026-11-20 21:00 to 06:00 (hidden truth, read by the bench only)
   PASS  supported_cause        INC-0001 SUPPORTED_CAUSE payment_success_rate DE/android/PayCo
-  PASS  release_ruled_out      dep_android-app_8.3.0: holdout normal
+  PASS  release_ruled_out      dep_android-app_8.3.0: holdout normal: +0.3% (z +0.7) outside the segment vs -34.6% inside
   PASS  detected_within_3h     opened 0 h after onset (data hour), 2 h wall clock
   PASS  quiet_hours_silent     69 quiet hours, 0 anomalies before onset
   PASS  one_incident           1 incident(s), 1 anomalies, 0 suppressed, state resolved
-  PASS  receipts_reproducible  18 receipts re-run, 0 mismatched, 0 unbacked numbers, 0 untagged lines
-  report: runs/s1-7/argus/reports/INC-0001.md   (6.8 s)
+  PASS  receipts_reproducible  21 receipts re-run, 0 mismatched, 0 unbacked numbers, 0 untagged lines
+  report: runs/s1-7/argus/reports/INC-0001.md   (6.7 s)
 ALL PASS
 ```
 
@@ -54,13 +54,14 @@ Argus:
 | --- | --- |
 | `make setup` | install the locked environment |
 | `make s1 [SEED=n]` | S1 end to end, graded against the hidden truth |
-| `make world [SEED=n]` | generate a world into `runs/s1-<seed>/` (world.duckdb, truth.duckdb, manifest.json) |
-| `uv run argus run --world runs/s1-7/world.duckdb` | run Argus over a world and write its outputs next to it |
-| `make demo` | API on port 8000 running Argus live over an S1 world, streaming events |
-| `make api` | API replaying `fixtures/events.jsonl` (no world needed) |
-| `make check` | lint, format check, mypy, contract freshness, all tests (what CI runs) |
+| `make bench` | the scorecard: quiet, S1-S4 x 3 seeds, Argus against a threshold baseline, truth sealed first |
+| `make world [SCENARIO=s1] [SEED=n]` | generate a world into `runs/<scenario>-<seed>/` (world.duckdb, truth.duckdb, manifest.json); scenarios: quiet, s1, s2, s3, s4 |
+| `uv run argus run --world runs/s1-7/world.duckdb` | run Argus over a world and write its outputs next to it (`--stage 1` for the Stage-1 investigator) |
+| `make demo [SCENARIO=s1]` | API and Mission Control on port 8000 running Argus live over a fresh world, streaming events |
+| `make api [SCENARIO=s1]` | API and Mission Control replaying a recorded run: `fixtures/` for S1, `fixtures/<scenario>/` for the others (no world needed) |
+| `make check` | lint, format check, mypy, contract freshness, Mission Control tests and build, all tests (what CI runs) |
 | `make contracts` | regenerate `contracts/` from the pydantic models |
-| `make fixtures` | re-record `fixtures/` from an S1 run |
+| `make fixtures` | re-record `fixtures/` (S1) and `fixtures/<scenario>/` (quiet, S2, S3, S4), each graded after it is written |
 
 ## Architecture
 
@@ -79,8 +80,8 @@ One tick is one simulated hour:
 
 1. freshness gate for the newest hour that should be complete (`as_of` minus the 2 h delivery lag);
 2. once per simulated day, every formula and breakdown edge is re-tested against the data;
-3. the north-star nodes are scored; an anomaly opens on `|z| > 5` or on 2 of the last 3 hours `|z| > 3.5`;
-4. an anomaly that no open incident covers is investigated with the fixed opening (`src/argus/investigator/procedure.py`);
+3. the north-star nodes are scored; an anomaly opens on `|z| > 5` or on 2 of the last 3 hours `|z| > 3.5`; the planned-change looks (`src/argus/detect/`) open one when delivery does not follow a budget or calendar plan in force;
+4. an anomaly that no open incident covers is investigated with the Stage-2 investigator (`src/argus/investigate/`: hypothesis ledger, placebo, claim labels on top of the fixed opening in `src/argus/investigator/procedure.py`, which stays the fallback);
 5. findings become an incident (by fingerprint) or a note ("didn't wake you", data issue);
 6. open incidents are monitored on their root segment until they resolve;
 7. every step is published as an event (contract C5) and streamed on `GET /events`.
@@ -91,14 +92,16 @@ One tick is one simulated hour:
 contracts/            generated contract artifacts: schema.sql and JSON Schemas (do not edit, run make contracts)
 graph/seed_graph.yml  hand-written seed metric graph: 27 nodes (shop funnel and ads business), 44 typed edges
 metrics/              C2 metric definitions (name, description, sql); new metrics are dropped here
-fixtures/             one recorded S1 run: events.jsonl, graph.json, incidents.json, findings.json, receipts.json, report.md
+fixtures/             recorded runs for replay: S1 at the top level, quiet, s2, s3, s4 in fixtures/<scenario>/
 src/argus/contracts/  the six contracts as pydantic models (single source of truth)
 src/argus/semantic/   SQL compiler for graph nodes, query runner, receipts with canonical hashes      lane G
 src/argus/graph/      seed graph loader, edge tests, changelog                                      lane G
 src/argus/cartographer/  metric onboarding (Stage 2 placeholder)                                    lane G
 src/argus/watcher/    freshness gate, expectation, robust z, open and resolve rules                 lane B
+src/argus/detect/     watcher with attention budget, pacing and planned-change looks                lane B
 src/argus/decompose/  LMDI, mix vs rate, segment search (pure functions)                            lane B
-src/argus/investigator/  typed tools (C6) and the fixed opening procedure                           lane B
+src/argus/investigator/  typed tools (C6) and the fixed opening procedure (Stage 1, the fallback)   lane B
+src/argus/investigate/   Stage-2 investigator the runtime uses: hypothesis ledger, placebo, claims   lane B
 src/argus/incidents/  fingerprints, symptom silencing, lifecycle, severity                          lane B
 src/argus/runtime/    tick loop and event bus                                                       lane B
 src/argus/skeptic/, src/argus/llm/  Stage 2 placeholders                                            lane B
@@ -106,8 +109,8 @@ src/argus/narrator/   template report and the number check                      
 src/argus/api/        FastAPI REST routes and the SSE stream                                         lane U
 src/argus/mcp/        MCP server (Stage 3 placeholder)                                               lane U
 src/mockmart/         simulator: causal world, micro-batch delivery, decoy logs, scenarios, truth   lane W
-src/bench/            S1 grader against the truth (the only code that reads truth.duckdb)           lane W
-web/                  Mission Control (lane U, not started)
+src/bench/            sealed scorecard, S1 criteria, recordings (the only code that reads truth.duckdb)  lane W
+web/                  Mission Control: React page over the SSE stream                               lane U
 tests/unit, tests/e2e one test per S1 exit criterion on three seeds, plus unit tests per module
 docs/                 contracts.md, lanes.md, decisions.md
 ```
@@ -153,7 +156,9 @@ Details and examples: `docs/contracts.md`.
 
 Done (Stage 0 and the S1 skeleton): repo layout, the six contracts with generated schemas, MockMart with S1 and hidden truth, seed graph with edge tests, freshness gate and detection, investigator, incidents, template report, API with SSE, bench and tests, CI.
 
-Next (see `docs/lanes.md`): scenarios S2 and S3, the Mission Control UI, metric onboarding, the S4 pacing bug, the LLM planner and the skeptic.
+Integrated since: the Stage-2 investigator in the runtime, the detect lane's planned-change looks, scenarios S2-S4 with the sealed scorecard and blind challenge, metric self-classification (`src/argus/graph/classify.py`), and Mission Control over live and recorded runs of every scenario.
+
+Next (see `docs/lanes.md`): metric onboarding through the API, the LLM planner and the skeptic, scenarios S5 and S6.
 
 ## Source attributions
 

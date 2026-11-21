@@ -8,12 +8,14 @@ One page over the C5 event stream: the live metric graph, attention, the investi
 npm --prefix web install
 npm --prefix web run build   # the API serves web/dist at /
 make api                     # http://127.0.0.1:8000, replays the recorded S1 run in fixtures/
+make api SCENARIO=s4         # another recorded run: quiet, s2, s3 or s4 (fixtures/<scenario>/)
 make demo                    # the same page over Argus running live on a fresh S1 world
+make demo SCENARIO=s3        # ... or a fresh world of any scenario
 ```
 
 During development, run `make api` (or `make demo`) and `npm --prefix web run dev` (port 5173); Vite proxies the API routes to port 8000 (`ARGUS_API` overrides the target).
 
-`npm --prefix web run typecheck` and `npm --prefix web test` check the page; `make test` runs both when `web/node_modules` exists.
+`npm --prefix web run typecheck` and `npm --prefix web test` check the page; `make web` installs, tests and builds it, `make check` includes it, and `make test` runs the checks when `web/node_modules` exists.
 
 Receipts re-run in live mode (`make demo`), against the world the run reads.
 

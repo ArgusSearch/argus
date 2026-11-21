@@ -21,9 +21,14 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: Install the locked environment
         run: uv sync --frozen
-      - name: Lint, types, contracts, tests
+      - name: Lint, types, contracts, Mission Control, tests
         run: make check
       - name: S1 end to end (single command from the README)
         run: make s1
