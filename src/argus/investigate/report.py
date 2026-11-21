@@ -88,7 +88,7 @@ def render_findings(findings: Findings, graph: Graph) -> str:
             "",
             "## Impact",
             "",
-            f"{fmt(i.per_hour)} {i.node} per hour, {fmt(i.gmv_eur_per_hour, eur=True)} GMV per hour, "
+            f"{fmt(i.per_hour)} {i.node} per hour, {fmt(i.gmv_eur_per_hour, eur=True)} per hour, "
             f"{fmt(i.eur_so_far, eur=True)} so far (over {i.hours} h).",
         ]
 
@@ -102,7 +102,7 @@ def render_findings(findings: Findings, graph: Graph) -> str:
         if f.decomposition:
             lines += [
                 "",
-                f"Exact LMDI split of {f.decomposed_node} in the root segment:",
+                f"Exact LMDI split of {f.decomposed_node}:",
                 "",
                 "| factor | share of the change |",
                 "| --- | --- |",

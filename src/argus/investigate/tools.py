@@ -8,6 +8,7 @@ way a planner (or an LLM behind it) can make Argus query data. No tool accepts f
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -35,8 +36,10 @@ from argus.contracts.tools import (
     ToolOutput,
 )
 from argus.contracts.world import DIMENSIONS
+from argus.decompose.lmdi import lmdi
 from argus.decompose.mix_rate import mix_rate_split
 from argus.decompose.segments import Cell
+from argus.investigate.walk import FactorView
 from argus.investigate.weekly import WeekStat, fetch_weekly, week_stat
 from argus.investigator.tools import HOLDOUT_Z, Toolbox
 from argus.semantic.compile import hourly_sql, measures_window_sql, quote, scope_where, segment_where, window_hours
@@ -49,6 +52,18 @@ PLACEBO_WEEKS = 8
 FLAT_Z = 2.0
 CONTROL_NORMAL_REL = 0.25  # a control group within a quarter of the anomaly's relative change counts as normal
 IMPACT_NODE = "orders"
+
+
+@dataclass(frozen=True)
+class ProductSplit:
+    """Exact LMDI split of a node's change over the factors of one product, with each factor's z."""
+
+    node: str
+    factors: list[FactorView]
+    change: float
+    residual: float
+    rel_change: float
+    receipts: list[str]
 
 
 class ToolUnavailable(RuntimeError):
@@ -104,6 +119,50 @@ class StageTwoToolbox(Toolbox):
         stats = {f: s for f, s in ((f, week_stat(series[f])) for f in factors) if s is not None}
         receipts = sorted({r for s in series.values() for r in s.receipts}, key=lambda r: int(r[1:]))
         return stats, receipts
+
+    def decompose_product(
+        self, node_id: str, factors: list[str], segment: Segment, window: Window, weeks: int = 4
+    ) -> ProductSplit | None:
+        """LMDI over any exact product of the node (formula edge or ratio identity), from one week-by-week
+        query per fact view, so the contributions and the factors' significance share their receipts.
+        Baseline = mean of the same hours in `weeks` earlier weeks (ratios pooled), as in Stage 1."""
+        series = fetch_weekly(
+            self.graph,
+            self.runner,
+            self.as_of,
+            [node_id, *factors],
+            window,
+            segment_where(segment),
+            weeks=weeks,
+            purpose=f"exact split of {node_id} into {' x '.join(factors)}, week by week",
+        )
+        stats: dict[str, WeekStat] = {}
+        for n in [node_id, *factors]:
+            stat = week_stat(series[n])
+            if stat is None or stat.baseline <= 0 or stat.current <= 0:
+                return None  # no logarithm for zero or missing weeks: the split is not defined
+            stats[n] = stat
+        contrib, _, _ = lmdi({f: stats[f].baseline for f in factors}, {f: stats[f].current for f in factors})
+        change = stats[node_id].current - stats[node_id].baseline
+        views = [
+            FactorView(
+                node=f,
+                contribution=contrib[f],
+                share=contrib[f] / change if change else 0.0,
+                z=stats[f].z,
+                rel_change=stats[f].rel_change,
+            )
+            for f in sorted(factors, key=lambda k: -abs(contrib[k]))
+        ]
+        receipts = sorted({r for s in series.values() for r in s.receipts}, key=lambda r: int(r[1:]))
+        return ProductSplit(
+            node=node_id,
+            factors=views,
+            change=change,
+            residual=change - sum(contrib.values()),
+            rel_change=stats[node_id].rel_change,
+            receipts=receipts,
+        )
 
     # ------------------------------------------------------------------ placebo
     def placebo_test(

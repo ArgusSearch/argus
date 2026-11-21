@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from argus.contracts.graph import EdgeKind, EdgeStatus, Graph
+from argus.contracts.graph import EdgeKind, EdgeStatus, Graph, NodeKind
 from argus.graph.store import product_factors
 
 FOLLOW_Z = 3.0
@@ -81,3 +81,58 @@ def hops(graph: Graph, root: str, leaf: str) -> list[Hop]:
 
 def subtree_share(graph: Graph, node_id: str, shares: dict[str, float]) -> float:
     return sum(shares.get(leaf, 0.0) for leaf in leaves(graph, node_id))
+
+
+@dataclass(frozen=True)
+class Decomposition:
+    """One exact way to write the node as a product.
+
+    * a product formula edge of the graph (`orders = sessions * cvr`), or
+    * a ratio identity: every ratio node R = N / D gives N = D * R exactly. The seed graph has no formula
+      `ad_spend = planned_spend * pacing_ratio`, but `pacing_ratio` defines it, and it is the split that
+      compares delivery with its plan.
+    """
+
+    label: str
+    top: list[str]
+    leaves: list[str]
+
+
+def decompositions(graph: Graph, node_id: str) -> list[Decomposition]:
+    out: list[Decomposition] = []
+    formula = formula_children(graph, node_id)
+    if formula:
+        edge = next(
+            e.id
+            for e in graph.edges_into(node_id, EdgeKind.FORMULA)
+            if list(e.sources) == formula and e.status is not EdgeStatus.BROKEN
+        )
+        out.append(Decomposition(f"formula {edge}", formula, [leaf for c in formula for leaf in leaves(graph, c)]))
+    for ratio in graph.nodes:
+        if ratio.kind is not NodeKind.RATIO or ratio.numerator != node_id or not ratio.denominator:
+            continue
+        top = [ratio.denominator, ratio.id]
+        if formula and set(top) == set(formula):
+            continue
+        out.append(Decomposition(f"identity via {ratio.id}", top, [leaf for c in top for leaf in leaves(graph, c)]))
+    return out
+
+
+def decomposition_hops(graph: Graph, root: str, decomposition: Decomposition, leaf: str) -> list[Hop]:
+    follow = next((c for c in decomposition.top if leaf in leaves(graph, c)), None)
+    if follow is None:
+        return []
+    return [Hop(node=root, children=list(decomposition.top), follow=follow), *hops(graph, follow, leaf)]
+
+
+def has_direct_evidence(graph: Graph, node_id: str) -> bool:
+    """Does the graph attach a log of state changes to this node (where a first cause can be checked)?"""
+    return bool(graph.edges_into(node_id, EdgeKind.EVIDENCE))
+
+
+def evidence_logs(graph: Graph, node_id: str) -> list[str]:
+    """Logs attached to the node, and for a ratio also to its numerator and denominator: whatever can move
+    a part of a ratio can move the ratio."""
+    node = graph.node(node_id)
+    ids = [node_id, *(p for p in (node.numerator, node.denominator) if p)]
+    return sorted({src for i in ids for e in graph.edges_into(i, EdgeKind.EVIDENCE) for src in e.sources})

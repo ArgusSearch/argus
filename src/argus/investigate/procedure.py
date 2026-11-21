@@ -28,11 +28,13 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from argus.contracts.findings import (
     Anomaly,
+    Contribution,
     EvidenceRef,
     Findings,
     Quantity,
@@ -50,11 +52,19 @@ from argus.investigate import claims as cl
 from argus.investigate.ledger import TRAIL_KIND, Hypothesis, Ledger, LedgerEntry
 from argus.investigate.planner import MAX_PROPOSALS, Planner, PlannerContext
 from argus.investigate.playbook import choose_playbook
-from argus.investigate.tools import PLACEBO_WEEKS, StageTwoToolbox
-from argus.investigate.walk import FactorView, choose_factor, hops, subtree_share
+from argus.investigate.tools import PLACEBO_WEEKS, ProductSplit, StageTwoToolbox
+from argus.investigate.walk import (
+    FactorView,
+    choose_factor,
+    decomposition_hops,
+    decompositions,
+    evidence_logs,
+    has_direct_evidence,
+    subtree_share,
+)
 from argus.investigator.procedure import Investigation, segment_text
 from argus.investigator.tools import SearchResult
-from argus.semantic.compile import tables_of
+from argus.semantic.compile import scope_where, segment_where, tables_of
 from argus.semantic.runner import Runner
 
 HOUR = timedelta(hours=1)
@@ -64,6 +74,8 @@ SUPPORTED_MIN_EXPLAINED = 0.20
 STOP_EXPLAINED = 0.80
 ROOT_Z = 3.0
 MIX_DOMINANT = 0.67
+FLAT_Z = 2.0
+SCOPE_EXCESS_MIN = 0.25  # an unlocalised change counts only if the event's scope carries clearly more than its volume
 PROCESS_NOTE = "No hypothesis planner is configured"
 
 DECISION: dict[str, dict[str, str]] = {
@@ -89,6 +101,54 @@ def _z(view: FactorView | None) -> float | None:
     return round(view.z, 2) if view is not None and view.z is not None else None
 
 
+@dataclass(frozen=True)
+class ScopeShare:
+    ep: float
+    volume_share: float
+    excess: float
+    receipt: str
+
+
+def scope_text(scope: dict[str, list[str]]) -> str:
+    return " / ".join(f"{d} {', '.join(v)}" for d, v in sorted(scope.items())) or "all segments"
+
+
+def group_batches(events: list[EvidenceRef]) -> list[EvidenceRef]:
+    """Entries of one log with the same kind and timestamp are one rollout (for example a pacer change
+    written per budget line): test them as one candidate whose scope is the union of theirs. The union is
+    a rectangle per dimension, so it can include combinations no member names; those carry no volume when
+    the members cover every line, as a batch rollout does."""
+    groups: dict[tuple[str, str, datetime], list[EvidenceRef]] = {}
+    for e in events:
+        groups.setdefault((e.log, e.kind, e.ts), []).append(e)
+    out = []
+    for (log, kind, ts), members in groups.items():
+        if len(members) == 1:
+            out.append(members[0])
+            continue
+        dims = set.intersection(*(set(m.scope) for m in members))
+        scope = {d: sorted({v for m in members for v in m.scope[d]}) for d in sorted(dims)}
+        refs = ", ".join(m.ref for m in members)
+        out.append(
+            EvidenceRef(
+                log=log,
+                ref=members[0].ref,
+                ts=ts,
+                kind=kind,
+                description=f"{len(members)} {kind}{BATCH_MARK}{ts:%H:%M} ({members[0].description}, ...): {refs}",
+                scope=scope,
+            )
+        )
+    return out
+
+
+BATCH_MARK = " entries at "
+
+
+def is_batch(event: EvidenceRef) -> bool:
+    return BATCH_MARK in event.description and ": " in event.description
+
+
 def pct(value: float) -> str:
     return f"{value * 100:+.1f}%"
 
@@ -110,6 +170,8 @@ class StageTwoInvestigation(Investigation):
         self.claims: list[cl.Claim] = []
         self.llm_calls = 0
         self.playbook = choose_playbook(graph, anomaly.node, anomaly.direction)
+        self.flat_volumes: list[RuledOut] = []
+        self.walk_split: ProductSplit | None = None
 
     def step(self, kind: str, tool: str, result: str, decision: str, **extra: object) -> TrailStep:
         """Every trail step carries its named playbook step (`data["playbook"]`), also in the events."""
@@ -183,7 +245,12 @@ class StageTwoInvestigation(Investigation):
         supported, ruled_out = self._test_events(events, focus, seg, root_cell.rel_change, onset)
         placebo = self._placebo(focus, seg, a.direction)
 
-        explained = max(0.0, min(1.0, focus_share)) * search.output.explained_share if localised else 0.0
+        share = max(0.0, min(1.0, focus_share))
+        explained = share * search.output.explained_share if localised else 0.0
+        best = self._pick(supported, onset) if supported else None
+        scope_share = self._scope_share(focus, seg0, seg, best) if best is not None else None
+        if scope_share is not None and (localised or scope_share.excess >= SCOPE_EXCESS_MIN):
+            explained = max(explained, share * scope_share.ep)
         significant_root = abs(root_z) >= ROOT_Z
         recurring = placebo is not None and placebo.status == "refuted"
         if supported and significant_root and explained >= SUPPORTED_MIN_EXPLAINED and not recurring:
@@ -199,10 +266,18 @@ class StageTwoInvestigation(Investigation):
             if verdict is not Verdict.UNEXPLAINED
             else (None, [], None)
         )
+        if self.walk_split is not None and verdict is not Verdict.UNEXPLAINED:
+            # report the split the walk actually followed (it may be a ratio identity, not the formula)
+            first = self.walk_split.receipts[0] if self.walk_split.receipts else None
+            decomposition = [
+                Contribution(node=v.node, share=round(v.share, 4), value=round(v.contribution, 4), receipt=first)
+                for v in self.walk_split.factors
+            ]
+            decomposed = a.node
         planner_ruled_out = self._plan(focus, seg, explained, events)
-        ruled_out += planner_ruled_out
+        ruled_out += planner_ruled_out + self.flat_volumes
 
-        evidence = self._pick(supported, onset) if verdict is Verdict.SUPPORTED_CAUSE else None
+        evidence = best if verdict is Verdict.SUPPORTED_CAUSE else None
         root = (
             RootCause(
                 node=focus,
@@ -232,6 +307,7 @@ class StageTwoInvestigation(Investigation):
                 "claims": [c.model_dump() for c in self.claims],
                 "ledger": [e.model_dump() for e in self.ledger.entries],
                 "explained_share": round(explained, 4),
+                "event_scope_share": asdict(scope_share) if scope_share else None,
                 "checks_used": len(self.ledger.entries),
                 "checks_budget": self.ledger.budget,
                 "playbook_run": self._playbook_run(),
@@ -296,10 +372,26 @@ class StageTwoInvestigation(Investigation):
 
     # ------------------------------------------------------------------ 4 significance-aware LMDI walk
     def _walk(self) -> tuple[str, float, bool]:
-        """Returns (focus node, its share of the anomaly's change, whether the choice was significant)."""
+        """Returns (focus node, its share of the anomaly's change, whether the choice was significant).
+
+        Every exact product of the anomaly node is split (its formula edge and every ratio identity
+        N = D x R). In each split the walk takes the largest contribution among factors that moved beyond
+        their week-to-week spread. Across splits it prefers a significant factor, then a factor the graph
+        attaches evidence logs to (where a first cause can be checked), then the larger share.
+        """
         a = self.anomaly
-        decomp = self.tools.decompose_formula(a.node, a.segment, self.window)
-        if decomp is None:
+        node = self.graph.node(a.node)
+        options = []
+        for d in decompositions(self.graph, a.node):
+            common = set(node.dims)
+            for f in d.leaves:
+                common &= set(self.graph.node(f).dims)
+            seg = {k: v for k, v in a.segment.items() if k in common}
+            split = self.tools.decompose_product(a.node, d.leaves, seg, self.window)
+            if split is not None:
+                chosen, significant = choose_factor(split.factors, split.change)
+                options.append((d, split, chosen, significant))
+        if not options:
             self.step(
                 "decompose",
                 "decompose_formula",
@@ -308,30 +400,45 @@ class StageTwoInvestigation(Investigation):
                 why="leaf node: the exact split ends here",
             )
             return a.node, 1.0, True
-        common = set(self.graph.node(a.node).dims)
-        for f in decomp.factors:
-            common &= set(self.graph.node(f).dims)
-        stats, stat_receipts = self.tools.factor_stats(
-            decomp.factors, {d: v for d, v in a.segment.items() if d in common}, self.window
+        d, split, chosen, significant = max(
+            options, key=lambda o: (o[3], has_direct_evidence(self.graph, o[2].node), abs(o[2].share))
         )
-        change = sum(c.value for c in decomp.contributions) + decomp.residual
-        views = [
-            FactorView(
-                node=c.node,
-                contribution=c.value,
-                share=c.share,
-                z=stats[c.node].z if c.node in stats else None,
-                rel_change=stats[c.node].rel_change if c.node in stats else None,
+        receipts = sorted({r for o in options for r in o[1].receipts}, key=lambda r: int(r[1:]))
+        if len(options) > 1:
+            self.step(
+                "decompose",
+                "decompose_formula",
+                f"{len(options)} exact splits of {a.node}: "
+                + "; ".join(f"{o[0].label} -> {o[2].node} {o[2].share:.0%} (z {o[2].z or 0:+.1f})" for o in options),
+                f"follow {d.label}",
+                why=(
+                    "prefer a factor that moved beyond its normal spread, then one the graph attaches logged "
+                    f"causes to: {chosen.node} has evidence logs"
+                    if has_direct_evidence(self.graph, chosen.node)
+                    else "prefer a factor that moved beyond its normal spread, then the larger share"
+                ),
+                receipts=receipts,
+                data={
+                    "alternatives": [
+                        {
+                            "decomposition": o[0].label,
+                            "factor": o[2].node,
+                            "share": round(o[2].share, 4),
+                            "z": _z(o[2]),
+                            "significant": o[3],
+                            "evidence_attached": has_direct_evidence(self.graph, o[2].node),
+                        }
+                        for o in options
+                    ],
+                    "follow": d.label,
+                },
             )
-            for c in decomp.contributions
-        ]
-        chosen, significant = choose_factor(views, change)
+        views = split.factors
         shares = {v.node: v.share for v in views}
         by_node = {v.node: v for v in views}
-        receipts = [*decomp.receipts, *stat_receipts]
-        path = hops(self.graph, a.node, chosen.node)
-        others = [v for v in views if v.node != chosen.node and abs(v.share) >= 0.05]
-        quiet = [v for v in others if v.z is not None and abs(v.z) < 3]
+        quiet = [
+            v for v in views if v.node != chosen.node and abs(v.share) >= 0.05 and v.z is not None and abs(v.z) < 3
+        ]
         why = (
             f"largest contribution among factors that moved beyond their week-to-week spread: "
             f"{chosen.node} {chosen.share:.0%} (z {chosen.z:+.1f})"
@@ -339,57 +446,75 @@ class StageTwoInvestigation(Investigation):
             else f"no factor moved beyond its week-to-week spread; {chosen.node} only carries the largest share (weak)"
         )
         if quiet:
-            why += "; within normal variation: " + ", ".join(
-                f"{v.node} {v.share:.0%} (z {v.z:+.1f})" for v in quiet if v.z is not None
-            )
-        if not path:
-            path_nodes = [a.node]
-            self.step(
-                "decompose",
-                "decompose_formula",
-                decomp.summary,
-                f"follow {chosen.node}",
-                why=why,
-                receipts=receipts,
-                data=self._factor_data(views, decomp.residual, a.node, [a.node, chosen.node]),
-            )
+            why += "; within normal variation: " + ", ".join(f"{v.node} {v.share:.0%} (z {_z(v):+.1f})" for v in quiet)
+        path = decomposition_hops(self.graph, a.node, d, chosen.node)
+        path_nodes = [a.node, *[h.follow for h in path]]
         for i, hop in enumerate(path):
             children = [
                 {"node": c, "share": round(subtree_share(self.graph, c, shares), 4), "z": _z(by_node.get(c))}
                 for c in hop.children
             ]
             text = ", ".join(f"{c['node']} {c['share']:.0%}" for c in children)
-            path_nodes = [a.node, *[h.follow for h in path]]
             self.step(
                 "decompose",
                 "decompose_formula",
                 f"{hop.node} = {' x '.join(hop.children)}: {text}",
                 f"follow {hop.follow}",
                 why=why if i == len(path) - 1 else f"{hop.follow} contains {chosen.node}",
-                receipts=receipts,
+                receipts=split.receipts,
                 data={
                     "hop": i + 1,
                     "node": hop.node,
                     "children": children,
                     "follow": hop.follow,
                     "path": path_nodes,
-                    **(self._factor_data(views, decomp.residual, a.node, path_nodes) if i == 0 else {}),
+                    "decomposition": d.label,
+                    **(self._factor_data(views, split.residual, a.node, path_nodes) if i == 0 else {}),
                 },
             )
-        claim = f"{chosen.node} carries {chosen.share:.0%} of the change of {a.node} (exact LMDI split" + (
+        self._rule_out_flat_volumes(options, split)
+        claim = f"{chosen.node} carries {chosen.share:.0%} of the change of {a.node} (exact LMDI split, {d.label}" + (
             f", z {chosen.z:+.1f})." if chosen.z is not None else ")."
         )
         self.claims.append(
-            cl.evidence(claim, "decompose_formula: LMDI, zero residual", receipts)
+            cl.evidence(claim, "decompose_formula: LMDI, zero residual", split.receipts)
             if significant
             else cl.hypothesis(
                 claim,
                 "decompose_formula: largest share, but no factor moved beyond its normal spread",
                 "a factor whose move exceeds its week-to-week spread",
-                receipts,
+                split.receipts,
             )
         )
+        self.walk_split = split
         return chosen.node, chosen.share, significant
+
+    def _rule_out_flat_volumes(self, options: list[Any], chosen_split: Any) -> None:
+        """A volume factor (additive, e.g. sessions) that stayed inside its normal spread did not drive the
+        change: "traffic increased" is refuted with its own numbers."""
+        a = self.anomaly
+        seen: set[str] = set()
+        for _, split, _, _ in options:
+            for v in split.factors:
+                if v.node in seen or self.graph.node(v.node).kind is not NodeKind.ADDITIVE:
+                    continue
+                seen.add(v.node)
+                if v.z is None or abs(v.z) >= FLAT_Z or v.rel_change is None:
+                    continue
+                label = self.graph.node(v.node).label.lower()
+                reason = f"{label} {pct(v.rel_change)} (z {v.z:+.1f}), within its normal week-to-week spread"
+                self.flat_volumes.append(
+                    RuledOut(
+                        hypothesis=f"a change in {label} drove {a.node}",
+                        prediction=f"{v.node} moves with {a.node}, beyond its normal spread",
+                        result="refuted",
+                        reason=reason,
+                        receipts=list(split.receipts),
+                    )
+                )
+                self.claims.append(
+                    cl.evidence(f"Not a change in {label}: {reason}.", "decompose_formula: factor z", split.receipts)
+                )
 
     @staticmethod
     def _factor_data(views: list[FactorView], residual: float, node: str, path: list[str]) -> dict[str, Any]:
@@ -461,7 +586,7 @@ class StageTwoInvestigation(Investigation):
         return onset
 
     def _events(self, focus: str, seg: Segment, onset: datetime) -> list[EvidenceRef]:
-        logs = sorted({src for e in self.graph.edges_into(focus, EdgeKind.EVIDENCE) for src in e.sources})
+        logs = evidence_logs(self.graph, focus)
         if not logs:
             self.step(
                 "events",
@@ -473,12 +598,12 @@ class StageTwoInvestigation(Investigation):
         out = self.tools.list_events(
             onset - EVENT_BEFORE, onset + EVENT_AFTER, logs=logs, covering=seg, node_dims=self.graph.node(focus).dims
         )
-        # most specific scope first, then closest to the onset
-        events = sorted(out.events, key=lambda e: (-len(e.scope), abs((e.ts - onset).total_seconds())))
+        # batch rollouts become one candidate; most specific scope first, then closest to the onset
+        events = sorted(group_batches(out.events), key=lambda e: (-len(e.scope), abs((e.ts - onset).total_seconds())))
         self.step(
             "events",
             "list_events",
-            out.summary + f" (logs attached to {focus}: {', '.join(logs)})",
+            out.summary + f" (logs attached to {focus} and its parts: {', '.join(logs)})",
             f"test {len(events)} candidate(s) as hypotheses" if events else "no aligned event",
             receipts=out.receipts,
             data={"events": [e.model_dump(mode="json") for e in events], "logs": logs},
@@ -506,7 +631,8 @@ class StageTwoInvestigation(Investigation):
             h = Hypothesis(
                 statement=f"{ev.description} ({ev.ref}) caused the change",
                 prediction=(
-                    f"the change is confined to {segment_text(seg)}; where the event did not apply, {focus} is normal"
+                    f"the change is confined to {segment_text(seg) if seg else scope_text(ev.scope)}; "
+                    f"where the event did not apply, {focus} is normal"
                     if confined
                     else f"everything in the event's scope moves, not only {segment_text(seg)}"
                 ),
@@ -660,10 +786,33 @@ class StageTwoInvestigation(Investigation):
         out.discard(focus)
         return sorted(out)
 
+    def _scope_share(self, focus: str, seg0: Segment, seg: Segment, event: EvidenceRef) -> ScopeShare | None:
+        """Share of the focus node's deviation (and of its volume) that sits inside the event's scope."""
+        node = self.graph.node(focus)
+        scope = {d: v for d, v in event.scope.items() if d in node.dims}
+        total, _ = self.tools.cells(focus, self.window, None, segment_where(seg0, node.dims))
+        inside, rid = self.tools.cells(
+            focus, self.window, None, f"({segment_where(seg, node.dims)}) AND ({scope_where(scope)})"
+        )
+        if not total or not inside or not total[0].deviation or not total[0].volume:
+            return None
+        ep = max(0.0, min(1.0, inside[0].deviation / total[0].deviation))
+        volume = inside[0].volume / total[0].volume
+        self.claims.append(
+            cl.evidence(
+                f"The scope of {event.ref} ({scope_text(scope)}) carries {ep:.0%} of the deviation of {focus} "
+                f"with {volume:.0%} of its volume.",
+                "segment cells inside the event's scope",
+                [rid],
+            )
+        )
+        return ScopeShare(ep=round(ep, 4), volume_share=round(volume, 4), excess=round(ep - volume, 4), receipt=rid)
+
     # ------------------------------------------------------------------ verdict helpers
     @staticmethod
     def _pick(supported: list[EvidenceRef], onset: datetime) -> EvidenceRef:
-        return min(supported, key=lambda e: (-len(e.scope), abs((e.ts - onset).total_seconds())))
+        """Prefer a single log entry over a grouped rollout, then the most specific scope, then the closest."""
+        return min(supported, key=lambda e: (is_batch(e), -len(e.scope), abs((e.ts - onset).total_seconds())))
 
     @staticmethod
     def _root_change(cell: Cell, receipt: str) -> Quantity:
@@ -682,7 +831,7 @@ class StageTwoInvestigation(Investigation):
         if verdict is Verdict.UNEXPLAINED:
             out.append("Nothing localises and no logged change explains it; 100% of the deviation stays unexplained.")
         else:
-            out += self._uncertain(seg, evidence, explained)
+            out += [u for u in self._uncertain(seg, evidence, explained) if not u.startswith("0% ")]
         if placebo is not None and placebo.status == "inconclusive":
             out.append(f"Placebo: {placebo.summary}; the deviation is not clearly unusual.")
         if placebo is not None and placebo.status == "refuted":
@@ -752,7 +901,8 @@ class StageTwoInvestigation(Investigation):
         verdict: Verdict, label: str, seg: Segment, rel: float, evidence: EvidenceRef | None, a: Anomaly
     ) -> str:
         if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
-            return f"{label} {pct(rel)} in {segment_text(seg)}: {evidence.description}"
+            where = segment_text(seg) if seg else scope_text(evidence.scope)
+            return f"{label} {pct(rel)} in {where}: {evidence.description}"
         if verdict is Verdict.HYPOTHESIS:
             return f"{label} {pct(rel)} in {segment_text(seg)}: cause not confirmed"
         return f"{label} {a.direction}: nothing localises and no logged change lines up"
@@ -778,7 +928,8 @@ class StageTwoInvestigation(Investigation):
             return None
         action = self._action(focus, seg, search.last_level)
         if action is None and evidence is not None and evidence.log == "log_deploys":
-            action = SuggestedAction(text=f"Roll back {evidence.ref} for {segment_text(seg)} and watch {focus}.")
+            where = segment_text(seg) if seg else scope_text(evidence.scope)
+            action = SuggestedAction(text=f"Roll back {evidence.ref} for {where} and watch {focus}.")
         return action
 
     def _close(
