@@ -19,6 +19,7 @@ Base: `main` (every lane merged: Stage-2 runtime, detect, a recording per scenar
 | `digest.spec.ts` | "While you slept" opens, has lines, "Copy as Markdown" is enabled, Escape closes it | runs | runs |
 | `offline.spec.ts` | stopping the API shows the offline banner and "API offline"; starting it again recovers without a reload | expected failure (see below) | expected failure |
 | `graph-restart.spec.ts` | the metric graph never goes blank (`visibility: hidden`) in the 4 s after each of three replay restarts | expected failure until #33 is fixed (PR #39) | skipped (replay-only) |
+| `graph-nodes.spec.ts` | on every metric node the unit text (COUNT/RATE/EUR) ends before the sparkline starts | expected failure until #14 is fixed (PR #40) | runs |
 | `scenarios.spec.ts` | every recorded scenario on its own replay API (`--replay fixtures[/<s>]`) at 64x to `run.finished`: S1 one SUPPORTED CAUSE card in DE / android / PayCo; quiet no incident card; S2 no incident card and a "Didn't wake you" card about the budget (tab count > 0); S3 no incident card and a "Data issue · held back" card; S4 one SUPPORTED CAUSE card naming pacing and DE or FR | runs (about 40 s) | skipped (replay-only) |
 | `screenshots.spec.ts` | not a check: captures the QA screenshots, skipped unless `ARGUS_E2E_SHOTS=1` | skipped by default | skipped (replay-only) |
 
