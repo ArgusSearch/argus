@@ -84,6 +84,7 @@ class AskScope:
     incidents: list[Incident]
     world: Any  # path of the world the runner opens read-only
     proposals: list[dict[str, Any]] = field(default_factory=list)  # ProposalView JSON, visible to the human
+    world_revision: str = "factual"  # the branch `world` is: an applied action switches the run to its branch
 
 
 @dataclass
@@ -181,7 +182,7 @@ class AskRunner:
             run_id=run_id,
             stream=scope.stream,
             through_seq=scope.through_seq,
-            world_revision="factual",
+            world_revision=scope.world_revision,
             as_of=scope.as_of,
             incident_id=incident_id,
             kind="ask",
@@ -386,9 +387,10 @@ class AskRunner:
 
     def _answer(self, ctx: RunContext, args: dict[str, Any], retried: bool) -> AskResult | None:
         text = str(args.get("text", "")).strip()
-        if re.search(r"\d", text) and not retried:
+        masked = scrub(text, FactBook())  # ids, dates, versions and small counts are not figures
+        if masked != text and not retried:
             return None
-        text = re.sub(r"\d[\d,.]*%?", "[figure removed]", text)
+        text = masked
         verified: list[VerifiedClaim] = []
         lines = []
         for claim in args.get("claims") or []:

@@ -112,7 +112,8 @@ def run_world(
                 latest_hour=tick.sim_ts - runtime.lag,
                 graph=runtime.graph,
                 incidents=list(runtime.book.incidents.values()),
-                world=runtime.world,
+                world=runtime.runner.world_path,
+                world_revision=revision(),
                 proposals=[p.model_dump(mode="json") for p in service.proposals()],
             )
             conversation = None
@@ -121,8 +122,13 @@ def run_world(
                 conversation = result.conversation_id
                 answers.append({"question": question, "through_seq": tick.seq, "response": result.to_json(0)})
 
+        def revision() -> str:
+            active = service.active_world()
+            return str(active[1]) if active else "factual"
+
         def on_tick(as_of: datetime) -> None:
             service.tick(as_of)
+            selector.world_revision = revision()
             for plan in asks:
                 if plan.at == as_of:
                     ask_now(plan)

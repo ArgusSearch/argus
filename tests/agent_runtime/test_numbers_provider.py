@@ -73,3 +73,14 @@ def test_a_recurrence_vetoes_whatever_the_model_predicted() -> None:
     assert canonical.status == "refuted" and canonical.hypothesis.expect == "unusual"
     unusual = entry.model_copy(update={"outcome": "unusual", "status": "refuted"})
     assert canonical_placebo(unusual).status == "validated"
+
+
+def test_ids_dates_and_versions_are_not_figures() -> None:
+    from argus.agent.numbers import scrub
+
+    text = (
+        "INC-0001 waits on act_0001 (ad-pacer 1.7.0 back to pacer 1.6) since 2026-11-20 03:00 "
+        "for three hours, until the 21st."
+    )
+    assert scrub(text, FactBook()) == text
+    assert "[unverified]" in scrub("It cost 1,861 EUR.", FactBook())

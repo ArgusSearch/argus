@@ -200,6 +200,8 @@ class LiveSource:
             self.runtime.tick(as_of)
             if self.remediation is not None:
                 self.remediation.tick(as_of)
+                if self.agent.selector is not None:
+                    self.agent.selector.world_revision = self.world_revision()
             self.position += 1
             deadline = time.monotonic() + self.seconds_per_tick / self.speed
             while not self._to_end and not self._stop.is_set() and (left := deadline - time.monotonic()) > 0:
@@ -208,6 +210,11 @@ class LiveSource:
                 deadline = min(deadline, time.monotonic() + self.seconds_per_tick / self.speed)
                 if not self.playing:
                     break
+
+    def world_revision(self) -> str:
+        """'factual', or the branch of the action the run switched to."""
+        active = self.remediation.active_world() if self.remediation is not None else None
+        return str(active[1]) if active else "factual"
 
     def _held(self) -> bool:
         """The simulated clock waits while an action waits for the operator or the simulator."""
