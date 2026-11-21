@@ -250,6 +250,10 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
         id: n.id,
         type: "metric",
         position: positions[n.id] ?? { x: 0, y: 0 },
+        // the layout knows every box's size: without it React Flow hides a node until it is measured,
+        // and after a restart the whole graph blinks out while the event burst is folded
+        initialWidth: NODE_W,
+        initialHeight: NODE_H,
         data: {
           node: n,
           z,
@@ -269,6 +273,8 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
         id: l.id,
         type: "log",
         position: positions[l.id] ?? { x: 0, y: 0 },
+        initialWidth: LOG_W,
+        initialHeight: LOG_H,
         data: { id: l.id, label: l.label, focus: f.logs.has(l.id) },
         draggable: false,
       }),
