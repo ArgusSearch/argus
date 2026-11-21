@@ -1,0 +1,8 @@
+# Demo pack, metric 1 of 5. Expected: EXACT, cost_per_impression = ctr * cpc by lineage (CPM is 1000 x this).
+name: cost_per_impression
+description: Ad spend per ad impression in EUR (the usual CPM is 1000 times this), per advertiser, country and platform
+sql: |
+  SELECT ts, advertiser_id, country, platform,
+         SUM(ad_spend)::DOUBLE / NULLIF(SUM(ad_impressions), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL
