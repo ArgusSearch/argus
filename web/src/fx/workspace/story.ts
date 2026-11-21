@@ -7,7 +7,7 @@ import { useSyncExternalStore } from "react";
 import { eur } from "../../lib/format";
 import type { Focus } from "../../lib/store";
 import type { Graph, Incident } from "../../lib/types";
-import { metricName, wherePhrase } from "./plain";
+import { incidentWhere, metricName, wherePhrase } from "./plain";
 
 /** The formula chain from the top of the graph down to `root`: [gmv, orders, cvr, payment_success_rate]. */
 export function formulaChain(graph: Graph, root: string): { nodes: string[]; edges: string[] } {
@@ -72,7 +72,7 @@ export function storyOf(graph: Graph, incident: Incident): Story {
       i === 0
         ? `${metricName(graph, node)} ${down ? "fell" : "rose"}`
         : isRoot
-          ? `because ${metricName(graph, node).toLowerCase()} ${down ? "fell" : "rose"} for ${wherePhrase(f.root?.segment ?? incident.segment)}`
+          ? `because ${metricName(graph, node).toLowerCase()} ${down ? "fell" : "rose"} for ${wherePhrase(incidentWhere(incident))}`
           : `because ${metricName(graph, node).toLowerCase()} ${down ? "fell" : "rose"}`;
     const value = i === 0 ? `${down ? "-" : "+"}${lost}` : isRoot && f.root ? `${f.root.change_pct.value > 0 ? "+" : ""}${f.root.change_pct.value.toFixed(1)}%` : undefined;
     return {

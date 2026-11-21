@@ -32,6 +32,18 @@ export function approve(stream: string | null, incident: string, at: string) {
   for (const l of [...listeners]) l();
 }
 
+/** How many approvals this browser keeps for the stream (used when the agent's proposals are not available). */
+export function useApprovalCount(stream: string | null): number {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => Object.keys(approved).filter((k) => k.startsWith(`${stream ?? "-"}:`)).length,
+    () => 0,
+  );
+}
+
 /** The simulated time the action of this incident was approved, or null. */
 export function useApproval(stream: string | null, incident: string): string | null {
   return useSyncExternalStore(

@@ -184,3 +184,24 @@ describe("server lines in plain words", () => {
     expect(plainWords("SUPPORTED_CAUSE: x, 0 LLM calls")).toBe("Supported cause (evidenced): x, 0 AI calls");
   });
 });
+
+describe("where an incident happens, in words", () => {
+  it("falls back to the cause's scope when the root covers the whole shop (S4: DE and FR)", async () => {
+    const { incidentWhere, wherePhrase, whereCells } = await import("../../../src/fx/workspace/plain");
+    const s4 = JSON.parse(readFileSync(fileURLToPath(new URL("../../../../fixtures/s4/incidents.json", import.meta.url)), "utf8")) as Incident[];
+    const where = incidentWhere(s4[0]);
+    expect(where).toEqual({ country: ["DE", "FR"] });
+    expect(wherePhrase(where)).toBe("Germany and France");
+    expect(whereCells(where)).toEqual([{ dim: "country", name: "Country", value: "Germany and France" }]);
+    // S1's root segment wins over the scope
+    expect(wherePhrase(incidentWhere(incidents()[0]))).toBe("Android in Germany via PayCo");
+  });
+
+  it("counts the decisions people made on the human tile", () => {
+    const graph = loadGraph();
+    const end = replay("");
+    const one = tiles(end, graph, 1).find((t) => t.key === "human");
+    expect(one).toMatchObject({ value: "1", label: "Human actions" });
+    expect(one?.change).toMatch(/^1 decision by you/);
+  });
+});

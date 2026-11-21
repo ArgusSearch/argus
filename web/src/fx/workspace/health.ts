@@ -6,7 +6,7 @@ import { eur } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph, Incident } from "../../lib/types";
 import { metricStatus } from "../../views/model";
-import { metricName, storyHeadline, type Tone } from "./plain";
+import { incidentWhere, metricName, storyHeadline, type Tone } from "./plain";
 
 export interface Check {
   key: "data" | "metrics" | "formulas" | "incidents";
@@ -85,8 +85,8 @@ export interface Tile {
   hint: string;
 }
 
-/** The five tiles of the overview's header row. */
-export function tiles(view: RunView, graph: Graph | null): Tile[] {
+/** The five tiles of the overview's header row; `humans` counts the decisions people made (approvals, denials). */
+export function tiles(view: RunView, graph: Graph | null, humans = 0): Tile[] {
   const incidents = Object.values(view.incidents);
   const open = incidents.filter((i) => i.state !== "resolved");
   const lost = incidents.reduce((sum, i) => sum + Math.abs(i.severity_eur), 0);
@@ -145,11 +145,11 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
     },
     {
       key: "human",
-      label: "Human actions needed",
-      value: "0",
-      amount: 0,
+      label: "Human actions",
+      value: String(humans),
+      amount: humans,
       unit: `in ${view.ticks} h`,
-      change: "detected, explained and closed alone",
+      change: humans ? `${humans} decision${humans === 1 ? "" : "s"} by you; everything else alone` : "detected, explained and closed alone",
       tone: "ok",
       series: [],
       hint: "Argus detects, localises, rules out and closes without a person. Only an action on the business waits for your approval.",
@@ -181,7 +181,7 @@ export function tasks(incidents: Incident[], graph: Graph | null, proposed: Read
       const root = f.root;
       return {
         id: i.id,
-        headline: storyHeadline(graph, root?.node ?? i.root_node, root?.change_pct.value ?? null, root?.segment ?? i.segment),
+        headline: storyHeadline(graph, root?.node ?? i.root_node, root?.change_pct.value ?? null, incidentWhere(i)),
         eur: Math.abs(i.severity_eur),
         action: f.suggested_action ? f.suggested_action.text.replace(/\.?$/, ".") : "",
         needsApproval: f.suggested_action?.needs_approval ?? true,
