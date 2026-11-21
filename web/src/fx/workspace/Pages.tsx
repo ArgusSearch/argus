@@ -13,6 +13,13 @@ const HELD: Record<Note["kind"], { label: string; help: string }> = {
   suppressed: { label: "Knock-on effect", help: "Moved only because of an incident already filed; one incident, not one per symptom." },
 };
 
+function heldReason(graph: Graph | null, { node, reason }: Note): string {
+  if (!node) return reason;
+  const name = metricName(graph, node);
+  const label = graph?.nodes.find((metric) => metric.id === node)?.label ?? name;
+  return [name, label].some((prefix) => reason.startsWith(`${prefix}: `)) ? reason : `${name}: ${reason}`;
+}
+
 export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | null; view: RunView; onOpenIncident: (id: string) => void }) {
   const { incidents } = useIncidents(view);
   const rows = Object.values(view.incidents).sort((a, b) => b.firstSeq - a.firstSeq);
@@ -101,10 +108,7 @@ export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | 
                 <span className="mono">
                   {dayLabel(n.sim_ts)} {hhmm(n.sim_ts)}
                 </span>
-                <span>
-                  {n.node ? `${metricName(graph, n.node)}: ` : ""}
-                  {n.reason}
-                </span>
+                <span>{heldReason(graph, n)}</span>
               </li>
             ))}
           </ul>
