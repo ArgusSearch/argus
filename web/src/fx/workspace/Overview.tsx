@@ -8,8 +8,7 @@ import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { views as reads } from "../../views/data";
 import { metricStatus } from "../../views/model";
-import { isScorecard, type Scorecard } from "../../views/scorecard";
-import sampleUrl from "../../views/fixtures/scorecard.sample.json?url";
+import type { Scorecard } from "../../views/scorecard";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
 import { ActionCard } from "./ActionCard";
@@ -40,13 +39,13 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const todo = useMemo(() => tasks(incidents, graph, proposed), [incidents, graph, proposed]);
   const page = useRef<HTMLElement>(null);
   usePointerLight(page);
-  const humans = useHumanActions(view.stream);
+  const humans = useHumanActions(view);
   return (
     <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Overview{view.simTs ? ` · ${dayLabel(view.simTs)} ${hhmm(view.simTs)}` : ""}</span>
         <h1>{headline(view, h)}</h1>
-        <p>Argus checks the shop's key numbers every hour, explains every change it raises, and asks you only before acting.</p>
+        <p>Argus checks the shop's key numbers every hour, investigates anomalies, and asks for approval before acting.</p>
       </header>
       <section className="ws-tiles" aria-label="key figures">
         {tiles(view, graph, humans).map((t) => (
@@ -354,37 +353,24 @@ function PathCard({ graph, view, subject, onSelectNode }: { graph: Graph; view: 
 
 /* ------------------------------------------------------------------ track record */
 
-export async function loadScorecard(): Promise<{ card: Scorecard; sample: boolean }> {
-  try {
-    const live = await reads.benchResults();
-    if (isScorecard(live)) return { card: live, sample: false };
-  } catch {
-    /* the bench route is a stub until the bench lands: fall back to the recorded sample */
-  }
-  const sample: unknown = await (await fetch(sampleUrl)).json();
-  if (!isScorecard(sample)) throw new Error("the recorded sample is not a scorecard");
-  return { card: sample, sample: true };
-}
-
 const REFERENCE: Record<string, string> = {
   "argus-stage1": "Argus Stage 1 alone (fixed checklist)",
   threshold: "Plain threshold alarm",
 };
 
 function TrackRecordCard() {
-  const [state, setState] = useState<{ card: Scorecard; sample: boolean } | null>(null);
+  const [card, setCard] = useState<Scorecard | null>();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
-    loadScorecard().then(
-      (s) => live && setState(s),
+    reads.benchResults().then(
+      (s) => live && setCard(s),
       () => live && setFailed(true),
     );
     return () => {
       live = false;
     };
   }, []);
-  const card = state?.card;
   const argus = card?.summaries.find((s) => s.agent === "argus");
   const right = (s: { pass_at_1: number | null; runs: number }) => Math.round((s.pass_at_1 ?? 0) * s.runs);
   return (
@@ -399,7 +385,9 @@ function TrackRecordCard() {
         </button>
       }
     >
-      {!argus && <p className="fx-empty">{failed || state ? "The track record could not be loaded." : "Loading the track record…"}</p>}
+      {!argus && <p className="fx-empty">{failed ? "The track record could not be loaded." :
+        card === undefined ? "Loading the track record…" :
+          card === null ? "The server has no benchmark results yet." : "This benchmark did not include Argus."}</p>}
       {argus && card && (
         <>
           <div className="ws-record-hero">
@@ -434,7 +422,7 @@ function TrackRecordCard() {
               ))}
           </ul>
           <p className="fx-card-note">
-            {state?.sample ? `Recorded ${dayLabel(card.created_at)} ${hhmm(card.created_at)}` : "Live bench"} · {card.seeds.length * card.scenarios.length} runs per agent
+            Latest bench run · {dayLabel(card.created_at)} {hhmm(card.created_at)} · {argus.runs} Argus runs
           </p>
         </>
       )}

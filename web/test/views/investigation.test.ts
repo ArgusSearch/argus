@@ -106,14 +106,14 @@ describe("demo beats", () => {
 });
 
 describe("autonomy counts and metric state", () => {
-  it("counts what the reducer folded, with zero human actions", () => {
+  it("counts what the reducer folded", () => {
     const counts = Object.fromEntries(autonomyCounts(full).map((c) => [c.key, c.value]));
     expect(counts.hours).toBe(full.ticks);
     expect(counts.edges).toBe(full.edgeChanges.length);
     expect(counts.anomalies).toBe(1);
     expect(counts.investigations).toBe(1);
     expect(counts.incidents).toBe(1);
-    expect(counts.human).toBe(0);
+    expect(counts.human).toBeUndefined();
   });
 
   it("marks the root while the incident is open and resolved after", () => {

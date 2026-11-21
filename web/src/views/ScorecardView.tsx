@@ -1,38 +1,19 @@
 // Y5 · The bench scorecard: Argus against a threshold baseline on sealed worlds whose truth was committed by
-// hash before any agent ran. Reads GET /bench/results; until that route is built it shows a recorded sample,
-// labelled as such. Misses are shown in red, never filtered out.
+// hash before any agent ran. Reads the latest result from GET /bench/scorecard.
 
 import { useEffect, useState } from "react";
 import { dayLabel, hhmm } from "../lib/format";
 import { views } from "./data";
-import sampleUrl from "./fixtures/scorecard.sample.json?url";
-import { AGENT_TEXT, foldLabels, isScorecard, misses, SCENARIO_TEXT, scenarioLines, summaryMetrics, type Scorecard } from "./scorecard";
-
-type Source = { kind: "live" } | { kind: "sample"; why: string };
-
-async function loadScorecard(): Promise<{ card: Scorecard; source: Source }> {
-  let why = "GET /bench/results is not built yet";
-  try {
-    const live = await views.benchResults();
-    if (isScorecard(live)) return { card: live, source: { kind: "live" } };
-    why = "GET /bench/results did not return a scorecard";
-  } catch {
-    /* 501 stub, not proxied, or offline: use the recorded sample */
-  }
-  const res = await fetch(sampleUrl);
-  const sample: unknown = await res.json();
-  if (!isScorecard(sample)) throw new Error("the recorded sample is not a scorecard");
-  return { card: sample, source: { kind: "sample", why } };
-}
+import { AGENT_TEXT, foldLabels, misses, SCENARIO_TEXT, scenarioLines, summaryMetrics, type Scorecard } from "./scorecard";
 
 export function ScorecardView() {
-  const [data, setData] = useState<{ card: Scorecard; source: Source } | null>(null);
+  const [card, setCard] = useState<Scorecard | null>();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    loadScorecard().then(
-      (d) => live && setData(d),
+    views.benchResults().then(
+      (d) => live && setCard(d),
       (e: Error) => live && setError(`The scorecard could not be loaded: ${e.message}.`),
     );
     return () => {
@@ -41,8 +22,8 @@ export function ScorecardView() {
   }, []);
 
   if (error) return <div className="vw-error">{error}</div>;
-  if (!data) return <div className="vw-empty">Loading the scorecard…</div>;
-  const { card, source } = data;
+  if (card === undefined) return <div className="vw-empty">Loading the scorecard…</div>;
+  if (card === null) return <div className="vw-empty">The server has no benchmark results yet. Run make bench to generate a scorecard.</div>;
   const lines = scenarioLines(card);
   const argusMisses = misses(card, "argus");
 
@@ -59,13 +40,9 @@ export function ScorecardView() {
               </p>
             </div>
             <span className="tv-fill" />
-            {source.kind === "sample" ? (
-              <span className="sc-source sample" title={source.why}>
-                Recorded {dayLabel(card.created_at)} {hhmm(card.created_at)} · commit {card.git_commit.slice(0, 7)}
-              </span>
-            ) : (
-              <span className="sc-source live">Latest bench run · commit {card.git_commit.slice(0, 7)}</span>
-            )}
+            <span className="sc-source live">
+              Latest bench run · {dayLabel(card.created_at)} {hhmm(card.created_at)} · commit {card.git_commit.slice(0, 7)}
+            </span>
           </header>
 
           <div className="sc-agents">

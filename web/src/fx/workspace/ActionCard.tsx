@@ -173,10 +173,12 @@ function LocalAction({
         {fallback.text.replace(/\.?$/, ".")}
       </p>
       <div className="ws-act-foot">
-        {approvedAt ? (
-          <span className="ws-approved">✓ Approval recorded in this browser at {hhmm(approvedAt)}</span>
-        ) : incidentState === "resolved" ? (
+        {incidentState === "resolved" ? (
           <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
+        ) : view.mode !== "replay" ? (
+          <span className="ws-task-note">For manual review. A live approval appears when Argus files an operator proposal.</span>
+        ) : approvedAt ? (
+          <span className="ws-approved">✓ Approval recorded in this browser at {hhmm(approvedAt)}</span>
         ) : (
           <button
             className="btn primary"

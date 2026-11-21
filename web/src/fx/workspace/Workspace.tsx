@@ -181,7 +181,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const current = section === "incident" ? "incidents" : section;
   const agent = useAgent();
   const asking = useAskOpen();
-  const humans = useHumanActions(view.stream);
+  const humans = useHumanActions(view);
   const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
     <nav className="fx-side" aria-label="sections">
