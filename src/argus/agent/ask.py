@@ -20,7 +20,7 @@ from typing import Any
 
 from argus.agent import prompts
 from argus.agent.journal import Journal
-from argus.agent.numbers import FactBook, check
+from argus.agent.numbers import FactBook, check, scrub
 from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
 from argus.agent.types import (
     AgentMode,
@@ -94,11 +94,13 @@ class AskResult:
     receipt_links: list[ReceiptLink] = field(default_factory=list)
     reason: str | None = None
     usd: float = 0.0
+    conversation_id: str | None = None
 
     def to_json(self, cursor: int) -> dict[str, Any]:
         return {
             "status": self.status,
             "run_id": self.run_id,
+            "conversation_id": self.conversation_id,
             "answer": self.answer,
             "claims": [c.model_dump(mode="json") for c in self.claims],
             "receipt_links": [r.model_dump(mode="json") for r in self.receipt_links],
@@ -148,7 +150,13 @@ class AskRunner:
             {"name": s.name, "description": s.description, "input_schema": s.input_schema} for s in store.specs("ask")
         ] + [ANSWER_TOOL]
 
-    def ask(self, question: str, scope: AskScope, incident_id: str | None = None) -> AskResult:
+    def ask(
+        self,
+        question: str,
+        scope: AskScope,
+        incident_id: str | None = None,
+        history: list[dict[str, Any]] | None = None,
+    ) -> AskResult:
         run_id = self.journal.new_run_id()
         ctx = RunContext(
             run_id=run_id,
@@ -174,7 +182,7 @@ class AskRunner:
             self.store.bind(
                 ctx, graph=scope.graph, runner=runner, latest_hour=scope.latest_hour, incidents=scope.incidents
             )
-            result = self._loop(ctx, question, scope)
+            result = self._loop(ctx, question, scope, history or [])
         except ProviderUnavailable as exc:
             result.reason = f"the model is unavailable: {exc}"
         except Exception as exc:  # the provider SDK raises its own types; an answer must not crash the API
@@ -208,15 +216,25 @@ class AskRunner:
             self.spend.append_run(run_id, "ask", usage)
         return result
 
-    def _loop(self, ctx: RunContext, question: str, scope: AskScope) -> AskResult:
+    def _loop(self, ctx: RunContext, question: str, scope: AskScope, history: list[dict[str, Any]]) -> AskResult:
+        earlier = (
+            "Earlier in this conversation (context only; re-check any figure you use):\n<data>\n"
+            + json.dumps([{"question": t["question"], "answer": t["answer"]} for t in history[-4:]], indent=1)
+            + "\n</data>\n"
+            if history
+            else ""
+        )
+        scope_line = f"The question is about incident {ctx.incident_id}.\n" if ctx.incident_id else ""
         messages: list[dict[str, Any]] = [
             {
                 "role": "user",
-                "content": f"It is {scope.as_of:%Y-%m-%d %H:%M} (simulated). Question:\n<data>\n{question}\n</data>",
+                "content": f"It is {scope.as_of:%Y-%m-%d %H:%M} (simulated).\n{scope_line}{earlier}"
+                f"Question:\n<data>\n{question}\n</data>",
             }
         ]
         calls = 0
         retried = False
+        seen = FactBook()  # numbers the conversation has seen with receipts, for the activity log
         for round_ in range(1, MAX_REQUESTS + 1):
             usage = [u for u in self.journal.usage if u.run_id == ctx.run_id]
             if sum(u.usd or 0.0 for u in usage) >= MAX_USD or any(u.usd is None for u in usage):
@@ -244,7 +262,7 @@ class AskRunner:
                         ctx.as_of,
                         ctx.run_id,
                         actor="model",
-                        text=str(block["text"]).strip(),
+                        text=scrub(str(block["text"]).strip(), seen),
                         model=response.model,
                     )
                 if block.get("type") != "tool_use":
@@ -269,6 +287,7 @@ class AskRunner:
                 calls += 1
                 self.journal.add("tool_call", "ACT", ctx.as_of, ctx.run_id, actor="model", tool=name, args=args)
                 obs = self.store.dispatch(ctx, name, args)
+                seen.add({"summary": obs.summary, "data": obs.data}, [r.receipt_id for r in obs.receipt_refs])
                 self.journal.add(
                     "tool_result",
                     "OBSERVE",

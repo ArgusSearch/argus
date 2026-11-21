@@ -11,7 +11,25 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from argus.agent.types import ActivityKind, ActivityRecord, RunSummary, Stage, UsageRecord
+from argus.agent.types import ActivityKind, ActivityRecord, ReceiptLink, Role, RunSummary, Stage, UsageRecord
+
+SKEPTIC_TOOLS = frozenset({"holdout_check", "placebo_test", "check_freshness", "check_identities"})
+MARKET_TOOLS = frozenset({"market_control", "check_control_group"})
+
+
+def role_of(record: ActivityRecord) -> Role:
+    """The avatar a record shows when its writer did not name one."""
+    if record.kind == "watch":
+        return "watcher"
+    if record.actor == "operator" or record.kind.startswith("action_"):
+        return "operator"
+    if record.kind in ("report", "chat_answer", "chat_question") or record.stage == "ASK":
+        return "narrator"
+    if record.tool in MARKET_TOOLS:
+        return "market"
+    if record.tool in SKEPTIC_TOOLS or record.kind in ("gate", "rejected", "budget", "fallback"):
+        return "skeptic"
+    return "detective"
 
 
 class Journal:
@@ -26,7 +44,7 @@ class Journal:
     # ActivitySink
     def emit(self, record: ActivityRecord) -> None:
         with self.lock:
-            record = record.model_copy(update={"seq": len(self.records) + 1})
+            record = record.model_copy(update={"seq": len(self.records) + 1, "role": record.role or role_of(record)})
             self.records.append(record)
             if self.path is not None:
                 with self.path.open("a") as f:
@@ -54,6 +72,11 @@ class Journal:
     def add_usage(self, usage: UsageRecord) -> None:
         with self.lock:
             self.usage.append(usage)
+
+    def cited(self, link: ReceiptLink) -> bool:
+        """Did the run named in the link cite exactly this receipt (same run, revision and id)?"""
+        with self.lock:
+            return any(link in r.receipt_links for r in self.records if r.run_id == link.run_id)
 
     def since(self, seq: int) -> list[ActivityRecord]:
         with self.lock:

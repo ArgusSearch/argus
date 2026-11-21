@@ -18,14 +18,16 @@ tools. Wall-clock fields (`UsageRecord.wall_ms`) are ignored in the comparison.
 from __future__ import annotations
 
 import json
+import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from argus.agent.investigate import AgentSelector
 from argus.agent.journal import Journal
 from argus.agent.provider import AnthropicClient, Cassette, RecordingClient, ReplayClient, SpendLedger
-from argus.agent.types import AgentMode, LlmClient
+from argus.agent.types import AgentMode, Decision, LlmClient
 
 TURNS = "turns.jsonl"
 ACTIVITY = "activity.jsonl"
@@ -41,7 +43,21 @@ class SessionResult:
     incidents: list[dict[str, Any]]
 
 
-def run_world(world: Path, client: LlmClient, mode: AgentMode, spend: SpendLedger | None = None) -> SessionResult:
+Decide = Literal["approve", "deny", "none"]
+OPERATOR = "recording operator"
+
+
+def run_world(
+    world: Path,
+    client: LlmClient,
+    mode: AgentMode,
+    spend: SpendLedger | None = None,
+    decide: Decide = "none",
+) -> SessionResult:
+    """Run the live window with the agent. `decide`: what the scripted operator does with each proposal, in
+    the hour it appears (the clock holds for a decision, so that is the hour a human would decide in)."""
+    from argus.agent.actions import Proposer
+    from argus.remediation import RemediationService
     from argus.runtime.loop import Runtime
 
     journal = Journal()
@@ -51,10 +67,26 @@ def run_world(world: Path, client: LlmClient, mode: AgentMode, spend: SpendLedge
     )
     runtime = Runtime(world, selector=selector)
     runtime_ref.append(runtime)
-    try:
-        runtime.run()
-    finally:
-        runtime.runner.close()
+    with tempfile.TemporaryDirectory(prefix="argus-remediation-") as state:
+        proposer: list[Proposer] = []
+        service = RemediationService.for_runtime(
+            runtime, publish=lambda e: proposer[0].publish(e), state_dir=Path(state), background=False
+        )
+        proposer.append(Proposer(journal, service))
+        runtime.on_incident = proposer[0].on_incident
+
+        def on_tick(as_of: datetime) -> None:
+            service.tick(as_of)
+            for view in service.proposals():
+                if view.state == "AWAIT_OPERATOR" and decide != "none":
+                    choice = Decision(decision=decide, principal=OPERATOR, at=as_of)
+                    service.decide(view.id, view.digest, choice, idempotency_key=f"record-{view.id}")
+
+        try:
+            runtime.run(on_tick=on_tick)
+        finally:
+            service.close()
+            runtime.runner.close()
     return SessionResult(
         journal,
         [e.model_dump(mode="json") for e in runtime.bus.history],
@@ -66,10 +98,11 @@ def _jsonl(path: Path, rows: list[Any]) -> None:
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
 
 
-def record(world: Path, out: Path, client: LlmClient | None = None) -> SessionResult:
+def record(world: Path, out: Path, client: LlmClient | None = None, decide: Decide = "none") -> SessionResult:
     recorder = RecordingClient(client or AnthropicClient())
-    result = run_world(world, recorder, "record", spend=SpendLedger())
+    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide)
     out.mkdir(parents=True, exist_ok=True)
+    (out / "session.json").write_text(json.dumps({"decide": decide}) + "\n")
     recorder.cassette.write(out / TURNS)
     j = result.journal
     _jsonl(out / ACTIVITY, [r.model_dump(mode="json") for r in j.records])
@@ -87,7 +120,9 @@ def _stable(record: dict[str, Any]) -> dict[str, Any]:
 def replay(world: Path, recording: Path, strict: bool = True) -> list[str]:
     """Re-run the world on the recorded turns; returns the differences (empty: identical)."""
     client = ReplayClient(Cassette.load(recording / TURNS), strict=strict)
-    result = run_world(world, client, "replay")
+    meta = recording / "session.json"
+    decide: Decide = json.loads(meta.read_text())["decide"] if meta.exists() else "none"
+    result = run_world(world, client, "replay", decide=decide)
     problems: list[str] = []
     recorded_activity = [json.loads(line) for line in (recording / ACTIVITY).read_text().splitlines() if line]
     produced = [r.model_dump(mode="json") for r in result.journal.records]

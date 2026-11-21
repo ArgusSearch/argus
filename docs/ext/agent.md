@@ -20,7 +20,7 @@ It changes only by request to lane A.
 | Number binding | `FactHandle`, `ClaimDraft`, `Verifier.verify(ctx, draft) -> VerifiedClaim \| Rejection` | B | A |
 | Proposal | `ProposalService.propose(ctx, incident_id, playbook_id, evidence) -> ProposalView \| Rejection`, `get`, `decide(id, digest, Decision, idempotency_key)` | C | A |
 | Proposal state | `ProposalView(id, digest, state, run_id, incident_ref, playbook_id, action, scope, effective_at, expires_at, success_rule, evidence_refs, decision, effect)` | C | A, E, F |
-| Activity log | `ActivityRecord(seq, run_id, sim_ts, kind, stage, actor, text, ..., observation, receipt_links, model, tokens, usd, gate_action)` | A | D, E, F |
+| Activity log | `ActivityRecord(seq, run_id, sim_ts, kind, stage, actor, role, text, ..., observation, receipt_links, model, tokens, usd, gate_action)` | A | D, E, F |
 | Runs and spend | `RunSummary`, `GateResult`, `UsageRecord` | A | D, E |
 | Provider | `LlmClient.create(LlmRequest) -> LlmResponse`; live, recording and replaying clients | A | D |
 
@@ -32,6 +32,8 @@ Rules every implementation keeps:
 - Any agent failure (budget, provider error, gate) falls back to the Stage-2 investigator in the same tick; quiet hours call no model; the bench runs Stage 2 and stays 18 of 18.
 - No tool accepts SQL, a shell, a path or an approval; the model never sees credentials; actuator parameters come from the admitted incident, never from prose.
 - Times are naive UTC simulated time; a model's `...Z` timestamps are normalised before validation.
+- `ActivityRecord.role` names the avatar (watcher, detective, skeptic, market, narrator, operator, cartographer); the journal derives it from kind, tool and actor when the writer does not set it.
+- Model-written activity text carries only numbers a receipted result of the run backs; others read `[unverified]`.
 
 ## State machine
 

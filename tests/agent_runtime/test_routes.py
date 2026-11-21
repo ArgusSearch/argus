@@ -93,3 +93,31 @@ def test_digits_in_prose_are_sent_back(source: LiveSource) -> None:
     with client(source, asker("Success fell to 61%.")) as c:
         body = c.post("/agent/ask", json={"question": "How bad?"}).json()
         assert body["status"] == "answered" and "61" not in body["answer"]
+
+
+def test_receipts_refuse_another_world_or_run(source: LiveSource) -> None:
+    """E04: a link resolves only in the run and world revision that minted or cited it."""
+    with client(source, asker("PayCo payments in Germany failed.")) as c:
+        link = c.post("/agent/ask", json={"question": "What broke?"}).json()["receipt_links"][0]
+        rid = link["receipt_id"]
+        assert c.get(f"/agent/receipts/{link['run_id']}/factual/{rid}").status_code == 200
+        assert c.get(f"/agent/receipts/{link['run_id']}/act_0001-treated/{rid}").status_code == 404
+        assert c.get(f"/agent/receipts/run_9999/factual/{rid}").status_code == 404
+        assert c.get(f"/agent/receipts/{link['run_id']}/factual/r1").status_code == 404  # never cited by it
+
+
+def test_follow_up_keeps_the_conversation(source: LiveSource) -> None:
+    """E15: a conversation id comes back, and a follow-up sees the earlier turn and keeps the incident scope."""
+    fake = asker("PayCo payments in Germany failed.")
+    with client(source, fake) as c:
+        first = c.post("/agent/ask", json={"question": "What broke?", "incident_id": "INC-0001"}).json()
+        conversation = first["conversation_id"]
+        assert conversation
+        before = len(fake.requests)
+        follow = c.post(
+            "/agent/ask", json={"question": "Which check ruled out the release?", "conversation_id": conversation}
+        )
+        assert follow.status_code == 200 and follow.json()["conversation_id"] == conversation
+        opening = fake.requests[before].messages[0]["content"]
+        assert "What broke?" in opening and "INC-0001" in opening
+        assert c.post("/agent/ask", json={"question": "x", "conversation_id": "conv_9999"}).status_code == 404

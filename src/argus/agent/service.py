@@ -48,6 +48,7 @@ class AgentService:
     store: EvidenceStore | None = None
     asker: AskRunner | None = None
     recording: Path | None = None
+    conversations: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
@@ -75,11 +76,23 @@ class AgentService:
             "usd": round(sum(r.usd for r in runs), 6),
         }
 
-    def ask(self, question: str, scope: AskScope, incident_id: str | None) -> AskResult:
+    def ask(
+        self, question: str, scope: AskScope, incident_id: str | None, conversation_id: str | None = None
+    ) -> AskResult:
+        """A question, optionally following up an earlier one: the conversation keeps its incident scope and
+        hands the earlier questions and answers to the model as context (never as evidence: every figure
+        is verified again in the new run)."""
         if self.asker is None:
             raise ProviderUnavailable(self.reason or "the agent is off")
         with self.lock:  # one question at a time keeps cost and the activity log readable
-            result = self.asker.ask(question, scope, incident_id)
+            if conversation_id is not None and conversation_id not in self.conversations:
+                return AskResult(status="unknown_conversation", run_id="", reason=f"no conversation {conversation_id}")
+            conversation_id = conversation_id or f"conv_{len(self.conversations) + 1:04d}"
+            turns = self.conversations.setdefault(conversation_id, [])
+            incident_id = incident_id or next((t["incident_id"] for t in turns if t["incident_id"]), None)
+            result = self.asker.ask(question, scope, incident_id, history=turns)
+            result.conversation_id = conversation_id
+            turns.append({"question": question, "answer": result.answer, "incident_id": incident_id})
         self.save()
         return result
 

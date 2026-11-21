@@ -78,6 +78,7 @@ class Runtime:
         self.world = Path(world)
         self.stage = stage
         self.selector = selector  # the agent's pre-verdict loop (argus.agent); None: Stage 2 alone
+        self.on_incident: Callable[[Incident, str], None] | None = None  # the agent proposes actions here
         self.manifest = read_manifest(self.world)
         self.lag = timedelta(hours=int(self.manifest.get("delivery_lag_hours", 2)))
         self.runner = Runner(self.world)
@@ -211,6 +212,8 @@ class Runtime:
             self.emit(self.book.notes[-1], as_of)
         else:
             self._emit_incident(incident, change, as_of, findings.verdict.value)
+            if self.on_incident is not None:
+                self.on_incident(incident, change)
 
     def _investigate(self, anomaly: Anomaly, as_of: datetime, on_step: Callable[[TrailStep], None]) -> Findings:
         if self.stage == 1:

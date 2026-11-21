@@ -53,3 +53,23 @@ def test_cassette_round_trip_and_strict_mismatch() -> None:
     lenient.create(changed)
     assert lenient.drift == [REQUEST.key]
     assert request_sha(REQUEST).startswith("sha256:")
+
+
+def test_scrub_keeps_backed_numbers_and_masks_the_rest() -> None:
+    from argus.agent.numbers import UNVERIFIED, scrub
+
+    text = scrub("It fell -36.4% at 2026-11-21 18:00, maybe 99.9% of revenue [a3].", facts())
+    assert "-36.4%" in text and "2026-11-21 18:00" in text and "99.9" not in text and UNVERIFIED in text
+
+
+def test_a_recurrence_vetoes_whatever_the_model_predicted() -> None:
+    from argus.agent.investigate import canonical_placebo
+    from argus.investigate.ledger import Hypothesis, LedgerEntry
+
+    args = {"node": "x", "segment": {}, "window": {"start": "2026-11-21T18:00:00", "end": "2026-11-21T18:00:00"}}
+    hyp = Hypothesis(statement="s", prediction="p", tool="placebo_test", input=args, expect="recurring", source="agent")
+    entry = LedgerEntry(id="h1", hypothesis=hyp, status="validated", outcome="recurring", summary="3 of 5 weeks")
+    canonical = canonical_placebo(entry)
+    assert canonical.status == "refuted" and canonical.hypothesis.expect == "unusual"
+    unusual = entry.model_copy(update={"outcome": "unusual", "status": "refuted"})
+    assert canonical_placebo(unusual).status == "validated"
