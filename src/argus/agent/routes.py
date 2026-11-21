@@ -59,6 +59,7 @@ def _scope(source: Source) -> AskScope:
         graph=source.graph(),
         incidents=source.incidents(),
         world=source.runtime.world,
+        proposals=[p.model_dump(mode="json") for p in source.remediation.proposals()] if source.remediation else [],
     )
 
 
