@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 
@@ -14,6 +15,13 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     rec.add_argument(
         "--decide", choices=("approve", "deny", "none"), default="none", help="the scripted operator's decision"
     )
+    rec.add_argument(
+        "--ask",
+        action="append",
+        default=[],
+        help="'YYYY-MM-DDTHH:MM|question' (repeatable; questions at the same hour form one conversation)",
+    )
+    rec.add_argument("--incident", help="incident the asked questions are about")
     rep = sub.add_parser("replay", help="re-run a recording strictly from its turns, no provider, and compare")
     rep.add_argument("--world", type=Path, required=True)
     rep.add_argument("--recording", type=Path, required=True)
@@ -21,10 +29,19 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    from argus.agent.session import record, replay
+    from argus.agent.session import AskPlan, record, replay
 
     if args.agent_cmd == "record":
-        result = record(args.world, args.out, decide=args.decide)
+        plans: dict[datetime, list[str]] = {}
+        for item in args.ask:
+            when, sep, question = item.partition("|")
+            if not sep or not question.strip():
+                raise SystemExit("--ask takes 'YYYY-MM-DDTHH:MM|question'")
+            plans.setdefault(datetime.fromisoformat(when), []).append(question.strip())
+        asks = [AskPlan(at, tuple(qs), args.incident) for at, qs in sorted(plans.items())]
+        result = record(args.world, args.out, decide=args.decide, asks=asks)
+        for answer in result.asks:
+            print(f"Q: {answer['question']}\nA: {answer['response']['answer'] or answer['response']['reason']}\n")
         runs = list(result.journal.runs.values())
         usd = sum(r.usd for r in runs)
         for r in runs:

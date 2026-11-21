@@ -19,21 +19,26 @@ from __future__ import annotations
 
 import json
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from argus.agent.ask import AskRunner, AskScope
 from argus.agent.investigate import AgentSelector
 from argus.agent.journal import Journal
 from argus.agent.provider import AnthropicClient, Cassette, RecordingClient, ReplayClient, SpendLedger
+from argus.agent.service import AgentService
 from argus.agent.types import AgentMode, Decision, LlmClient
+from argus.evidence import EvidenceStore
 
 TURNS = "turns.jsonl"
 ACTIVITY = "activity.jsonl"
 EVENTS = "events.jsonl"
 RUNS = "runs.json"
 USAGE = "usage.jsonl"
+ASK = "ask.jsonl"
 
 
 @dataclass
@@ -41,6 +46,23 @@ class SessionResult:
     journal: Journal
     events: list[dict[str, Any]]
     incidents: list[dict[str, Any]]
+    asks: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class AskPlan:
+    """Questions a scripted human asks at one simulated hour, in one conversation (the later ones follow up)."""
+
+    at: datetime
+    questions: tuple[str, ...]
+    incident_id: str | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        return {"at": self.at.isoformat(), "questions": list(self.questions), "incident_id": self.incident_id}
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> AskPlan:
+        return cls(datetime.fromisoformat(data["at"]), tuple(data["questions"]), data.get("incident_id"))
 
 
 Decide = Literal["approve", "deny", "none"]
@@ -53,6 +75,7 @@ def run_world(
     mode: AgentMode,
     spend: SpendLedger | None = None,
     decide: Decide = "none",
+    asks: Sequence[AskPlan] = (),
 ) -> SessionResult:
     """Run the live window with the agent. `decide`: what the scripted operator does with each proposal, in
     the hour it appears (the clock holds for a decision, so that is the hour a human would decide in)."""
@@ -74,9 +97,35 @@ def run_world(
         )
         proposer.append(Proposer(journal, service))
         runtime.on_incident = proposer[0].on_incident
+        store = EvidenceStore()
+        agent = AgentService(
+            mode, journal, client=client, store=store, asker=AskRunner(client, journal, store, mode, spend)
+        )
+        answers: list[dict[str, Any]] = []
+
+        def ask_now(plan: AskPlan) -> None:
+            tick = runtime.bus.history[-1]
+            scope = AskScope(
+                stream=journal.stream,
+                through_seq=tick.seq,
+                as_of=tick.sim_ts,
+                latest_hour=tick.sim_ts - runtime.lag,
+                graph=runtime.graph,
+                incidents=list(runtime.book.incidents.values()),
+                world=runtime.world,
+                proposals=[p.model_dump(mode="json") for p in service.proposals()],
+            )
+            conversation = None
+            for question in plan.questions:
+                result = agent.ask(question, scope, plan.incident_id, conversation)
+                conversation = result.conversation_id
+                answers.append({"question": question, "through_seq": tick.seq, "response": result.to_json(0)})
 
         def on_tick(as_of: datetime) -> None:
             service.tick(as_of)
+            for plan in asks:
+                if plan.at == as_of:
+                    ask_now(plan)
             for view in service.proposals():
                 if view.state == "AWAIT_OPERATOR" and decide != "none":
                     choice = Decision(decision=decide, principal=OPERATOR, at=as_of)
@@ -91,6 +140,7 @@ def run_world(
         journal,
         [e.model_dump(mode="json") for e in runtime.bus.history],
         [i.model_dump(mode="json") for i in runtime.book.incidents.values()],
+        answers,
     )
 
 
@@ -98,11 +148,20 @@ def _jsonl(path: Path, rows: list[Any]) -> None:
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
 
 
-def record(world: Path, out: Path, client: LlmClient | None = None, decide: Decide = "none") -> SessionResult:
+def record(
+    world: Path,
+    out: Path,
+    client: LlmClient | None = None,
+    decide: Decide = "none",
+    asks: Sequence[AskPlan] = (),
+) -> SessionResult:
     recorder = RecordingClient(client or AnthropicClient())
-    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide)
+    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide, asks=asks)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "session.json").write_text(json.dumps({"decide": decide}) + "\n")
+    session = {"decide": decide, "asks": [a.to_json() for a in asks]}
+    (out / "session.json").write_text(json.dumps(session) + "\n")
+    if asks:
+        _jsonl(out / ASK, result.asks)
     recorder.cassette.write(out / TURNS)
     j = result.journal
     _jsonl(out / ACTIVITY, [r.model_dump(mode="json") for r in j.records])
@@ -121,14 +180,17 @@ def replay(world: Path, recording: Path, strict: bool = True) -> list[str]:
     """Re-run the world on the recorded turns; returns the differences (empty: identical)."""
     client = ReplayClient(Cassette.load(recording / TURNS), strict=strict)
     meta = recording / "session.json"
-    decide: Decide = json.loads(meta.read_text())["decide"] if meta.exists() else "none"
-    result = run_world(world, client, "replay", decide=decide)
+    session = json.loads(meta.read_text()) if meta.exists() else {}
+    decide: Decide = session.get("decide", "none")
+    asks = [AskPlan.from_json(a) for a in session.get("asks", [])]
+    result = run_world(world, client, "replay", decide=decide, asks=asks)
     problems: list[str] = []
     recorded_activity = [json.loads(line) for line in (recording / ACTIVITY).read_text().splitlines() if line]
     produced = [r.model_dump(mode="json") for r in result.journal.records]
     for name, want, got in (
         ("activity", recorded_activity, produced),
         ("events", [json.loads(x) for x in (recording / EVENTS).read_text().splitlines() if x], result.events),
+        ("ask", [json.loads(x) for x in (recording / ASK).read_text().splitlines() if x] if asks else [], result.asks),
     ):
         if len(want) != len(got):
             problems.append(f"{name}: recorded {len(want)}, replayed {len(got)}")
