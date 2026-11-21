@@ -165,7 +165,7 @@ function PickScreen({ rec, route }: { rec: Recorded; route: Route }) {
         <section className="ch-card ch-sealed">
           <div className="ch-sealed-main">
             <span className="ch-eyebrow">Committed before the run</span>
-            <h1>Argus has sealed the answer key.</h1>
+            <h1>Argus sealed the answer key.</h1>
             <Hash value={rec.commitment} big />
             <p className="ch-lede">
               This is the SHA-256 of a secret nonce and the hidden truth. Neither leaves the bench until the run is over; afterwards
@@ -199,8 +199,11 @@ function RunBanner({ rec }: { rec: Recorded }) {
   return (
     <div className="ch-banner" role="status">
       <span className="ch-banner-dot" />
-      <span>
-        Hidden scenario · committed <span className="mono">sha256:{hex.slice(0, 8)}…{hex.slice(-4)}</span>
+      <span className="ch-banner-text">
+        <b>Hidden scenario, committed</b>
+        <span className="mono">
+          sha256:{hex.slice(0, 12)}…{hex.slice(-6)}
+        </span>
       </span>
       <span className="ch-banner-tag">recorded</span>
       <button className="btn primary" onClick={() => go("reveal")}>
@@ -346,7 +349,7 @@ function RevealScreen({ rec, route }: { rec: Recorded; route: Route }) {
           <span className="ch-eyebrow">The hidden scenario was</span>
           <h1>{scenarioName(reveal.scenario)}</h1>
           <span className="ch-reveal-meta">
-            seed <b className="mono">{reveal.seed}</b> · {g.pages} {g.pages === 1 ? "page" : "pages"} · {g.false_alarms.length} false{" "}
+            {g.pages} {g.pages === 1 ? "page" : "pages"} · {g.false_alarms.length} false{" "}
             {g.false_alarms.length === 1 ? "alarm" : "alarms"} · <RecordedChip rec={rec} />
           </span>
         </div>

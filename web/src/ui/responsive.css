@@ -2,7 +2,7 @@
  * Mission Control at five sizes. Imported once, after styles.css (web/src/main.tsx).
  *   1920x1080  video and projector: the panels around the graph read from 3 m
  *   1440x900   laptop: the base layout of styles.css
- *   1280x720   low projector: a narrower rail so the graph keeps its width
+ *   1280x720   low projector: slimmer bars so the graph keeps its height
  *   768        tablet: one column, the page scrolls
  *   390        phone: one column; the challenge and the morning report have their own phone layouts
  * Demo mode can opt out of the projector tier by setting data-demo on <html> (it scales type itself).
@@ -37,12 +37,6 @@
 }
 
 /* ---------------------------------------------------------------- low projector, 1280x720 */
-
-@media (max-width: 1366px) and (min-width: 1180px) {
-  .main {
-    grid-template-columns: minmax(0, 1fr) 360px;
-  }
-}
 
 @media (max-height: 760px) and (min-width: 1180px) {
   .app {
