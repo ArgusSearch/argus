@@ -49,6 +49,7 @@ from argus.decompose.segments import Cell
 from argus.investigate import claims as cl
 from argus.investigate.ledger import TRAIL_KIND, Hypothesis, Ledger, LedgerEntry
 from argus.investigate.planner import MAX_PROPOSALS, Planner, PlannerContext
+from argus.investigate.playbook import choose_playbook
 from argus.investigate.tools import PLACEBO_WEEKS, StageTwoToolbox
 from argus.investigate.walk import FactorView, choose_factor, hops, subtree_share
 from argus.investigator.procedure import Investigation, segment_text
@@ -108,6 +109,18 @@ class StageTwoInvestigation(Investigation):
         self.planner = planner
         self.claims: list[cl.Claim] = []
         self.llm_calls = 0
+        self.playbook = choose_playbook(graph, anomaly.node, anomaly.direction)
+
+    def step(self, kind: str, tool: str, result: str, decision: str, **extra: object) -> TrailStep:
+        """Every trail step carries its named playbook step (`data["playbook"]`), also in the events."""
+        raw = extra.pop("data", None)
+        data: dict[str, Any] = dict(raw) if isinstance(raw, dict) else {}
+        data["playbook"] = self.playbook.tag(kind, tool, data)
+        return super().step(kind, tool, result, decision, data=data, **extra)
+
+    def _playbook_run(self) -> list[dict[str, str]]:
+        done = {str(s.data["playbook"]["step"]) for s in self.trail if "playbook" in s.data} | {"verdict"}
+        return self.playbook.run_status(done)
 
     # ------------------------------------------------------------------ main
     def run(self) -> Findings:
@@ -221,6 +234,7 @@ class StageTwoInvestigation(Investigation):
                 "explained_share": round(explained, 4),
                 "checks_used": len(self.ledger.entries),
                 "checks_budget": self.ledger.budget,
+                "playbook_run": self._playbook_run(),
             },
         )
         findings = self._finish(
@@ -738,9 +752,9 @@ class StageTwoInvestigation(Investigation):
         verdict: Verdict, label: str, seg: Segment, rel: float, evidence: EvidenceRef | None, a: Anomaly
     ) -> str:
         if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
-            return f"{label} {a.direction} {pct(rel)} in {segment_text(seg)}: {evidence.description}"
+            return f"{label} {pct(rel)} in {segment_text(seg)}: {evidence.description}"
         if verdict is Verdict.HYPOTHESIS:
-            return f"{label} {a.direction} {pct(rel)} in {segment_text(seg)}: cause not confirmed"
+            return f"{label} {pct(rel)} in {segment_text(seg)}: cause not confirmed"
         return f"{label} {a.direction}: nothing localises and no logged change lines up"
 
     @staticmethod
@@ -782,6 +796,7 @@ class StageTwoInvestigation(Investigation):
                 "explained_share": 1.0 if verdict is Verdict.EXPECTED else 0.0,
                 "checks_used": len(self.ledger.entries),
                 "checks_budget": self.ledger.budget,
+                "playbook_run": self._playbook_run(),
             },
         )
         return self._with_llm_cost(

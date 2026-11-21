@@ -111,6 +111,12 @@ def test_events_are_valid_c5_and_carry_the_stage_two_steps(runs: dict[int, Run],
     ]
     assert any(s.tool == "placebo_test" for s in steps)
     assert any(s.kind == "verdict" and "claims" in s.data for s in steps)
+    # package #4: every step names its playbook step, the verdict carries the whole run
+    assert all(s.data["playbook"]["label"] and s.data["playbook"]["name"].endswith("playbook") for s in steps)
+    verdicts = [s for s in steps if s.kind == "verdict"]
+    assert all({r["status"] for r in s.data["playbook_run"]} <= {"done", "skipped"} for s in verdicts)
+    labels = [s.data["playbook"]["label"] for s in steps]
+    assert "Placebo" in labels and "Hypothesis tests" in labels and "Exact split (LMDI)" in labels
 
 
 @pytest.mark.parametrize("seed", SEEDS)

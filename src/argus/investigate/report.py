@@ -34,6 +34,17 @@ def _walk(findings: Findings) -> list[TrailStep]:
     return [s for s in findings.trail if s.kind == "decompose" and s.tool == "decompose_formula"]
 
 
+def _playbook_lines(findings: Findings) -> list[str]:
+    last = findings.trail[-1] if findings.trail else None
+    if last is None or "playbook_run" not in last.data:
+        return []
+    name = last.data.get("playbook", {}).get("name", "Playbook")
+    run = " -> ".join(
+        step["label"] if step["status"] == "done" else f"~~{step['label']}~~" for step in last.data["playbook_run"]
+    )
+    return [f"**{name}:** {run}", ""]
+
+
 def render_findings(findings: Findings, graph: Graph) -> str:
     f = findings
     label = graph.node(f.observed.node).label
@@ -45,6 +56,7 @@ def render_findings(findings: Findings, graph: Graph) -> str:
         + f" · as_of {f.as_of:%Y-%m-%d %H:%M}"
         f" · window {f.window.start:%Y-%m-%d %H:%M} to {f.window.end:%Y-%m-%d %H:%M}",
         "",
+        *_playbook_lines(f),
         "## What happened",
         "",
         f"{label} in {seg_text(f.observed.segment)} moved {fmt(f.observed.change_pct, 2, pct=True)} against its "
@@ -126,7 +138,11 @@ def render_findings(findings: Findings, graph: Graph) -> str:
 
     lines += ["", "## Investigation trail", ""]
     for s in f.trail:
-        lines.append(f"{s.step}. {s.kind} ({s.tool}): {s.result} -> {s.decision} {_receipts(s.receipts)}".rstrip())
+        label = s.data.get("playbook", {}).get("label")
+        prefix = f"[{label}] " if label else ""
+        lines.append(
+            f"{s.step}. {prefix}{s.kind} ({s.tool}): {s.result} -> {s.decision} {_receipts(s.receipts)}".rstrip()
+        )
     lines += [
         "",
         "## Cost of this investigation",
