@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from argus.agent.types import ActivityKind, ActivityRecord, Role, RunSummary, Stage, UsageRecord
+from argus.agent.types import ActivityKind, ActivityRecord, ReceiptLink, Role, RunSummary, Stage, UsageRecord
 
 SKEPTIC_TOOLS = frozenset({"holdout_check", "placebo_test", "check_freshness", "check_identities"})
 MARKET_TOOLS = frozenset({"market_control", "check_control_group"})
@@ -72,6 +72,11 @@ class Journal:
     def add_usage(self, usage: UsageRecord) -> None:
         with self.lock:
             self.usage.append(usage)
+
+    def cited(self, link: ReceiptLink) -> bool:
+        """Did the run named in the link cite exactly this receipt (same run, revision and id)?"""
+        with self.lock:
+            return any(link in r.receipt_links for r in self.records if r.run_id == link.run_id)
 
     def since(self, seq: int) -> list[ActivityRecord]:
         with self.lock:

@@ -160,6 +160,16 @@ class LiveSource:
         if self.agent.selector is not None:
             self.agent.selector.through_seq = lambda: self.bus.last_seq
         self.runtime = Runtime(world, bus=self.bus, stage=stage, selector=self.agent.selector)
+        self.remediation: Any = None
+        if self.agent.enabled:
+            # PROPOSE -> AWAIT_OPERATOR -> APPLY -> VERIFY (lane C); the clock holds while an operator decides
+            from argus.agent.actions import Proposer
+            from argus.remediation import RemediationService
+
+            proposer: list[Proposer] = []
+            self.remediation = RemediationService.for_runtime(self.runtime, publish=lambda e: proposer[0].publish(e))
+            proposer.append(Proposer(self.agent.journal, self.remediation))
+            self.runtime.on_incident = proposer[0].on_incident
         self.seconds_per_tick = seconds_per_tick
         self.speed = 1.0
         self.playing = True
@@ -180,12 +190,16 @@ class LiveSource:
 
     def _run(self) -> None:
         for as_of in self._ticks:
-            while not self.playing and not self._to_end and not self._stop.is_set():
+            while (not self.playing and not self._to_end) or self._held():
+                if self._stop.is_set():
+                    return
                 self._wake.wait(0.5)
                 self._wake.clear()
             if self._stop.is_set():
                 return
             self.runtime.tick(as_of)
+            if self.remediation is not None:
+                self.remediation.tick(as_of)
             self.position += 1
             deadline = time.monotonic() + self.seconds_per_tick / self.speed
             while not self._to_end and not self._stop.is_set() and (left := deadline - time.monotonic()) > 0:
@@ -194,6 +208,10 @@ class LiveSource:
                 deadline = min(deadline, time.monotonic() + self.seconds_per_tick / self.speed)
                 if not self.playing:
                     break
+
+    def _held(self) -> bool:
+        """The simulated clock waits while an action waits for the operator or the simulator."""
+        return self.remediation is not None and bool(self.remediation.holds_clock()) and not self._stop.is_set()
 
     def stop(self) -> None:
         self._stop.set()
@@ -204,6 +222,8 @@ class LiveSource:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()
         self.agent.save()
+        if self.remediation is not None:
+            self.remediation.close()
 
     # ------------------------------------------------------------------ read
 
@@ -258,6 +278,7 @@ class LiveSource:
             "total": len(self._ticks),
             "sim_ts": as_of.isoformat() if as_of else None,
             "loop": False,
+            "held": self._held(),
         }
 
     def control(self, action: Action | None, speed: float | None) -> dict[str, Any]:
