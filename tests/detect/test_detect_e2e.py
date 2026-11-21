@@ -32,8 +32,7 @@ def test_s1_payco_detected_within_exit_criteria(make_world: Callable[..., World]
     runner = Runner(world.path)
     watcher = Watcher(runner, graph)
     # a day of quiet live data before the fault, then up to the deadline of the exit criteria
-    for _ in watcher.run(fault["start_ts"] - timedelta(hours=24), fault["start_ts"] + max_delay):
-        pass
+    reports = list(watcher.run(fault["start_ts"] - timedelta(hours=24), fault["start_ts"] + max_delay))
 
     before = [a for a in watcher.anomalies if a.hour < fault["start_ts"]]
     assert before == [], f"false alarms before the fault: {before}"
@@ -46,6 +45,13 @@ def test_s1_payco_detected_within_exit_criteria(make_world: Callable[..., World]
     assert fault["start_ts"] - timedelta(hours=2) <= first.onset <= first.hour
     assert set(first.segment.items()) <= set(fault["segment"].items())
     assert first.observed < first.band[0] < first.expected
+
+    # the moving north star pulled attention onto its breakdowns in the same tick, and they point at the root
+    tick = next(r for r in reports if first in r.opened)
+    slices = [
+        lk for lk in tick.looks if lk.unit.node == fault["root_node"] and not lk.unit.is_total and lk.hour == first.hour
+    ]
+    assert any(lk.z < -5 and set(lk.segment.items()) <= set(fault["segment"].items()) for lk in slices)
 
     # every number on the anomaly comes from a receipt that re-runs to the same hash
     for rid in first.receipts:

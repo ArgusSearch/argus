@@ -196,7 +196,7 @@ class Watcher:
         self.calendar.refresh(as_of)
         notes = self._freshness_notes(fresh)
         # held: some hour up to the scored hour is still incomplete, so the node waits to stay in order
-        pending = sorted(n for n in self.nodes if min(fresh.settled_through[t] for t in self._tables[n]) < hour)
+        pending = sorted(n for n in self.nodes if not self._ready(n, fresh, hour))
 
         # 1. always-on: north-star totals and open anomaly series, with backlog
         always = sorted(
@@ -214,8 +214,11 @@ class Watcher:
 
         # 2. attention over everything else
         open_nodes = {node for node, _ in self.open}
+        held = set(pending)
         scores = {
-            u: self.attention.terms(u, hour, z_now, fresh.confidence(self._tables[u.node], hour), open_nodes)
+            u: self.attention.terms(
+                u, hour, z_now, 0.0 if u.node in held else fresh.confidence(self._tables[u.node], hour), open_nodes
+            )
             for u in self.attention.units
             if u not in always
         }
@@ -223,6 +226,8 @@ class Watcher:
         for unit in chosen:
             looks += self._look(unit, as_of, hour, fresh, backlog=False)
         for unit in [*always, *chosen]:
+            if unit.node in held:
+                continue
             seen = [abs(lk.z) for lk in looks if lk.unit == unit and lk.hour == hour and math.isfinite(lk.z)]
             self.attention.mark(unit, hour, max(seen) if seen else None)
 
@@ -277,10 +282,13 @@ class Watcher:
         start = end - timedelta(hours=self.config.window_hours)
         return self.store.node_series(node_id, dims, start, end, as_of, fresh.settled_through)
 
+    def _ready(self, node_id: str, fresh: FreshnessState, hour: datetime) -> bool:
+        """Every hour up to `hour` of every table the node reads is complete."""
+        return min(fresh.settled_through[t] for t in self._tables[node_id]) >= hour
+
     def _look(self, unit: Unit, as_of: datetime, hour: datetime, fresh: FreshnessState, backlog: bool) -> list[Look]:
-        tables = self._tables[unit.node]
-        ready = min(fresh.settled_through.get(t, hour) for t in tables)
-        last_ready = min(ready, hour)
+        """Score a unit's slices at the hours it is due: the backlog for always-on units, else the scored hour."""
+        last_ready = min(min(fresh.settled_through[t] for t in self._tables[unit.node]), hour)
         if backlog:
             first = self._cursor.get(unit, last_ready - HOUR) + HOUR
             first = max(first, last_ready - timedelta(hours=self.config.tail_hours - 1))
@@ -288,7 +296,7 @@ class Watcher:
                 [first + k * HOUR for k in range(int((last_ready - first) / HOUR) + 1)] if first <= last_ready else []
             )
         else:
-            hours = [hour] if fresh.complete(tables, hour) else []
+            hours = [hour] if self._ready(unit.node, fresh, hour) else []
         if not hours:
             return []
         series = self._series(unit.node, unit.dims, hours[-1], as_of, fresh)
@@ -424,8 +432,7 @@ class Watcher:
     ) -> tuple[list[Anomaly], int, list[Anomaly]]:
         if not self._pacing_ready:
             return [], 0, []
-        tables = sorted(set(self._tables[SPEND_NODE]) | set(self._tables[PLAN_NODE]))
-        if not fresh.complete(tables, hour):
+        if not (self._ready(SPEND_NODE, fresh, hour) and self._ready(PLAN_NODE, fresh, hour)):
             return [], 0, []
         start = hour.replace(hour=0) - timedelta(days=self.config.pacing.days)
         spend = self.store.node_series(SPEND_NODE, LINE_DIMS, start, hour, as_of, fresh.settled_through)
