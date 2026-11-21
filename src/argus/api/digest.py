@@ -127,7 +127,7 @@ def build_digest(state: RunState, incidents: list[Incident], graph: Graph) -> Di
                 key=f"incident:{inc.id}",
                 label=inc.id,
                 value=f"€{inc.severity_eur:,.0f}",
-                detail=f"{f.verdict.value}: {inc.title} ({segment_label(inc.segment)}), {state_text}",
+                detail=f"{f.verdict.value.replace('_', ' ')}: {inc.title} ({segment_label(inc.segment)}), {state_text}",
                 receipts=list(dict.fromkeys(receipts)),
                 tone="good" if inc.state is IncidentState.RESOLVED else "bad",
             )
