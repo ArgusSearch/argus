@@ -8,6 +8,11 @@ export const FOV = 28;
 /** look-down angle and slight turn of the resting camera, radians */
 export const PITCH = 0.92;
 export const YAW = -0.07;
+/** In a tall rectangle the camera turns a quarter so the graph runs top to bottom and fills the height. */
+export const PORTRAIT_YAW = Math.PI / 2 - 0.07;
+export const PORTRAIT_PITCH = 1.02;
+/** below this width-to-height ratio the safe rectangle counts as tall */
+export const PORTRAIT_BELOW = 0.95;
 
 /** The canvas and, inside it, the rectangle the graph is framed in (CSS pixels, canvas coordinates). */
 export interface SafeRect {
@@ -104,7 +109,11 @@ export class CameraRig {
   /** relative speed of the last update: (distance moved / distance), per second */
   speed = 0;
   private readonly goal: Framing = { center: new Vector3(), distance: 40 };
-  private readonly vel = { x: { v: 0 }, y: { v: 0 }, z: { v: 0 }, d: { v: 0 } };
+  private readonly vel = { x: { v: 0 }, y: { v: 0 }, z: { v: 0 }, d: { v: 0 }, yaw: { v: 0 }, pitch: { v: 0 } };
+  private yawGoal = YAW;
+  private pitchGoal = PITCH;
+  private yaw = YAW;
+  private pitch = PITCH;
   private rect: SafeRect = { canvasWidth: 1, canvasHeight: 1, x: 0, y: 0, width: 1, height: 1 };
   private parallaxX = 0;
   private parallaxY = 0;
@@ -123,6 +132,9 @@ export class CameraRig {
     this.rect = rect;
     const cam = this.camera;
     cam.aspect = this.aspect;
+    const portrait = this.aspect < PORTRAIT_BELOW;
+    this.yawGoal = portrait ? PORTRAIT_YAW : YAW;
+    this.pitchGoal = portrait ? PORTRAIT_PITCH : PITCH;
     const inside = rect.x === 0 && rect.y === 0 && rect.width === rect.canvasWidth && rect.height === rect.canvasHeight;
     if (inside) cam.clearViewOffset();
     else cam.setViewOffset(rect.width, rect.height, -rect.x, -rect.y, rect.canvasWidth, rect.canvasHeight);
@@ -131,7 +143,7 @@ export class CameraRig {
 
   /** Frames `points` (flat xyz) with `pad` of the safe rectangle kept free; `minDistance` keeps it from diving in. */
   target(points: ArrayLike<number>, pad: number, minDistance: number): void {
-    frame(points, YAW, PITCH, FOV, this.aspect, pad, this.goal);
+    frame(points, this.yawGoal, this.pitchGoal, FOV, this.aspect, pad, this.goal);
     this.goal.distance = Math.max(this.goal.distance, minDistance);
     if (!this.placed) this.snap();
   }
@@ -140,7 +152,9 @@ export class CameraRig {
   snap(): void {
     this.center.copy(this.goal.center);
     this.distance = this.goal.distance;
-    this.vel.x.v = this.vel.y.v = this.vel.z.v = this.vel.d.v = 0;
+    this.yaw = this.yawGoal;
+    this.pitch = this.pitchGoal;
+    this.vel.x.v = this.vel.y.v = this.vel.z.v = this.vel.d.v = this.vel.yaw.v = this.vel.pitch.v = 0;
     this.placed = true;
   }
 
@@ -159,6 +173,8 @@ export class CameraRig {
       this.center.y = smoothDamp(this.center.y, this.goal.center.y, this.vel.y, t, dt);
       this.center.z = smoothDamp(this.center.z, this.goal.center.z, this.vel.z, t, dt);
       this.distance = smoothDamp(this.distance, this.goal.distance, this.vel.d, 0.78, dt);
+      this.yaw = smoothDamp(this.yaw, this.yawGoal, this.vel.yaw, 0.7, dt);
+      this.pitch = smoothDamp(this.pitch, this.pitchGoal, this.vel.pitch, 0.7, dt);
     }
     const moved = this.prev.distanceTo(this.center) + Math.abs(this.distance - before);
     this.speed = dt > 0 ? moved / dt / Math.max(this.distance, 1) : 0;
@@ -170,8 +186,8 @@ export class CameraRig {
     this.parallaxY += (py - this.parallaxY) * follow;
     const orbit = still ? 0 : 0.035 * Math.sin((this.time * Math.PI * 2) / 14);
     const ease = this.intro * this.intro * (3 - 2 * this.intro);
-    const yaw = YAW + orbit + this.parallaxX * 0.025 - ease * 0.16;
-    const pitch = PITCH - this.parallaxY * 0.014 + ease * 0.12;
+    const yaw = this.yaw + orbit + this.parallaxX * 0.025 - ease * 0.16;
+    const pitch = this.pitch - this.parallaxY * 0.014 + ease * 0.12;
     const distance = this.distance * (1 + ease * 0.45);
     backVector(yaw, pitch, this.back);
     this.camera.position.copy(this.center).addScaledVector(this.back, distance);

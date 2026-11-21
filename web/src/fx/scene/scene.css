@@ -46,6 +46,12 @@
   contain: strict;
 }
 
+:root[data-fx="night"] .fxs-node.root .fxs-z,
+:root[data-fx="night"] .fxs-node.alarm .fxs-z {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(120, 10, 20, 0.9);
+}
+
 :root[data-fx="night"] .fxs-labels {
   --fxs-ink: var(--fx-ink-0, #e9eef8);
   --fxs-ink-2: var(--fx-ink-3, #8590a8);
