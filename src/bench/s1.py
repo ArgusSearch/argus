@@ -94,7 +94,8 @@ def grade(rt: Runtime, truth: dict[str, Any]) -> list[Criterion]:
         Criterion(
             "release_ruled_out",
             "the android 8.3.0 release is listed under 'ruled out' because the holdout is normal",
-            bool(ruled) and all(r.reason == "holdout normal" for r in ruled),
+            # Stage 1 writes the bare label, Stage 2 appends the holdout's numbers ("holdout normal: +0.3% ...").
+            bool(ruled) and all(r.result == "refuted" and r.reason.startswith("holdout normal") for r in ruled),
             "; ".join(f"{r.evidence.ref if r.evidence else '?'}: {r.reason}" for r in ruled) or "release not ruled out",
         )
     )
