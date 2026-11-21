@@ -3,6 +3,9 @@
 Playwright smoke tests for Mission Control (the page in `web/dist`, served by `argus api`). They drive a real
 Chromium against a real API and check what a judge would see in the demo.
 
+Base: `main` (every lane merged: Stage-2 runtime, detect, a recording per scenario under `fixtures/`). Work on
+`team/ansor/qa` rebased onto `origin/main`; PRs target `main`. Edit only `e2e/**` and `docs/qa/**`.
+
 ## What it covers
 
 | Spec | What it checks | Replay | Live |
@@ -15,6 +18,7 @@ Chromium against a real API and check what a judge would see in the demo.
 | `receipt.spec.ts` | a number in the incident sheet opens its receipt (SQL, pinned `as_of`); "Re-run SQL" shows `✓ Same hash` in live and the documented 409 message in replay | runs | runs |
 | `digest.spec.ts` | "While you slept" opens, has lines, "Copy as Markdown" is enabled, Escape closes it | runs | runs |
 | `offline.spec.ts` | stopping the API shows the offline banner and "API offline"; starting it again recovers without a reload | expected failure (see below) | expected failure |
+| `scenarios.spec.ts` | every recorded scenario on its own replay API (`--replay fixtures[/<s>]`) at 64x to `run.finished`: S1 one SUPPORTED CAUSE card in DE / android / PayCo; quiet no incident card; S2 no incident card and a "Didn't wake you" card about the budget (tab count > 0); S3 no incident card and a "Data issue · held back" card; S4 one SUPPORTED CAUSE card naming pacing and DE or FR | runs (about 40 s) | skipped (replay-only) |
 | `screenshots.spec.ts` | not a check: captures the QA screenshots, skipped unless `ARGUS_E2E_SHOTS=1` | skipped by default | skipped (replay-only) |
 
 ## Prerequisites
@@ -32,8 +36,9 @@ If `web/dist` is missing, the page says "not built yet" and every UI spec fails 
 
 ## Running
 
-Replay mode (default, about 70 s): Playwright starts `uv run argus api --port 8010` from the repo root, which
-streams `fixtures/` through the real SSE path.
+Replay mode (default, about 2 min with the scenario spec): Playwright starts `uv run argus api --port 8010` from
+the repo root, which streams `fixtures/` (S1) through the real SSE path. `scenarios.spec.ts` and `offline.spec.ts`
+start and stop their own replay APIs next to it.
 
 ```sh
 npm --prefix e2e test
@@ -48,14 +53,27 @@ make world SEED=7                          # writes runs/s1-7 (gitignored)
 npm --prefix e2e run test:live
 ```
 
-`ARGUS_E2E_WORLD` points live mode at another world, `ARGUS_E2E_PORT` moves the main server.
+Environment flags:
+
+| Variable | Effect |
+| --- | --- |
+| `ARGUS_E2E_MODE=live` | live mode (what `test:live` sets) |
+| `ARGUS_E2E_WORLD` | the world live mode runs over (default `runs/s1-7/world.duckdb`) |
+| `ARGUS_E2E_PORT` | the main server's port (default 8010 replay, 8011 live) |
+| `ARGUS_E2E_OFFLINE_PORT` | `offline.spec.ts`'s own server (default 8012) |
+| `ARGUS_E2E_SCENARIO_PORT` | `scenarios.spec.ts`'s own server (default 8013) |
+| `ARGUS_E2E_SCENARIOS=0` | skip `scenarios.spec.ts` (saves about 40 s) |
+| `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, and `scenario-<s>.png` from `scenarios.spec.ts`) |
+| `CI` | never reuse a running server; also write the HTML report |
+
 Outside CI an API already listening on the port is reused, so stop stray servers first
 (`pkill -f "argus api --port 801"`) or you test whatever that server is running.
 
-QA screenshots (replay, 1920x1080 and 1440x900, into `docs/qa/screenshots/`):
+QA screenshots (replay, 1920x1080 and 1440x900, into `docs/qa/screenshots/`; the scenario end states at
+1920x1080 as `scenario-<s>.png`):
 
 ```sh
-ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots
+ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots scenarios
 ```
 
 Failure traces and screenshots land in `e2e/test-results/`; `npx --prefix e2e playwright show-trace <trace.zip>`.
@@ -67,6 +85,11 @@ Failure traces and screenshots land in `e2e/test-results/`; `npx --prefix e2e pl
 | 8010 | main API, replay mode (Playwright `webServer`) |
 | 8011 | main API, live mode |
 | 8012 | `offline.spec.ts` starts and stops its own replay API here (`ARGUS_E2E_OFFLINE_PORT`) |
+| 8013 | `scenarios.spec.ts` starts one replay API per scenario here, one at a time (`ARGUS_E2E_SCENARIO_PORT`) |
+
+8013-8015 are reserved for e2e; 8020-8029 belong to other agents' API servers, leave them alone.
+Both self-started servers go through `tests/own-api.ts`: bounded start (30 s), stop in `afterEach` (SIGINT to the
+process group, SIGKILL after 5 s), and a refusal to start when the port already answers.
 
 ## Why one worker
 
@@ -87,8 +110,17 @@ only the replay controls disappear. The list reporter shows this test as `✘` b
 bug is fixed the test passes, Playwright reports it as "expected to fail", and the suite goes red: then remove
 the `test.fail` line (the comment above it says so).
 
-The spec stops its own server in `afterEach` (SIGINT to the process group, SIGKILL after 5 s), so a failure or
-timeout never leaves port 8012 busy, and it refuses to start if 8012 is already serving.
+Re-checked on `main` @ f35b00a: still fails the same way (`web/src/lib/api.ts:103` unchanged).
+
+The spec stops its own server in `afterEach` (via `tests/own-api.ts`), so a failure or timeout never leaves port
+8012 busy, and it refuses to start if 8012 is already serving.
+
+## Known flake source: blank graph after a stream reset
+
+After a restart (`POST /replay {"action":"restart"}` or the Restart button) with the page open, React Flow can keep
+every metric node `visibility: hidden` for a few seconds (longer at 64x while the page folds the burst of events),
+so the graph panel is empty while the legend, feed and trail render. The specs therefore only assert the graph
+nodes are attached after a reset, not visible; the screenshot capture waits (bounded) for them to show.
 
 ## Proposed CI step
 

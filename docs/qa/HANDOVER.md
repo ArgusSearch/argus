@@ -1,12 +1,20 @@
 # QA handover (Ansor)
 
-Updated: Saturday 2026-11-21, ~17:45 CET. Branch `team/ansor/qa` (base `origin/fm/argus-api` @ `437fff5`).
+Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `f35b00a`. PR #21 now targets `main`.
 
 This file is enough to continue the QA work without the chat.
 
 ## State in one paragraph
 
-On `fm/argus-api` everything is green: `make check`, `make s1` ALL PASS, and the web typecheck, tests and build. The S1 fault plays correctly in the browser, in replay and live on seeds 7, 3 and 11, and every receipt re-run gives the same hash. On the integration branch (section 3.4 of the team prompt) the quiet scenario is correct. S2 and S4 are wrong in the API/browser, and S3 is only partly right. The reason is that the Stage-2 investigator and the detect lane exist but are not wired into `src/argus/runtime/loop.py` (#1, #2). So demo moment 2 (a harmless change, "didn't wake you") cannot be shown yet: S2 is silent with no note (#3). The blind challenge mechanics work: commit, reveal and verify match. But seed 11 reveals S4, which Argus gets wrong today.
+`main` has every lane. On it:
+
+- **S1** (live seeds 7, 3, 11 and replay), **quiet** and **S2** play correctly. S2 now writes its "Didn't wake you" note, so demo moment 2 works. #1, #2 and #3 are verified fixed and closed.
+- **S4** names the right cause (`pacing_ratio`, `dep_ad-pacer_1.7.0`, holdout run), but the segment is `{}` instead of DE/FR (#4). The S4 replay shows €1,687 instead of about €73.6k (#29).
+- **S3** holds back correctly, but the note does not name the broken identity (#5, #9).
+- **Scorecard:** Argus pass@1 is 100% vs 20% for the threshold baseline.
+- **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
+- **`make check` on main** is red only because of #27 (ruff format on `docs/plan/build-plan.md`); CI is red for the same reason.
+- **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart (see the new web issues in matrix.md). Do not press Restart on stage without a buffer.
 
 ## What is in this branch
 
@@ -14,9 +22,10 @@ On `fm/argus-api` everything is green: `make check`, `make s1` ALL PASS, and the
 - `docs/qa/matrix.md`: one row per run (S1 replay, S1 live seeds 7/3/11, quiet, S2, S3, S4, blind), observed vs expected, with issue links, plus the scorecard and the list of all QA issues.
 - `docs/qa/screenshots/`: Mission Control at 1920x1080 and 1440x900, in five states.
 - `e2e/`: the Playwright smoke suite, a separate npm package (see `e2e/README.md`).
+  - `scenarios.spec.ts` checks the outcome card of every recorded scenario (S1, quiet, S2, S3, S4).
   - 7 specs: health, load, s1-replay, receipt, controls, digest, offline.
-  - Replay mode: green twice in a row, about 1:10 each.
-  - Live mode: green (7 passed, 4 skipped as replay-only), about 43 s.
+  - Replay mode: green twice in a row, about 1:45 each.
+  - Live mode: green (7 passed, the rest skipped as replay-only), about 46 s.
   - `offline.spec.ts` is marked `test.fail` until #6 is fixed. Remove the mark then.
 
 ## How to re-run
@@ -32,8 +41,8 @@ ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots # refresh docs/qa/screens
 
 To fill the live rows of the matrix:
 
-1. Build the integration branch as in section 3.4 of the team prompt. This time it lives in a separate worktree, `git worktree add -b local/integration ../argus-integration origin/fm/argus-api`, followed by the merges.
-2. Run `uv run mockmart generate --scenario <s> --seed 7 --out runs/<s>-7`.
+1. No integration branch is needed any more: work on `main`.
+2. Run `uv run mockmart generate --scenario <s> --seed 7 --out runs/<s>-7` (or `make world SCENARIO=<s>`).
 3. Run `uv run argus api --port 8020 --world runs/<s>-7/world.duckdb --tick-seconds 0.2`. A run takes about 30 s.
 4. Read `/incidents`, `/notes` and `/digest`, and `POST /receipts/{id}/rerun`.
 
@@ -41,13 +50,17 @@ On an 8 GB machine, run one API server and one browser at a time.
 
 ## Open issues found by QA
 
-P0: #1, #2, #3 (all integration: Stage-2 investigate and detect are not in the runtime, so S2 is silent).
-P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX: stale "checking", sparkline over labels, verdict labels, trail cut off).
-P2: #7, #8 (bench output), #11 ("0 anomalys"), #12 (receipt demo coverage), #17–#20 (web polish).
+Closed as fixed on main: #1, #2, #3.
+
+P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX), #29 (S4 replay money), plus the blank-graph-after-restart issue (see matrix.md).
+P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt coverage), #17–#20 (web polish), #30, #31.
 
 ## Next steps
 
 1. Re-run the matrix after every merge into `fm/argus-api` that touches the runtime or the UI. The S2/S3/S4 rows should flip once #1 and #2 land.
-2. Small UI/API fixes that QA can take, after Batu confirms nobody else is on them: #11 (one line in `src/argus/api/digest.py`) and #6 (`web/src/lib/api.ts` plus the header fallback). Each fix goes in its own PR `fix(api|web): ... (#n)` with a failing-then-passing test.
+2. Small UI/API fixes that QA can take, after Batu confirms nobody else is on them:
+   - #11 is done (PR #28).
+   - Next: #6 (`web/src/lib/api.ts` plus the header fallback).
+   - Each fix goes in its own PR `fix(api|web): ... (#n)` with a test that fails before and passes after.
 3. Propose the e2e CI job to Batu. The suggested step is in `e2e/README.md`; `.github/` is not ours.
 4. Before the 11:00 freeze and the 12:00 rehearsal: run the e2e suite and the matrix again.

@@ -1,5 +1,17 @@
 # QA baseline
 
+## Current base: `main` @ `f35b00a` (Saturday ~18:00 CET)
+
+| Command | Result |
+| --- | --- |
+| `make setup` | ok |
+| `make check` | **red at lint**: `ruff format --check` flags `docs/plan/build-plan.md:2238` (#27). CI on main fails the same way. |
+| `make typecheck contracts-check web test` | mypy `no issues found in 96 source files`, contracts fresh, web 19 vitest tests and the build ok, pytest `273 passed` in 6:22 |
+| `make s1` | `ALL PASS` (six PASS lines; 21 receipts re-run, 0 mismatched) |
+| `uv run argus-bench` | Argus pass@1 100% vs threshold 20% (see matrix.md) |
+
+## First baseline: `fm/argus-api` @ `437fff5`
+
 Run by Ansor's agent on Saturday 2026-11-21, 16:10–16:40 CET, macOS 26 (Darwin 25.5, Apple silicon, 8 GB RAM).
 Tool versions: uv 0.11.7 (Python 3.13.1 from the lock), Node v26.13.0, npm 11.20.0, Playwright 1.65.1 (Chromium for Testing 159).
 
