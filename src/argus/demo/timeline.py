@@ -2,10 +2,10 @@
 
 import threading
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from itertools import pairwise, takewhile
-from typing import Any
+from typing import Any, ClassVar
 
 from argus.api.digest import Digest, build_digest
 from argus.api.recording import FIXTURES, Recording, load_recording
@@ -61,6 +61,8 @@ class DemoReport:
 
 @dataclass(frozen=True)
 class Timeline:
+    approval_index: ClassVar[None] = None
+
     scenario: Scenario
     cues: tuple[Cue, ...]
     graph: Graph
@@ -68,6 +70,10 @@ class Timeline:
     receipt_beats: dict[str, int]
     incident: Incident
     report: DemoReport
+    offsets: tuple[int, ...] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "offsets", tuple(cue.at_ms for cue in self.cues))
 
     def beat(self, kind: BeatKind) -> int:
         """The index of the first cue of `kind`, from which its evidence is released."""
@@ -111,10 +117,10 @@ def _morning_digest(recording: Recording, incident: Incident, anomaly: Anomaly) 
     return morning, build_digest(state, [snapshot], state.current_graph())
 
 
-def _narrator_report(scenario: Scenario, recording: Recording, morning: Event) -> DemoReport:
+def build_report(stream: str, recording: Recording, morning: Event) -> DemoReport:
     """Fold the recording through the same morning hour as the digest, as the narrator would have served it."""
     events = tuple(takewhile(lambda event: event.sim_ts <= morning.sim_ts, recording.events))
-    window = RunWindow(f"demo-{scenario}", events[-1].seq, events, prefix=PREFIX)
+    window = RunWindow(stream, events[-1].seq, events, prefix=PREFIX)
     incidents = {snap.incident.id: snap.incident for snap in recording.incidents if snap.seq <= window.through_seq}
     receipts = {receipt.id for receipt in recording.receipts}
     report, evidence = build_morning_report(window, list(incidents.values()), recording.graph, receipts.__contains__)
@@ -196,7 +202,7 @@ def _build_timeline(scenario: Scenario, recording: Recording) -> Timeline:
             zip(_BEATS, pairwise((*OFFSETS, DURATION_MS)), content, strict=True)
         )
     )
-    report = _narrator_report(scenario, recording, morning)
+    report = build_report(f"demo-{scenario}", recording, morning)
     receipt_beats = dict.fromkeys(_receipt_ids(recording.graph.model_dump()), 0)
     for cue in cues:
         for receipt in _receipt_ids(cue.data.model_dump()):
