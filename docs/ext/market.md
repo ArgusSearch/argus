@@ -12,6 +12,7 @@ uv run argus-bench run --scenarios s5 --seeds 1,3,7 --agents argus
 make demo SCENARIO=s5
 ```
 
+The default `uv run argus-bench` scorecard includes S5.
 The bench seals both injected events before starting Argus and grades each event after revealing the truth.
 Use `uv run argus-bench verify runs/bench/s5-7` to independently verify the case commitment.
 Use `uv run argus-bench record s5 --seed 7 --out runs/s5-replay` to create a recording for `uv run argus api --replay runs/s5-replay`.
@@ -72,7 +73,7 @@ The complete wire event is in [market-step.json](../../tests/market/fixtures/mar
 Import `check_control_group` from `argus.market` and call `check_control_group(runner, graph, anomaly, as_of)` after freshness, identity and calendar checks.
 The Stage 2 runtime activates the check through `from argus.market.investigator import investigate` in `src/argus/runtime/loop.py`.
 The MockMart registry selects `apply_s5` and calls its DuckDB feed writer after the normal C1 tables are written.
-The bench selects S5 explicitly in its existing `case`, `record` and `run --scenarios` commands.
+The bench registers S5 in the scorecard and accepts it in the `case`, `record` and `run --scenarios` commands.
 
 The control applies to unplanned drops in the additive traffic-sensitive nodes `sessions`, `orders` and `gmv`.
 For each hour, the query pairs the metric and outside index for the same hour of the week over the preceding four weeks and requires at least three complete pairs.
