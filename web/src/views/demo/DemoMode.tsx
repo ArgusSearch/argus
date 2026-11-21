@@ -64,16 +64,17 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
     return () => window.removeEventListener("keydown", onKey);
   }, [options.demo, clearTimers]);
 
-  // start once the API says what it is: a replay restarts from the first tick, a live run keeps going
+  // start once the API says what it is: a replay restarts from the first tick, a live run keeps going.
+  // The stream id comes from /health: a page that joined the first stream never gets a stream header.
   const mode = health?.mode;
+  const stream = health?.stream ?? null;
   useEffect(() => {
-    // a replay waits for its stream header, so the restart can be told apart from the run before it
-    if (!options.demo || started.current || !mode || (mode === "replay" && !view.stream)) return;
-    started.current = { before: mode === "replay" ? view.stream : null };
+    if (!options.demo || started.current || !mode || (mode === "replay" && !stream)) return;
+    started.current = { before: mode === "replay" ? stream : null };
     setTab("graph");
     const body = mode === "replay" ? ({ action: "restart", speed: options.speed } as const) : ({ action: "play", speed: options.speed } as const);
     void api.replay(body).catch(() => undefined);
-  }, [options.demo, options.speed, mode, view.stream, setTab]);
+  }, [options.demo, options.speed, mode, stream, setTab]);
 
   // a new stream (the restart, or a reconnect after one) starts the choreography over
   useEffect(() => {
@@ -86,8 +87,8 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
   const finished = Boolean(health?.run.finished && view.lastSeq >= (health?.last_seq ?? Infinity));
   useEffect(() => {
     const start = started.current;
-    // a replay is followed from its restart on; what streamed before it is the old run
-    if (!options.demo || !start || (start.before !== null && view.stream === start.before)) return;
+    // a replay is followed from its restart on: the page knows it by the new stream's header
+    if (!options.demo || !start || (start.before !== null && (view.stream === null || view.stream === start.before))) return;
     const s = seen.current;
     if (!s.investigating && investigationStarted(view)) {
       s.investigating = true;

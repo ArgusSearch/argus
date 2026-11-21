@@ -35,8 +35,9 @@ Deep links: `/?view=tree`, `/?view=investigation`, `/?view=report`, `/?view=scor
 | `hold=<s>` | 12 | seconds the incident report stays open (3–120) |
 | `end=report` | off | open the morning report when the run is complete |
 
-What it does: hides the replay controls and the toast and raises font sizes; on a replay it waits for the stream
-header, restarts from the first tick at `speed` (a live run keeps going); switches to **Investigation** when the first
+What it does: hides the replay controls and the toast and raises font sizes; on a replay it reads the current
+stream id from `/health`, restarts from the first tick at `speed` and follows only the new stream (a paused or
+finished replay restarts too; a live run keeps going); switches to **Investigation** when the first
 step arrives; 3.5 s after an incident gets a verdict it opens the report, and after `hold` seconds closes it and goes
 back to **Graph** to watch the recovery. The replay loops, so the choreography repeats on every loop.
 
