@@ -42,7 +42,7 @@ threshold  s5  0%  3x paged on a planned change (FA 9)
 
 - `npm --prefix e2e test` gives 21 passed, 2 skipped (screenshots), twice in a row, in 2:50 and 2:53.
 - `scenarios.spec.ts` now covers S5.
-- Seven specs are marked `test.fail` for open bugs that have fix PRs: #6 (#32), #13 (#41), #14 (#40), #15 (#60), #16 (#61), #33 (#39). Each turns red once its fix lands, as a reminder to remove the mark.
+- Seven specs are marked `test.fail` for open bugs that have fix PRs: #6 (#32), #13 (#41), #14 (#40), #15 (#60), #16 (#61); #33 was fixed on main in f85616a and its spec now runs as a normal check. Each turns red once its fix lands, as a reminder to remove the mark.
 
 ---
 
@@ -165,7 +165,7 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [29](https://github.com/ArgusSearch/argus/issues/29) | api | P1 | S4 replay shows €1,687 for the whole run (the recording ends at €73,602) |
 | [30](https://github.com/ArgusSearch/argus/issues/30) | api | P2 | Every replay re-run's 409 says "make demo runs … the S1 world", even for other scenarios |
 | [31](https://github.com/ArgusSearch/argus/issues/31) | api | P2 | S2 digest "0 queries"; duplicated receipts in the S2 note |
-| [33](https://github.com/ArgusSearch/argus/issues/33) | web | P1 | Metric graph blanks for seconds after a replay restart or loop (fix: PR #39) |
+| [33](https://github.com/ArgusSearch/argus/issues/33) | web | ~~P1~~ fixed | Metric graph blanks for seconds after a replay restart or loop (fixed on main via df4b26d) |
 | [34](https://github.com/ArgusSearch/argus/issues/34) | web | P2 | "Run complete" toast while the S4 incident is still open |
 | [35](https://github.com/ArgusSearch/argus/issues/35) | brain | P2 | S1 title repeats the provider ("PayCo: PayCo: …") |
 | [36](https://github.com/ArgusSearch/argus/issues/36) | web | P2 | Lifecycle and digest use the data hour, feed cards the clock hour |

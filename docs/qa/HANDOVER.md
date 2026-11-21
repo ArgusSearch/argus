@@ -14,7 +14,7 @@ This file is enough to continue the QA work without the chat.
 - **Scorecard on 260d499:** Argus pass@1 is 100% vs 17% for the threshold baseline.
 - **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
 - **`make check` on main** is green on macOS (335 passed); #27 is fixed. **CI on main (Linux) is red:** 10 tests fail because the generated worlds and receipt hashes differ from the Mac-recorded fixtures. This is the same cause as #24 (Windows); the evidence is in a comment on #24. A demo on a Mac is safe. Every fix PR fails exactly those 10 and nothing else.
-- **Biggest demo risk:** the graph goes blank for a few seconds after a replay restart or loop (#33; fix in PR #39). Until it merges, do not press Restart on stage.
+- The graph-blank-after-restart bug (#33) is fixed on main (f85616a).
 
 ## What is in this branch
 
@@ -52,7 +52,7 @@ On an 8 GB machine, run one API server and one browser at a time.
 
 Closed as fixed on main: #1, #2, #3.
 
-P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX), #29 (S4 replay money), #33 (blank graph after restart, fix in PR #39).
+P1: #4 (S4 segment), #5 (S3 note), #6 (offline banner), #9 (identity never BROKEN in S3), #10 (report Impact frozen at 1 h), #13–#16 (web/UX), #29 (S4 replay money), 
 P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt coverage), #17–#20 (web polish), #30, #31, #34–#38.
 
 ## Next steps
@@ -61,7 +61,6 @@ P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt cover
 2. Small UI/API fixes that QA can take, after Batu confirms nobody else is on them:
    - #11 is done (PR #28).
    - #6 is done (PR #32). After it merges, remove `test.fail` from `e2e/tests/offline.spec.ts`.
-   - #33 is done (PR #39). After it merges, remove `test.fail` from `e2e/tests/graph-restart.spec.ts`.
    - #14 is done (PR #40). After it merges, remove `test.fail` from `e2e/tests/graph-nodes.spec.ts`.
    - #13 is done (PR #41). After it merges, remove `test.fail` from `e2e/tests/checking-label.spec.ts`.
    - #15 is done (PR #60). After it merges, remove `test.fail` from `e2e/tests/verdict-labels.spec.ts`.

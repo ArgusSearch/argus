@@ -18,7 +18,7 @@ Base: `main` (every lane merged: Stage-2 runtime, detect, a recording per scenar
 | `receipt.spec.ts` | a number in the incident sheet opens its receipt (SQL, pinned `as_of`); "Re-run SQL" shows `✓ Same hash` in live and the documented 409 message in replay | runs | runs |
 | `digest.spec.ts` | "While you slept" opens, has lines, "Copy as Markdown" is enabled, Escape closes it | runs | runs |
 | `offline.spec.ts` | stopping the API shows the offline banner and "API offline"; starting it again recovers without a reload | expected failure (see below) | expected failure |
-| `graph-restart.spec.ts` | the metric graph never goes blank (`visibility: hidden`) in the 4 s after each of three replay restarts | expected failure until #33 is fixed (PR #39) | skipped (replay-only) |
+| `graph-restart.spec.ts` | the metric graph never goes blank (`visibility: hidden`) in the 4 s after each of three replay restarts | runs (#33 fixed on main) | skipped (replay-only) |
 | `graph-nodes.spec.ts` | on every metric node the unit text (COUNT/RATE/EUR) ends before the sparkline starts | expected failure until #14 is fixed (PR #40) | runs |
 | `checking-label.spec.ts` | after the S1 verdict the graph bar no longer says "checking …" | expected failure until #13 is fixed (PR #41) | skipped (replay-only) |
 | `verdict-labels.spec.ts` | the S1 verdict reads "SUPPORTED CAUSE" on the page and in the digest: no raw enum, no "root cause" | expected failure until #15 is fixed (PR #60) | skipped (replay-only) |
