@@ -8,6 +8,7 @@ import http.client
 import ipaddress
 import json
 import time
+from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import quote, urlencode, urlsplit
 
@@ -27,24 +28,31 @@ class LocalAPI:
         if host != "localhost" and (host is None or not ipaddress.ip_address(host).is_loopback):
             raise ValueError("rehearsal must run against a loopback server")
         self.connection = http.client.HTTPConnection(host, parsed.port, timeout=12)
+        self.operator_headers: dict[str, str] = {}
 
-    def json(self, path: str, body: dict[str, Any] | None = None, *, run_id: str | None = None) -> Any:
+    def json(
+        self, path: str, body: dict[str, Any] | None = None, *, run_id: str | None = None, operator: bool = False
+    ) -> Any:
         if run_id is not None:
             path = f"{path}?{urlencode({'run_id': run_id})}"
         method = "GET" if body is None else "POST"
-        self.connection.request(
-            method,
-            path,
-            json.dumps(body) if body is not None else None,
-            {
-                "Content-Type": "application/json",
-            },
-        )
+        headers = {"Content-Type": "application/json"}
+        if operator:
+            headers.update(self.operator_headers)
+        self.connection.request(method, path, json.dumps(body) if body is not None else None, headers)
         response = self.connection.getresponse()
         data = response.read()
         if response.status != 200:
             raise ValueError(f"{method} {path} returned HTTP {response.status}")
-        return json.loads(data)
+        value = json.loads(data)
+        if path == "/agent/operator/session":
+            cookies: SimpleCookie = SimpleCookie()
+            cookies.load(response.getheader("Set-Cookie", ""))
+            self.operator_headers = {
+                "Cookie": f"argus_operator={cookies['argus_operator'].coded_value}",
+                "X-Argus-CSRF": value["csrf_token"],
+            }
+        return value
 
     def wait(self, status: str, run_id: str) -> dict[str, Any]:
         deadline = time.monotonic() + 8
@@ -88,7 +96,8 @@ def cold_run(api: LocalAPI, hold: float) -> tuple[str, dict[str, Any]]:
 
     action_path = f"/agent/actions/{quote(proposal['id'], safe='')}"
     decision = {"digest": proposal["digest"], "idempotency_key": "offline-rehearsal-approval"}
-    api.json(f"{action_path}/approve", decision, run_id=run_id)
+    api.json("/agent/operator/session", {})
+    api.json(f"{action_path}/approve", decision, run_id=run_id, operator=True)
     done = api.wait("completed", run_id)
     action = api.json(action_path, run_id=run_id)
     require(action["state"] == "VERIFIED", "the recorded action did not verify")
