@@ -13,15 +13,18 @@ export function Card({
   className,
   children,
   term,
+  light,
 }: {
   title: string;
   action?: ReactNode;
   className?: string;
   children: ReactNode;
   term?: string;
+  /** the glass catches the pointer's light (usePointerLight on the page) */
+  light?: boolean;
 }) {
   return (
-    <section className={`fx-card${className ? ` ${className}` : ""}`}>
+    <section className={`fx-card${className ? ` ${className}` : ""}`} data-light={light ? "" : undefined}>
       <header className="fx-card-head">
         <h2 className="fx-hud">{term ? <Term term={term}>{title}</Term> : title}</h2>
         {action}
@@ -71,7 +74,7 @@ export function Spark({ values, className }: { values: number[]; className?: str
       {values.length > 1 && (
         <>
           <path className="ws-spark-area" d={`${line}L${w},${h}L0,${h}Z`} />
-          <path className="ws-spark-line" d={line} />
+          <path className="ws-spark-line" d={line} pathLength={1} />
         </>
       )}
     </svg>

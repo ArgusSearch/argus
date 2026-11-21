@@ -5,4 +5,5 @@ export { GraphStage, type GraphSceneProps } from "./GraphStage";
 export { StyleProvider, useFx, type FxPhase } from "./StyleProvider";
 export * from "./ui";
 export { openIncidentPage } from "./nav";
+export { useStoryFocus } from "./workspace/story";
 export { FxWorkspace, type WorkspaceProps } from "./workspace/Workspace";

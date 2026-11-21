@@ -103,9 +103,9 @@ export function storyHeadline(graph: Graph | null, node: string, changePct: numb
 /** How far a metric is off its usual level, in words; the lines are the watcher's own thresholds. */
 export function unusualness(z: number | null, wiggle: number, alarm: number): { word: string; tone: Tone } {
   if (z === null) return { word: "not checked this hour", tone: "muted" };
-  if (z >= alarm) return { word: "far off usual", tone: "alarm" };
-  if (z >= wiggle) return { word: "a little off", tone: "watch" };
-  return { word: "as usual", tone: "ok" };
+  if (z >= alarm) return { word: "alarm", tone: "alarm" };
+  if (z >= wiggle) return { word: "unusual", tone: "watch" };
+  return { word: "normal", tone: "ok" };
 }
 
 export interface GlossaryEntry {

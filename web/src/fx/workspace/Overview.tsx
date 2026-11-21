@@ -2,7 +2,7 @@
 // four checks it is the average of, this week's decisions (proposed actions with their cost and an approve
 // button), the key metrics in words, the 3D preview of an incident's path and the track record.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { eur, dayLabel, hhmm } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
@@ -14,6 +14,7 @@ import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
 import { approve, useApproval } from "./approvals";
 import { health, keyMetrics, tasks, tiles, type Check, type Health, type Task, type Tile } from "./health";
+import { CountUp, useCountUp, usePointerLight } from "./motion";
 import { affectedPath, type PathSubject } from "./path";
 import { metricName, STATE, unusualness, VERDICT, wherePhrase } from "./plain";
 import { Card, Pill, Spark, Term, useIncidents } from "./ui";
@@ -32,8 +33,10 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const subject = affectedPath(view);
   const { incidents } = useIncidents(view);
   const todo = useMemo(() => tasks(incidents, graph), [incidents, graph]);
+  const page = useRef<HTMLElement>(null);
+  usePointerLight(page);
   return (
-    <main className="fx-dash ws-page ws-overview" aria-label="overview">
+    <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Overview{view.simTs ? ` · ${dayLabel(view.simTs)} ${hhmm(view.simTs)}` : ""}</span>
         <h1>{headline(view, h)}</h1>
@@ -61,10 +64,12 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
 
 function TileCard({ tile }: { tile: Tile }) {
   return (
-    <div className={`ws-tile t-${tile.tone}`} title={tile.hint}>
+    <div className={`ws-tile t-${tile.tone}`} title={tile.hint} data-light="">
       <span className="ws-tile-label">{tile.term ? <Term term={tile.term}>{tile.label}</Term> : tile.label}</span>
       <span className="ws-tile-value">
-        <b>{tile.value}</b>
+        <b aria-label={tile.value}>
+          <CountUp value={tile.amount} format={tile.money ? (n) => eur(Math.round(n)) : undefined} />
+        </b>
         {tile.unit && <span>{tile.unit}</span>}
       </span>
       <span className="ws-tile-change">{tile.change}</span>
@@ -76,7 +81,9 @@ function TileCard({ tile }: { tile: Tile }) {
 /* ------------------------------------------------------------------ health */
 
 /** The gauge: a 240° arc from the lower left to the lower right, filled to the score. */
-function Gauge({ score, tone }: { score: number | null; tone: Health["tone"] }) {
+function Gauge({ score: target, tone }: { score: number | null; tone: Health["tone"] }) {
+  const counted = useCountUp(target ?? 0, 1400);
+  const score = target === null ? null : Math.round(counted);
   const r = 78;
   const c = { x: 100, y: 100 };
   const start = 150; // degrees, measured clockwise from the positive x axis
@@ -86,10 +93,10 @@ function Gauge({ score, tone }: { score: number | null; tone: Health["tone"] }) 
     return `${(c.x + r * Math.cos(rad)).toFixed(2)},${(c.y + r * Math.sin(rad)).toFixed(2)}`;
   };
   const arc = (from: number, to: number) => `M${point(from)} A${r},${r} 0 ${to - from > 180 ? 1 : 0} 1 ${point(to)}`;
-  const value = score === null ? 0 : Math.max(0, Math.min(100, score));
+  const value = target === null ? 0 : Math.max(0, Math.min(100, counted));
   const end = start + (sweep * value) / 100;
   return (
-    <svg className={`ws-gauge t-${tone}`} viewBox="0 0 200 172" role="img" aria-label={score === null ? "Shop health not scored yet" : `Shop health ${score} of 100`}>
+    <svg className={`ws-gauge t-${tone}`} viewBox="0 0 200 172" role="img" aria-label={target === null ? "Shop health not scored yet" : `Shop health ${target} of 100`}>
       <defs>
         <linearGradient id="ws-gauge-ice" x1="0" x2="1" y1="0" y2="0">
           <stop offset="0" stopColor="var(--ws-gauge-from)" />
@@ -129,7 +136,9 @@ function CheckBar({ c }: { c: Check }) {
       <span className="ws-check-bar" aria-hidden="true">
         <i style={{ height: `${Math.round(100 * c.share)}%` }} />
       </span>
-      <b>{Math.round(100 * c.share)}%</b>
+      <b>
+        <CountUp value={Math.round(100 * c.share)} ms={1200} />%
+      </b>
       <span className="ws-check-label">{c.label}</span>
       <span className="ws-check-detail">{c.detail}</span>
     </li>
@@ -139,7 +148,7 @@ function CheckBar({ c }: { c: Check }) {
 function HealthCard({ h }: { h: Health }) {
   const weakest = [...h.checks].sort((a, b) => a.share - b.share)[0];
   return (
-    <Card title="Shop health" term="Health score" className="ws-health">
+    <Card title="Shop health" term="Health score" className="ws-health" light>
       <div className="ws-health-body">
         <div className="ws-health-gauge">
           <Gauge score={h.score} tone={h.tone} />
@@ -169,7 +178,7 @@ function TaskItem({ task, view }: { task: Task; view: RunView }) {
   const state = STATE[task.state];
   const done = task.state === "resolved";
   return (
-    <li className={`ws-task${done ? " done" : ""}`}>
+    <li className={`ws-task${done ? " done" : ""}`} data-light="">
       <div className="ws-task-head">
         <span className="mono">{task.id}</span>
         <Pill tone={state.tone} title={state.help}>
@@ -179,7 +188,7 @@ function TaskItem({ task, view }: { task: Task; view: RunView }) {
           {VERDICT[task.verdict].label}
         </Pill>
         <span className="ws-task-eur" title="cost so far">
-          {eur(task.eur)}
+          <CountUp value={task.eur} format={(n) => eur(Math.round(n))} />
         </span>
       </div>
       <p className="ws-task-title">{task.headline}</p>
@@ -211,6 +220,7 @@ function TasksCard({ todo, view }: { todo: Task[]; view: RunView }) {
     <Card
       title="This week: your decisions"
       className="ws-tasks"
+      light
       action={
         <button className="btn" onClick={() => go("incidents")}>
           All incidents
@@ -241,7 +251,7 @@ function MetricsCard({ graph, view, onSelectNode }: { graph: Graph | null; view:
   const ids = keyMetrics(graph);
   const { wiggle_z: wiggle, alarm_z: alarm } = view.thresholds;
   return (
-    <Card title="Key metrics, this hour" term="|z|" className="ws-metrics">
+    <Card title="Key metrics, this hour" term="|z|" className="ws-metrics" light>
       <ul className="ws-metric-list">
         {ids.map((id) => {
           const status = metricStatus(view, id);
@@ -339,6 +349,7 @@ function TrackRecordCard() {
       title="Track record"
       term="pass@1"
       className="ws-record"
+      light
       action={
         <button className="btn" onClick={() => go("scorecard")}>
           Details
@@ -350,13 +361,15 @@ function TrackRecordCard() {
         <>
           <div className="ws-record-hero">
             <div>
-              <b>
-                {right(argus)}/{argus.runs}
+              <b aria-label={`${right(argus)} of ${argus.runs}`}>
+                <CountUp value={right(argus)} ms={1100} />/{argus.runs}
               </b>
               <span>test runs right</span>
             </div>
             <div>
-              <b>{argus.false_alarms}</b>
+              <b>
+                <CountUp value={argus.false_alarms} />
+              </b>
               <span>false alarms</span>
             </div>
           </div>

@@ -68,6 +68,10 @@ export interface Tile {
   key: string;
   label: string;
   value: string;
+  /** the value as a number, for the count-up; `value` is its final text */
+  amount: number;
+  /** format the amount as euros (else as a whole number) */
+  money?: boolean;
   /** the unit or the count the value is out of, shown small next to it */
   unit?: string;
   /** what changed, in words */
@@ -99,6 +103,8 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
       key: "cost",
       label: "Cost of incidents",
       value: eur(lost),
+      amount: lost,
+      money: true,
       change: open.length ? `${eur(stillOpen)} still open` : lost ? "stopped: every incident closed" : "nothing lost",
       tone: open.length ? "alarm" : "ok",
       series: hours.map((h) => h.eur),
@@ -108,6 +114,7 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
       key: "open",
       label: "Open incidents",
       value: String(open.length),
+      amount: open.length,
       change: incidents.length ? `${incidents.length - open.length} of ${incidents.length} resolved this week` : "none this week",
       tone: open.length ? "alarm" : "ok",
       series: hours.map((h) => h.open),
@@ -117,6 +124,7 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
       key: "metrics",
       label: "Key metrics normal",
       value: String(scored - off.length),
+      amount: scored - off.length,
       unit: `of ${scored}`,
       change: off.length ? `${off.map((s) => metricName(graph, s.id)).join(", ")} off usual` : "all in their usual range",
       tone: off.length ? "alarm" : "ok",
@@ -128,6 +136,7 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
       key: "noise",
       label: "Small moves ignored",
       value: String(view.wiggles),
+      amount: view.wiggles,
       change: `${view.notes.length} alert${view.notes.length === 1 ? "" : "s"} held back on purpose`,
       tone: "ok",
       series: hours.map((h) => h.z.filter((z) => z >= wiggle && z < alarm).length),
@@ -138,6 +147,7 @@ export function tiles(view: RunView, graph: Graph | null): Tile[] {
       key: "human",
       label: "Human actions needed",
       value: "0",
+      amount: 0,
       unit: `in ${view.ticks} h`,
       change: "detected, explained and closed alone",
       tone: "ok",

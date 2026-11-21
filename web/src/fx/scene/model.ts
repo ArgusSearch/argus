@@ -49,12 +49,22 @@ export interface SceneModel {
 
 /** The short names the 2D graph uses where the full label does not fit a block. */
 export const SHORT_LABEL: Readonly<Record<string, string>> = {
+  sessions: "Visitors",
+  gmv: "Revenue",
   payment_success_rate: "Payment success",
-  impressions_per_session: "Impr. per session",
+  impressions_per_session: "Ads per visit",
   aov: "Order value (AOV)",
   cvr: "Conversion",
   payment_attempts: "Pay attempts",
   payment_successes: "Pay successes",
+  cpa: "Cost per customer",
+  ctr: "Click rate (CTR)",
+  cpc: "Cost per click (CPC)",
+  roas: "Return on ads (ROAS)",
+  attributed_gmv: "Revenue from ads",
+  planned_spend: "Planned ad spend",
+  ad_conversions: "Orders from ads",
+  pacing_ratio: "Budget pacing",
 };
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -152,7 +162,9 @@ export function sceneModel(graph: Graph, view: RunView, previous?: SceneModel): 
       tag = "resolved";
     }
     const focus = focusNodes.has(n.id);
-    if (focus && split.some((e) => e.startsWith(`b_${n.id}_`))) tag = "segment search";
+    const told = view.focus?.tags?.[n.id];
+    if (focus && told) tag = told;
+    else if (focus && split.some((e) => e.startsWith(`b_${n.id}_`))) tag = "segment search";
     else if (focus) tag = tag ?? "checking";
     return {
       id: n.id,
@@ -180,7 +192,7 @@ export function sceneModel(graph: Graph, view: RunView, previous?: SceneModel): 
       heat: 0,
       focus,
       scored: false,
-      tag: focus ? "checking" : null,
+      tag: focus ? (view.focus?.tags?.[l.id] ?? "checking") : null,
       position: at(l.id),
     });
   }

@@ -13,6 +13,7 @@ import { go, useLocation, watchHost, type Section } from "../nav";
 import { IncidentPage } from "./IncidentPage";
 import { Overview } from "./Overview";
 import { GlossaryPage, IncidentsPage } from "./Pages";
+import { StoryPanel } from "./StoryPanel";
 import { tip } from "./plain";
 
 export interface WorkspaceProps {
@@ -41,6 +42,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       {section === "incidents" && <IncidentsPage graph={graph} view={view} onOpenIncident={onOpenIncident} />}
       {section === "incident" && incident && <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />}
       {section === "glossary" && <GlossaryPage />}
+      {section === "graph" && <StoryPanel graph={graph} view={view} />}
     </>
   );
 }

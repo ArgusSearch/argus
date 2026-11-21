@@ -38,6 +38,8 @@ export interface Focus {
   nodes: string[];
   edges: string[];
   logs: string[];
+  /** short words to show on a touched block instead of "checking" (the visualization's story: "-€102,376") */
+  tags?: Record<string, string>;
 }
 
 export interface StepView {

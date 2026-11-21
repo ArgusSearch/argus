@@ -140,3 +140,33 @@ describe("navigation", () => {
     expect(followHost("graph", false)).toBe("graph");
   });
 });
+
+describe("the visualization's incident story", () => {
+  it("walks S1 from revenue down the formulas to payment success, then the cause and the ruled-out suspects", async () => {
+    const { formulaChain, storyOf, storyFocus } = await import("../../../src/fx/workspace/story");
+    const graph = loadGraph();
+    expect(formulaChain(graph, "payment_success_rate")).toEqual({ nodes: ["gmv", "orders", "cvr", "payment_success_rate"], edges: ["f_gmv", "f_orders", "f_cvr"] });
+    const story = storyOf(graph, incidents()[0]);
+    expect(story.steps.map((s) => s.kind)).toEqual(["effect", "effect", "effect", "root", "cause", "ruled", "ruled"]);
+    expect(story.steps[0].focus.tags?.gmv).toMatch(/^-€[\d,]+$/);
+    expect(story.steps[3].focus.tags?.payment_success_rate).toMatch(/^-\d+\.\d%$/);
+    expect(story.steps[4].focus.logs).toEqual(["log_provider_status"]);
+    expect(story.steps.filter((s) => s.kind === "ruled").every((s) => s.focus.tags && Object.values(s.focus.tags)[0].startsWith("✕"))).toBe(true);
+    const all = storyFocus(story, story.steps.length - 1);
+    expect(all.nodes).toEqual(["gmv", "orders", "cvr", "payment_success_rate"]);
+    expect(new Set(all.logs)).toEqual(new Set(["log_provider_status", "log_deploys"]));
+    expect(storyFocus(story, 0).nodes).toEqual(["gmv"]);
+  });
+
+  it("finds a chain for every recorded incident's root", async () => {
+    const { formulaChain } = await import("../../../src/fx/workspace/story");
+    for (const scenario of ["s4", "s5"]) {
+      const graph = loadGraph(scenario);
+      for (const inc of incidents(scenario)) {
+        const chain = formulaChain(graph, inc.findings.root?.node ?? inc.root_node);
+        expect(chain.nodes[chain.nodes.length - 1]).toBe(inc.findings.root?.node ?? inc.root_node);
+        expect(chain.edges.length).toBe(chain.nodes.length - 1);
+      }
+    }
+  });
+});

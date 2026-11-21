@@ -1,5 +1,5 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Feed } from "./components/Feed";
 import { Header } from "./components/Header";
 import { IncidentSheet } from "./components/IncidentSheet";
@@ -8,12 +8,13 @@ import { AutonomyLegend, DigestModal } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
-import { FxWorkspace, fxOn, GraphStage, openIncidentPage } from "./fx";
+import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
 import { ViewHost } from "./views";
 
+/** The graph's legend in plain words: what a line is, and what a block's color says. */
 function Legend() {
   const line = (dash: string | undefined, color: string) => (
     <svg width="26" height="8" aria-hidden>
@@ -22,13 +23,15 @@ function Legend() {
   );
   return (
     <div className="legend">
-      <span className="legend-item">{line(undefined, "#6b7590")}formula</span>
-      <span className="legend-item">{line("2 4", "#7a76b8")}evidence</span>
-      <span className="legend-item">{line("6 5", "#e3a63b")}suspected cause (on trial)</span>
-      <span className="legend-item">{line(undefined, "#f2585d")}broken link</span>
+      <span className="legend-item">{line(undefined, "#6b7590")}built from</span>
+      <span className="legend-item">{line("2 4", "#7a76b8")}change log</span>
+      <span className="legend-item">
+        <span className="swatch" style={{ borderColor: "#3fbf8f" }} />
+        normal
+      </span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#e3a63b" }} />
-        small move
+        unusual
       </span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#f2585d" }} />
@@ -124,6 +127,9 @@ export function App() {
   const closeDigest = useCallback(() => setDigestOpen(false), []);
   const closeNode = useCallback(() => setNodeId(null), []);
   const latest = view.anomalies[view.anomalies.length - 1];
+  // the visualization's incident story lights its path on the map (style layer only; null otherwise)
+  const story = useStoryFocus();
+  const sceneView = useMemo(() => (story ? { ...view, focus: story } : view), [view, story]);
 
   return (
     <ReceiptProvider>
@@ -143,10 +149,8 @@ export function App() {
           <div className="left">
             <section className="graph" aria-label="metric graph">
               <div className="graph-bar">
-                <span className="panel-title">Metric map</span>
-                <span className="sub">
-                  {graph ? `${graph.nodes.length} metrics · ${graph.edges.length} links, each re-checked against the data · ${graph.logs.length} change logs` : "loading"}
-                </span>
+                <span className="panel-title">How your shop's numbers connect</span>
+                <span className="sub">Argus follows these lines to find the cause.</span>
                 {latest && view.focus && (
                   <span className="checking">
                     checking <b className="mono">{latest.node}</b>
@@ -157,7 +161,7 @@ export function App() {
                 {connection === "offline" && <div className="banner">The API is offline. Start it with make api or make demo.</div>}
                 {graph && (
                   <ReactFlowProvider>
-                    <GraphStage graph={graph} view={view} onSelectNode={setNodeId} />
+                    <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />
                   </ReactFlowProvider>
                 )}
               </div>

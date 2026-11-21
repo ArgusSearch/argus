@@ -5,6 +5,7 @@
 // switches tabs by itself, so neither side edits the other.
 
 import { useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 export type HostView = "graph" | "tree" | "investigation" | "report" | "scorecard";
 export type Page = "dashboard" | "incidents" | "incident" | "glossary";
@@ -61,11 +62,37 @@ let current: Location = typeof window === "undefined" ? HOME : initialLocation(w
 let previous: Location = HOME;
 let requested: HostView | null = null;
 
-function set(next: Location) {
-  if (next.section === current.section && next.incident === current.incident) return;
-  if (current.section !== "incident") previous = current;
-  current = next;
-  for (const listener of [...listeners]) listener();
+type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+
+const calm = () => typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Runs a page change as a view transition where the browser has one: the old page blurs away while the new
+ * one rises (fx.css), and the ice scene behind both keeps moving. The update is flushed synchronously so the
+ * transition captures the new page; without the API, or with reduced motion, the change is instant.
+ */
+function transition(update: () => void) {
+  const doc = document as TransitionDocument;
+  if (!doc.startViewTransition || calm() || document.hidden) {
+    update();
+    return;
+  }
+  doc.startViewTransition(() => flushSync(update)).finished.catch(() => undefined);
+}
+
+function set(next: Location, after?: () => void) {
+  if (next.section === current.section && next.incident === current.incident) {
+    after?.();
+    return;
+  }
+  const update = () => {
+    if (current.section !== "incident") previous = current;
+    current = next;
+    for (const listener of [...listeners]) listener();
+    after?.();
+  };
+  if (typeof document === "undefined") update();
+  else transition(update);
 }
 
 function subscribe(listener: Listener) {
@@ -93,12 +120,13 @@ export function hostTab(): HostView | null {
  * where it is, so demo mode's own switch back to the graph still registers as a change.
  */
 export function go(next: Section, incident: string | null = null) {
-  set({ section: next, incident: next === "incident" ? incident : null });
   const tab: HostView | null = isHostView(next) ? next : next === "incident" ? null : "graph";
-  if (tab && hostTab() !== tab) {
-    requested = tab;
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: HOST_KEYS[tab] }));
-  }
+  set({ section: next, incident: next === "incident" ? incident : null }, () => {
+    if (tab && hostTab() !== tab) {
+      requested = tab;
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: HOST_KEYS[tab] }));
+    }
+  });
 }
 
 export function openIncidentPage(id: string) {

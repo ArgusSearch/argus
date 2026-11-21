@@ -78,7 +78,7 @@
 }
 
 /* sections: the workspace's own pages take the body and the feed's column; the graph waits behind them */
-:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) :is(.graph, .trail, .vh-view, .rail) {
+:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"]) :is(.trail, .vh-view, .rail) {
   display: none;
 }
 
@@ -90,7 +90,7 @@
   display: none;
 }
 
-:root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) :is(.graph, .trail) {
+:root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) .trail {
   display: none;
 }
 
@@ -100,8 +100,13 @@
   display: none;
 }
 
-:root[data-fx][data-fx-section="graph"] :is(.graph, .trail) {
+:root[data-fx][data-fx-section="graph"] .trail {
   grid-column: 2 / 4;
+}
+
+/* the map on the left, the panel that explains it (StoryPanel) in the feed's column */
+:root[data-fx][data-fx-section="graph"] .graph {
+  grid-column: 2;
 }
 
 /* the visualization is the map alone: the investigation's steps have their own page (Live investigation) */
@@ -200,7 +205,49 @@
 }
 
 /* the scene shows on the graph section only */
-:root[data-fx]:not([data-fx-section="graph"]) #fx-stage > * {
+/* The ice scene never leaves: on every page but the visualization it is the backdrop, under a veil of fog,
+   behind the glass. The graph panel stays laid out as the scene's framing rectangle (invisible, inert), and each
+   page gives it another place, so a page change is also a soft camera glide (the rig frames the rectangle). */
+:root[data-fx]:not([data-fx-section="graph"]) .graph {
+  grid-column: 2 / 4;
+  grid-row: 3 / 5;
+  z-index: 0;
+  margin: 34vh 0 0 46%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-fx][data-fx-section="incident"] .graph {
+  margin: 0 0 34vh 50%;
+}
+
+:root[data-fx]:is([data-fx-section="tree"], [data-fx-section="investigation"], [data-fx-section="report"], [data-fx-section="scorecard"]) .graph {
+  margin: 8vh 4% 8vh 18%;
+}
+
+:root[data-fx]:not([data-fx-section="graph"]) :is(.fx-dash, .vh-view, .rail) {
+  position: relative;
+  z-index: 1;
+}
+
+/* the view host hides the graph tab's panel, which would stop the scene: here it keeps running as the backdrop */
+:root[data-fx]:not([data-fx-section="graph"]):has(.vh-graph[hidden]) #fx-stage > * {
+  opacity: 1;
+}
+
+:root[data-fx] #fx-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 30% 10%, var(--fx-stage-hi), transparent 70%),
+    linear-gradient(180deg, var(--fx-stage) 30%, var(--fx-stage-lo));
+  opacity: 0.5;
+  transition: opacity var(--fx-dur-slow) var(--fx-ease-inout);
+}
+
+:root[data-fx][data-fx-section="graph"] #fx-stage::after {
   opacity: 0;
 }
 
