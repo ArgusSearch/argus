@@ -545,6 +545,7 @@
 }
 
 .tv-section {
+  max-width: 1276px;
   margin: 12px 22px 0;
   padding: 14px 0 6px;
   border-top: 1px solid var(--line);

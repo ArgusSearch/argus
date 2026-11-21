@@ -29,10 +29,18 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
   const focusNodes = view.focus?.nodes ?? [];
   const focusKey = focusNodes.join(",");
 
-  // first paint: the top two levels are open
+  // first paint: the outcomes and what they are made of are open (two levels of metrics)
   useEffect(() => {
     if (!tree) return;
-    setOpen(new Set([...tree.roots, ...tree.unattached].map((r) => r.key)));
+    const keys: string[] = [];
+    const walk = (r: TreeRow) => {
+      if (r.depth > 1 || r.kind !== "metric" || r.ref) return;
+      keys.push(r.key);
+      r.children.forEach(walk);
+    };
+    tree.roots.forEach(walk);
+    keys.push(...tree.unattached.map((r) => r.key));
+    setOpen(new Set(keys));
   }, [tree]);
 
   // the running investigation opens the tree down to the metrics it is checking
