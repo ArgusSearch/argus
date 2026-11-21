@@ -4,14 +4,18 @@ import { ROLES } from "../roles";
 import { idleBubbles, timeline, villageAt } from "../timeline";
 import type { ActivityRecord, VillageTape } from "../types";
 import s1Tape from "../tapes/s1.json";
+import s2Tape from "../tapes/s2.json";
 import s4Tape from "../tapes/s4.json";
+import s5Tape from "../tapes/s5.json";
 
 const s1 = s1Tape as unknown as VillageTape;
 const s4 = s4Tape as unknown as VillageTape;
+const s2 = s2Tape as unknown as VillageTape;
+const s5 = s5Tape as unknown as VillageTape;
 const idle = idleBubbles(ROLES);
 
 // the recordings the tapes were built from (tools/build-tapes.mjs): a tape must not drift from its fixture
-const fixtures = import.meta.glob<string>(["../../../../fixtures/events.jsonl", "../../../../fixtures/s4/events.jsonl"], {
+const fixtures = import.meta.glob<string>(["../../../../fixtures/events.jsonl", "../../../../fixtures/s{2,4,5}/events.jsonl"], {
   query: "?raw",
   import: "default",
   eager: true,
@@ -25,6 +29,8 @@ describe("tapes", () => {
     for (const [path, tape] of [
       ["../../../../fixtures/events.jsonl", s1],
       ["../../../../fixtures/s4/events.jsonl", s4],
+      ["../../../../fixtures/s2/events.jsonl", s2],
+      ["../../../../fixtures/s5/events.jsonl", s5],
     ] as const) {
       const raw = fixtures[path];
       expect(raw, path).toBeTruthy();
@@ -98,6 +104,26 @@ describe("S4", () => {
     const done = buildBeats(s4, { decision: "approve" });
     expect(done[done.length - 1].role).toBe("watcher");
     expect(order(open)).toContain("cartographer");
+  });
+});
+
+describe("the harmless change and the market dip", () => {
+  it("S2: a planned push is checked, logged by the Narrator and wakes nobody", () => {
+    const beats = buildBeats(s2, { decision: null });
+    expect(beats.some((b) => b.gate)).toBe(false);
+    const note = beats.find((b) => b.kind === "note");
+    expect(note?.role).toBe("narrator");
+    expect(note?.done).toMatch(/nobody woken/);
+    expect(beats[beats.length - 1].kind).toBe("watch");
+  });
+
+  it("S5: the Market Analyst clears the shared dip three times, then the routing fault asks for approval", () => {
+    const beats = buildBeats(s5, { decision: null });
+    const market = beats.filter((b) => b.role === "market");
+    expect(market).toHaveLength(3);
+    expect(market.every((b) => b.done === "The whole market moved: expected")).toBe(true);
+    expect(beats.filter((b) => b.kind === "note")).toHaveLength(3);
+    expect(beats[beats.length - 1].gate).not.toBeNull();
   });
 });
 

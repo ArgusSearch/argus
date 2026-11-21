@@ -13,9 +13,10 @@
   --vl-need: #e5534b;
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   min-height: 520px;
   overflow: hidden;
+  border-radius: var(--vl-radius, 0);
   background: linear-gradient(180deg, #c3c9d6, #a2a8b5 60%);
   color: var(--vl-ink);
   font: 14px/1.4 var(--vl-sans);
@@ -838,4 +839,10 @@
   .vl-hud-bc {
     display: none;
   }
+}
+
+/* inside the workspace: a framed panel like the other pages */
+.ws-village .vl-root {
+  --vl-radius: 14px;
+  box-shadow: 0 24px 60px -30px rgba(11, 19, 32, 0.35);
 }

@@ -151,12 +151,32 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
     setStage("2d");
   }, []);
 
+  // fill the window below wherever the shell puts the page (the lab page starts at the top)
+  const root = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const fit = () => {
+      const top = Math.max(0, el.getBoundingClientRect().top + window.scrollY);
+      const bottom = top > 0 ? 16 : 0;
+      el.style.height = `${Math.max(520, window.innerHeight - top - bottom)}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    const ro = new ResizeObserver(fit);
+    if (el.parentElement) ro.observe(el.parentElement);
+    return () => {
+      window.removeEventListener("resize", fit);
+      ro.disconnect();
+    };
+  }, []);
+
   const total = player.timeline.total;
   const progress = total ? Math.min(1, player.time / total) : 0;
   const caseId = state.beat?.caseId ?? null;
 
   return (
-    <section className={`vl-root vl-${stage}`} aria-label="Argus village">
+    <section ref={root} className={`vl-root vl-${stage}`} aria-label="Argus village">
       <div className="vl-stage">
         {stage === "3d" ? (
           <SceneBoundary onFail={onFail}>
