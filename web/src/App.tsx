@@ -67,6 +67,11 @@ export function App() {
     });
   }, []);
 
+  // a page opened while the API was down has no graph yet: fetch it once the stream is open
+  useEffect(() => {
+    if (connection === "open" && !graph) api.graph().then(setGraph, () => undefined);
+  }, [connection, graph]);
+
   // the watcher's lines come from the API; counters folded before they arrived are recounted
   const thresholds = health?.thresholds;
   useEffect(() => {
