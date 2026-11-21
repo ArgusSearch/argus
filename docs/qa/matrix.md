@@ -38,11 +38,16 @@ argus      s1 3x exact | s2 3x explained | s3 3x data issue | s4 3x right cause 
 threshold  s5  0%  3x paged on a planned change (FA 9)
 ```
 
-### Smoke suite on main @ 260d499
+### Smoke suite on main @ 2c36e82 (fixtures re-recorded, platform-independent worlds)
 
-- `npm --prefix e2e test` gives 21 passed, 2 skipped (screenshots), twice in a row, in 2:50 and 2:53.
-- `scenarios.spec.ts` now covers S5.
-- Seven specs are marked `test.fail` for open bugs that have fix PRs: #6 (#32), #13 (#41), #14 (#40), #15 (#60), #16 (#61); #33 was fixed on main in f85616a and its spec now runs as a normal check. Each turns red once its fix lands, as a reminder to remove the mark.
+- `npm --prefix e2e test` (everything except the fx layer) gives 21 passed, twice in a row, in 2:56 and 2:58.
+- `npm --prefix e2e run test:fx` gives 7 passed in 1:10. It covers the fx dashboard, every sidebar view, the 3D graph (headless Chromium renders the scene through SwiftShader), the night theme, and the recording URL `/?demo=1&captions=1&fx=1` playing hands-off with captions.
+- `scenarios.spec.ts`: the re-recorded S2 note now cites the calendar plan `cal_adv_01_FR_push` instead of a budget line, so the check accepts either.
+- Specs marked `test.fail` for open bugs, each turning red once its fix lands:
+  - #6 (fix PR #32), #13 (#41), #14 (#40), #15 (#60), #16 (#61);
+  - #63 (fx key 1, no PR yet).
+- #33 was fixed on main in f85616a; its spec now runs as a normal check.
+- CI on main is green again on 2c36e82: 118a335 makes worlds identical on macOS and Linux. That fixes the cause of the earlier red CI (#24).
 
 ---
 
@@ -172,3 +177,10 @@ See [e2e/README.md](../../e2e/README.md): 7 specs, replay and live mode.
 | [37](https://github.com/ArgusSearch/argus/issues/37) | web | P2 | S2 Verdict trail card text cut off |
 | [38](https://github.com/ArgusSearch/argus/issues/38) | web | P2 | "no anomaly yet" stays after the run is complete |
 | [62](https://github.com/ArgusSearch/argus/issues/62) | api | P2 | `GET /routes` omits the 14 new routes |
+| [63](https://github.com/ArgusSearch/argus/issues/63) | web | P2 | fx: key 1 does nothing on the dashboard |
+| [64](https://github.com/ArgusSearch/argus/issues/64) | web | P1 | fx: "While you slept" card contradicts the ticker mid-run |
+| [65](https://github.com/ArgusSearch/argus/issues/65) | web | P2 | fx: text cut at box edges (path preview, morning card at 1440) |
+| [66](https://github.com/ArgusSearch/argus/issues/66) | web | P2 | fx: badge over a block label; demo caption over the active step |
+| [67](https://github.com/ArgusSearch/argus/issues/67) | web | P2 | fx night theme contrast |
+| [68](https://github.com/ArgusSearch/argus/issues/68) | web | P1 | fx: the running investigation's current step is cut at the bottom of 1920x1080 |
+| [69](https://github.com/ArgusSearch/argus/issues/69) | web | P2 | demo mode at speed ≥8 races the replay loop |

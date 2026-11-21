@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "test": "ARGUS_E2E_FX=0 playwright test",
+    "test:fx": "playwright test fx",
+    "test:all": "playwright test",
     "test:live": "ARGUS_E2E_MODE=live playwright test",
     "report": "playwright show-report"
   },
