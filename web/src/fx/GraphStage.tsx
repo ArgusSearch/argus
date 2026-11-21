@@ -1,7 +1,8 @@
 // Drop-in for GraphView. Without the flag it renders GraphView and nothing else, so the page is unchanged and
 // the 3D chunk is never requested. With the flag it lazy-loads the scene (web/src/fx/scene/GraphScene.tsx,
 // report section 3.4, I4) and falls back to the classic graph when that file is absent, WebGL2 is missing or
-// the scene throws.
+// the scene throws. The preview variant is the dashboard's affected-path card: the scene or nothing, because a
+// classic graph does not fit a card; the dashboard checks sceneAvailable() before it offers the card.
 
 import { Component, lazy, Suspense, useEffect, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { GraphView } from "../components/GraphView";
@@ -10,11 +11,13 @@ import type { Graph } from "../lib/types";
 import { markStageReady } from "./events";
 import { fxOn } from "./flag";
 
-/** The props of today's GraphView, which the scene takes as well (I4). */
+/** The props of today's GraphView, which the scene takes as well (I4), and the scene's size. */
 export interface GraphSceneProps {
   graph: Graph;
   view: RunView;
   onSelectNode?: (id: string) => void;
+  /** "full" (default): the graph's own view. "preview": the dashboard card framing the affected path. */
+  variant?: "full" | "preview";
 }
 
 type SceneModule = { default: ComponentType<GraphSceneProps> };
@@ -69,7 +72,7 @@ class SceneBoundary extends Component<{ fallback: () => ReactNode; children: Rea
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.warn("[fx] the 3D graph failed, showing the classic graph instead", error, info.componentStack);
+    console.warn("[fx] the 3D graph failed and stepped aside", error, info.componentStack);
   }
 
   render() {
@@ -77,7 +80,17 @@ class SceneBoundary extends Component<{ fallback: () => ReactNode; children: Rea
   }
 }
 
-export function GraphStage(props: GraphSceneProps) {
+export function GraphStage({ variant = "full", ...props }: GraphSceneProps) {
+  if (variant === "preview") {
+    if (!Scene || !sceneAvailable()) return null;
+    return (
+      <SceneBoundary fallback={() => null}>
+        <Suspense fallback={null}>
+          <Scene {...props} variant="preview" />
+        </Suspense>
+      </SceneBoundary>
+    );
+  }
   if (!fxOn()) return <GraphView {...props} />;
   if (!Scene || !sceneAvailable()) return <ClassicGraph {...props} />;
   return (

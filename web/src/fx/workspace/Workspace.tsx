@@ -16,7 +16,9 @@ import { investigations, metricStatus, type MetricState } from "../../views/mode
 import { isScorecard, summaryMetrics, type Scorecard } from "../../views/scorecard";
 import sampleUrl from "../../views/fixtures/scorecard.sample.json?url";
 import { fxOn } from "../flag";
+import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, useSection, watchHost, type Section } from "../nav";
+import { affectedPath, type PathSubject } from "./path";
 
 export interface WorkspaceProps {
   graph: Graph | null;
@@ -123,6 +125,7 @@ function headline(graph: Graph | null, view: RunView): string {
 
 function Dashboard({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const stars = useMemo(() => (graph?.nodes ?? []).filter((n) => n.north_star), [graph]);
+  const subject = affectedPath(view);
   return (
     <main className="fx-dash" aria-label="dashboard">
       <header className="fx-dash-head">
@@ -143,6 +146,7 @@ function Dashboard({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       </section>
       <div className="fx-dash-grid">
         <div className="fx-dash-col">
+          {graph && subject && sceneAvailable() && <PathCard graph={graph} view={view} subject={subject} onSelectNode={onSelectNode} />}
           <IncidentsCard graph={graph} view={view} onOpenIncident={onOpenIncident} />
           <ScoreCard />
         </div>
@@ -318,6 +322,44 @@ function IncidentsCard({ graph, view, onOpenIncident }: { graph: Graph | null; v
           );
         })}
       </ul>
+    </Card>
+  );
+}
+
+const PATH_STATE: Record<PathSubject["phase"], { word: string; tone: Tone }> = {
+  anomaly: { word: "detected", tone: "alarm" },
+  investigating: { word: "checking", tone: "probe" },
+  verdict: { word: "explained", tone: "watch" },
+};
+
+/**
+ * The affected path at incident time as the 3D scene's preview: the anomaly, everything its formulas move and
+ * the evidence that held burn warm while the rest of the graph recedes. A block opens its metric.
+ */
+function PathCard({ graph, view, subject, onSelectNode }: { graph: Graph; view: RunView; subject: PathSubject; onSelectNode: (id: string) => void }) {
+  const state = subject.incident ? { word: subject.incident.state, tone: subject.incident.state === "monitoring" ? "ok" : "watch" } : PATH_STATE[subject.phase];
+  return (
+    <Card
+      title="Affected path"
+      className="fx-card-path"
+      action={
+        <span className="fx-card-actions">
+          <span className={`fx-path-state t-${state.tone}`}>
+            <span className="mono">{subject.incident?.id ?? shortLabel(graph, subject.node)}</span>
+            {state.word}
+          </span>
+          <button className="btn" onClick={() => go("graph")}>
+            Metric graph
+          </button>
+        </span>
+      }
+    >
+      <div className="fx-path-scene">
+        <GraphStage graph={graph} view={view} onSelectNode={onSelectNode} variant="preview" />
+      </div>
+      <p className="fx-card-note">
+        <span className="mono">{subject.node}</span>, what its formulas move downstream and the evidence that held. Click a block to open it.
+      </p>
     </Card>
   );
 }

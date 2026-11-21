@@ -813,6 +813,61 @@
   align-items: baseline;
 }
 
+/* the affected path at incident time: the 3D scene's preview in a well (the scene fills its positioned parent) */
+:root[data-fx] .fx-path-scene {
+  position: relative;
+  height: clamp(200px, 27vh, 300px);
+  overflow: hidden;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-well);
+}
+
+:root[data-fx] .fx-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-space-3);
+  min-width: 0;
+}
+
+:root[data-fx] .fx-path-state {
+  --tone: var(--alarm);
+  --tone-bg: var(--alarm-bg);
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 3px 7px;
+  overflow: hidden;
+  border-radius: var(--fx-radius-1);
+  background: var(--tone-bg);
+  color: var(--tone);
+  font: var(--fx-weight-medium) 9.5px / 1.2 var(--fx-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:root[data-fx] .fx-path-state .mono {
+  font: inherit;
+  color: var(--fx-ink-1);
+}
+
+:root[data-fx] .fx-path-state.t-watch {
+  --tone: var(--watch);
+  --tone-bg: var(--watch-bg);
+}
+
+:root[data-fx] .fx-path-state.t-probe {
+  --tone: var(--probe);
+  --tone-bg: var(--probe-bg);
+}
+
+:root[data-fx] .fx-path-state.t-ok {
+  --tone: var(--ok);
+  --tone-bg: var(--ok-bg);
+}
+
 :root[data-fx] .fx-path-cell i {
   color: var(--fx-ink-3);
   font: var(--fx-text-2xs) / 1 var(--fx-font-mono);
