@@ -29,6 +29,7 @@ from pydantic import ValidationError
 
 from argus.agent import prompts
 from argus.agent.journal import Journal
+from argus.agent.numbers import FactBook, scrub
 from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
 from argus.agent.tools import c6_schema, naive_utc, rounded
 from argus.agent.types import (
@@ -43,7 +44,7 @@ from argus.agent.types import (
 )
 from argus.contracts.findings import Anomaly, EvidenceRef, RuledOut, Segment, Window
 from argus.contracts.tools import TOOL_MODELS, ToolOutput
-from argus.investigate.ledger import OUTCOMES, TRAIL_KIND, Hypothesis, LedgerEntry
+from argus.investigate.ledger import OUTCOMES, TRAIL_KIND, Hypothesis, LedgerEntry, judge
 from argus.market import check_control_group
 
 if TYPE_CHECKING:
@@ -282,6 +283,15 @@ class AgentSelector:
         )
 
 
+def canonical_placebo(entry: LedgerEntry) -> LedgerEntry:
+    """The verdict rules read a placebo as "is the deviation unusual?" (refuted = it recurs = veto). Restate
+    the model's entry that way, so a recurrence vetoes whatever the model predicted."""
+    if entry.hypothesis.expect == "unusual":
+        return entry
+    hyp = entry.hypothesis.model_copy(update={"expect": "unusual"})
+    return entry.model_copy(update={"hypothesis": hyp, "status": judge(hyp, entry.outcome)})
+
+
 def _seg(segment: Segment) -> str:
     return " / ".join(segment.values()) if segment else "all segments"
 
@@ -300,6 +310,15 @@ class _Run:
         self.summary = ""
         self.stop = ""
         self.submitted = False
+        # numbers the run has seen with receipts: the case packet, the opening's trail, every observation
+        self.facts = FactBook()
+        self.facts.add(case.anomaly.model_dump(mode="json"), list(case.anomaly.receipts) or ["anomaly"])
+        for step in inv.trail:
+            self.facts.add({"result": step.result, "decision": step.decision, "data": step.data}, step.receipts)
+        self.facts.add(
+            {"rel": case.root_rel, "z": case.root_z, "share": case.explained_share},
+            [r for s in inv.trail if s.kind == "segment" for r in s.receipts] or ["segment"],
+        )
 
     # ------------------------------------------------------------------ budget
     def _check(self) -> None:
@@ -398,7 +417,7 @@ class _Run:
                         self.case.as_of,
                         self.ctx.run_id,
                         actor="model",
-                        text=str(block["text"]).strip(),
+                        text=scrub(str(block["text"]).strip(), self.facts),
                         anomaly_id=self.case.anomaly.id,
                         model=response.model,
                         input_tokens=usage.input_tokens + usage.cache_read_tokens + usage.cache_write_tokens,
@@ -435,7 +454,7 @@ class _Run:
                 self.case.as_of,
                 self.ctx.run_id,
                 actor="model",
-                text=f"Submitted {self.claimed}: {self.summary}",
+                text=scrub(f"Submitted {self.claimed}: {self.summary}", self.facts),
                 anomaly_id=self.case.anomaly.id,
             )
             return json.dumps({"status": "submitted; the gate decides"}), False
@@ -451,12 +470,13 @@ class _Run:
             self.case.as_of,
             self.ctx.run_id,
             actor="model",
-            text=meta.get("prediction", ""),
+            text=scrub(meta.get("prediction", ""), self.facts),
             anomaly_id=self.case.anomaly.id,
             tool=name,
             args=args,
         )
         obs = self._dispatch(call_id, name, args, meta)
+        self.facts.add({"summary": obs.summary, "data": obs.data}, [r.receipt_id for r in obs.receipt_refs])
         self.o.journal.add(
             "tool_result",
             "OBSERVE",
@@ -687,9 +707,11 @@ class _Run:
             if ev is None:
                 continue
             tested.add((ev.log, ev.ref))
-            if entry.status == "validated":
+            # decide on what the check showed, not on how the model framed it: a model that expected a rival
+            # to be refuted gets a "validated" ledger entry for a refuted holdout
+            if entry.outcome == "consistent":
                 supported.append(ev)
-            elif entry.status == "refuted":
+            elif entry.outcome == "refuted":
                 ruled_out.append(
                     RuledOut(
                         hypothesis=ev.description,
@@ -708,6 +730,7 @@ class _Run:
             backfilled.append(f"holdout_check for {len(untested)} untested candidate(s)")
 
         placebo = next((e for e in reversed(inv.ledger.entries) if on_case(e, "placebo_test")), None)
+        placebo = canonical_placebo(placebo) if placebo is not None else None
         if placebo is None:
             placebo = inv._placebo(c.focus, c.segment, c.anomaly.direction)
             backfilled.append("placebo_test on the root segment")
