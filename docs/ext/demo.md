@@ -77,18 +77,20 @@ Use `kind` to choose what to render and `data.phase` to distinguish investigatio
 
 The verdict pairs the recorded calendar check with the resulting classification.
 In both supported recordings the calendar check proceeds to an investigation, and the resulting verdict is `SUPPORTED_CAUSE`.
+The morning digest folds the recording through the first scored 08:00 after detection.
 The recorded attention score is optional.
 A null value cues focus on the detected metric using the anomaly that Argus actually selected.
 
 `GET /demo/graph?run_id=<run_id>` returns the scenario's C3 metric graph.
-`GET /demo/receipts/<id>?run_id=<run_id>` returns a C4 receipt after a due beat references it.
+`GET /demo/receipts/<id>?run_id=<run_id>` returns a C4 receipt referenced by the graph or by a due beat.
 A receipt that is absent or has yet to be revealed returns HTTP 404.
 These routes return HTTP 409 before start or for a replaced run.
 
 ## Headless dry run
 
-`uv run python -m argus.demo --scenario s4` prints the same cue timeline and exits immediately.
+`uv run argus demo --scenario s4` prints the same cue timeline and exits immediately.
 It supports `--scenario s1` and `--speed 2`.
+The shared CLI registers the command in `src/argus/cli.py`, and the shared API mounts these routes in `src/argus/api/app.py`.
 
 For a quick HTTP smoke test, start the API with `make api`, then run:
 
