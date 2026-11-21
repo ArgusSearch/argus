@@ -207,6 +207,7 @@ export class SceneEngine {
   private statFrames = 0;
   private statTime = 0;
   private statWorst = 0;
+  private measured = false;
 
   // scratch, so the frame loop allocates nothing
   private readonly tmpColor = new Color();
@@ -1149,6 +1150,11 @@ export class SceneEngine {
     this.statFrames = 0;
     this.statTime = 0;
     this.statWorst = 0;
+    // the first measured second gives the layer's readout a real frame rate instead of the 0 sent at start
+    if (!this.measured) {
+      this.measured = true;
+      this.emitQuality();
+    }
     if (this.opts.debug) (window as unknown as { __fxScene?: SceneStats }).__fxScene = this.stats;
   }
 }
