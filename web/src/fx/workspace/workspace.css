@@ -135,6 +135,30 @@
   }
 }
 
+/* portrait windows (a 1200x2030 check window): a wide graph cannot fill a tall area, so its row stops near the
+   graph's own aspect and the investigation band takes the rest, its steps as a two-column grid of cards */
+@media (max-aspect-ratio: 1/1) {
+  :root[data-fx][data-fx-section="graph"] .app {
+    grid-template-rows: 52px 0 minmax(0, calc((100vw - var(--fx-side-w)) * 0.62)) minmax(244px, 1fr);
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail {
+    height: auto;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .trail-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .tstep {
+    min-height: 150px;
+  }
+}
+
 /* the classic graph (no scene): the north-star metrics carry it, the rest steps back until it matters */
 :root[data-fx] .react-flow__node {
   transition: opacity var(--fx-dur-move) var(--fx-ease-inout);

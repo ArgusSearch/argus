@@ -28,12 +28,15 @@ The flag is read once and never stored, so other tabs and the end-to-end tests s
 - `StyleProvider` (in `main.tsx`) sets `<html data-fx="ice|night">` before the first paint, renders the fixed stage `#fx-stage` behind the app and the loader over it, and loads `fx.css` as its own chunk.
 - `tokens.css` remaps the variables of `styles.css` (`--bg`, `--panel`, `--text`, `--alarm`, ...), so every view that uses them follows the look without a change.
 - `fx.css` upgrades the existing class names from outside, all under `:root[data-fx]`: glass panels, mono HUD labels with `//` prefixes, brackets on the active tab, the opening choreography, view enter and card cascades.
+- `FxWorkspace` (in `App.tsx`) turns Mission Control into a dashboard app with the flag: a sidebar (Dashboard, Investigations, Morning report, Metric graph, Metric tree, Scorecard), the dashboard as the start page (KPI cards of the north-star metrics, incidents and the running investigation with its affected path, the morning report, autonomy, the bench scorecard) and the activity feed on the right.
+  `nav.ts` drives the view host's tabs through its own 1 to 5 shortcuts and follows demo mode; `workspace.css` places the existing panels on one grid with `display: contents` on their wrappers.
+  On the graph view the feed and the ticker step aside so the graph gets the whole area; on portrait windows the investigation band takes the space under it.
 - `GraphStage` (in `App.tsx`) renders `GraphView` without the flag; with it, it lazy-loads `scene/GraphScene.tsx` (the 3D graph) and falls back to `GraphView` when that file is absent, WebGL2 is missing or the scene throws.
 - The opening: the loader holds until `fx.css` and the fonts are in and the graph area has its first frame (`fx:scene-ready`), at least 0.9 s, waiting for the scene at most until 2.2 s after navigation start (for the styles up to 8 s); then it fades, the shell arrives in a short cascade and `fx:intro` tells the scene to materialize.
 
 | File | Role |
 | --- | --- |
-| `index.ts` | public entry: `StyleProvider`, `GraphStage`, `useFx`, the primitives |
+| `index.ts` | public entry: `StyleProvider`, `GraphStage`, `FxWorkspace`, `useFx`, the primitives |
 | `flag.ts` | reads `?fx`, `?fxq`, `?fxintro`, `?fxdebug` |
 | `StyleProvider.tsx` | theme attribute, stage, loader, the opening |
 | `GraphStage.tsx` | drop-in for `GraphView`, scene with fallback and error boundary |
@@ -42,6 +45,7 @@ The flag is read once and never stored, so other tabs and the end-to-end tests s
 | `tokens.css`, `base.css` | tokens; stage, loader and corner HUD (in the main bundle, inert without the flag) |
 | `fx.css` | everything else (its own chunk, only loaded with the flag) |
 | `ui/` | the primitives below |
+| `nav.ts`, `workspace/` | the sidebar, the dashboard and the section layout |
 | `scene/` | the 3D graph (another package; do not import from it) |
 
 ## Adopting it in a view
@@ -88,7 +92,7 @@ const { on, theme, phase } = useFx();
 
 ## Budget
 
-- At most three blurred surfaces over the moving stage: the trail, the feed and an open sheet.
+- At most three blurred surfaces over the moving stage: the trail, the feed and an open sheet; the sidebar, the dashboard cards and the KPI cards are glass without a blur.
   Modals, the toast, the captions and the legend use the opaque `--fx-glass-solid` without a blur.
 - No animation library: CSS animations on transform, opacity and short blurs; the reveal (A3) is CSS with one span per character, capped at 48 cells.
 - `prefers-reduced-motion` sets every duration token to 1 ms; `styles.css` already stops all animations.
