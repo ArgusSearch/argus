@@ -5,8 +5,6 @@ import { LIVE, incidentCard, openMissionControl, replay } from "./helpers";
 // "SUPPORTED CAUSE" (#15), never the raw enum or a different name.
 test("the S1 verdict is written the same way everywhere", async ({ page, request }) => {
   test.skip(LIVE, "replay-only: drives the recorded S1 run");
-  // remove test.fail once the fix for #15 (PR #60) is on main
-  test.fail(true, "one verdict, four labels: https://github.com/ArgusSearch/argus/issues/15");
   await replay(request, { action: "restart", speed: 16 });
   await replay(request, { action: "play" });
   await openMissionControl(page);
