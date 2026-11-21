@@ -5,10 +5,14 @@ for each tick (as_of advances one hour):
     freshness gate for the newest hour that should be complete (as_of - delivery lag)
     re-test every formula and breakdown edge once per simulated day
     score the north-star nodes; open anomalies
-    for each anomaly not covered by an open incident: investigate, file findings
+    for each anomaly not covered by an open incident: investigate (Stage 2), file findings
     advance the lifecycle of open incidents
     publish every step on the event bus
 ```
+
+Investigations run through the Stage-2 investigator (`argus.investigate`: hypothesis ledger, placebo, claim
+labels). The Stage-1 fixed opening (`argus.investigator`) is the fallback: `Runtime(stage=1)` uses it for every
+anomaly, and an anomaly the Stage-2 investigator fails on is re-investigated with it and listed in `fallbacks`.
 
 Argus sees only world.duckdb (and its public manifest). It never receives a path to the hidden ground truth.
 """
@@ -16,6 +20,7 @@ Argus sees only world.duckdb (and its public manifest). It never receives a path
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -31,12 +36,13 @@ from argus.contracts.events import (
     InvestigationStepPayload,
     TickPayload,
 )
-from argus.contracts.findings import Anomaly, Incident, TableFreshness, TrailStep
+from argus.contracts.findings import Anomaly, Findings, Incident, TableFreshness, TrailStep
 from argus.contracts.graph import Graph
 from argus.graph.edge_tests import EdgeStatusChange, EdgeTester
 from argus.graph.store import Changelog, load_seed_graph, write_graph
 from argus.incidents.lifecycle import IncidentBook
-from argus.investigator.procedure import investigate
+from argus.investigate import investigate
+from argus.investigator.procedure import investigate as investigate_stage_one
 from argus.narrator.report import render
 from argus.runtime.bus import EventBus
 from argus.semantic.runner import Runner
@@ -45,6 +51,9 @@ from argus.watcher.freshness import COMPLETE, completeness
 
 HOUR = timedelta(hours=1)
 STALE_LOOKBACK = timedelta(hours=48)
+STAGES = (1, 2)
+
+log = logging.getLogger(__name__)
 
 
 def read_manifest(world: Path) -> dict[str, str | int]:
@@ -53,8 +62,13 @@ def read_manifest(world: Path) -> dict[str, str | int]:
 
 
 class Runtime:
-    def __init__(self, world: str | Path, graph: Graph | None = None, bus: EventBus | None = None):
+    def __init__(
+        self, world: str | Path, graph: Graph | None = None, bus: EventBus | None = None, stage: int = 2
+    ) -> None:
+        if stage not in STAGES:
+            raise ValueError(f"investigator stage must be one of {STAGES}, got {stage}")
         self.world = Path(world)
+        self.stage = stage
         self.manifest = read_manifest(self.world)
         self.lag = timedelta(hours=int(self.manifest.get("delivery_lag_hours", 2)))
         self.runner = Runner(self.world)
@@ -68,6 +82,7 @@ class Runtime:
         self.as_of: datetime | None = None
         self._last_edge_test_day: datetime | None = None
         self._pending_tables: set[str] = set()
+        self.fallbacks: list[str] = []  # "<anomaly id>: <error>" for each Stage-2 failure Stage 1 took over
 
     @property
     def graph(self) -> Graph:
@@ -174,12 +189,23 @@ class Runtime:
         def on_step(step: TrailStep) -> None:
             self.emit(InvestigationStepPayload(anomaly_id=anomaly.id, step=step), as_of)
 
-        findings = investigate(self.graph, self.runner, anomaly, as_of, on_step)
+        findings = self._investigate(anomaly, as_of, on_step)
         incident, change = self.book.record(findings, anomaly, as_of)
         if incident is None:
             self.emit(self.book.notes[-1], as_of)
         else:
             self._emit_incident(incident, change, as_of, findings.verdict.value)
+
+    def _investigate(self, anomaly: Anomaly, as_of: datetime, on_step: Callable[[TrailStep], None]) -> Findings:
+        if self.stage == 1:
+            return investigate_stage_one(self.graph, self.runner, anomaly, as_of, on_step)
+        try:
+            return investigate(self.graph, self.runner, anomaly, as_of, on_step)
+        except Exception as exc:
+            # One failing investigation must not stop the watch: Stage 1 still files findings for it.
+            log.exception("Stage-2 investigation of %s failed; falling back to Stage 1", anomaly.id)
+            self.fallbacks.append(f"{anomaly.id}: {type(exc).__name__}: {exc}")
+            return investigate_stage_one(self.graph, self.runner, anomaly, as_of, on_step)
 
     def _emit_incident(self, inc: Incident, change: str, as_of: datetime, reason: str) -> None:
         self.emit(

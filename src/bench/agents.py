@@ -5,9 +5,11 @@ runs the live window however it likes, and returns an `AgentOutput` built from t
 
 Ways to plug an agent in:
 
-* `argus`: Argus itself, the runtime tick loop (`argus.runtime.loop.Runtime`) in process.
-  Set `$ARGUS_BENCH_AGENT` to a `module:function` to grade another build under the same name.
-* `argus-stage2`: the runtime with the Stage-2 investigator (`argus.investigate`), when it is merged.
+* `argus`: Argus itself, the runtime tick loop (`argus.runtime.loop.Runtime`) in process, which investigates
+  with the Stage-2 investigator (`argus.investigate`). Set `$ARGUS_BENCH_AGENT` to a `module:function` to
+  grade another build under the same name.
+* `argus-stage1`: the same runtime with the Stage-1 fixed opening (`argus.investigator`), its fallback.
+* `argus-stage2`: the runtime pinned to the Stage-2 investigator through `argus.investigate`'s own entry point.
 * `threshold`: the built-in baseline (`bench.baselines`), a BI-style alert on north-star totals.
 * `module:function`: any Python callable `fn(world: Path)` returning an `AgentOutput`, a dict of the same
   shape, or a finished runtime object (`.book`, `.anomalies`, `.bus`), like `Runtime` itself.
@@ -140,7 +142,9 @@ class CallableAgent:
 class ArgusAgent:
     """Argus: the runtime's tick loop over the live window. It gets the world path and nothing else."""
 
-    name = "argus"
+    def __init__(self, name: str = "argus", stage: int = 2):
+        self.name = name
+        self.stage = stage
 
     def check(self) -> None:
         try:
@@ -154,7 +158,7 @@ class ArgusAgent:
         from argus.runtime.loop import Runtime
 
         started = time.perf_counter()
-        runtime = Runtime(world)
+        runtime = Runtime(world, stage=self.stage)
         try:
             runtime.run()
         finally:
@@ -198,6 +202,10 @@ def resolve_agent(spec: str) -> Agent:
         argus = ArgusAgent()
         argus.check()
         return argus
+    if spec == "argus-stage1":
+        stage_one = ArgusAgent("argus-stage1", stage=1)
+        stage_one.check()
+        return stage_one
     if spec == "argus":
         python = CallableAgent("argus", os.environ[ARGUS_ENV])
     elif spec == "argus-stage2":

@@ -24,7 +24,7 @@ from argus.runtime.loop import Runtime
 @contextmanager
 def stage_two() -> Iterator[None]:
     """Route the runtime's investigations through the Stage-2 investigator for the duration of the block.
-    The runtime binds `investigate` at import time; integration replaces that import with this module's."""
+    The runtime binds this module's `investigate` at import time already; the block pins that binding."""
     original = loop.investigate
     loop.investigate = investigate
     try:

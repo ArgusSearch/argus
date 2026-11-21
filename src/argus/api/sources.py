@@ -144,9 +144,9 @@ class LiveSource:
 
     mode: Literal["replay", "live"] = "live"
 
-    def __init__(self, world: Path, seconds_per_tick: float = 2.0) -> None:
+    def __init__(self, world: Path, seconds_per_tick: float = 2.0, stage: int = 2) -> None:
         self.bus = EventHub(RunState(load_seed_graph()))
-        self.runtime = Runtime(world, bus=self.bus)
+        self.runtime = Runtime(world, bus=self.bus, stage=stage)
         self.seconds_per_tick = seconds_per_tick
         self.speed = 1.0
         self.playing = True

@@ -14,11 +14,13 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("run", help="run every tick of a world's live window and write the outputs")
     run.add_argument("--world", type=Path, required=True, help="world.duckdb (truth is never needed)")
     run.add_argument("--out", type=Path, help="default: <world dir>/argus")
+    run.add_argument("--stage", type=int, choices=(1, 2), default=2, help="investigator stage (default: 2)")
 
     api = sub.add_parser("api", help="serve the REST API and the SSE stream")
     api.add_argument("--world", type=Path, help="run live over this world; default: replay fixtures/")
     api.add_argument("--replay", type=Path, help="fixtures directory to replay (default: fixtures/)")
     api.add_argument("--tick-seconds", type=float, default=2.0, help="wall seconds per simulated hour")
+    api.add_argument("--stage", type=int, choices=(1, 2), default=2, help="live investigator stage (default: 2)")
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
@@ -26,12 +28,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "run":
         from argus.runtime.loop import Runtime
 
-        runtime = Runtime(args.world)
+        runtime = Runtime(args.world, stage=args.stage)
         runtime.run()
         out = args.out or args.world.parent / "argus"
         runtime.export(out)
         summary = {
             "ticks": len(runtime.ticks()),
+            "stage": runtime.stage,
             "anomalies": len(runtime.anomalies),
             "incidents": [
                 {"id": i.id, "verdict": i.verdict.value, "title": i.title, "state": i.state.value}
@@ -39,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
             ],
             "notes": len(runtime.book.notes),
             "receipts": len(runtime.runner.receipts),
+            "stage_one_fallbacks": runtime.fallbacks,
             "out": str(out),
         }
         print(json.dumps(summary, indent=2))
@@ -50,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     from argus.api.sources import FIXTURES, LiveSource, ReplaySource
 
     source = (
-        LiveSource(args.world, args.tick_seconds)
+        LiveSource(args.world, args.tick_seconds, stage=args.stage)
         if args.world
         else ReplaySource(args.replay or FIXTURES, args.tick_seconds, loop=True)
     )

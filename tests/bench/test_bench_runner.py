@@ -184,6 +184,13 @@ def test_unavailable_agents_are_reported(monkeypatch: pytest.MonkeyPatch):
         main(["case", "s1", "--record", "unused-dir"])  # fixtures must never come from a fallback agent
 
 
+def test_argus_agents_pick_their_investigator_stage(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("ARGUS_BENCH_AGENT", raising=False)
+    argus, stage_one = resolve_agent("argus"), resolve_agent("argus-stage1")
+    assert (argus.name, getattr(argus, "stage", None)) == ("argus", 2)
+    assert (stage_one.name, getattr(stage_one, "stage", None)) == ("argus-stage1", 1)
+
+
 def test_callable_and_command_agents(tmp_path: Path, world):
     paths = world("quiet", 1)
     py = resolve_agent("test_bench_runner:fixture_agent")
