@@ -150,7 +150,7 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
           </p>
         </div>
         <span className="tv-fill" />
-        <input className="vw-search" placeholder="Find a metric" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Find a metric" />
+        <input className="vw-search" name="metric-search" placeholder="Find a metric" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Find a metric" />
         <button className="btn" onClick={() => setAll(true)}>
           Expand all
         </button>
