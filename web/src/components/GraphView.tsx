@@ -9,11 +9,11 @@ import type { EdgeStatus, EvidenceRef, Graph, GraphEdge, GraphNode } from "../li
 import { Sparkline } from "./charts";
 
 // The north-star metrics carry the graph at full size; the other metrics and the logs are compact.
-const NODE_W = 146;
+const NODE_W = 160;
 const NODE_H = 46;
 const SMALL_W = 124;
 const SMALL_H = 30;
-const LOG_W = 112;
+const LOG_W = 136;
 const LOG_H = 30;
 
 type Tone = "normal" | "wiggle" | "alarm" | "symptom" | "root" | "resolved";
@@ -86,7 +86,7 @@ const MetricNode = memo(function MetricNode({ data }: NodeProps<Node<MetricData>
     );
   }
   return (
-    <div className={className} style={style} title={title}>
+    <div className={className} style={{ ...style, width: NODE_W }} title={title}>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
       {tag && <span className="mnode-tag">{tag}</span>}
