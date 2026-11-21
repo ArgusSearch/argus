@@ -12,6 +12,7 @@ import { Trail } from "./components/Trail";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
+import { ViewHost } from "./views";
 
 function Legend() {
   const line = (dash: string | undefined, color: string) => (
@@ -135,6 +136,7 @@ export function App() {
           }}
         />
         <Ticker view={view} />
+        <ViewHost graph={graph} view={view} health={health} onSelectNode={setNodeId} onOpenIncident={openIncident}>
         <div className="main">
           <div className="left">
             <section className="graph" aria-label="metric graph">
@@ -166,6 +168,7 @@ export function App() {
           </div>
           <Feed view={view} graph={graph} onOpenIncident={openIncident} />
         </div>
+        </ViewHost>
       </div>
       {incidentId && (
         <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} graph={graph} onClose={closeIncident} />
