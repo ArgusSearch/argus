@@ -150,6 +150,7 @@ describe("the other scenarios on main (fixtures/s2, fixtures/s4)", () => {
     const spread = spreadOf(suspects(steps));
     expect(spread?.kept).toBe(true);
     expect(spread?.scope.country?.slice().sort()).toEqual(["DE", "FR"]);
+    expect(beatFor(v, graph).text).toContain("Verdict for Germany and France");
     expect(steps.map((s) => stepQuestion(s.step))).toContain("Is it the mix or the rate?");
     expect(steps.map((s) => stepQuestion(s.step))).toContain("Is this unusual for these hours of the week?");
     expect(investigations(v)[0].incidentId).toBe("INC-0001");
