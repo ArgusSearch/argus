@@ -309,7 +309,10 @@ export function GraphView({ graph, view, onSelectNode }: { graph: Graph; view: R
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const fit = () => requestAnimationFrame(() => void fitView({ padding: 0.05 }));
+    // name every node: when the graph grows (a new metric placed itself), fitting only what React Flow just
+    // measured would zoom onto the new nodes alone
+    const all = [...graph.nodes, ...graph.logs].map((n) => ({ id: n.id }));
+    const fit = () => requestAnimationFrame(() => void fitView({ padding: 0.05, nodes: all }));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(el);

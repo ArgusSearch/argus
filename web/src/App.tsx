@@ -9,6 +9,7 @@ import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
+import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
 import { useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { emptyView, foldAll, recount, type RunView } from "./lib/store";
@@ -56,6 +57,8 @@ export function App() {
   const [digestOpen, setDigestOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
+  // a new metric placed itself (POST /graph/metrics): refetch the graph so the node appears everywhere
+  const extension = useGraphExtension(useCallback(() => void api.graph().then(setGraph, () => undefined), []));
 
   useEffect(() => {
     api.graph().then(setGraph, () => undefined);
@@ -171,6 +174,7 @@ export function App() {
                     <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />
                   </ReactFlowProvider>
                 )}
+                <GraphExtensionLayer ext={extension} />
               </div>
               <div className="graph-foot">
                 <Legend />
