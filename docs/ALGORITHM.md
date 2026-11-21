@@ -62,3 +62,5 @@ The seed graph has 27 nodes and 44 typed edges: 7 formula, 27 breakdown, 9 evide
 
 - Every suggested action carries `needs_approval = true` (`src/argus/contracts/findings.py`); Argus files, merges and closes incidents on its own but does not act on the business.
 - `GET /autonomy` serves the boundary: what Argus decides alone and what it asks first (`src/argus/narrator/autonomy.py`).
+
+The same four answers as one slide for the pitch film: [docs/pitch/algorithm-slide.png](pitch/algorithm-slide.png).
