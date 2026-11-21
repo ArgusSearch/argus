@@ -26,7 +26,7 @@ export default defineConfig({
   projects: [{ name: live ? "live" : "replay", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
     command,
-    cwd: "..",
+    cwd: process.env.ARGUS_E2E_ROOT ?? "..",
     url: `http://127.0.0.1:${port}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

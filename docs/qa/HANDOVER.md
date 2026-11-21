@@ -60,7 +60,7 @@ P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt cover
 1. Re-run the matrix after every merge into `fm/argus-api` that touches the runtime or the UI. The S2/S3/S4 rows should flip once #1 and #2 land.
 2. Small UI/API fixes that QA can take, after Batu confirms nobody else is on them:
    - #11 is done (PR #28).
-   - Next: #6 (`web/src/lib/api.ts` plus the header fallback).
+   - #6 is done (PR #32). After it merges, remove `test.fail` from `e2e/tests/offline.spec.ts`.
    - Each fix goes in its own PR `fix(api|web): ... (#n)` with a test that fails before and passes after.
 3. Propose the e2e CI job to Batu. The suggested step is in `e2e/README.md`; `.github/` is not ours.
 4. Before the 11:00 freeze and the 12:00 rehearsal: run the e2e suite and the matrix again.

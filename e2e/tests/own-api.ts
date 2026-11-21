@@ -21,7 +21,7 @@ export interface OwnApi {
 export async function startApi(port: number, args: string[] = []): Promise<OwnApi> {
   const base = `http://127.0.0.1:${port}`;
   if (await isUp(base)) throw new Error(`port ${port} is already serving: stop it first (pkill -f "argus api --port ${port}")`);
-  const proc = spawn("uv", ["run", "argus", "api", "--port", String(port), ...args], { cwd: "..", stdio: "ignore", detached: true });
+  const proc = spawn("uv", ["run", "argus", "api", "--port", String(port), ...args], { cwd: process.env.ARGUS_E2E_ROOT ?? "..", stdio: "ignore", detached: true });
   for (let i = 0; i < 120; i++) {
     if (await isUp(base)) return { proc, base };
     if (proc.exitCode !== null) break;
