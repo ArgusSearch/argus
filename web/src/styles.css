@@ -764,10 +764,42 @@ button {
 .trail-steps {
   display: flex;
   gap: 10px;
-  padding: 0 16px 14px;
+  margin: 0 16px;
+  padding: 0 0 14px;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
+  /* cards are sized from this row's width so a whole number of them fills it: pinned to the newest step,
+     the row never shows a card cut through its text (snap keeps manual scrolling on card edges too) */
+  container-type: inline-size;
+  scroll-snap-type: x mandatory;
+  --trail-cards: 2;
+}
+
+@container (min-width: 560px) {
+  .trail-steps > .tstep {
+    --trail-cards: 2;
+  }
+}
+@container (min-width: 860px) {
+  .trail-steps > .tstep {
+    --trail-cards: 3;
+  }
+}
+@container (min-width: 1160px) {
+  .trail-steps > .tstep {
+    --trail-cards: 4;
+  }
+}
+@container (min-width: 1460px) {
+  .trail-steps > .tstep {
+    --trail-cards: 5;
+  }
+}
+
+.trail-steps > .tstep {
+  flex: 0 0 calc((100cqi - 10px * (var(--trail-cards, 2) - 1)) / var(--trail-cards, 2));
+  scroll-snap-align: start;
 }
 
 .trail-empty {
