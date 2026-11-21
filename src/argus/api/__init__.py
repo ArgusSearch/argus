@@ -1,1 +1,1 @@
-"""API (lane U): FastAPI REST routes and the SSE event stream from contract C5."""
+"""Lane U: the C5 API (FastAPI, SSE) and the recorded runs it replays. Mission Control lives in `web/`."""
