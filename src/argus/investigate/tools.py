@@ -8,6 +8,7 @@ way a planner (or an LLM behind it) can make Argus query data. No tool accepts f
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -163,6 +164,28 @@ class StageTwoToolbox(Toolbox):
             rel_change=stats[node_id].rel_change,
             receipts=receipts,
         )
+
+    def planned_events(self, window: Window) -> tuple[list[tuple[EvidenceRef, dict[str, float]]], str]:
+        """Calendar entries in force during the window, with their planned relative uplift per node."""
+        sql = (
+            "SELECT id, ts, end_ts, kind, scope, description, planned_uplift FROM log_calendar "
+            f"WHERE ts <= {sql_ts(window.end)} AND (end_ts IS NULL OR end_ts >= {sql_ts(window.start)}) "
+            "ORDER BY ts, id"
+        )
+        rows, receipt = self.runner.query(sql, self.as_of, purpose="planned events in force during the window")
+        out = []
+        for r in rows:
+            uplift = json.loads(r["planned_uplift"]) if r["planned_uplift"] else {}
+            ev = EvidenceRef(
+                log="log_calendar",
+                ref=r["id"],
+                ts=r["ts"],
+                kind=r["kind"],
+                description=r["description"],
+                scope=json.loads(r["scope"]) if r["scope"] else {},
+            )
+            out.append((ev, {k: float(v) for k, v in uplift.items()}))
+        return out, receipt.id
 
     # ------------------------------------------------------------------ placebo
     def placebo_test(

@@ -62,8 +62,9 @@ from argus.investigate.walk import (
     has_direct_evidence,
     subtree_share,
 )
+from argus.investigate.weekly import fetch_weekly, week_stat
 from argus.investigator.procedure import Investigation, segment_text
-from argus.investigator.tools import SearchResult
+from argus.investigator.tools import SearchResult, covers
 from argus.semantic.compile import scope_where, segment_where, tables_of
 from argus.semantic.runner import Runner
 
@@ -75,6 +76,11 @@ STOP_EXPLAINED = 0.80
 ROOT_Z = 3.0
 MIX_DOMINANT = 0.67
 FLAT_Z = 2.0
+PLAN_PREFIX = "planned_"  # plan nodes (planned_spend): a ratio over a plan measures delivery against it
+PLAN_KINDS = ("budget_change", "budget_set", "campaign", "promo")
+PLAN_EP = 0.67  # the planned event's scope must carry most of the deviation
+PLAN_BAND_REL = 0.25  # delivered within +-25% of the planned uplift ...
+PLAN_BAND_MIN = 0.05  # ... or within 5 points, whichever is wider
 SCOPE_EXCESS_MIN = 0.25  # an unlocalised change counts only if the event's scope carries clearly more than its volume
 PROCESS_NOTE = "No hypothesis planner is configured"
 
@@ -172,6 +178,7 @@ class StageTwoInvestigation(Investigation):
         self.playbook = choose_playbook(graph, anomaly.node, anomaly.direction)
         self.flat_volumes: list[RuledOut] = []
         self.walk_split: ProductSplit | None = None
+        self.plan_followed: tuple[FactorView, FactorView, list[str]] | None = None
 
     def step(self, kind: str, tool: str, result: str, decision: str, **extra: object) -> TrailStep:
         """Every trail step carries its named playbook step (`data["playbook"]`), also in the events."""
@@ -204,6 +211,11 @@ class StageTwoInvestigation(Investigation):
             return self._close(stop, observed, started, queries0, headline=f"{node.label}: {stop[1]}")
 
         focus, focus_share, significant = self._walk()
+        if self.plan_followed is not None:
+            reason = self._plan_change_reason(*self.plan_followed)
+            return self._close(
+                (Verdict.EXPECTED, reason), observed, started, queries0, headline=f"{node.label}: {reason}"
+            )
         focus_node = self.graph.node(focus)
         seg0 = {d: v for d, v in a.segment.items() if d in focus_node.dims}
 
@@ -359,16 +371,83 @@ class StageTwoInvestigation(Investigation):
                 cl.evidence(f"A cross-table identity is broken: {ident.summary}.", "check_identities", ident.receipts)
             )
             return Verdict.DATA_ISSUE, "identity broken"
-        cal = self.tools.list_events(self.window.start - EVENT_BEFORE, self.window.end, logs=["log_calendar"])
+        return self._calendar_check()
+
+    def _calendar_check(self) -> tuple[Verdict, str] | None:
+        """Planned events change the expectation (they never mute a metric): when a calendar entry in force
+        plans an uplift for this node, the deviation sits inside its scope and the delivered change is inside
+        the planned band, the change is EXPECTED. Delivering far below the plan stays a business finding."""
+        a = self.anomaly
+        node = self.graph.node(a.node)
+        planned, rid = self.tools.planned_events(self.window)
+        relevant = [(ev, up[a.node]) for ev, up in planned if a.node in up and covers(ev.scope, a.segment, node.dims)]
+        results = []
+        for ev, uplift in relevant:
+            scope = {d: v for d, v in ev.scope.items() if d in node.dims}
+            total, _ = self.tools.cells(a.node, self.window, None, segment_where(a.segment, node.dims))
+            where_inside = f"({segment_where(a.segment, node.dims)}) AND ({scope_where(scope)})"
+            inside, cell_rid = self.tools.cells(a.node, self.window, None, where_inside)
+            if not total or not inside or not total[0].deviation:
+                continue
+            ep = inside[0].deviation / total[0].deviation
+            rel = inside[0].rel_change
+            band = max(PLAN_BAND_REL * abs(uplift), PLAN_BAND_MIN, 2 * self._week_spread(a.node, where_inside))
+            if ep >= PLAN_EP and abs(rel - uplift) <= band:
+                status = "as planned"
+            elif ep >= PLAN_EP and rel * uplift > 0 and abs(rel) < abs(uplift) - band:
+                status = "underdelivering its plan"
+            else:
+                status = "outside its plan"
+            results.append((ev, uplift, rel, ep, status, cell_rid))
+        text = (
+            "; ".join(
+                f"{ev.ref}: planned {pct(up)}, delivered {pct(rel)} ({status})" for ev, up, rel, _, status, _ in results
+            )
+            if results
+            else f"{len(planned)} planned event(s) in force, none plans {a.node} in {segment_text(a.segment)}"
+        )
+        expected = next((r for r in results if r[4] == "as planned"), None)
         self.step(
             "calendar",
             "list_events",
-            cal.summary if cal.events else "no planned event in the window",
-            "continue: not an expected change" if not cal.events else "continue: planned events noted",
-            receipts=cal.receipts,
-            data={"events": [e.model_dump(mode="json") for e in cal.events]},
+            text,
+            f"stop: EXPECTED ({expected[0].ref})" if expected else "continue: not an expected change",
+            why="planned events change the expectation; they do not mute the metric",
+            receipts=[rid, *(r[5] for r in results)],
+            data={
+                "planned": [
+                    {
+                        "event": ev.model_dump(mode="json"),
+                        "uplift": up,
+                        "delivered": round(rel, 4),
+                        "ep": round(ep, 4),
+                        "status": status,
+                    }
+                    for ev, up, rel, ep, status, _ in results
+                ]
+            },
         )
-        return None
+        for ev, up, rel, _, status, cell_rid in results:
+            if status == "underdelivering its plan":
+                self.claims.append(
+                    cl.evidence(
+                        f"{ev.description} ({ev.ref}) is underdelivering: planned {pct(up)}, delivered {pct(rel)}.",
+                        "calendar band check",
+                        [rid, cell_rid],
+                    )
+                )
+        if expected is None:
+            return None
+        ev, up, rel, ep, _, cell_rid = expected
+        self.claims.append(
+            cl.evidence(
+                f"Planned: {ev.description} ({ev.ref}) planned {pct(up)} for {a.node}; delivered {pct(rel)}, inside "
+                f"the band, and its scope carries {ep:.0%} of the deviation.",
+                "calendar band check",
+                [rid, cell_rid],
+            )
+        )
+        return Verdict.EXPECTED, f"planned change {ev.ref} delivered {pct(rel)} against a plan of {pct(up)}"
 
     # ------------------------------------------------------------------ 4 significance-aware LMDI walk
     def _walk(self) -> tuple[str, float, bool]:
@@ -400,6 +479,7 @@ class StageTwoInvestigation(Investigation):
                 why="leaf node: the exact split ends here",
             )
             return a.node, 1.0, True
+        self.plan_followed = self._plan_follow(options)
         d, split, chosen, significant = max(
             options, key=lambda o: (o[3], has_direct_evidence(self.graph, o[2].node), abs(o[2].share))
         )
@@ -488,6 +568,69 @@ class StageTwoInvestigation(Investigation):
         )
         self.walk_split = split
         return chosen.node, chosen.share, significant
+
+    def _week_spread(self, node_id: str, where: str) -> float:
+        """Relative week-to-week spread of the node's window total in `where` (0 when unknown)."""
+        series = fetch_weekly(
+            self.graph,
+            self.runner,
+            self.as_of,
+            [node_id],
+            self.window,
+            where,
+            purpose=f"normal week-to-week spread of {node_id} inside the planned scope",
+        )[node_id]
+        stat = week_stat(series)
+        return stat.sd / abs(stat.baseline) if stat is not None and stat.baseline else 0.0
+
+    def _plan_follow(self, options: list[Any]) -> tuple[FactorView, FactorView, list[str]] | None:
+        """Delivery that follows a changed plan: in the identity N = plan x ratio the plan factor carries the
+        change (significant, >= 67%) while the delivery ratio stays inside its normal spread."""
+        for d, split, _, _ in options:
+            plan_id, ratio_id = d.top
+            if not plan_id.startswith(PLAN_PREFIX) or not d.label.startswith("identity"):
+                continue
+            by = {v.node: v for v in split.factors}
+            plan, ratio = by.get(plan_id), by.get(ratio_id)
+            if plan is None or ratio is None or plan.z is None or ratio.z is None:
+                continue
+            if abs(plan.z) >= ROOT_Z and plan.share >= PLAN_EP and abs(ratio.z) < FLAT_Z:
+                return plan, ratio, list(split.receipts)
+        return None
+
+    def _plan_change_reason(self, plan: FactorView, ratio: FactorView, receipts: list[str]) -> str:
+        """Name the logged change behind the moved plan (budget change or campaign) and file the claim."""
+        a = self.anomaly
+        node = self.graph.node(a.node)
+        out = self.tools.list_events(
+            a.onset - EVENT_BEFORE,
+            a.hour + EVENT_AFTER,
+            logs=["log_ad_budgets", "log_calendar"],
+            covering=a.segment,
+            node_dims=node.dims,
+        )
+        planned = [e for e in out.events if e.kind in PLAN_KINDS]
+        self.step(
+            "events",
+            "list_events",
+            out.summary + f"; {len(planned)} planned change(s) to the budget or calendar",
+            "stop: EXPECTED, delivery follows its plan" if planned else "stop: EXPECTED, the plan moved",
+            why=f"{plan.node} {pct(plan.rel_change or 0)} (z {plan.z or 0:+.1f}) carries "
+            f"{plan.share:.0%} of the change; "
+            f"{ratio.node} {pct(ratio.rel_change or 0)} (z {ratio.z or 0:+.1f}) stays inside its normal spread",
+            receipts=[*receipts, *out.receipts],
+            data={"planned": [e.model_dump(mode="json") for e in planned]},
+        )
+        cite = f"; planned by {planned[0].ref}: {planned[0].description}" if planned else ""
+        self.claims.append(
+            cl.evidence(
+                f"{a.node} follows its plan: {plan.node} {pct(plan.rel_change or 0)}, {ratio.node} "
+                f"{pct(ratio.rel_change or 0)} (z {ratio.z or 0:+.1f}){cite}.",
+                "decompose_formula: identity over the plan",
+                [*receipts, *out.receipts],
+            )
+        )
+        return f"delivery follows its plan ({plan.node} {pct(plan.rel_change or 0)}, {ratio.node} flat){cite}"
 
     def _rule_out_flat_volumes(self, options: list[Any], chosen_split: Any) -> None:
         """A volume factor (additive, e.g. sessions) that stayed inside its normal spread did not drive the
