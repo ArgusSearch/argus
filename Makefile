@@ -10,7 +10,7 @@ S1_OUT ?= runs
 AGENT_EVAL_OUT ?= runs/agent-eval
 CONTRACTS_BASE := 2c36e8204f3082aa1a9ddfd613ab545247fdc5ef
 
-.PHONY: setup check lint format typecheck test test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval world demo api fixtures clean
+.PHONY: setup check lint format typecheck test test-fast contracts contracts-check contracts-frozen web s1 bench agent-eval agent-eval-live world demo api fixtures clean
 
 setup:            ## install the locked environment
 	uv sync
@@ -56,7 +56,13 @@ bench:            ## the scorecard: every scenario x 3 seeds, Argus against the 
 	uv run python -m scripts.agent_eval.bench_gate "$(BENCH_OUT)"
 
 agent-eval:        ## run deterministic agent release evals with provider access disabled
-	ARGUS_DISABLE_PROVIDER=1 uv run pytest tests/agent_evals --junitxml="$(AGENT_EVAL_OUT)/pytest.xml"
+	@status=0; ARGUS_DISABLE_PROVIDER=1 uv run pytest tests/agent_evals --junitxml="$(AGENT_EVAL_OUT)/pytest.xml" || status=$$?; \
+	uv run python -m scripts.agent_eval.offline_report "$(AGENT_EVAL_OUT)/pytest.xml" --out "$(AGENT_EVAL_OUT)/scorecard.json" || exit $$?; \
+	exit $$status
+
+agent-eval-live:   ## score retained paid trials from TRIALS and write the live stage decision
+	@test -n "$(TRIALS)" || { printf '%s\n' 'Set TRIALS to the paid qualification archive.' >&2; exit 2; }
+	uv run python -m scripts.agent_eval.qualify "$(TRIALS)" --out "$(AGENT_EVAL_OUT)/qualification.json" $(if $(TEXT_REVIEW),--text-review "$(TEXT_REVIEW)")
 
 world:            ## generate a $(SCENARIO) world into runs/$(SCENARIO)-$(SEED)
 	uv run mockmart generate --scenario $(SCENARIO) --seed $(SEED) --out runs/$(SCENARIO)-$(SEED)

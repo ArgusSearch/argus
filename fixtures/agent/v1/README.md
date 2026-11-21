@@ -52,6 +52,12 @@ other manifest fields). Digests are lowercase hex. Canonical JSON is UTF-8 with
 keys sorted, compact separators, and non-ASCII preserved. Acceptance receives
 the expected bundle digest separately.
 
+Seal a staged capture with `uv run python -m scripts.agent_eval.bundle /path/to/staging --seal`.
+Once the real cassette dispatch and event playback pass, install the bundle in
+its scenario directory and add its digest to `accepted.json`, an object mapping
+`"s1"` and `"s4"` to their seed-one bundle hashes. Include the C4 incident snapshot
+in each root and the resolved snapshot in the S4 approval continuation for grading.
+
 1. Strict cassette replay matches the next key and request hash and dispatches
    real tools on the matching world. A miss fails offline with the first bad turn.
 2. Lenient cassette replay accepts a known key with a changed request hash and
@@ -59,3 +65,24 @@ the expected bundle digest separately.
 3. Event replay serves the verified bundle without constructing a provider or
    generating a world. On S4, it stops at the approval cut until the operator
    decides. Seek and reconnect follow the same visibility rules.
+
+## Release evidence
+
+`make agent-eval` writes a JUnit report and a scorecard for all 17 deterministic
+invariants. A skipped, absent or failed case keeps the release gate red. Results
+carry the checked-out commit. `make bench` separately checks the Stage 2 grades,
+the scorecard totals, and the original commitment and reveal for every case.
+
+Run `make agent-eval-live TRIALS=/path/to/trials` against the retained live archive
+from the release commit. Store each attempt under `{scenario}-{seed}-{trial}/`
+for S1/S4, seeds 1/3/7, trials 1/2/3. Each directory has `trial.json` with
+`scenario`, `seed`, `trial`, `source_commit`, `elapsed_seconds`, `bundle_sha`,
+sealed Stage 3 `grade`, frozen run summaries under `runs`, and billed
+`UsageRecord` entries under `usage`. Completed attempts provide their own sealed
+`bundle/`. Retain failed attempts in their original slots with `failure`.
+Include `counterexample.json` with the original and changed observations and
+their genuine next responses. The scorecard requires three passes for stage S4
+and at least five of six scenario/seed groups, with median spend at most
+USD 0.25, max USD 0.50, and median investigation time at most 60 seconds.
+`TEXT_REVIEW=/path/to/text-review.json` optionally adds blinded prose scores
+to the report. These scores cannot satisfy any behavior gate.
