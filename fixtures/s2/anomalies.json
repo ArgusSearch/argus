@@ -1,0 +1,27 @@
+[
+  {
+    "id": "an_p0001",
+    "node": "ad_spend",
+    "segment": {
+      "advertiser_id": "adv_01",
+      "country": "FR"
+    },
+    "direction": "up",
+    "hour": "2026-11-20T08:00:00",
+    "detected_at": "2026-11-20T10:00:00",
+    "onset": "2026-11-20T07:00:00",
+    "observed": 89.97,
+    "expected": 59.365,
+    "band": [
+      49.31655192569448,
+      71.46086024647337
+    ],
+    "z": 7.486,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r169",
+      "r170"
+    ]
+  }
+]

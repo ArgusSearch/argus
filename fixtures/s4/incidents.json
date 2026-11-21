@@ -1,0 +1,1150 @@
+[
+  {
+    "id": "INC-0001",
+    "fingerprint": "8ef022e940a7",
+    "title": "Pacing ratio +93.6% in country DE, FR: ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+    "verdict": "SUPPORTED_CAUSE",
+    "state": "explained",
+    "root_node": "pacing_ratio",
+    "segment": {},
+    "direction": "up",
+    "severity_eur": 73602.03,
+    "opened_at": "2026-11-20T00:00:00",
+    "updated_at": "2026-11-22T23:00:00",
+    "resolved_at": null,
+    "reopened": 0,
+    "anomalies": [
+      "an_0001"
+    ],
+    "symptoms": [
+      "ad_spend",
+      "pacing_ratio"
+    ],
+    "history": [
+      {
+        "sim_ts": "2026-11-20T00:00:00",
+        "from_state": null,
+        "to_state": "open",
+        "reason": "an_0001"
+      },
+      {
+        "sim_ts": "2026-11-20T00:00:00",
+        "from_state": "open",
+        "to_state": "investigating",
+        "reason": "fixed opening started"
+      },
+      {
+        "sim_ts": "2026-11-20T00:00:00",
+        "from_state": "investigating",
+        "to_state": "explained",
+        "reason": "SUPPORTED_CAUSE"
+      }
+    ],
+    "findings": {
+      "anomaly_id": "an_0001",
+      "incident_id": "INC-0001",
+      "verdict": "SUPPORTED_CAUSE",
+      "headline": "Pacing ratio +93.6% in country DE, FR: ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+      "as_of": "2026-11-20T02:00:00",
+      "window": {
+        "start": "2026-11-19T23:00:00",
+        "end": "2026-11-20T00:00:00"
+      },
+      "observed": {
+        "node": "ad_spend",
+        "segment": {},
+        "observed": {
+          "value": 2455.98,
+          "unit": "value",
+          "receipt": "r169"
+        },
+        "expected": {
+          "value": 840.985,
+          "unit": "value",
+          "receipt": "r169"
+        },
+        "change_pct": {
+          "value": 192.04,
+          "unit": "pct",
+          "receipt": "r169"
+        }
+      },
+      "root": {
+        "node": "pacing_ratio",
+        "segment": {},
+        "direction": "up",
+        "evidence": {
+          "log": "log_deploys",
+          "ref": "dep_ad-pacer_1.7.0",
+          "ts": "2026-11-19T23:11:00",
+          "kind": "deploy",
+          "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+          "scope": {
+            "country": [
+              "DE",
+              "FR"
+            ]
+          }
+        },
+        "change_pct": {
+          "value": 93.61,
+          "unit": "pct",
+          "receipt": "r181"
+        }
+      },
+      "decomposition": [
+        {
+          "node": "pacing_ratio",
+          "share": 1.0,
+          "value": 1686.5575,
+          "receipt": "r177"
+        },
+        {
+          "node": "planned_spend",
+          "share": 0.0,
+          "value": 0.0,
+          "receipt": "r177"
+        }
+      ],
+      "decomposed_node": "ad_spend",
+      "impact": {
+        "node": "ad_spend",
+        "segment": {},
+        "hours": 2,
+        "per_hour": {
+          "value": 843.3,
+          "unit": "eur",
+          "receipt": "r181"
+        },
+        "gmv_eur_per_hour": {
+          "value": 843.0,
+          "unit": "eur",
+          "receipt": "r190"
+        },
+        "eur_so_far": {
+          "value": 1687.0,
+          "unit": "eur",
+          "receipt": "r190"
+        }
+      },
+      "ruled_out": [
+        {
+          "hypothesis": "a change in sessions drove ad_spend",
+          "prediction": "sessions moves with ad_spend, beyond its normal spread",
+          "result": "refuted",
+          "reason": "sessions -1.3% (z -0.4), within its normal week-to-week spread",
+          "evidence": null,
+          "receipts": [
+            "r174",
+            "r175"
+          ]
+        },
+        {
+          "hypothesis": "a change in planned spend drove ad_spend",
+          "prediction": "planned_spend moves with ad_spend, beyond its normal spread",
+          "result": "refuted",
+          "reason": "planned spend +0.0% (z +0.0), within its normal week-to-week spread",
+          "evidence": null,
+          "receipts": [
+            "r177",
+            "r178"
+          ]
+        }
+      ],
+      "uncertain": [],
+      "explained_share": 0.996,
+      "unexplained_share": 0.004,
+      "trail": [
+        {
+          "step": 1,
+          "kind": "freshness",
+          "tool": "check_freshness",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "all source tables complete",
+          "decision": "continue",
+          "why": "",
+          "receipts": [
+            "r170"
+          ],
+          "data": {
+            "tables": [
+              {
+                "table": "fact_ads_hourly",
+                "hour": "2026-11-20T00:00:00",
+                "completeness": 1.0,
+                "status": "ok"
+              },
+              {
+                "table": "fact_orders_hourly",
+                "hour": "2026-11-20T00:00:00",
+                "completeness": 1.0,
+                "status": "ok"
+              },
+              {
+                "table": "fact_payments_hourly",
+                "hour": "2026-11-20T00:00:00",
+                "completeness": 1.0,
+                "status": "ok"
+              }
+            ],
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "data_freshness",
+              "label": "Data freshness",
+              "question": "Did all source data arrive?",
+              "index": 1,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 2,
+          "kind": "identities",
+          "tool": "check_identities",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "identities hold",
+          "decision": "continue",
+          "why": "",
+          "receipts": [
+            "r171",
+            "r172"
+          ],
+          "data": {
+            "identities": [
+              {
+                "edge": "f_orders_payments",
+                "expr": "orders = payment_successes",
+                "max_rel_residual": 0.0,
+                "holds": true
+              }
+            ],
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "identities",
+              "label": "Identity check",
+              "question": "Do the cross-table identities hold?",
+              "index": 2,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 3,
+          "kind": "calendar",
+          "tool": "list_events",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "0 planned event(s) in force, none plans ad_spend in all segments",
+          "decision": "continue: not an expected change",
+          "why": "planned events change the expectation; they do not mute the metric",
+          "receipts": [
+            "r173"
+          ],
+          "data": {
+            "planned": [],
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "planned_events",
+              "label": "Planned events",
+              "question": "Was this change planned?",
+              "index": 3,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 4,
+          "kind": "decompose",
+          "tool": "decompose_formula",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "3 exact splits of ad_spend: formula f_ad_spend -> impressions_per_session 101% (z +48.0); identity via cpa -> ad_conversions 97% (z +10.2); identity via pacing_ratio -> pacing_ratio 100% (z +32.3)",
+          "decision": "follow identity via pacing_ratio",
+          "why": "prefer a factor that moved beyond its normal spread, then one the graph attaches logged causes to: pacing_ratio has evidence logs",
+          "receipts": [
+            "r174",
+            "r175",
+            "r176",
+            "r177",
+            "r178"
+          ],
+          "data": {
+            "alternatives": [
+              {
+                "decomposition": "formula f_ad_spend",
+                "factor": "impressions_per_session",
+                "share": 1.0094,
+                "z": 47.98,
+                "significant": true,
+                "evidence_attached": false
+              },
+              {
+                "decomposition": "identity via cpa",
+                "factor": "ad_conversions",
+                "share": 0.965,
+                "z": 10.19,
+                "significant": true,
+                "evidence_attached": false
+              },
+              {
+                "decomposition": "identity via pacing_ratio",
+                "factor": "pacing_ratio",
+                "share": 1.0,
+                "z": 32.31,
+                "significant": true,
+                "evidence_attached": true
+              }
+            ],
+            "follow": "identity via pacing_ratio",
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "exact_split",
+              "label": "Exact split (LMDI)",
+              "question": "Which factor carries the change?",
+              "index": 4,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 5,
+          "kind": "decompose",
+          "tool": "decompose_formula",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "ad_spend = planned_spend x pacing_ratio: planned_spend 0%, pacing_ratio 100%",
+          "decision": "follow pacing_ratio",
+          "why": "largest contribution among factors that moved beyond their week-to-week spread: pacing_ratio 100% (z +32.3)",
+          "receipts": [
+            "r177",
+            "r178"
+          ],
+          "data": {
+            "hop": 1,
+            "node": "ad_spend",
+            "children": [
+              {
+                "node": "planned_spend",
+                "share": 0.0,
+                "z": 0.0
+              },
+              {
+                "node": "pacing_ratio",
+                "share": 1.0,
+                "z": 32.31
+              }
+            ],
+            "follow": "pacing_ratio",
+            "path": [
+              "ad_spend",
+              "pacing_ratio"
+            ],
+            "decomposition": "identity via pacing_ratio",
+            "decomposed": "ad_spend",
+            "factors": [
+              {
+                "node": "pacing_ratio",
+                "share": 1.0,
+                "value": 1686.5575,
+                "z": 32.31,
+                "rel_change": 0.9361
+              },
+              {
+                "node": "planned_spend",
+                "share": 0.0,
+                "value": 0.0,
+                "z": 0.0,
+                "rel_change": 0.0
+              }
+            ],
+            "residual": -3.183231456205249e-12,
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "exact_split",
+              "label": "Exact split (LMDI)",
+              "question": "Which factor carries the change?",
+              "index": 4,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 6,
+          "kind": "decompose",
+          "tool": "mix_rate_split",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "advertiser_id: mix +0.00000, rate +0.93198; country: mix +0.00000, rate +0.93198",
+          "decision": "rate effect: localise the rate",
+          "why": "a blended rate can move while every segment's own rate stays flat (Simpson's paradox)",
+          "receipts": [
+            "r179",
+            "r180"
+          ],
+          "data": {
+            "advertiser_id": {
+              "summary": "pacing_ratio by advertiser_id: change +0.93198 = mix +0.00000 + rate +0.93198; adv_06 rate moved (z +175.2)",
+              "receipts": [
+                "r179"
+              ],
+              "change": 0.9319799408725444,
+              "mix": 0.0,
+              "rate": 0.9319799408725441,
+              "rates_flat": false
+            },
+            "country": {
+              "summary": "pacing_ratio by country: change +0.93198 = mix +0.00000 + rate +0.93198; FR rate moved (z +338.1)",
+              "receipts": [
+                "r180"
+              ],
+              "change": 0.9319799408725444,
+              "mix": 0.0,
+              "rate": 0.9319799408725442,
+              "rates_flat": false
+            },
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "mix_vs_rate",
+              "label": "Mix vs rate",
+              "question": "Did the mix shift, or did the rates move?",
+              "index": 5,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 7,
+          "kind": "segment",
+          "tool": "segment_search",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "the whole business explains 100% of the deviation (+93.6%)",
+          "decision": "no single segment carries the change",
+          "why": "",
+          "receipts": [
+            "r181",
+            "r179",
+            "r180"
+          ],
+          "data": {
+            "path": [],
+            "start": {},
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "segment_search",
+              "label": "Segment search",
+              "question": "Where is the change concentrated?",
+              "index": 6,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 8,
+          "kind": "events",
+          "tool": "list_events",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "10 of 10 log entries cover the segment (logs attached to pacing_ratio and its parts: log_ad_budgets, log_deploys)",
+          "decision": "test 2 candidate(s) as hypotheses",
+          "why": "",
+          "receipts": [
+            "r182"
+          ],
+          "data": {
+            "events": [
+              {
+                "log": "log_ad_budgets",
+                "ref": "pacer_adv_01_DE_1.7",
+                "ts": "2026-11-19T23:11:00",
+                "kind": "pacer_change",
+                "description": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7",
+                "scope": {
+                  "advertiser_id": [
+                    "adv_01",
+                    "adv_02",
+                    "adv_03",
+                    "adv_05",
+                    "adv_06"
+                  ],
+                  "country": [
+                    "DE",
+                    "FR"
+                  ]
+                }
+              },
+              {
+                "log": "log_deploys",
+                "ref": "dep_ad-pacer_1.7.0",
+                "ts": "2026-11-19T23:11:00",
+                "kind": "deploy",
+                "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+                "scope": {
+                  "country": [
+                    "DE",
+                    "FR"
+                  ]
+                }
+              }
+            ],
+            "logs": [
+              "log_ad_budgets",
+              "log_deploys"
+            ],
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "evidence_lookup",
+              "label": "Evidence lookup",
+              "question": "Which logged changes line up with the onset?",
+              "index": 8,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 9,
+          "kind": "holdout",
+          "tool": "holdout_check",
+          "hypothesis": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7 (pacer_adv_01_DE_1.7) caused the change",
+          "prediction": "the change is confined to advertiser_id adv_01, adv_02, adv_03, adv_05, adv_06 / country DE, FR; where the event did not apply, pacing_ratio is normal",
+          "result": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+          "decision": "validated: keep as cause",
+          "why": "expected 'consistent', the check says 'consistent' (graph)",
+          "receipts": [
+            "r183"
+          ],
+          "data": {
+            "ledger": {
+              "id": "h1",
+              "hypothesis": {
+                "statement": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7 (pacer_adv_01_DE_1.7) caused the change",
+                "prediction": "the change is confined to advertiser_id adv_01, adv_02, adv_03, adv_05, adv_06 / country DE, FR; where the event did not apply, pacing_ratio is normal",
+                "tool": "holdout_check",
+                "input": {
+                  "event": {
+                    "log": "log_ad_budgets",
+                    "ref": "pacer_adv_01_DE_1.7",
+                    "ts": "2026-11-19T23:11:00",
+                    "kind": "pacer_change",
+                    "description": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7",
+                    "scope": {
+                      "advertiser_id": [
+                        "adv_01",
+                        "adv_02",
+                        "adv_03",
+                        "adv_05",
+                        "adv_06"
+                      ],
+                      "country": [
+                        "DE",
+                        "FR"
+                      ]
+                    }
+                  },
+                  "node": "pacing_ratio",
+                  "segment": {},
+                  "window": {
+                    "start": "2026-11-19T23:00:00",
+                    "end": "2026-11-20T00:00:00"
+                  }
+                },
+                "expect": "consistent",
+                "source": "graph"
+              },
+              "status": "validated",
+              "outcome": "consistent",
+              "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+              "receipts": [
+                "r183"
+              ]
+            },
+            "output": {
+              "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+              "receipts": [
+                "r183"
+              ],
+              "holdout": {
+                "kind": "control",
+                "description": "the part of the segment outside the event's scope",
+                "where": "(TRUE) AND NOT (advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_05', 'adv_06') AND country IN ('DE', 'FR'))"
+              },
+              "rel_change": 0.0097,
+              "z": 0.18,
+              "result": "consistent"
+            },
+            "event": {
+              "log": "log_ad_budgets",
+              "ref": "pacer_adv_01_DE_1.7",
+              "ts": "2026-11-19T23:11:00",
+              "kind": "pacer_change",
+              "description": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7",
+              "scope": {
+                "advertiser_id": [
+                  "adv_01",
+                  "adv_02",
+                  "adv_03",
+                  "adv_05",
+                  "adv_06"
+                ],
+                "country": [
+                  "DE",
+                  "FR"
+                ]
+              }
+            },
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "hypothesis_tests",
+              "label": "Hypothesis tests",
+              "question": "Does each candidate survive its holdout?",
+              "index": 9,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 10,
+          "kind": "holdout",
+          "tool": "holdout_check",
+          "hypothesis": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing) (dep_ad-pacer_1.7.0) caused the change",
+          "prediction": "the change is confined to country DE, FR; where the event did not apply, pacing_ratio is normal",
+          "result": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+          "decision": "validated: keep as cause",
+          "why": "expected 'consistent', the check says 'consistent' (graph)",
+          "receipts": [
+            "r184"
+          ],
+          "data": {
+            "ledger": {
+              "id": "h2",
+              "hypothesis": {
+                "statement": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing) (dep_ad-pacer_1.7.0) caused the change",
+                "prediction": "the change is confined to country DE, FR; where the event did not apply, pacing_ratio is normal",
+                "tool": "holdout_check",
+                "input": {
+                  "event": {
+                    "log": "log_deploys",
+                    "ref": "dep_ad-pacer_1.7.0",
+                    "ts": "2026-11-19T23:11:00",
+                    "kind": "deploy",
+                    "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+                    "scope": {
+                      "country": [
+                        "DE",
+                        "FR"
+                      ]
+                    }
+                  },
+                  "node": "pacing_ratio",
+                  "segment": {},
+                  "window": {
+                    "start": "2026-11-19T23:00:00",
+                    "end": "2026-11-20T00:00:00"
+                  }
+                },
+                "expect": "consistent",
+                "source": "graph"
+              },
+              "status": "validated",
+              "outcome": "consistent",
+              "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+              "receipts": [
+                "r184"
+              ]
+            },
+            "output": {
+              "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+              "receipts": [
+                "r184"
+              ],
+              "holdout": {
+                "kind": "control",
+                "description": "the part of the segment outside the event's scope",
+                "where": "(TRUE) AND NOT (country IN ('DE', 'FR'))"
+              },
+              "rel_change": 0.0097,
+              "z": 0.18,
+              "result": "consistent"
+            },
+            "event": {
+              "log": "log_deploys",
+              "ref": "dep_ad-pacer_1.7.0",
+              "ts": "2026-11-19T23:11:00",
+              "kind": "deploy",
+              "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+              "scope": {
+                "country": [
+                  "DE",
+                  "FR"
+                ]
+              }
+            },
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "hypothesis_tests",
+              "label": "Hypothesis tests",
+              "question": "Does each candidate survive its holdout?",
+              "index": 9,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 11,
+          "kind": "holdout",
+          "tool": "placebo_test",
+          "hypothesis": "the deviation of pacing_ratio in all segments is unusual for these hours of the week",
+          "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+          "result": "the real window: +93.0% (z +32.1); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+          "decision": "validated: the deviation is unusual",
+          "why": "expected 'unusual', the check says 'unusual' (graph)",
+          "receipts": [
+            "r185",
+            "r186"
+          ],
+          "data": {
+            "ledger": {
+              "id": "h3",
+              "hypothesis": {
+                "statement": "the deviation of pacing_ratio in all segments is unusual for these hours of the week",
+                "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+                "tool": "placebo_test",
+                "input": {
+                  "node": "pacing_ratio",
+                  "segment": {},
+                  "window": {
+                    "start": "2026-11-19T23:00:00",
+                    "end": "2026-11-20T00:00:00"
+                  },
+                  "weeks": 8
+                },
+                "expect": "unusual",
+                "source": "graph"
+              },
+              "status": "validated",
+              "outcome": "unusual",
+              "summary": "the real window: +93.0% (z +32.1); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+              "receipts": [
+                "r185",
+                "r186"
+              ]
+            },
+            "output": {
+              "summary": "the real window: +93.0% (z +32.1); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+              "receipts": [
+                "r185",
+                "r186"
+              ],
+              "hits": 0,
+              "weeks": 5
+            },
+            "placebo": {
+              "actual": {
+                "rel_change": 0.93,
+                "z": 32.1
+              },
+              "threshold_z": 3.0,
+              "weeks": [
+                {
+                  "weeks_back": 1,
+                  "rel_change": -0.0178,
+                  "z": -0.53
+                },
+                {
+                  "weeks_back": 2,
+                  "rel_change": 0.007,
+                  "z": 0.21
+                },
+                {
+                  "weeks_back": 3,
+                  "rel_change": 0.0197,
+                  "z": 0.6
+                },
+                {
+                  "weeks_back": 4,
+                  "rel_change": -0.0245,
+                  "z": -0.73
+                },
+                {
+                  "weeks_back": 5,
+                  "rel_change": 0.0159,
+                  "z": 0.48
+                }
+              ]
+            },
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "placebo",
+              "label": "Placebo",
+              "question": "Is the deviation unusual for these hours of the week?",
+              "index": 10,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 12,
+          "kind": "impact",
+          "tool": "decompose_formula",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "ad_spend +93.6% per hour: impressions_per_session carries 101% of the change",
+          "decision": "where the change came from",
+          "why": "",
+          "receipts": [
+            "r188",
+            "r189"
+          ],
+          "data": {
+            "node": "ad_spend",
+            "residual": -5.684341886080801e-13,
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "impact",
+              "label": "Impact",
+              "question": "What does it cost against the expectation?",
+              "index": 11,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 13,
+          "kind": "impact",
+          "tool": "counterfactual_impact",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "+843.3 ad_spend/h, EUR +843/h, EUR +1,687 so far",
+          "decision": "severity = cumulative EUR impact",
+          "why": "",
+          "receipts": [
+            "r181",
+            "r190"
+          ],
+          "data": {
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "impact",
+              "label": "Impact",
+              "question": "What does it cost against the expectation?",
+              "index": 11,
+              "of": 13
+            }
+          }
+        },
+        {
+          "step": 14,
+          "kind": "verdict",
+          "tool": "verdict",
+          "hypothesis": null,
+          "prediction": null,
+          "result": "SUPPORTED_CAUSE",
+          "decision": "stop: explained 100% >= 80%",
+          "why": "aligned event dep_ad-pacer_1.7.0 validated by its holdout or control check; placebo did not recur",
+          "receipts": [],
+          "data": {
+            "claims": [
+              {
+                "text": "Ad spend moved +192.04% against its expectation in all segments.",
+                "label": "evidence",
+                "basis": "watcher: robust z against the same hours of 4 prior weeks",
+                "receipts": [
+                  "r169"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "Not a change in sessions: sessions -1.3% (z -0.4), within its normal week-to-week spread.",
+                "label": "evidence",
+                "basis": "decompose_formula: factor z",
+                "receipts": [
+                  "r174",
+                  "r175"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "Not a change in planned spend: planned spend +0.0% (z +0.0), within its normal week-to-week spread.",
+                "label": "evidence",
+                "basis": "decompose_formula: factor z",
+                "receipts": [
+                  "r177",
+                  "r178"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "pacing_ratio carries 100% of the change of ad_spend (exact LMDI split, identity via pacing_ratio, z +32.3).",
+                "label": "evidence",
+                "basis": "decompose_formula: LMDI, zero residual",
+                "receipts": [
+                  "r177",
+                  "r178"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "The scope of dep_ad-pacer_1.7.0 (country DE, FR) carries 100% of the deviation of pacing_ratio with 62% of its volume.",
+                "label": "evidence",
+                "basis": "segment cells inside the event's scope",
+                "receipts": [
+                  "r187"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "Placebo on pacing_ratio in all segments: the real window: +93.0% (z +32.1); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
+                "label": "evidence",
+                "basis": "placebo_test: unusual",
+                "receipts": [
+                  "r185",
+                  "r186"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing) (dep_ad-pacer_1.7.0) caused it, logged at 2026-11-19 23:11 next to the onset: control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside.",
+                "label": "evidence",
+                "basis": "holdout_check: consistent, aligned with the onset",
+                "receipts": [
+                  "r184"
+                ],
+                "upgrade": null
+              },
+              {
+                "text": "Impact: +843.3 ad_spend per hour, EUR +843 per hour.",
+                "label": "evidence",
+                "basis": "counterfactual_impact: against the 4-week expectation",
+                "receipts": [
+                  "r181",
+                  "r190"
+                ],
+                "upgrade": null
+              }
+            ],
+            "ledger": [
+              {
+                "id": "h1",
+                "hypothesis": {
+                  "statement": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7 (pacer_adv_01_DE_1.7) caused the change",
+                  "prediction": "the change is confined to advertiser_id adv_01, adv_02, adv_03, adv_05, adv_06 / country DE, FR; where the event did not apply, pacing_ratio is normal",
+                  "tool": "holdout_check",
+                  "input": {
+                    "event": {
+                      "log": "log_ad_budgets",
+                      "ref": "pacer_adv_01_DE_1.7",
+                      "ts": "2026-11-19T23:11:00",
+                      "kind": "pacer_change",
+                      "description": "9 pacer_change entries at 23:11 (Nimbus Games DE: pacer 1.6 -> 1.7, ...): pacer_adv_01_DE_1.7, pacer_adv_01_FR_1.7, pacer_adv_02_DE_1.7, pacer_adv_03_DE_1.7, pacer_adv_03_FR_1.7, pacer_adv_05_DE_1.7, pacer_adv_05_FR_1.7, pacer_adv_06_DE_1.7, pacer_adv_06_FR_1.7",
+                      "scope": {
+                        "advertiser_id": [
+                          "adv_01",
+                          "adv_02",
+                          "adv_03",
+                          "adv_05",
+                          "adv_06"
+                        ],
+                        "country": [
+                          "DE",
+                          "FR"
+                        ]
+                      }
+                    },
+                    "node": "pacing_ratio",
+                    "segment": {},
+                    "window": {
+                      "start": "2026-11-19T23:00:00",
+                      "end": "2026-11-20T00:00:00"
+                    }
+                  },
+                  "expect": "consistent",
+                  "source": "graph"
+                },
+                "status": "validated",
+                "outcome": "consistent",
+                "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+                "receipts": [
+                  "r183"
+                ]
+              },
+              {
+                "id": "h2",
+                "hypothesis": {
+                  "statement": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing) (dep_ad-pacer_1.7.0) caused the change",
+                  "prediction": "the change is confined to country DE, FR; where the event did not apply, pacing_ratio is normal",
+                  "tool": "holdout_check",
+                  "input": {
+                    "event": {
+                      "log": "log_deploys",
+                      "ref": "dep_ad-pacer_1.7.0",
+                      "ts": "2026-11-19T23:11:00",
+                      "kind": "deploy",
+                      "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+                      "scope": {
+                        "country": [
+                          "DE",
+                          "FR"
+                        ]
+                      }
+                    },
+                    "node": "pacing_ratio",
+                    "segment": {},
+                    "window": {
+                      "start": "2026-11-19T23:00:00",
+                      "end": "2026-11-20T00:00:00"
+                    }
+                  },
+                  "expect": "consistent",
+                  "source": "graph"
+                },
+                "status": "validated",
+                "outcome": "consistent",
+                "summary": "control normal, the change sits where the event applies: the part of the segment outside the event's scope +1.0% (z +0.2) vs +93.6% inside",
+                "receipts": [
+                  "r184"
+                ]
+              },
+              {
+                "id": "h3",
+                "hypothesis": {
+                  "statement": "the deviation of pacing_ratio in all segments is unusual for these hours of the week",
+                  "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+                  "tool": "placebo_test",
+                  "input": {
+                    "node": "pacing_ratio",
+                    "segment": {},
+                    "window": {
+                      "start": "2026-11-19T23:00:00",
+                      "end": "2026-11-20T00:00:00"
+                    },
+                    "weeks": 8
+                  },
+                  "expect": "unusual",
+                  "source": "graph"
+                },
+                "status": "validated",
+                "outcome": "unusual",
+                "summary": "the real window: +93.0% (z +32.1); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+                "receipts": [
+                  "r185",
+                  "r186"
+                ]
+              }
+            ],
+            "explained_share": 0.996,
+            "event_scope_share": {
+              "ep": 0.996,
+              "volume_share": 0.6194,
+              "excess": 0.3766,
+              "receipt": "r187"
+            },
+            "checks_used": 3,
+            "checks_budget": 12,
+            "playbook_run": [
+              {
+                "step": "data_freshness",
+                "label": "Data freshness",
+                "status": "done"
+              },
+              {
+                "step": "identities",
+                "label": "Identity check",
+                "status": "done"
+              },
+              {
+                "step": "planned_events",
+                "label": "Planned events",
+                "status": "done"
+              },
+              {
+                "step": "exact_split",
+                "label": "Exact split (LMDI)",
+                "status": "done"
+              },
+              {
+                "step": "mix_vs_rate",
+                "label": "Mix vs rate",
+                "status": "done"
+              },
+              {
+                "step": "segment_search",
+                "label": "Segment search",
+                "status": "done"
+              },
+              {
+                "step": "root_onset",
+                "label": "Root onset",
+                "status": "skipped"
+              },
+              {
+                "step": "evidence_lookup",
+                "label": "Evidence lookup",
+                "status": "done"
+              },
+              {
+                "step": "hypothesis_tests",
+                "label": "Hypothesis tests",
+                "status": "done"
+              },
+              {
+                "step": "placebo",
+                "label": "Placebo",
+                "status": "done"
+              },
+              {
+                "step": "impact",
+                "label": "Impact",
+                "status": "done"
+              },
+              {
+                "step": "planner",
+                "label": "Planner hypotheses",
+                "status": "skipped"
+              },
+              {
+                "step": "verdict",
+                "label": "Verdict",
+                "status": "done"
+              }
+            ],
+            "playbook": {
+              "id": "ads_spike",
+              "name": "Ad spend spike playbook",
+              "step": "verdict",
+              "label": "Verdict",
+              "question": "What is known, and how sure is it?",
+              "index": 13,
+              "of": 13
+            }
+          }
+        }
+      ],
+      "skeptic": null,
+      "cost": {
+        "queries": 22,
+        "seconds": 0.075,
+        "llm_calls": 0,
+        "eur": 0.0
+      },
+      "suggested_action": {
+        "text": "Roll back dep_ad-pacer_1.7.0 for country DE, FR and watch pacing_ratio.",
+        "needs_approval": true
+      }
+    }
+  }
+]

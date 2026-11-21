@@ -1,0 +1,23 @@
+[
+  {
+    "id": "an_0001",
+    "node": "ad_spend",
+    "segment": {},
+    "direction": "up",
+    "hour": "2026-11-20T00:00:00",
+    "detected_at": "2026-11-20T02:00:00",
+    "onset": "2026-11-19T23:00:00",
+    "observed": 2455.98,
+    "expected": 840.985,
+    "band": [
+      794.329513,
+      890.380829
+    ],
+    "z": 37.55,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r169"
+    ]
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "note_0001",
+    "kind": "expected",
+    "sim_ts": "2026-11-20T10:00:00",
+    "node": "ad_spend",
+    "segment": {
+      "advertiser_id": "adv_01",
+      "country": "FR"
+    },
+    "reason": "Ad spend: delivery follows its plan (planned_spend +41.0%, pacing_ratio flat); planned by bud_adv_01_FR_increase: Nimbus Games FR: planned daily budget increase EUR 2000 -> 2820 (+41%) from Fri 07:00, pacer 1.6",
+    "numbers": [
+      {
+        "value": 51.55,
+        "unit": "pct",
+        "receipt": "r169"
+      }
+    ],
+    "receipts": [
+      "r171",
+      "r172",
+      "r173",
+      "r174",
+      "r176",
+      "r178",
+      "r179",
+      "r180",
+      "r181",
+      "r182",
+      "r181",
+      "r182",
+      "r181",
+      "r182",
+      "r183"
+    ]
+  }
+]

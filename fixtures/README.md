@@ -1,7 +1,17 @@
 # fixtures
 
-One recorded S1 run (seed 1), produced by `make fixtures` (`argus-bench s1 --seed 1 --record fixtures`).
-Lanes build against these files before the producing lane's code is ready.
+Recorded Argus runs, all seed 1, produced by `make fixtures`: the S1 run at the top level (`argus-bench s1 --seed 1 --record fixtures`) and one directory per other scenario (`argus-bench record <scenario> --seed 1 --out fixtures/<scenario>`).
+`make api SCENARIO=<scenario>` replays one of them; `tests/api/test_api_scenarios.py` checks that a live run over a fresh world of the same seed still streams the same story, so re-record after changing what Argus does.
+
+| Directory | Scenario | What the run shows |
+| --- | --- | --- |
+| `fixtures/` | S1 | PayCo DE/android outage: SUPPORTED_CAUSE, the release ruled out, resolved |
+| `fixtures/quiet/` | quiet | nothing injected: no anomaly, no page |
+| `fixtures/s2/` | S2 | planned FR budget increase: EXPECTED note, no page |
+| `fixtures/s3/` | S3 | orders loader stall: DATA_ISSUE note, no business incident |
+| `fixtures/s4/` | S4 | ad-pacer 1.7.0 overburn: SUPPORTED_CAUSE on pacing_ratio |
+
+The top-level S1 files:
 
 | File | Contract | What it is |
 | --- | --- | --- |
@@ -15,5 +25,7 @@ Lanes build against these files before the producing lane's code is ready.
 | `report.md` | narrator | the template report of the incident |
 | `manifest.json` | C1 | the public world manifest |
 
-`receipts.json` re-runs against the world of seed 1: `make world SEED=1`, then `make demo SEED=1` and `POST /receipts/{id}/rerun`.
+The scenario directories hold the runtime export instead (`graph.json`, `events.jsonl`, `incidents.json`, `notes.json`, `anomalies.json`, `receipts.json`, `graph_changelog.jsonl`, `reports/<incident>.md`) plus `manifest.json`.
+
+`receipts.json` re-runs against the world of seed 1: `make world SCENARIO=<scenario> SEED=1`, then `make demo SCENARIO=<scenario> SEED=1` and `POST /receipts/{id}/rerun`.
 Timings (`ms`, `cost.seconds`) differ between recordings; everything else is deterministic for a seed.

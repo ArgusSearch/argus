@@ -1,0 +1,12 @@
+[
+  {
+    "id": "note_0001",
+    "kind": "data_issue",
+    "sim_ts": "2026-11-21T23:00:00",
+    "node": null,
+    "segment": {},
+    "reason": "fact_orders_hourly 21:00 is only 55% delivered at 23:00 (normal lag 2 h); dependent nodes are not scored until it arrives",
+    "numbers": [],
+    "receipts": []
+  }
+]

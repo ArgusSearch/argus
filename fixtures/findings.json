@@ -2,7 +2,7 @@
   "anomaly_id": "an_0001",
   "incident_id": "INC-0001",
   "verdict": "SUPPORTED_CAUSE",
-  "headline": "Payment success rate down in android / DE / PayCo",
+  "headline": "Payment success rate -33.6% in android / DE / PayCo: PayCo: elevated decline rates for Android SDK payments in Germany",
   "as_of": "2026-11-21T20:00:00",
   "window": {
     "start": "2026-11-21T18:00:00",
@@ -64,37 +64,37 @@
       "node": "payment_success_rate",
       "share": 0.9843,
       "value": -272.3972,
-      "receipt": "r242"
+      "receipt": "r245"
     },
     {
       "node": "sessions",
       "share": 0.1944,
       "value": -53.8033,
-      "receipt": "r241"
+      "receipt": "r244"
     },
     {
       "node": "cart_rate",
       "share": -0.1307,
       "value": 36.1785,
-      "receipt": "r241"
+      "receipt": "r244"
     },
     {
       "node": "checkout_rate",
       "share": -0.1088,
       "value": 30.1045,
-      "receipt": "r241"
+      "receipt": "r244"
     },
     {
       "node": "view_rate",
       "share": 0.0316,
       "value": -8.758,
-      "receipt": "r241"
+      "receipt": "r244"
     },
     {
       "node": "attempt_rate",
       "share": 0.0292,
       "value": -8.0745,
-      "receipt": "r242"
+      "receipt": "r245"
     }
   ],
   "decomposed_node": "orders",
@@ -114,37 +114,20 @@
     "gmv_eur_per_hour": {
       "value": -19717.0,
       "unit": "eur",
-      "receipt": "r243"
+      "receipt": "r246"
     },
     "eur_so_far": {
       "value": -19717.0,
       "unit": "eur",
-      "receipt": "r243"
+      "receipt": "r246"
     }
   },
   "ruled_out": [
     {
-      "hypothesis": "checkout-service 1.2.6 (all users)",
-      "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
-      "result": "refuted",
-      "reason": "holdout normal",
-      "evidence": {
-        "log": "log_deploys",
-        "ref": "dep_checkout-service_1.2.6",
-        "ts": "2026-11-21T16:42:00",
-        "kind": "deploy",
-        "description": "checkout-service 1.2.6 (all users)",
-        "scope": {}
-      },
-      "receipts": [
-        "r239"
-      ]
-    },
-    {
       "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
       "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
       "result": "refuted",
-      "reason": "holdout normal",
+      "reason": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
       "evidence": {
         "log": "log_deploys",
         "ref": "dep_android-app_8.3.0",
@@ -160,11 +143,27 @@
       "receipts": [
         "r240"
       ]
+    },
+    {
+      "hypothesis": "checkout-service 1.2.6 (all users)",
+      "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+      "result": "refuted",
+      "reason": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+      "evidence": {
+        "log": "log_deploys",
+        "ref": "dep_checkout-service_1.2.6",
+        "ts": "2026-11-21T16:42:00",
+        "kind": "deploy",
+        "description": "checkout-service 1.2.6 (all users)",
+        "scope": {}
+      },
+      "receipts": [
+        "r241"
+      ]
     }
   ],
   "uncertain": [
-    "Whether the fault is inside PayCo or in our PayCo integration.",
-    "0% of the deviation is outside the root segment."
+    "Whether the fault is inside PayCo or in our PayCo integration."
   ],
   "explained_share": 1.0,
   "unexplained_share": 0.0,
@@ -195,7 +194,16 @@
             "completeness": 1.0,
             "status": "ok"
           }
-        ]
+        ],
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "data_freshness",
+          "label": "Data freshness",
+          "question": "Did all source data arrive?",
+          "index": 1,
+          "of": 13
+        }
       }
     },
     {
@@ -219,7 +227,16 @@
             "max_rel_residual": 0.0,
             "holds": true
           }
-        ]
+        ],
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "identities",
+          "label": "Identity check",
+          "question": "Do the cross-table identities hold?",
+          "index": 2,
+          "of": 13
+        }
       }
     },
     {
@@ -228,14 +245,23 @@
       "tool": "list_events",
       "hypothesis": null,
       "prediction": null,
-      "result": "no planned event in the window",
+      "result": "0 planned event(s) in force, none plans payment_success_rate in all segments",
       "decision": "continue: not an expected change",
-      "why": "",
+      "why": "planned events change the expectation; they do not mute the metric",
       "receipts": [
         "r229"
       ],
       "data": {
-        "events": []
+        "planned": [],
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "planned_events",
+          "label": "Planned events",
+          "question": "Was this change planned?",
+          "index": 3,
+          "of": 13
+        }
       }
     },
     {
@@ -248,10 +274,76 @@
       "decision": "localise payment_success_rate directly",
       "why": "leaf node: the exact split ends here",
       "receipts": [],
-      "data": {}
+      "data": {
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "exact_split",
+          "label": "Exact split (LMDI)",
+          "question": "Which factor carries the change?",
+          "index": 4,
+          "of": 13
+        }
+      }
     },
     {
       "step": 5,
+      "kind": "decompose",
+      "tool": "mix_rate_split",
+      "hypothesis": null,
+      "prediction": null,
+      "result": "country: mix +0.00010, rate -0.01942; platform: mix -0.00019, rate -0.01914; provider: mix -0.00003, rate -0.01929",
+      "decision": "rate effect: localise the rate",
+      "why": "a blended rate can move while every segment's own rate stays flat (Simpson's paradox)",
+      "receipts": [
+        "r230",
+        "r231",
+        "r232"
+      ],
+      "data": {
+        "country": {
+          "summary": "payment_success_rate by country: change -0.01932 = mix +0.00010 + rate -0.01942; DE rate moved (z -15.7)",
+          "receipts": [
+            "r230"
+          ],
+          "change": -0.019322033789713977,
+          "mix": 9.995143939936111e-05,
+          "rate": -0.019421985229113398,
+          "rates_flat": false
+        },
+        "platform": {
+          "summary": "payment_success_rate by platform: change -0.01932 = mix -0.00019 + rate -0.01914; android rate moved (z -15.9)",
+          "receipts": [
+            "r231"
+          ],
+          "change": -0.019322033789713977,
+          "mix": -0.00018615398734433898,
+          "rate": -0.019135879802369637,
+          "rates_flat": false
+        },
+        "provider": {
+          "summary": "payment_success_rate by provider: change -0.01932 = mix -0.00003 + rate -0.01929; PayCo rate moved (z -13.7)",
+          "receipts": [
+            "r232"
+          ],
+          "change": -0.019322033789713977,
+          "mix": -3.125831871049001e-05,
+          "rate": -0.019290775471003472,
+          "rates_flat": false
+        },
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "mix_vs_rate",
+          "label": "Mix vs rate",
+          "question": "Did the mix shift, or did the rates move?",
+          "index": 5,
+          "of": 13
+        }
+      }
+    },
+    {
+      "step": 6,
       "kind": "segment",
       "tool": "segment_search",
       "hypothesis": null,
@@ -260,10 +352,10 @@
       "decision": "root segment android / DE / PayCo",
       "why": "",
       "receipts": [
+        "r233",
         "r230",
         "r231",
         "r232",
-        "r233",
         "r234",
         "r235",
         "r236"
@@ -297,11 +389,21 @@
             "volume_share": 0.4919,
             "rel_change": -0.3357
           }
-        ]
+        ],
+        "start": {},
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "segment_search",
+          "label": "Segment search",
+          "question": "Where is the change concentrated?",
+          "index": 6,
+          "of": 13
+        }
       }
     },
     {
-      "step": 6,
+      "step": 7,
       "kind": "segment",
       "tool": "get_series",
       "hypothesis": null,
@@ -313,31 +415,32 @@
         "r237"
       ],
       "data": {
-        "onset": "2026-11-21T18:00:00"
+        "onset": "2026-11-21T18:00:00",
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "root_onset",
+          "label": "Root onset",
+          "question": "When did the root segment start to deviate?",
+          "index": 7,
+          "of": 13
+        }
       }
     },
     {
-      "step": 7,
+      "step": 8,
       "kind": "events",
       "tool": "list_events",
       "hypothesis": null,
       "prediction": null,
-      "result": "3 of 5 log entries cover the segment",
-      "decision": "test 3 candidate(s)",
+      "result": "3 of 5 log entries cover the segment (logs attached to payment_success_rate and its parts: log_deploys, log_provider_status)",
+      "decision": "test 3 candidate(s) as hypotheses",
       "why": "",
       "receipts": [
         "r238"
       ],
       "data": {
         "events": [
-          {
-            "log": "log_deploys",
-            "ref": "dep_checkout-service_1.2.6",
-            "ts": "2026-11-21T16:42:00",
-            "kind": "deploy",
-            "description": "checkout-service 1.2.6 (all users)",
-            "scope": {}
-          },
           {
             "log": "log_provider_status",
             "ref": "ps_payco_degraded",
@@ -367,32 +470,29 @@
                 "android"
               ]
             }
+          },
+          {
+            "log": "log_deploys",
+            "ref": "dep_checkout-service_1.2.6",
+            "ts": "2026-11-21T16:42:00",
+            "kind": "deploy",
+            "description": "checkout-service 1.2.6 (all users)",
+            "scope": {}
           }
-        ]
-      }
-    },
-    {
-      "step": 8,
-      "kind": "holdout",
-      "tool": "holdout_check",
-      "hypothesis": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) caused the change",
-      "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
-      "result": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
-      "decision": "ruled out",
-      "why": "",
-      "receipts": [
-        "r239"
-      ],
-      "data": {
-        "event": {
-          "log": "log_deploys",
-          "ref": "dep_checkout-service_1.2.6",
-          "ts": "2026-11-21T16:42:00",
-          "kind": "deploy",
-          "description": "checkout-service 1.2.6 (all users)",
-          "scope": {}
-        },
-        "result": "refuted"
+        ],
+        "logs": [
+          "log_deploys",
+          "log_provider_status"
+        ],
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "evidence_lookup",
+          "label": "Evidence lookup",
+          "question": "Which logged changes line up with the onset?",
+          "index": 8,
+          "of": 13
+        }
       }
     },
     {
@@ -400,12 +500,74 @@
       "kind": "holdout",
       "tool": "holdout_check",
       "hypothesis": "PayCo: elevated decline rates for Android SDK payments in Germany (ps_payco_degraded) caused the change",
-      "prediction": "the change is confined to android / DE / PayCo",
-      "result": "the event's scope is exactly the anomalous segment: nothing to hold out",
-      "decision": "keep as cause",
-      "why": "",
-      "receipts": [],
+      "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
+      "result": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.3% (z +0.8) vs -33.6% inside",
+      "decision": "validated: keep as cause",
+      "why": "expected 'consistent', the check says 'consistent' (graph)",
+      "receipts": [
+        "r239"
+      ],
       "data": {
+        "ledger": {
+          "id": "h1",
+          "hypothesis": {
+            "statement": "PayCo: elevated decline rates for Android SDK payments in Germany (ps_payco_degraded) caused the change",
+            "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
+            "tool": "holdout_check",
+            "input": {
+              "event": {
+                "log": "log_provider_status",
+                "ref": "ps_payco_degraded",
+                "ts": "2026-11-21T17:53:00",
+                "kind": "degraded",
+                "description": "PayCo: elevated decline rates for Android SDK payments in Germany",
+                "scope": {
+                  "country": [
+                    "DE"
+                  ],
+                  "platform": [
+                    "android"
+                  ],
+                  "provider": [
+                    "PayCo"
+                  ]
+                }
+              },
+              "node": "payment_success_rate",
+              "segment": {
+                "platform": "android",
+                "country": "DE",
+                "provider": "PayCo"
+              },
+              "window": {
+                "start": "2026-11-21T18:00:00",
+                "end": "2026-11-21T18:00:00"
+              }
+            },
+            "expect": "consistent",
+            "source": "graph"
+          },
+          "status": "validated",
+          "outcome": "consistent",
+          "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.3% (z +0.8) vs -33.6% inside",
+          "receipts": [
+            "r239"
+          ]
+        },
+        "output": {
+          "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.3% (z +0.8) vs -33.6% inside",
+          "receipts": [
+            "r239"
+          ],
+          "holdout": {
+            "kind": "control",
+            "description": "the neighbouring segments the event did not touch",
+            "where": "(platform = 'android' AND provider = 'PayCo' AND country <> 'DE') OR (country = 'DE' AND provider = 'PayCo' AND platform <> 'android') OR (country = 'DE' AND platform = 'android' AND provider <> 'PayCo')"
+          },
+          "rel_change": 0.0031,
+          "z": 0.76,
+          "result": "consistent"
+        },
         "event": {
           "log": "log_provider_status",
           "ref": "ps_payco_degraded",
@@ -424,7 +586,15 @@
             ]
           }
         },
-        "result": "not_applicable"
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "hypothesis_tests",
+          "label": "Hypothesis tests",
+          "question": "Does each candidate survive its holdout?",
+          "index": 9,
+          "of": 13
+        }
       }
     },
     {
@@ -434,12 +604,74 @@
       "hypothesis": "android-app 8.3.0 rolled out to 100% of Android users in all countries (dep_android-app_8.3.0) caused the change",
       "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
       "result": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
-      "decision": "ruled out",
-      "why": "",
+      "decision": "refuted: ruled out",
+      "why": "expected 'consistent', the check says 'refuted' (graph)",
       "receipts": [
         "r240"
       ],
       "data": {
+        "ledger": {
+          "id": "h2",
+          "hypothesis": {
+            "statement": "android-app 8.3.0 rolled out to 100% of Android users in all countries (dep_android-app_8.3.0) caused the change",
+            "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+            "tool": "holdout_check",
+            "input": {
+              "event": {
+                "log": "log_deploys",
+                "ref": "dep_android-app_8.3.0",
+                "ts": "2026-11-21T17:54:00",
+                "kind": "release",
+                "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+                "scope": {
+                  "platform": [
+                    "android"
+                  ]
+                }
+              },
+              "node": "payment_success_rate",
+              "segment": {
+                "platform": "android",
+                "country": "DE",
+                "provider": "PayCo"
+              },
+              "window": {
+                "start": "2026-11-21T18:00:00",
+                "end": "2026-11-21T18:00:00"
+              }
+            },
+            "expect": "consistent",
+            "source": "graph"
+          },
+          "status": "refuted",
+          "outcome": "refuted",
+          "summary": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
+          "receipts": [
+            "r240"
+          ]
+        },
+        "output": {
+          "summary": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
+          "receipts": [
+            "r240"
+          ],
+          "holdout": {
+            "scope": {
+              "platform": [
+                "android"
+              ]
+            },
+            "minus": {
+              "platform": "android",
+              "country": "DE",
+              "provider": "PayCo"
+            },
+            "where": "(platform IN ('android')) AND NOT (country = 'DE' AND platform = 'android' AND provider = 'PayCo')"
+          },
+          "rel_change": -0.0015,
+          "z": -0.39,
+          "result": "refuted"
+        },
         "event": {
           "log": "log_deploys",
           "ref": "dep_android-app_8.3.0",
@@ -452,11 +684,200 @@
             ]
           }
         },
-        "result": "refuted"
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "hypothesis_tests",
+          "label": "Hypothesis tests",
+          "question": "Does each candidate survive its holdout?",
+          "index": 9,
+          "of": 13
+        }
       }
     },
     {
       "step": 11,
+      "kind": "holdout",
+      "tool": "holdout_check",
+      "hypothesis": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) caused the change",
+      "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+      "result": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+      "decision": "refuted: ruled out",
+      "why": "expected 'consistent', the check says 'refuted' (graph)",
+      "receipts": [
+        "r241"
+      ],
+      "data": {
+        "ledger": {
+          "id": "h3",
+          "hypothesis": {
+            "statement": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) caused the change",
+            "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+            "tool": "holdout_check",
+            "input": {
+              "event": {
+                "log": "log_deploys",
+                "ref": "dep_checkout-service_1.2.6",
+                "ts": "2026-11-21T16:42:00",
+                "kind": "deploy",
+                "description": "checkout-service 1.2.6 (all users)",
+                "scope": {}
+              },
+              "node": "payment_success_rate",
+              "segment": {
+                "platform": "android",
+                "country": "DE",
+                "provider": "PayCo"
+              },
+              "window": {
+                "start": "2026-11-21T18:00:00",
+                "end": "2026-11-21T18:00:00"
+              }
+            },
+            "expect": "consistent",
+            "source": "graph"
+          },
+          "status": "refuted",
+          "outcome": "refuted",
+          "summary": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+          "receipts": [
+            "r241"
+          ]
+        },
+        "output": {
+          "summary": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+          "receipts": [
+            "r241"
+          ],
+          "holdout": {
+            "scope": {},
+            "minus": {
+              "platform": "android",
+              "country": "DE",
+              "provider": "PayCo"
+            },
+            "where": "(TRUE) AND NOT (country = 'DE' AND platform = 'android' AND provider = 'PayCo')"
+          },
+          "rel_change": 0.0024,
+          "z": 1.03,
+          "result": "refuted"
+        },
+        "event": {
+          "log": "log_deploys",
+          "ref": "dep_checkout-service_1.2.6",
+          "ts": "2026-11-21T16:42:00",
+          "kind": "deploy",
+          "description": "checkout-service 1.2.6 (all users)",
+          "scope": {}
+        },
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "hypothesis_tests",
+          "label": "Hypothesis tests",
+          "question": "Does each candidate survive its holdout?",
+          "index": 9,
+          "of": 13
+        }
+      }
+    },
+    {
+      "step": 12,
+      "kind": "holdout",
+      "tool": "placebo_test",
+      "hypothesis": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
+      "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+      "result": "the real window: -33.7% (z -37.6); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+      "decision": "validated: the deviation is unusual",
+      "why": "expected 'unusual', the check says 'unusual' (graph)",
+      "receipts": [
+        "r242"
+      ],
+      "data": {
+        "ledger": {
+          "id": "h4",
+          "hypothesis": {
+            "statement": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
+            "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+            "tool": "placebo_test",
+            "input": {
+              "node": "payment_success_rate",
+              "segment": {
+                "platform": "android",
+                "country": "DE",
+                "provider": "PayCo"
+              },
+              "window": {
+                "start": "2026-11-21T18:00:00",
+                "end": "2026-11-21T18:00:00"
+              },
+              "weeks": 8
+            },
+            "expect": "unusual",
+            "source": "graph"
+          },
+          "status": "validated",
+          "outcome": "unusual",
+          "summary": "the real window: -33.7% (z -37.6); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+          "receipts": [
+            "r242"
+          ]
+        },
+        "output": {
+          "summary": "the real window: -33.7% (z -37.6); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+          "receipts": [
+            "r242"
+          ],
+          "hits": 0,
+          "weeks": 5
+        },
+        "placebo": {
+          "actual": {
+            "rel_change": -0.3368,
+            "z": -37.61
+          },
+          "threshold_z": 3.0,
+          "weeks": [
+            {
+              "weeks_back": 1,
+              "rel_change": -0.0061,
+              "z": -0.68
+            },
+            {
+              "weeks_back": 2,
+              "rel_change": -0.009,
+              "z": -1.03
+            },
+            {
+              "weeks_back": 3,
+              "rel_change": 0.0111,
+              "z": 1.19
+            },
+            {
+              "weeks_back": 4,
+              "rel_change": -0.0035,
+              "z": -0.38
+            },
+            {
+              "weeks_back": 5,
+              "rel_change": 0.0077,
+              "z": 0.85
+            }
+          ]
+        },
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "placebo",
+          "label": "Placebo",
+          "question": "Is the deviation unusual for these hours of the week?",
+          "index": 10,
+          "of": 13
+        }
+      }
+    },
+    {
+      "step": 13,
       "kind": "impact",
       "tool": "decompose_formula",
       "hypothesis": null,
@@ -465,16 +886,25 @@
       "decision": "where the change came from",
       "why": "",
       "receipts": [
-        "r241",
-        "r242"
+        "r244",
+        "r245"
       ],
       "data": {
         "node": "orders",
-        "residual": 6.821210263296962e-13
+        "residual": 6.821210263296962e-13,
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "impact",
+          "label": "Impact",
+          "question": "What does it cost against the expectation?",
+          "index": 11,
+          "of": 13
+        }
       }
     },
     {
-      "step": 12,
+      "step": 14,
       "kind": "impact",
       "tool": "counterfactual_impact",
       "hypothesis": null,
@@ -484,27 +914,364 @@
       "why": "",
       "receipts": [
         "r236",
-        "r243"
+        "r246"
       ],
-      "data": {}
+      "data": {
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "impact",
+          "label": "Impact",
+          "question": "What does it cost against the expectation?",
+          "index": 11,
+          "of": 13
+        }
+      }
     },
     {
-      "step": 13,
+      "step": 15,
       "kind": "verdict",
       "tool": "verdict",
       "hypothesis": null,
       "prediction": null,
       "result": "SUPPORTED_CAUSE",
       "decision": "stop: explained 100% >= 80%",
-      "why": "aligned event, holdout not refuted",
+      "why": "aligned event ps_payco_degraded validated by its holdout or control check; placebo did not recur",
       "receipts": [],
-      "data": {}
+      "data": {
+        "claims": [
+          {
+            "text": "Payment success rate moved -2.04% against its expectation in all segments.",
+            "label": "evidence",
+            "basis": "watcher: robust z against the same hours of 4 prior weeks",
+            "receipts": [
+              "r225"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "android / DE / PayCo explains 100% of the deviation of payment_success_rate (-33.6% inside, z -36.2).",
+            "label": "evidence",
+            "basis": "segment_search: descent while the deviation is concentrated",
+            "receipts": [
+              "r233",
+              "r230",
+              "r231",
+              "r232",
+              "r234",
+              "r235",
+              "r236"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "android-app 8.3.0 rolled out to 100% of Android users in all countries (dep_android-app_8.3.0) did not cause it: holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside.",
+            "label": "evidence",
+            "basis": "holdout_check: refuted",
+            "receipts": [
+              "r240"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) did not cause it: holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside.",
+            "label": "evidence",
+            "basis": "holdout_check: refuted",
+            "receipts": [
+              "r241"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "The scope of ps_payco_degraded (country DE / platform android / provider PayCo) carries 100% of the deviation of payment_success_rate with 7% of its volume.",
+            "label": "evidence",
+            "basis": "segment cells inside the event's scope",
+            "receipts": [
+              "r243"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "Placebo on payment_success_rate in android / DE / PayCo: the real window: -33.7% (z -37.6); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
+            "label": "evidence",
+            "basis": "placebo_test: unusual",
+            "receipts": [
+              "r242"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "PayCo: elevated decline rates for Android SDK payments in Germany (ps_payco_degraded) caused it, logged at 2026-11-21 17:53 next to the onset: control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.3% (z +0.8) vs -33.6% inside.",
+            "label": "evidence",
+            "basis": "holdout_check: consistent, aligned with the onset",
+            "receipts": [
+              "r239"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "Impact: -280.0 orders per hour, EUR -19,717 per hour.",
+            "label": "evidence",
+            "basis": "counterfactual_impact: against the 4-week expectation",
+            "receipts": [
+              "r236",
+              "r246"
+            ],
+            "upgrade": null
+          },
+          {
+            "text": "Whether the fault is inside PayCo or in our PayCo integration.",
+            "label": "hypothesis",
+            "basis": "still uncertain",
+            "receipts": [],
+            "upgrade": null
+          }
+        ],
+        "ledger": [
+          {
+            "id": "h1",
+            "hypothesis": {
+              "statement": "PayCo: elevated decline rates for Android SDK payments in Germany (ps_payco_degraded) caused the change",
+              "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
+              "tool": "holdout_check",
+              "input": {
+                "event": {
+                  "log": "log_provider_status",
+                  "ref": "ps_payco_degraded",
+                  "ts": "2026-11-21T17:53:00",
+                  "kind": "degraded",
+                  "description": "PayCo: elevated decline rates for Android SDK payments in Germany",
+                  "scope": {
+                    "country": [
+                      "DE"
+                    ],
+                    "platform": [
+                      "android"
+                    ],
+                    "provider": [
+                      "PayCo"
+                    ]
+                  }
+                },
+                "node": "payment_success_rate",
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
+                  "provider": "PayCo"
+                },
+                "window": {
+                  "start": "2026-11-21T18:00:00",
+                  "end": "2026-11-21T18:00:00"
+                }
+              },
+              "expect": "consistent",
+              "source": "graph"
+            },
+            "status": "validated",
+            "outcome": "consistent",
+            "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.3% (z +0.8) vs -33.6% inside",
+            "receipts": [
+              "r239"
+            ]
+          },
+          {
+            "id": "h2",
+            "hypothesis": {
+              "statement": "android-app 8.3.0 rolled out to 100% of Android users in all countries (dep_android-app_8.3.0) caused the change",
+              "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+              "tool": "holdout_check",
+              "input": {
+                "event": {
+                  "log": "log_deploys",
+                  "ref": "dep_android-app_8.3.0",
+                  "ts": "2026-11-21T17:54:00",
+                  "kind": "release",
+                  "description": "android-app 8.3.0 rolled out to 100% of Android users in all countries",
+                  "scope": {
+                    "platform": [
+                      "android"
+                    ]
+                  }
+                },
+                "node": "payment_success_rate",
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
+                  "provider": "PayCo"
+                },
+                "window": {
+                  "start": "2026-11-21T18:00:00",
+                  "end": "2026-11-21T18:00:00"
+                }
+              },
+              "expect": "consistent",
+              "source": "graph"
+            },
+            "status": "refuted",
+            "outcome": "refuted",
+            "summary": "holdout normal: -0.2% (z -0.4) outside the segment vs -33.6% inside",
+            "receipts": [
+              "r240"
+            ]
+          },
+          {
+            "id": "h3",
+            "hypothesis": {
+              "statement": "checkout-service 1.2.6 (all users) (dep_checkout-service_1.2.6) caused the change",
+              "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+              "tool": "holdout_check",
+              "input": {
+                "event": {
+                  "log": "log_deploys",
+                  "ref": "dep_checkout-service_1.2.6",
+                  "ts": "2026-11-21T16:42:00",
+                  "kind": "deploy",
+                  "description": "checkout-service 1.2.6 (all users)",
+                  "scope": {}
+                },
+                "node": "payment_success_rate",
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
+                  "provider": "PayCo"
+                },
+                "window": {
+                  "start": "2026-11-21T18:00:00",
+                  "end": "2026-11-21T18:00:00"
+                }
+              },
+              "expect": "consistent",
+              "source": "graph"
+            },
+            "status": "refuted",
+            "outcome": "refuted",
+            "summary": "holdout normal: +0.2% (z +1.0) outside the segment vs -33.6% inside",
+            "receipts": [
+              "r241"
+            ]
+          },
+          {
+            "id": "h4",
+            "hypothesis": {
+              "statement": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
+              "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
+              "tool": "placebo_test",
+              "input": {
+                "node": "payment_success_rate",
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
+                  "provider": "PayCo"
+                },
+                "window": {
+                  "start": "2026-11-21T18:00:00",
+                  "end": "2026-11-21T18:00:00"
+                },
+                "weeks": 8
+              },
+              "expect": "unusual",
+              "source": "graph"
+            },
+            "status": "validated",
+            "outcome": "unusual",
+            "summary": "the real window: -33.7% (z -37.6); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+            "receipts": [
+              "r242"
+            ]
+          }
+        ],
+        "explained_share": 1.0,
+        "event_scope_share": {
+          "ep": 1.0,
+          "volume_share": 0.0678,
+          "excess": 0.9322,
+          "receipt": "r243"
+        },
+        "checks_used": 4,
+        "checks_budget": 12,
+        "playbook_run": [
+          {
+            "step": "data_freshness",
+            "label": "Data freshness",
+            "status": "done"
+          },
+          {
+            "step": "identities",
+            "label": "Identity check",
+            "status": "done"
+          },
+          {
+            "step": "planned_events",
+            "label": "Planned events",
+            "status": "done"
+          },
+          {
+            "step": "exact_split",
+            "label": "Exact split (LMDI)",
+            "status": "done"
+          },
+          {
+            "step": "mix_vs_rate",
+            "label": "Mix vs rate",
+            "status": "done"
+          },
+          {
+            "step": "segment_search",
+            "label": "Segment search",
+            "status": "done"
+          },
+          {
+            "step": "root_onset",
+            "label": "Root onset",
+            "status": "done"
+          },
+          {
+            "step": "evidence_lookup",
+            "label": "Evidence lookup",
+            "status": "done"
+          },
+          {
+            "step": "hypothesis_tests",
+            "label": "Hypothesis tests",
+            "status": "done"
+          },
+          {
+            "step": "placebo",
+            "label": "Placebo",
+            "status": "done"
+          },
+          {
+            "step": "impact",
+            "label": "Impact",
+            "status": "done"
+          },
+          {
+            "step": "planner",
+            "label": "Planner hypotheses",
+            "status": "skipped"
+          },
+          {
+            "step": "verdict",
+            "label": "Verdict",
+            "status": "done"
+          }
+        ],
+        "playbook": {
+          "id": "revenue_drop",
+          "name": "Revenue drop playbook",
+          "step": "verdict",
+          "label": "Verdict",
+          "question": "What is known, and how sure is it?",
+          "index": 13,
+          "of": 13
+        }
+      }
     }
   ],
   "skeptic": null,
   "cost": {
-    "queries": 19,
-    "seconds": 0.058,
+    "queries": 22,
+    "seconds": 0.063,
     "llm_calls": 0,
     "eur": 0.0
   },
