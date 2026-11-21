@@ -42,10 +42,7 @@ If `web/dist` is missing, the page says "not built yet" and every UI spec fails 
 
 ## Running
 
-Replay mode (default, about 3 min 45 s on an 8 GB Mac with the scenario and fx specs; `ARGUS_E2E_FX=0` saves about
-50 s, `ARGUS_E2E_SCENARIOS=0` about 40 s): Playwright starts `uv run argus api --port 8010` from
-the repo root, which streams `fixtures/` (S1) through the real SSE path. `scenarios.spec.ts`, `offline.spec.ts` and
-`fx.spec.ts` start and stop their own replay APIs next to it.
+Replay mode: `npm --prefix e2e test` runs every spec except the fx layer, in under 3 min on an 8 GB Mac. `npm --prefix e2e run test:fx` runs `fx.spec.ts` alone (about 50 s), and `npm --prefix e2e run test:all` runs everything (about 3 min 50 s). Run `test:all`, or `test` followed by `test:fx`, before a rehearsal: the fx layer is the look the demo video is recorded in.
 
 ```sh
 npm --prefix e2e test
@@ -70,7 +67,7 @@ Environment flags:
 | `ARGUS_E2E_OFFLINE_PORT` | `offline.spec.ts`'s own server (default 8012) |
 | `ARGUS_E2E_SCENARIO_PORT` | `scenarios.spec.ts`'s own server (default 8013) |
 | `ARGUS_E2E_SCENARIOS=0` | skip `scenarios.spec.ts` (saves about 40 s) |
-| `ARGUS_E2E_FX=0` | skip `fx.spec.ts` (saves about 50 s) |
+| `ARGUS_E2E_FX=0` | skip `fx.spec.ts` (what `npm test` sets; `test:fx` and `test:all` run it) |
 | `ARGUS_E2E_FX_PORT` | `fx.spec.ts`'s own server (default 8014) |
 | `ARGUS_E2E_SHOTS=1` | capture the QA screenshots (`screenshots.spec.ts`, `scenario-<s>.png` from `scenarios.spec.ts`, `fx-*.png` from `fx.spec.ts`) |
 | `ARGUS_E2E_ROOT` | the repository checkout whose `argus api` (and `web/dist`) the suite runs; default `..`. Use it to test a fix branch from another worktree |

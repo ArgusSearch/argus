@@ -90,7 +90,7 @@ test.describe("recorded scenarios at 64x", () => {
     expect(errors()).toEqual([]);
   });
 
-  test("S2: planned FR budget increase, no incident card, a \"Didn't wake you\" note about the budget", async ({ page }) => {
+  test("S2: planned FR ad-spend change, no incident card, a \"Didn't wake you\" note citing the plan", async ({ page }) => {
     const errors = watchErrors(page);
     await playScenario(page, "fixtures/s2");
     await expect(page.locator("article.card.incident")).toHaveCount(0);
@@ -98,7 +98,8 @@ test.describe("recorded scenarios at 64x", () => {
     expect(Number(await tabCount(page, "Didn't wake you").innerText())).toBeGreaterThan(0);
     const note = page.locator("article.card.note-expected");
     await expect(note.first().locator(".card-kind")).toHaveText("Didn't wake you");
-    await expect(note.first()).toContainText(/budget/i);
+    // the note cites the plan it matched (a budget line or a calendar push, depending on the recording)
+    await expect(note.first()).toContainText(/planned|budget/i);
     await shot(page, "s2");
     expect(errors()).toEqual([]);
   });

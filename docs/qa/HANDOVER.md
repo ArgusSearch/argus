@@ -1,6 +1,6 @@
 # QA handover (Ansor)
 
-Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `260d499`. PR #21 targets `main`.
+Updated: Saturday 2026-11-21, ~18:40 CET. Branch `team/ansor/qa`, rebased on `origin/main` @ `2c36e82`. PR #21 targets `main`.
 
 This file is enough to continue the QA work without the chat.
 
@@ -13,7 +13,8 @@ This file is enough to continue the QA work without the chat.
 - **S3** holds back correctly, but the note does not name the broken identity (#5, #9).
 - **Scorecard on 260d499:** Argus pass@1 is 100% vs 17% for the threshold baseline.
 - **Blind challenge** (seed 11 → s3): PASS, and the seal verifies.
-- **`make check` on main** is green on macOS (335 passed); #27 is fixed. **CI on main (Linux) is red:** 10 tests fail because the generated worlds and receipt hashes differ from the Mac-recorded fixtures. This is the same cause as #24 (Windows); the evidence is in a comment on #24. A demo on a Mac is safe. Every fix PR fails exactly those 10 and nothing else.
+- **CI on main is green** on 2c36e82: worlds are now identical on macOS and Linux (118a335), and the fixtures were re-recorded.
+- **The fx layer** (`/?fx=1`, and the recording URL `/?demo=1&captions=1&fx=1`) is the look the video uses. It is covered by `npm --prefix e2e run test:fx`. Open fx bugs: #63–#69; the P1s are #64 (morning card vs ticker) and #68 (live step cut at 1080).
 - The graph-blank-after-restart bug (#33) is fixed on main (f85616a).
 
 ## What is in this branch
@@ -34,7 +35,8 @@ This file is enough to continue the QA work without the chat.
 make setup && make check && make s1
 npm --prefix web install && npm --prefix web run build
 npm --prefix e2e install && npx --prefix e2e playwright install chromium
-npm --prefix e2e test                       # replay, starts its own API on 8010 (8012 for offline)
+npm --prefix e2e test                       # replay, everything but fx, under 3 min (own API on 8010)
+npm --prefix e2e run test:fx                # the fx layer and the demo recording URL (about 70 s)
 make world SEED=7 && npm --prefix e2e run test:live   # live over runs/s1-7 on 8011
 ARGUS_E2E_SHOTS=1 npm --prefix e2e test -- screenshots # refresh docs/qa/screenshots
 ```
