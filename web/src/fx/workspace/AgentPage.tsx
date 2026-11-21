@@ -153,7 +153,11 @@ export function AgentPage() {
           Every number comes from a receipt; the model never types one.
         </p>
       </header>
-      {!agent.enabled && <p className="fx-empty">The agent is off for this run (no agent routes on the API), so Argus investigated with its fixed checklist.</p>}
+      {!agent.enabled && (
+        <p className="fx-empty">
+          {agent.health?.reason ?? "The agent is off for this run (no agent routes on the API)"}. Argus investigated with its fixed checklist; the bench runs it too.
+        </p>
+      )}
       {agent.enabled && (
         <div className="ag-grid">
           <Card

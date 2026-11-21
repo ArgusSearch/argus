@@ -5,6 +5,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
+import { useAgentDemo } from "../../lib/agentDemo";
 
 export interface AgentState {
   enabled: boolean;
@@ -41,7 +42,9 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const cursor = useRef({ stream: null as string | null, seq: 0 });
   const [tick, setTick] = useState(0);
-  const enabled = Boolean(health?.enabled);
+  // a replay server's own agent is off, but during the agent presentation the same routes answer for its run
+  const presenting = useAgentDemo() !== null;
+  const enabled = Boolean(health && (health.enabled || presenting));
 
   // the probe: once per stream (routes only appear with a restarted API, which starts a new stream)
   useEffect(() => {

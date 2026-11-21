@@ -131,6 +131,8 @@ export interface RunSummary {
 export interface AgentHealth {
   enabled: boolean;
   mode: AgentMode;
+  /** why the agent is off (lane A: "This is a replay: the recorded agent run plays in the demo playback") */
+  reason?: string;
   models: Record<string, string> | string[];
   caps: Record<string, unknown>;
   usd: number;
