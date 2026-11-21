@@ -1,12 +1,13 @@
 """Scenario library. A scenario mutates `WorldParams` and records its ground truth in the same step.
 
 Every scenario takes its random start, segment and size from the scenario RNG, so no two runs are the
-same scripted demo. Built: `quiet`, S1, S2, S3 and S4; S5 and S6 are placeholders owned by lane W.
+same scripted demo. Built: `quiet` and S1 through S5. S6 is a placeholder owned by lane W.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 
@@ -14,9 +15,10 @@ from mockmart.scenarios.s1_payco import apply_s1
 from mockmart.scenarios.s2_budget import apply_s2
 from mockmart.scenarios.s3_orders_stall import apply_s3
 from mockmart.scenarios.s4_pacer import apply_s4
+from mockmart.scenarios.s5_market import apply_s5
 from mockmart.sim import WorldParams
 
-ScenarioFn = Callable[[WorldParams, np.random.Generator], None]
+ScenarioFn = Callable[[WorldParams, np.random.Generator], Callable[[Path], dict[str, int]] | None]
 
 
 def _quiet(params: WorldParams, rng: np.random.Generator) -> None:
@@ -37,6 +39,6 @@ SCENARIOS: dict[str, ScenarioFn] = {
     "s2": apply_s2,
     "s3": apply_s3,
     "s4": apply_s4,
-    "s5": _placeholder("s5", "ES traffic surge, each country's rate flat: EXPECTED mix shift"),
+    "s5": apply_s5,
     "s6": _placeholder("s6", "click fraud on one advertiser: HYPOTHESIS invalid traffic"),
 }
