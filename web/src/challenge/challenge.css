@@ -879,6 +879,11 @@
     padding: 2px 0;
     border: 0;
   }
+  .ch-table td::before {
+    content: attr(data-label) ": ";
+    color: var(--muted);
+    font-family: var(--sans);
+  }
   .ch-foot,
   .ch-foot .ch-phone {
     flex-direction: column;

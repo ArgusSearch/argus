@@ -386,13 +386,15 @@ function RevealScreen({ rec, route }: { rec: Recorded; route: Route }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.event} className={r.hit ? "hit" : "miss"}>
-                <td>{r.event}</td>
-                <td>{r.truth}</td>
-                <td>{r.argus}</td>
-                <td>
+                <td data-label="Event">{r.event}</td>
+                <td data-label="The truth expected">{r.truth}</td>
+                <td data-label="Argus claimed">{r.argus}</td>
+                <td data-label="Grade">
                   <b>{r.grade}</b> {r.label}
                 </td>
-                <td className="mono">{r.ttd}</td>
+                <td className="mono" data-label="Time to detect">
+                  {r.ttd}
+                </td>
               </tr>
             ))}
           </tbody>
