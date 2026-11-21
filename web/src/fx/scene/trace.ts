@@ -117,13 +117,14 @@ export class Trace {
 
   /**
    * Rebuilds the walk when the trace changed. `top(id)` is the point on top of a block. A new investigation
-   * (a different first entry, or a shorter trace) starts drawing from zero.
+   * (a different first entry, or a shorter trace) starts drawing from zero. `moved` rebuilds the same walk
+   * because the blocks moved (a new panel shape), keeping what is drawn.
    */
-  set(trace: SceneModel["trace"], top: (id: string) => [number, number, number] | undefined): void {
+  set(trace: SceneModel["trace"], top: (id: string) => [number, number, number] | undefined, moved = false): void {
     const key = trace.map((t) => `${t.id}@${t.step}`).join(" ");
-    if (key === this.key) return;
+    if (key === this.key && !moved) return;
     // a growing walk keeps what is drawn; anything else is a new investigation
-    const restart = !this.key || !key.startsWith(this.key);
+    const restart = !moved && (!this.key || !key.startsWith(this.key));
     this.key = key;
 
     // the walk starts at the anomaly and goes from place to place: its returns to the anomaly between checks

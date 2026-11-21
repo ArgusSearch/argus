@@ -77,7 +77,11 @@ export interface LayoutInput {
 /** The column after every known one: where metrics outside the grid line up. */
 export const EXTRA_COLUMN = Math.max(...Object.values(GRID).map(([c]) => c)) + 1;
 
-export function layout(graph: LayoutInput): Map<string, Placement> {
+/**
+ * `stretch` widens the column spacing (1 = the reading order's natural width); the scene uses it to fill a
+ * wide panel instead of leaving its sides empty.
+ */
+export function layout(graph: LayoutInput, stretch = 1): Map<string, Placement> {
   const out = new Map<string, Placement>();
   let extraRow = 0;
   const place = (id: string, kind: "metric" | "northStar" | "log") => {
@@ -87,7 +91,7 @@ export function layout(graph: LayoutInput): Map<string, Placement> {
     out.set(id, {
       column: cell[0],
       row: cell[1],
-      position: [(cell[0] - CENTER_COLUMN) * COLUMN, (BLOCK[1] * scale[1]) / 2, (cell[1] - CENTER_ROW) * ROW + shift],
+      position: [(cell[0] - CENTER_COLUMN) * COLUMN * stretch, (BLOCK[1] * scale[1]) / 2, (cell[1] - CENTER_ROW) * ROW + shift],
       scale,
     });
   };

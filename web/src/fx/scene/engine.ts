@@ -16,7 +16,7 @@ import { color, readPaletteHex, type PaletteHex } from "./palette";
 import { Bursts, Snow } from "./particles";
 import { Post } from "./post";
 import { AdaptiveQuality, pixelRatio, TIERS, type QualityMode, type TierSpec } from "./quality";
-import { CameraRig, type SafeRect } from "./rig";
+import { CameraRig, columnStretch, type SafeRect } from "./rig";
 import { Trace } from "./trace";
 
 export const SCENE_READY = "fx:scene-ready";
@@ -155,6 +155,7 @@ export class SceneEngine {
   private linkVisuals: LinkVisual[] = [];
   private linkIds: string[] = [];
   private structure = "";
+  private stretch = 1;
   private ruled = new Set<string>();
   /** the affected path of the open investigation; empty when there is none */
   private path = new Set<string>();
@@ -485,6 +486,13 @@ export class SceneEngine {
     if (moved) {
       this.rig.setRect(rect);
       this.framingKey = "";
+      const stretch = this.opts.preview ? 1 : columnStretch(this.rig.aspect);
+      if (Math.abs(stretch - this.stretch) > 0.01) {
+        // a different panel shape lays the columns out anew: blocks, edges and the trace follow
+        this.stretch = stretch;
+        this.structure = "";
+        this.dirty = true;
+      }
     }
   }
 
@@ -502,9 +510,10 @@ export class SceneEngine {
     this.path = incidentPath(model, view);
 
     const structure = `${model.nodes.map((n) => n.id).join(",")}|${model.links.map((l) => l.id).join(",")}`;
-    if (structure !== this.structure) {
+    const moved = structure !== this.structure;
+    if (moved) {
       this.structure = structure;
-      this.placed = layout(graph);
+      this.placed = layout(graph, this.stretch);
       this.rebuildStructure(model);
     }
     this.nodes = model.nodes;
@@ -549,7 +558,7 @@ export class SceneEngine {
       if (!this.placed.has(id)) return undefined;
       const v = this.top(id, this.tmpV);
       return [v.x, v.y, v.z];
-    });
+    }, moved);
     this.labels.setMarkers(this.trace.markers);
   }
 
