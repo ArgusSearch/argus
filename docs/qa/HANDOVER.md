@@ -62,6 +62,7 @@ P2: #7, #8 (bench output), #11 ("0 anomalys", fix in PR #28), #12 (receipt cover
    - #11 is done (PR #28).
    - #6 is done (PR #32). After it merges, remove `test.fail` from `e2e/tests/offline.spec.ts`.
    - #33 is done (PR #39). After it merges, remove `test.fail` from `e2e/tests/graph-restart.spec.ts`.
+   - #14 is done (PR #40). After it merges, remove `test.fail` from `e2e/tests/graph-nodes.spec.ts`.
    - Each fix goes in its own PR `fix(api|web): ... (#n)` with a test that fails before and passes after.
 3. Propose the e2e CI job to Batu. The suggested step is in `e2e/README.md`; `.github/` is not ours.
 4. Before the 11:00 freeze and the 12:00 rehearsal: run the e2e suite and the matrix again.
