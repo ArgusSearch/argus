@@ -9,11 +9,14 @@ const routes = ["/health", "/events", "/graph", "/incidents", "/notes", "/receip
 const vendor = [
   { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
   { name: "xyflow", test: /node_modules[\\/]@xyflow[\\/]/ },
+  { name: "three", test: /node_modules[\\/]three[\\/]/ },
 ];
 
 export default defineConfig({
   plugins: [react()],
   build: {
+    // three.js is one library of about 540 kB the 3D scene needs whole; it is only requested behind ?fx (GraphStage)
+    chunkSizeWarningLimit: 640,
     rolldownOptions: {
       output: { codeSplitting: { groups: vendor } },
       onLog(level, log, handler) {
