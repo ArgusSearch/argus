@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 import statistics
 from datetime import datetime
+from itertools import groupby
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -173,6 +174,15 @@ def _fmt(value: float | None, pct: bool = False) -> str:
     return f"{value:.0%}" if pct else f"{value:g}"
 
 
+def _labels(labels: list[str]) -> str:
+    """'exact | exact | silent' -> '2x exact | silent' (runs in seed order, repeats folded)."""
+    parts = []
+    for label, group in groupby(labels):
+        n = len(list(group))
+        parts.append(f"{n}x {label}" if n > 1 else label)
+    return " | ".join(parts)
+
+
 def render(card: Scorecard) -> str:
     """Plain-text scorecard for the terminal."""
     out = [
@@ -203,7 +213,7 @@ def render(card: Scorecard) -> str:
         pk = f"{_fmt(r.pass_hat_k, True)} k={r.k}"
         out.append(
             f"{r.agent:<10} {r.scenario:<8} {_fmt(r.pass_at_1, True):>6} {pk:>8} {_fmt(r.mean_grade):>5} "
-            f"{_fmt(r.ttd_median_h):>6} {r.false_alarms:>3}  {' | '.join(r.verdicts)}"
+            f"{_fmt(r.ttd_median_h):>6} {r.false_alarms:>3}  {_labels(r.verdicts)}"
         )
     out += [
         "",
