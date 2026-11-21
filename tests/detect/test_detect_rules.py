@@ -15,25 +15,26 @@ def z(*values: float) -> np.ndarray:
 
 
 def test_single_extreme_hour_opens_z_gt_open() -> None:
-    trig = open_trigger(z(0.1, -0.5, 1.0, -4.5))
+    trig = open_trigger(z(0.1, -0.5, 1.0, -5.5))
     assert trig is not None and trig.rule == "z_gt_open" and trig.direction == "down"
 
 
 def test_two_of_three_beyond_3_on_the_same_side() -> None:
-    trig = open_trigger(z(0.2, 3.4, 0.5, 3.2))
+    trig = open_trigger(z(0.2, 3.9, 0.5, 3.6))
     assert trig is not None and trig.rule == "two_of_three" and trig.direction == "up"
-    assert open_trigger(z(0.2, -3.4, 0.5, 3.2)) is None  # opposite sides do not add up
-    assert open_trigger(z(3.4, 0.1, 0.5, 3.2)) is None  # outside the last three hours
+    assert open_trigger(z(0.2, -3.9, 0.5, 3.6)) is None  # opposite sides do not add up
+    assert open_trigger(z(3.9, 0.1, 0.5, 3.6)) is None  # outside the last three hours
+    assert open_trigger(z(0.2, 3.2, 0.5, 3.6)) is None  # the second hour must be beyond the run line too
 
 
 def test_scored_hour_must_be_extreme() -> None:
-    assert open_trigger(z(5.0, 3.5, 2.9)) is None
+    assert open_trigger(z(6.0, 4.0, 3.4)) is None
     assert open_trigger(z(1.0, nan)) is None
     assert open_trigger(z()) is None
 
 
 def test_onset_is_the_start_of_the_run_beyond_2() -> None:
-    series = z(0.3, 2.5, 1.0, -2.2, -3.1, -4.6)
+    series = z(0.3, 2.5, 1.0, -2.2, -3.1, -5.6)
     trig = open_trigger(series)
     assert trig is not None and trig.onset_index == -3
     assert onset_index(z(-2.5, nan, -2.6, -5.0), "down") == -2  # a missing hour breaks the run
@@ -50,7 +51,7 @@ def test_family_thresholds_keep_the_single_series_rate() -> None:
     base = RuleParams()
     assert family_params(base, 1) == base
     six = family_params(base, 6)
-    assert six.open_z == pytest.approx(4.405, abs=0.01)
+    assert six.open_z == pytest.approx(5.33, abs=0.01)
     assert normal_sf(six.open_z) * 6 == pytest.approx(normal_sf(base.open_z))
     assert family_params(base, 16).open_z > six.open_z > base.open_z
     assert six.run_z > base.run_z

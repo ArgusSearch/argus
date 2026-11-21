@@ -6,6 +6,9 @@ A burn above 1.5 before 12:00 opens a `pacing` anomaly on `pacing_ratio` for tha
 total spend looks normal: the money is gone by the afternoon. World hours are UTC and so is the
 simulator's daily shape, so "12:00" is in data time.
 
+The burn only counts once `min_plan_share` of the day's plan is due (about 04:00): at 00:00 the burn is one
+noisy hour, not a pace. The plan view holds the whole day ahead, so the day's plan is known in the morning.
+
 The expected burn is the median burn at the same hour of the day over the previous `days` days, and the
 band and z use the robust spread of ln(burn) at that hour, so a line with a jumpy pacer gets a wider band.
 """
@@ -34,12 +37,16 @@ class PacingParams:
     days: int = 14
     sigma_floor: float = 0.02
     min_plan_eur: float = 1.0
+    min_plan_share: float = 0.10
 
 
 def burn_scores(
     spend: NodeSeries, plan: NodeSeries, tail: int, params: PacingParams = PacingParams()
 ) -> dict[str, SeriesScore]:
-    """Burn scores of the last `tail` hours for every budget line present in both series."""
+    """Burn scores of the last `tail` hours for every budget line present in both series.
+
+    `plan` may run past the last spend hour (to the end of the day): the day's planned total comes from it.
+    """
     hours = spend.hours
     day = hours.normalize()
     out: dict[str, SeriesScore] = {}
@@ -47,13 +54,16 @@ def burn_scores(
         if key not in plan.num.columns:
             continue
         s = pd.Series(spend.num[key].to_numpy(dtype=float), index=hours).fillna(0.0)
-        p = pd.Series(plan.num[key].to_numpy(dtype=float), index=hours)
+        plan_all = pd.Series(plan.num[key].to_numpy(dtype=float), index=plan.hours)
+        p = plan_all.reindex(hours)
         if p.isna().all():
             continue
+        day_plan = plan_all.fillna(0.0).groupby(plan.hours.normalize()).sum().reindex(day).to_numpy()
         cum_s = s.groupby(day).cumsum()
-        cum_p = p.fillna(0.0).groupby(day).cumsum()
+        cum_p = p.fillna(0.0).groupby(day).cumsum().to_numpy()
+        due = (cum_p >= params.min_plan_eur) & (cum_p >= params.min_plan_share * np.nan_to_num(day_plan))
         with np.errstate(divide="ignore", invalid="ignore"):
-            burn = np.where(cum_p.to_numpy() >= params.min_plan_eur, cum_s.to_numpy() / cum_p.to_numpy(), np.nan)
+            burn = np.where(due, cum_s.to_numpy() / cum_p, np.nan)
         log_burn = np.log(np.where(burn > 0, burn, np.nan))
         n = len(hours)
         idx = np.arange(max(n - tail, 0), n)
@@ -75,7 +85,7 @@ def burn_scores(
             expected=expected[sl],
             lo=expected[sl] * np.exp(-2.0 * scale[sl]),
             hi=expected[sl] * np.exp(2.0 * scale[sl]),
-            volume=cum_p.to_numpy()[sl],
+            volume=cum_p[sl],
             scale=float(scale[-1]) if np.isfinite(scale[-1]) else float("nan"),
             method="burn",
         )

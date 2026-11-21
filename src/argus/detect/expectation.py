@@ -1,6 +1,6 @@
 """Seasonal expectation and robust, volume-aware z-scores for one hourly series.
 
-Expectation: the same hour of the week in the previous `weeks` weeks. Planned uplift (from the calendar)
+Expectation: the same hour of the week in the previous `weeks` weeks. Planned uplift (budget and calendar plans)
 is removed from the baseline hours and applied to the scored hour, so a promo changes the expectation
 instead of muting the metric:
 
@@ -72,7 +72,8 @@ class SeriesScore:
         return float(self.z[-1])
 
 
-def _shift(values: np.ndarray, hours: int) -> np.ndarray:
+def shift(values: np.ndarray, hours: int) -> np.ndarray:
+    """values moved `hours` later (value at t is the input at t - hours); NaN where there is no input."""
     out = np.full(values.shape, np.nan)
     if hours < len(values):
         out[hours:] = values[: len(values) - hours]
@@ -132,8 +133,8 @@ def score_series(
             if den_arr is None:
                 raise ValueError("binomial scoring needs a denominator")
             observed = np.where(den_arr > 0, num / den_arr, np.nan)
-            base_num = np.stack([_shift(num / lift, lag) for lag in lags])
-            base_den = np.stack([_shift(den_arr, lag) for lag in lags])
+            base_num = np.stack([shift(num / lift, lag) for lag in lags])
+            base_den = np.stack([shift(den_arr, lag) for lag in lags])
             ok = np.isfinite(base_num) & np.isfinite(base_den) & (base_den > 0)
             weeks_ok = ok.sum(axis=0)
             pooled = np.where(ok, base_num, 0.0).sum(axis=0) / np.where(ok, base_den, 0.0).sum(axis=0)
@@ -145,7 +146,7 @@ def score_series(
         else:
             observed = num if den_arr is None else np.where(den_arr > 0, num / den_arr, np.nan)
             observed = np.where(observed > 0, observed, np.nan)
-            base = np.stack([_shift(observed / lift, lag) for lag in lags])
+            base = np.stack([shift(observed / lift, lag) for lag in lags])
             weeks_ok = np.isfinite(base).sum(axis=0)
             none = weeks_ok == 0
             expected = np.where(none, np.nan, np.nanmedian(np.where(none, 1.0, base), axis=0)) * lift

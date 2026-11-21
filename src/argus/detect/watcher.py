@@ -12,8 +12,10 @@ Per tick, with `as_of` on the hour and the scored hour `as_of - lag`:
    At most one anomaly is open per (node, direction); a slice that fires while its node already has an
    open anomaly in that direction is the same problem seen from another angle, and the coarsest firing
    segment wins (the investigator finds the root segment).
-5. Resolve: an open anomaly closes after `calm_hours` calm hours of its own series.
-6. Events (C5): attention, note_logged, anomaly_opened, then tick.
+5. Planned changes: a budget change or calendar entry that took effect is a reason to look at exactly the
+   segment it names; a step since the change opens an anomaly for the investigator (`argus.detect.planned`).
+6. Resolve: an open anomaly closes after `calm_hours` calm hours of its own series.
+7. Events (C5): attention, note_logged, anomaly_opened, then tick.
 """
 
 from __future__ import annotations
@@ -24,18 +26,19 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import numpy as np
+import pandas as pd
 from pydantic import BaseModel
 
 from argus.contracts.events import AttentionPayload, Event, TickPayload
 from argus.contracts.findings import Anomaly, Direction, Note, Quantity, Segment
 from argus.contracts.graph import Graph, NodeKind
 from argus.detect.attention import AttentionBudget, Unit, watchable_nodes
-from argus.detect.calendar import Calendar
-from argus.detect.expectation import HOURS_PER_WEEK, Method, ScoreParams, SeriesScore, score_series
+from argus.detect.expectation import HOURS_PER_WEEK, Method, ScoreParams, SeriesScore, score_series, shift
 from argus.detect.freshness import FreshnessGate, FreshnessState
 from argus.detect.pacing import LINE_DIMS, PACING_NODE, PLAN_NODE, SPEND_NODE, PacingParams, burn_scores, pacing_breach
-from argus.detect.rules import RuleParams, Trigger, family_params, is_calm, open_trigger
-from argus.detect.series import NodeSeries, SeriesStore, noise_drivers, source_tables
+from argus.detect.planned import PlannedChange, PlannedChanges, relation, step_z
+from argus.detect.rules import RuleParams, Trigger, direction_of, family_params, is_calm, open_trigger
+from argus.detect.series import SEP, NodeSeries, SeriesStore, noise_drivers, source_tables
 from argus.semantic.compile import hourly_sql, points_condition, quote, segment_where
 from argus.semantic.runner import Runner, sql_ts
 
@@ -50,6 +53,8 @@ class WatcherConfig:
     budget: int = 6
     tail_hours: int = 24
     freshness_lookback_hours: int = 48
+    planned_watch_hours: int = 24
+    planned_min_hours: int = 2
     score: ScoreParams = field(default_factory=ScoreParams)
     rules: RuleParams = field(default_factory=RuleParams)
     pacing: PacingParams = field(default_factory=PacingParams)
@@ -162,7 +167,6 @@ class Watcher:
         self.emit = emit
         self.store = SeriesStore(runner, graph)
         self.attention = AttentionBudget(graph, config.budget)
-        self.calendar = Calendar(runner)
         self.nodes = watchable_nodes(graph)
         self._tables = {n: source_tables(graph, n) for n in self.nodes}
         self.gate = FreshnessGate(
@@ -176,6 +180,9 @@ class Watcher:
         self._cursor: dict[Unit, datetime] = {}
         self._pacing_ready = all(n in self._tables for n in (PACING_NODE, SPEND_NODE, PLAN_NODE))
         self._drivers = {n: d for n in self.nodes if (d := noise_drivers(graph, n))}
+        self.plans = PlannedChanges(runner, graph)
+        self._plans_now: list[PlannedChange] = []
+        self._planned_done: set[tuple[object, ...]] = set()
         self._anomaly_seq = 0
         self._note_seq = 0
 
@@ -183,6 +190,7 @@ class Watcher:
         """Adopt a new graph version (after edge tests or onboarding); keeps what attention has seen so far."""
         self.graph = graph
         self.store.graph = graph
+        self.plans.graph = graph
         old = self.attention
         self.attention = AttentionBudget(graph, self.config.budget)
         self.attention.last_look.update(old.last_look)
@@ -206,7 +214,7 @@ class Watcher:
     def tick(self, as_of: datetime, open_incidents: int = 0) -> TickReport:
         hour = floor_hour(as_of) - timedelta(hours=self.config.lag_hours)
         fresh = self.gate.check(as_of, hour)
-        self.calendar.refresh(as_of)
+        self._plans_now = self.plans.refresh(as_of)
         notes = self._freshness_notes(fresh)
         # held: some hour up to the scored hour is still incomplete, so the node waits to stay in order
         pending = sorted(n for n in self.nodes if not self._ready(n, fresh, hour))
@@ -248,6 +256,8 @@ class Watcher:
         opened, triggers = self._open_from_looks(looks, as_of, fresh)
         pacing_opened, pacing_triggers, pacing_resolved = self._pacing(as_of, hour, fresh)
         opened += pacing_opened
+        planned_opened, planned_looked, planned_triggers = self._planned(as_of, hour, fresh)
+        opened += planned_opened
         resolved = self._resolve(looks) + pacing_resolved
 
         current = [lk for lk in looks if lk.hour == hour and math.isfinite(lk.z)]
@@ -257,7 +267,7 @@ class Watcher:
         funnel = Funnel(
             series=len(current),
             wiggles=sum(1 for lk in current if abs(lk.z) > self.config.rules.onset_z),
-            triggers=triggers + pacing_triggers,
+            triggers=triggers + pacing_triggers + planned_triggers,
             opened=len(opened),
         )
         self.funnel = self.funnel + funnel
@@ -275,7 +285,7 @@ class Watcher:
             hour=hour,
             tick=tick,
             attention=AttentionBudget.payload(scores),
-            looked=[u.key for u in [*always, *chosen]],
+            looked=[u.key for u in [*always, *chosen]] + planned_looked,
             opened=opened,
             resolved=resolved,
             notes=notes,
@@ -320,7 +330,7 @@ class Watcher:
         for key in series.slices():
             num, den = series.arrays(key)
             segment = series.segment(key)
-            uplift = self.calendar.uplift(unit.node, segment, series.hours)
+            uplift = self._uplift(unit.node, segment, series, num, as_of, fresh)
             poisson_x = _poisson_x(drivers, key)
             for h in hours:
                 end = n - int((hours[-1] - h) / HOUR)
@@ -394,7 +404,9 @@ class Watcher:
         onset_index: int,
         as_of: datetime,
         fresh: FreshnessState,
+        z: float | None = None,
     ) -> Anomaly:
+        """Build, receipt and record an anomaly from a look; `z` overrides the scored hour's z (step tests)."""
         score = look.score
         node = self.graph.node(look.unit.node)
         tables = self._tables[node.id]
@@ -430,13 +442,133 @@ class Watcher:
             observed=float(score.observed[-1]),
             expected=float(score.expected[-1]),
             band=(float(score.lo[-1]), float(score.hi[-1])),
-            z=round(float(score.z[-1]), 3),
+            z=round(float(score.z[-1] if z is None else z), 3),
             rule=rule,  # type: ignore[arg-type]
             data_confidence=round(fresh.confidence(tables, look.hour), 4),
             receipts=receipts,
         )
         self.anomalies.append(anomaly)
         return anomaly
+
+    # ------------------------------------------------------------------ planned changes
+
+    def _planned(self, as_of: datetime, hour: datetime, fresh: FreshnessState) -> tuple[list[Anomaly], list[str], int]:
+        """Step tests on the segments named by planned changes in force (see `argus.detect.planned`)."""
+        opened: list[Anomaly] = []
+        looked: list[str] = []
+        triggers = 0
+        for change in self._plans_now:
+            first = floor_hour(change.start)
+            if change.is_plan or change.key in self._planned_done or change.node not in self._tables or hour < first:
+                continue
+            if hour >= first + timedelta(hours=self.config.planned_watch_hours):
+                self._planned_done.add(change.key)
+                continue
+            if not self._ready(change.node, fresh, hour):
+                continue
+            look, z = self._planned_step(change, first, as_of, hour, fresh)
+            looked.append(f"{change.node}{change.segment} planned by {', '.join(change.ids)}")
+            if look is None or z is None:
+                continue
+            triggers += 1
+            direction = direction_of(z)
+            self._planned_done.add(change.key)
+            if (change.node, direction) in self.open:
+                continue
+            n_after = int((hour - first) / HOUR) + 1
+            anomaly = self._make_anomaly(look, "z_gt_open", direction, -n_after, as_of, fresh, z=z)
+            self.open[(change.node, direction)] = OpenAnomaly(anomaly, look.unit, look.slice_key)
+            opened.append(anomaly)
+        return opened, looked, triggers
+
+    def _planned_step(
+        self, change: PlannedChange, first: datetime, as_of: datetime, hour: datetime, fresh: FreshnessState
+    ) -> tuple[Look | None, float | None]:
+        """The look and step z that fire for one planned change, or (None, None).
+
+        First the plain expectation (did the segment move?), then the planned one (did it miss its plan?).
+        """
+        node = self.graph.node(change.node)
+        dims = tuple(d for d in node.dims if d in change.segment)
+        unit = Unit(change.node, dims)
+        series = self._series(change.node, dims, hour, as_of, fresh)
+        key = SEP.join(change.segment[d] for d in dims)
+        if key not in series.slices():
+            self._planned_done.add(change.key)
+            return None, None
+        method = _method(self.graph, change.node)
+        drivers = self._driver_series(unit, hour, as_of, fresh) if method == "log" else None
+        num, den = series.arrays(key)
+        poisson_x = _poisson_x(drivers, key)
+        n_after = int((hour - first) / HOUR) + 1
+        uplifts: list[np.ndarray | None] = [None]
+        if change.uplift is not None:
+            uplifts.append(self._uplift(change.node, change.segment, series, num, as_of, fresh))
+        for uplift in uplifts:
+            score = score_series(
+                num,
+                den,
+                method,
+                tail=self.config.tail_hours,
+                uplift=uplift,
+                params=self.config.score,
+                poisson_x=poisson_x,
+            )
+            if score is None:
+                continue
+            z, n = step_z(score.z[-n_after:])
+            if n >= self.config.planned_min_hours and abs(z) > self.config.rules.open_z:
+                return Look(unit, key, change.segment, hour, score), z
+        return None, None
+
+    def _uplift(
+        self,
+        node_id: str,
+        segment: Segment,
+        series: NodeSeries,
+        values: np.ndarray,
+        as_of: datetime,
+        fresh: FreshnessState,
+    ) -> np.ndarray | None:
+        """Relative planned uplift per hour of one series from every plan in force that touches it."""
+        out: np.ndarray | None = None
+        node = self.graph.node(node_id)
+        for change in self._plans_now:
+            if change.node != node_id or change.uplift is None:
+                continue
+            rel = relation(change.segment, segment)
+            if rel is None or (rel == "contains" and node.kind is not NodeKind.ADDITIVE):
+                continue
+            active = series.hours >= pd.Timestamp(floor_hour(change.start))
+            if change.end is not None:
+                active &= series.hours < pd.Timestamp(change.end)
+            if not active.any():
+                continue
+            share: np.ndarray | float = 1.0
+            if rel == "contains":
+                weight = self._baseline_share(change, series, values, as_of, fresh)
+                if weight is None:
+                    continue
+                share = weight
+            u = np.where(active, change.uplift * share, 0.0)
+            out = u if out is None else (1.0 + out) * (1.0 + u) - 1.0
+        return out
+
+    def _baseline_share(
+        self, change: PlannedChange, series: NodeSeries, values: np.ndarray, as_of: datetime, fresh: FreshnessState
+    ) -> np.ndarray | None:
+        """Share of the change's scope in a wider series, per hour, from the same-hour baseline weeks."""
+        dims = tuple(d for d in self.graph.node(change.node).dims if d in change.segment)
+        narrow = self._series(change.node, dims, series.hours[-1].to_pydatetime(), as_of, fresh)
+        key = SEP.join(change.segment[d] for d in dims)
+        if key not in narrow.slices():
+            return None
+        inside = narrow.num[key].reindex(series.hours).to_numpy(dtype=float)
+        lags = [k * HOURS_PER_WEEK for k in range(1, self.config.score.weeks + 1)]
+        part = np.nansum(np.stack([shift(inside, lag) for lag in lags]), axis=0)
+        whole = np.nansum(np.stack([shift(np.asarray(values, dtype=float), lag) for lag in lags]), axis=0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return np.clip(np.nan_to_num(part / whole), 0.0, 1.0)
 
     # ------------------------------------------------------------------ pacing
 
@@ -449,7 +581,8 @@ class Watcher:
             return [], 0, []
         start = hour.replace(hour=0) - timedelta(days=self.config.pacing.days)
         spend = self.store.node_series(SPEND_NODE, LINE_DIMS, start, hour, as_of, fresh.settled_through)
-        plan = self.store.node_series(PLAN_NODE, LINE_DIMS, start, hour, as_of, fresh.settled_through)
+        day_end = hour.replace(hour=23)  # the plan view holds the whole day ahead
+        plan = self.store.node_series(PLAN_NODE, LINE_DIMS, start, day_end, as_of, fresh.settled_through)
         scores = burn_scores(spend, plan, tail=self.config.tail_hours, params=self.config.pacing)
         unit = Unit(PACING_NODE, LINE_DIMS)
         opened: list[Anomaly] = []

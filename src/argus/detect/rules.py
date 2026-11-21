@@ -1,7 +1,7 @@
 """Open, onset and resolve rules on a series of z-scores (index -1 is the scored hour).
 
-* open ``z_gt_open``: |z| > open_z (4) in the scored hour.
-* open ``two_of_three``: |z| > run_z (3) in the scored hour and in at least one of the two hours before it,
+* open ``z_gt_open``: |z| > open_z (5) in the scored hour.
+* open ``two_of_three``: |z| > run_z (3.5) in the scored hour and in at least one of the two hours before it,
   on the same side (a Western Electric run rule: catches a smaller shift that persists).
 * onset: the first hour of the unbroken run with |z| > 2 on the anomaly's side that ends in the scored hour.
 * resolve: the last `calm_hours` scored hours all have |z| < 2.
@@ -11,10 +11,11 @@ an hour that was already passed over cannot open an anomaly later.
 
 A breakdown look tests m slices at once. `family_params` raises both thresholds (Bonferroni) so that the
 whole look has the false-alarm rate of a single series at open_z and run_z: for m = 6 the slice thresholds
-are about 4.4 and 3.3.
+are about 5.3 and 3.7.
 
-The defaults (4 and 3) are calibrated for this module's noise model (two-component variance with a Poisson
-floor, 14 days of residuals): z has a standard deviation of about 1.03 on quiet worlds.
+Thresholds are measured, not guessed (docs/decisions.md #9): z is well calibrated here (standard deviation
+about 1.03 on quiet worlds), but a watcher makes about 1,600 looks per 5-day world, and at 4 and 3 that is
+6 false alarms in 30 quiet worlds. 5 and 3.5 match the team's calibrated thresholds.
 """
 
 from __future__ import annotations
@@ -33,8 +34,8 @@ Rule = Literal["z_gt_open", "two_of_three"]
 
 @dataclass(frozen=True)
 class RuleParams:
-    open_z: float = 4.0
-    run_z: float = 3.0
+    open_z: float = 5.0
+    run_z: float = 3.5
     onset_z: float = 2.0
     calm_z: float = 2.0
     calm_hours: int = 3
