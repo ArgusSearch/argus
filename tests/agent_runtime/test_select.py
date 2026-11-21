@@ -59,7 +59,12 @@ def last_result(request: LlmRequest) -> dict[str, Any]:
     return json.loads(request.messages[-1]["content"][0]["content"])  # type: ignore[no-any-return]
 
 
-def scripted(test_refs: Callable[[list[dict[str, Any]]], list[dict[str, Any]]], placebo: bool = True) -> Responder:
+def scripted(
+    test_refs: Callable[[list[dict[str, Any]]], list[dict[str, Any]]],
+    placebo: bool = True,
+    expect: Callable[[dict[str, Any]], str] = lambda ev: "consistent",
+    placebo_expect: str = "unusual",
+) -> Responder:
     """list_events, then holdout_check for the events `test_refs` picks, then (optionally) the placebo."""
     state: dict[str, Any] = {"n": 0}
 
@@ -77,11 +82,11 @@ def scripted(test_refs: Callable[[list[dict[str, Any]]], list[dict[str, Any]]], 
         base = {"node": p["focus_node"], "segment": p["root_segment"], "window": p["window"]}
         if state["queue"]:
             ev = state["queue"].pop(0)
-            meta = {"hypothesis": ev["description"], "prediction": "normal outside", "expect": "consistent"}
+            meta = {"hypothesis": ev["description"], "prediction": "normal outside", "expect": expect(ev)}
             return call("holdout_check", {"event": ev, **base, **meta}, n, f"Test {ev['ref']}.")
         if placebo and not state.get("placebo"):
             state["placebo"] = True
-            return call("placebo_test", {**base, "hypothesis": "h", "prediction": "p", "expect": "unusual"}, n)
+            return call("placebo_test", {**base, "hypothesis": "h", "prediction": "p", "expect": placebo_expect}, n)
         return submit(n)
 
     return respond
@@ -167,3 +172,33 @@ def test_budget_stops_a_looping_model(case: Any, s1_world: WorldPaths) -> None:
     assert findings.verdict is Verdict.SUPPORTED_CAUSE
     summary = next(iter(journal.runs.values()))
     assert summary.status == "budget" and summary.llm_calls == 3
+
+
+def test_gate_reads_outcomes_not_the_models_framing(case: Any, s1_world: WorldPaths) -> None:
+    """Lane D's E03 case: the model expects the release holdout to be refuted (ledger: validated)."""
+    rival = scripted(
+        lambda evs: evs,
+        expect=lambda ev: "refuted" if ev["ref"].startswith("dep_") else "consistent",
+        placebo_expect="recurring",
+    )
+    findings, _ = run(case, s1_world, FakeLlmClient(responder=rival))
+    assert findings.verdict is Verdict.SUPPORTED_CAUSE
+    assert findings.root is not None and findings.root.evidence is not None
+    assert findings.root.evidence.ref == "ps_payco_degraded"
+    ruled = {r.evidence.ref for r in findings.ruled_out if r.evidence}
+    assert {"dep_android-app_8.3.0", "dep_checkout-service_1.2.6"} <= ruled
+    assert not any("recur" in u for u in findings.uncertain)  # an unusual placebo stays unusual
+
+
+def test_activity_carries_only_verified_numbers(case: Any, s1_world: WorldPaths) -> None:
+    """Lane D's E07: a number the model makes up never reaches the activity log."""
+    inner = scripted(lambda evs: evs)
+
+    def boastful(request: LlmRequest) -> LlmResponse:
+        response = inner(request)
+        blocks = [{"type": "text", "text": "This costs EUR 987,654 and 42.42% of revenue."}, *response.content]
+        return response.model_copy(update={"content": blocks})
+
+    _, journal = run(case, s1_world, FakeLlmClient(responder=boastful))
+    texts = " ".join(r.text for r in journal.records if r.actor == "model")
+    assert "987,654" not in texts and "42.42" not in texts and "[unverified]" in texts

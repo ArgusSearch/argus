@@ -27,6 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     api.add_argument("--replay", type=Path, help="fixtures directory to replay (default: fixtures/)")
     api.add_argument("--tick-seconds", type=float, default=2.0, help="wall seconds per simulated hour")
     api.add_argument("--stage", type=int, choices=(1, 2), default=2, help="live investigator stage (default: 2)")
+    api.add_argument(
+        "--agent",
+        choices=("live", "record", "off"),
+        help="the Argus Agent on a live run (default: $ARGUS_AGENT or off)",
+    )
+    api.add_argument("--agent-recording", type=Path, help="record mode: where turns.jsonl goes")
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8000)
     demo_cli.configure_parser(sub.add_parser("demo", help="print the demo playback timeline"))
@@ -71,7 +77,9 @@ def main(argv: list[str] | None = None) -> int:
     from argus.api.sources import FIXTURES, LiveSource, ReplaySource
 
     source = (
-        LiveSource(args.world, args.tick_seconds, stage=args.stage)
+        LiveSource(
+            args.world, args.tick_seconds, stage=args.stage, agent=args.agent, agent_recording=args.agent_recording
+        )
         if args.world
         else ReplaySource(args.replay or FIXTURES, args.tick_seconds, loop=True)
     )
