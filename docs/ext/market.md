@@ -75,6 +75,9 @@ The Stage 2 runtime activates the check through `from argus.market.investigator 
 The MockMart registry selects `apply_s5` and calls its DuckDB feed writer after the normal C1 tables are written.
 The bench registers S5 in the scorecard and accepts it in the `case`, `record` and `run --scenarios` commands.
 
+The producer exposes `market_demand_hourly` as a DuckDB view with `ts TIMESTAMP` and `demand_index DOUBLE`, with one positive index value per hour.
+The view exposes each observation once the world's `as_of` reaches its ingestion timestamp.
+
 The control applies to unplanned drops in the additive traffic-sensitive nodes `sessions`, `orders` and `gmv`.
 For each hour, the query pairs the metric and outside index for the same hour of the week over the preceding four weeks and requires at least three complete pairs.
 It takes each series' median over those matched hours, scales the metric expectation by the control's relative change, and expresses the residual relative to that adjusted expectation.

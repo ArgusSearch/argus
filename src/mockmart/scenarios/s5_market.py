@@ -12,10 +12,11 @@ import numpy as np
 import pandas as pd
 
 from argus.contracts.world import AS_OF_VARIABLE
-from argus.market import CONTROL_SOURCE
 from mockmart.delivery import DELIVERY_LAG_HOURS
 from mockmart.sim import SUCCESS_P, TruthEvent, WorldParams
 
+# Feed contract for scenario producers and investigators. See docs/ext/market.md.
+CONTROL_SOURCE = "market_demand_hourly"
 RAW_CONTROL = f"raw_{CONTROL_SOURCE}"
 MARKET_NODES = ("sessions", "orders", "gmv")
 FAULT_NODE = "payment_success_rate"
