@@ -99,6 +99,7 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
         lifespan=lifespan,
     )
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+    app.include_router(__import__("argus.narrator.routes", fromlist=["router"]).router(source))
     hub = source.bus
 
     # ------------------------------------------------------------------ run and stream
