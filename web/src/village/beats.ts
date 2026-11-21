@@ -5,7 +5,7 @@
 import { segmentLabel } from "../lib/format";
 import type { ArgusEvent, IncidentUpdatedPayload, TrailStep } from "../lib/types";
 import type { RoleId } from "./roles";
-import type { ActivityRecord, Decision, ProposalView, TapeIncident, TapePart, VillageTape } from "./types";
+import type { ActivityRecord, Decision, ProposalView, TapeIncident, TapePart, TapePlacement, VillageTape } from "./types";
 
 export type Outcome = "ok" | "kept" | "refuted" | "alarm" | "info" | "wait" | "denied";
 
@@ -309,6 +309,86 @@ function activityBeat(rec: ActivityRecord, actions: ProposalView[]): Beat | null
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------- a new metric places itself
+
+const EDGE_LINE = /^([fbc]_[a-z0-9_]+) \[(\w+)\] (.*?) -> (accepted|rejected|probation|proposed)?:? ?(.*)$/;
+
+/** The beats of one placement: the Cartographer reads the SQL, searches the map, the Skeptic screens for mere
+ * correlations, the Cartographer tests every proposed edge, then places, holds or rejects the metric. */
+export function placementBeats(p: TapePlacement, index: number): Beat[] {
+  const name = p.metric.name;
+  const at = p.as_of;
+  const key = (k: string) => `m${index}:${k}`;
+  const entry = (k: string, tool: string, title: string, detail: string | null, outcome: Outcome): LogEntry => ({
+    key: key(k),
+    simTs: at,
+    tool,
+    title,
+    detail,
+    hypothesis: null,
+    outcome,
+    receipts: [],
+  });
+  const lines = (prefix: string) => p.tried.filter((t) => t.startsWith(prefix));
+  const edges = p.tried.filter((t) => EDGE_LINE.test(t));
+  const beats: Beat[] = [];
+  const beat = (k: string, role: RoleId, kind: BeatKind, doing: string, done: string, outcome: Outcome, log: LogEntry[], weight = 1): void => {
+    beats.push({ key: key(k), role, kind, caseId: name, simTs: at, doing: short(doing), done: short(done), outcome, log, weight, gate: null });
+  };
+  const read = [...lines("lineage:"), ...lines("definition check:"), ...lines("fan-out guard:")];
+  beat(
+    "read",
+    "cartographer",
+    "check",
+    `New metric to place: ${name}`,
+    read.some((t) => t.startsWith("fan-out")) ? "Its SQL joins tables below their keys" : `Read its SQL: ${(lines("lineage:")[0] ?? "").replace(/^lineage: /, "").split(";")[0]}`,
+    "info",
+    [entry("intro", "propose_metric", name, p.metric.description, "info"), ...read.map((t, i) => entry(`r${i}`, t.split(":")[0].replace(/ /g, "_"), t.split(":")[0], t.slice(t.indexOf(":") + 1).trim(), t.startsWith("fan-out") ? "alarm" : "ok"))],
+    1.2,
+  );
+  if (p.placed_as === "REJECTED") {
+    beat("verdict", "cartographer", "verdict", `Can ${name} be placed?`, `Rejected: ${p.summary.split(":")[0]}`, "alarm", [entry("v", "place_metric", `${name} rejected`, p.summary, "alarm")], 1.4);
+    return beats;
+  }
+  const search = [...lines("numeric alias:"), ...lines("arithmetic search:")];
+  if (search.length)
+    beat("search", "cartographer", "check", "Is it something the map already has?", "Nothing in the map has the same numbers", "ok", search.map((t, i) => entry(`s${i}`, t.split(":")[0].replace(/ /g, "_"), t.split(":")[0], t.slice(t.indexOf(":") + 1).trim(), "ok")));
+  const scan = lines("correlation scan:");
+  if (scan.length) {
+    const kept = /kept (\d+)/.exec(scan[0])?.[1] ?? "0";
+    beat(
+      "scan",
+      "skeptic",
+      "check",
+      "Correlated is not causal: screening hidden links",
+      kept === "0" ? "No link survives the screen" : `${kept} link kept on probation, correlated only`,
+      kept === "0" ? "ok" : "info",
+      scan.map((t, i) => entry(`c${i}`, "correlation_scan", "correlation scan", t.replace(/^correlation scan: /, ""), "ok")),
+    );
+  }
+  if (edges.length) {
+    const ok = edges.filter((t) => / -> accepted/.test(t)).length;
+    beat(
+      "edges",
+      "cartographer",
+      "edges",
+      `Testing ${edges.length} new edge${edges.length === 1 ? "" : "s"} of ${name}`,
+      `${ok} of ${edges.length} edges hold`,
+      ok === edges.length ? "ok" : "info",
+      edges.map((t, i) => {
+        const m = EDGE_LINE.exec(t);
+        return entry(`e${i}`, "edge_test", m ? m[3] : t, m ? `${m[4] ?? ""} ${m[5]}`.trim() : null, m?.[4] === "accepted" ? "ok" : "info");
+      }),
+      1.3,
+    );
+  }
+  const formula = p.summary.split(" (")[0];
+  if (p.placed_as === "AMBIGUOUS")
+    beat("verdict", "cartographer", "verdict", `Where does ${name} belong?`, "Held: two formulas fit equally well, so it stays proposed", "info", [entry("v", "place_metric", `${name} held`, [p.summary, ...p.uncertain].join(" · "), "info")], 1.4);
+  else beat("verdict", "cartographer", "verdict", `Placing ${name} in the map`, `Placed: ${formula}`, "ok", [entry("v", "place_metric", `${name} placed (${p.placed_as})`, p.summary, "ok")], 1.4);
+  return beats;
 }
 
 // ---------------------------------------------------------------- the whole tape
@@ -704,6 +784,7 @@ export function buildBeats(tape: VillageTape, opts: BuildOptions): Beat[] {
     flushEdges();
     // the quiet hours after the story: one beat, the village goes back to watching
     flushQuiet(0);
+    (tape.placements ?? []).forEach((p, i) => beats.push(...placementBeats(p, i)));
   }
   return beats;
 }

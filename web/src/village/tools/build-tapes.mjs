@@ -6,14 +6,17 @@
 //
 //   node web/src/village/tools/build-tapes.mjs <run dir> <scenario> "<title>" > web/src/village/tapes/<scenario>.json
 //
-// The checked-in tapes come from the S1 and S4 recordings:
+// The checked-in tapes come from the S1, S2, S4 and S5 recordings and lane H's recorded metric placements:
 //   node web/src/village/tools/build-tapes.mjs fixtures s1 "S1 · PayCo payments fail on Android in Germany"
 //   node web/src/village/tools/build-tapes.mjs fixtures/s4 s4 "S4 · The ad pacer overspends in DE and FR"
+//   node web/src/village/tools/build-tapes.mjs fixtures/graph_extension metric "New metrics place themselves in the map" fixtures/s4
+// A directory with placements.json (GET /graph/metrics, PlacementResult) becomes a tape of placements; the
+// optional last argument names the run whose graph gives the labels.
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
-const [dir, scenario, title] = process.argv.slice(2);
+const [dir, scenario, title, labelsDir] = process.argv.slice(2);
 if (!dir || !scenario || !title) {
   console.error('usage: build-tapes.mjs <run dir> <scenario> "<title>"');
   process.exit(2);
@@ -87,7 +90,27 @@ function part(path) {
 }
 
 const root = resolve(dir);
-const graph = json(join(root, "graph.json"), { nodes: [] });
+const graph = json(join(labelsDir ? resolve(labelsDir) : root, "graph.json"), { nodes: [] });
+
+/** Only what the village shows of a placement: the verdict, what was tried, what stays uncertain. */
+function trimPlacement(p) {
+  return {
+    metric: { name: p.metric.name, description: p.metric.description },
+    placed_as: p.placed_as,
+    summary: p.summary,
+    definition: p.definition,
+    as_of: p.as_of,
+    world: p.world,
+    tried: p.certificate.tried,
+    passed: p.certificate.passed,
+    uncertain: p.certificate.uncertain,
+    edges: p.certificate.edges,
+    receipts: p.certificate.receipts.slice(0, 8),
+    requires: p.requires,
+    alternatives: p.alternatives,
+  };
+}
+const placements = json(join(root, "placements.json"), []).map(trimPlacement);
 const incidentsRaw = json(join(root, "incidents.json"), []);
 const incidents = (Array.isArray(incidentsRaw) ? incidentsRaw : Object.values(incidentsRaw)).map((i) => ({
   id: i.id,
@@ -110,5 +133,6 @@ const tape = {
   incidents,
   ...part(root),
   continuations,
+  ...(placements.length ? { placements } : {}),
 };
 process.stdout.write(`${JSON.stringify(tape)}\n`);
