@@ -14,7 +14,7 @@ from argus.contracts.events import Event, EventType, IncidentUpdatedPayload, Inv
 from argus.contracts.findings import Anomaly, Findings, Incident, Note, TrailStep, Verdict
 from argus.contracts.graph import Graph
 from argus.narrator.playbooks import PlaybookRun, map_playbook
-from argus.narrator.run_queries import Activity, ReceiptLink, RunWindow, measure_activity, semantic_link
+from argus.narrator.run_queries import Activity, ReceiptLink, RunWindow, measure_activity
 
 Section = Literal["happened", "decided", "asks"]
 
@@ -212,7 +212,7 @@ def build_morning_report(
     ]
 
     def semantic(*ids: str | None) -> list[ReceiptLink]:
-        return [semantic_link(rid) for rid in dict.fromkeys(ids) if rid and has_receipt(rid)]
+        return [window.semantic_link(rid) for rid in dict.fromkeys(ids) if rid and has_receipt(rid)]
 
     incidents_by_id = {incident.id: incident for incident in incidents}
     anomalies: dict[str, Anomaly] = {}

@@ -24,8 +24,8 @@ class ReceiptLink(BaseModel):
     rerun_method: Literal["GET", "POST"]
 
 
-def semantic_link(receipt_id: str) -> ReceiptLink:
-    href = f"/receipts/{quote(receipt_id, safe='')}"
+def semantic_link(receipt_id: str, prefix: str = "") -> ReceiptLink:
+    href = f"{prefix}/receipts/{quote(receipt_id, safe='')}"
     return ReceiptLink(id=receipt_id, source="semantic", href=href, rerun_href=f"{href}/rerun", rerun_method="POST")
 
 
@@ -34,11 +34,16 @@ class RunWindow:
     stream: str
     through_seq: int
     events: tuple[Event, ...]
+    # Where the receipt and report-query routes are mounted: "" on the main API, "/demo" for demo playback.
+    prefix: str = ""
 
     def link(self, query_id: str) -> ReceiptLink:
         scope = urlencode({"stream": self.stream, "through_seq": self.through_seq})
-        href = f"/report/morning/queries/{query_id}?{scope}"
+        href = f"{self.prefix}/report/morning/queries/{query_id}?{scope}"
         return ReceiptLink(id=query_id, source="run", href=href, rerun_href=href, rerun_method="GET")
+
+    def semantic_link(self, receipt_id: str) -> ReceiptLink:
+        return semantic_link(receipt_id, self.prefix)
 
     def event_link(self, event: Event) -> ReceiptLink:
         return self.link(f"event-{event.seq}")
