@@ -21,6 +21,7 @@ import {
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { Post } from "../../fx/scene/post";
 import { AdaptiveQuality, pixelRatio, TIERS, type QualityMode, type TierSpec } from "../../fx/scene/quality";
+import { placePin } from "../Overlay";
 import type { Player } from "../player";
 import { APPROVAL_POST, ROLE, ROLES, ROLE_IDS, type RoleId } from "../roles";
 import { slotAt, TRAVEL, type VillageState } from "../timeline";
@@ -99,6 +100,7 @@ export class VillageEngine {
     this.canvas.setAttribute("aria-hidden", "true");
     this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: false, alpha: false, stencil: false, powerPreference: "high-performance" });
     this.renderer.autoClear = false;
+    this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFShadowMap;
     opts.mount.prepend(this.canvas);
@@ -270,8 +272,8 @@ export class VillageEngine {
     this.camera.aspect = w / h;
     // frame the plateau: about 33 units wide and 26 deep must fit
     const halfV = Math.tan(((FOV / 2) * Math.PI) / 180);
-    const fitW = 13.6 / (halfV * this.camera.aspect);
-    const fitH = 10.4 / halfV;
+    const fitW = 13.2 / (halfV * this.camera.aspect);
+    const fitH = 9.1 / halfV;
     this.distance = Math.max(fitW, fitH);
     // the plateau stays clear; only what lies beyond it fades into the fog
     this.fog.near = this.distance + 14;
@@ -393,8 +395,7 @@ export class VillageEngine {
       v.copy(p).project(this.camera);
       const x = (v.x * 0.5 + 0.5) * this.width;
       const y = (-v.y * 0.5 + 0.5) * this.height;
-      el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-      el.style.visibility = v.z < 1 ? "visible" : "hidden";
+      placePin(el, x, y, v.z < 1);
     };
     for (const r of ROLES) {
       place(`bubble:${r.id}`, new Vector3(r.x, r.size + 0.3, r.z - 0.2));

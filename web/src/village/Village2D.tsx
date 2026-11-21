@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AgentAvatar } from "./avatars/AgentAvatar";
+import { placePin } from "./Overlay";
 import type { Player } from "./player";
 import { ROLE, ROLES, type RoleId } from "./roles";
 import { slotAt, TRAVEL, type VillageState } from "./timeline";
@@ -15,8 +16,8 @@ interface Box {
 
 /** Ground (x, z) to stage pixels: a view from the front and above, like the 3D camera. */
 function at(box: Box, x: number, z: number, y = 0): [number, number] {
-  const s = Math.min(box.w / 35, box.h / 27);
-  return [box.w / 2 + x * s, box.h * 0.5 + (z + 0.2) * s * 0.78 - y * s * 0.78];
+  const s = Math.min(box.w / 30, box.h / 22.5);
+  return [box.w / 2 + x * s, box.h * 0.56 + (z + 0.2) * s * 0.8 - y * s * 0.8];
 }
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -39,14 +40,11 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
     let frame = 0;
     const pin = (key: string, p: [number, number]) => {
       const el = anchors.get(key);
-      if (el) {
-        el.style.transform = `translate3d(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px, 0)`;
-        el.style.visibility = "visible";
-      }
+      if (el) placePin(el, p[0], p[1]);
     };
     const loop = () => {
       frame = requestAnimationFrame(loop);
-      const s = Math.min(box.w / 35, box.h / 27);
+      const s = Math.min(box.w / 30, box.h / 22.5);
       for (const r of ROLES) {
         pin(`bubble:${r.id}`, at(box, r.x, r.z - 0.4, r.size * 1.25));
       }
@@ -61,7 +59,7 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
         const a = ROLE[slot.from];
         const b = ROLE[slot.beat.role];
         const p = at(box, a.x + (b.x - a.x) * k, a.z + (b.z - a.z) * k + Math.sin(k * Math.PI) * 2.2, 0.2);
-        if (walker.current) walker.current.style.transform = `translate3d(${p[0] - s * 0.6}px, ${p[1] - s * 1.25}px, 0)`;
+        if (walker.current) walker.current.style.transform = `translate3d(${p[0] - s * 0.78}px, ${p[1] - s * 1.6}px, 0)`;
         who = slot.from;
         pin("file", [p[0] + s * 0.2, p[1] - s * 0.6]);
         if (file) file.style.opacity = "1";
@@ -76,7 +74,7 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
     return () => cancelAnimationFrame(frame);
   }, [box, player, anchors]);
 
-  const s = Math.min(box.w / 35, box.h / 27);
+  const s = Math.min(box.w / 30, box.h / 22.5);
   const plaza = at(box, 0, 0.2);
   return (
     <div ref={ref} className="vl-stage2d" aria-hidden="true">
@@ -91,7 +89,7 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
         .sort((a, b) => a.z - b.z)
         .map((r) => {
           const [x, y] = at(box, r.x, r.z);
-          const w = r.size * s * 2.05;
+          const w = r.size * s * 2.2;
           const rs = state.roles[r.id];
           const busy = rs.status === "working";
           return (
@@ -105,13 +103,13 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
               <span className="vl-dome" />
               <span className="vl-room" />
               <span className="vl-bot2d" style={{ opacity: mover === r.id ? 0.25 : 1 }}>
-                <AgentAvatar role={r.id} size={Math.round(s * 1.05)} status={rs.status === "working" ? "working" : rs.status === "waiting" ? "waiting" : "idle"} badge={false} />
+                <AgentAvatar role={r.id} size={Math.round(s * 1.55)} status={rs.status === "working" ? "working" : rs.status === "waiting" ? "waiting" : "idle"} badge={false} />
               </span>
             </button>
           );
         })}
       <div ref={walker} className="vl-walker" style={{ opacity: mover ? 1 : 0 }}>
-        {mover && <AgentAvatar role={mover} size={Math.round(s * 1.05)} status="working" badge={false} />}
+        {mover && <AgentAvatar role={mover} size={Math.round(s * 1.55)} status="working" badge={false} />}
       </div>
     </div>
   );

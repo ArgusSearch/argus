@@ -11,6 +11,17 @@ import type { Player } from "./player";
 import { ROLE, ROLES, type RoleId } from "./roles";
 import type { VillageState } from "./timeline";
 
+/**
+ * Moves a pinned element to (x, y) stage pixels. A column with a bubble needs room above its anchor, so it is
+ * held below the top edge instead of sliding out of view.
+ */
+export function placePin(el: HTMLElement, x: number, y: number, visible = true): void {
+  const top = el.classList.contains("on") ? 150 : 52;
+  const yy = Math.max(top, y);
+  el.style.transform = `translate3d(${x.toFixed(1)}px, ${yy.toFixed(1)}px, 0)`;
+  el.style.visibility = visible ? "visible" : "hidden";
+}
+
 /** Registers an element under `key` in the anchors map, for the stage to move. */
 export function useAnchor(anchors: Map<string, HTMLElement>, key: string) {
   return (el: HTMLElement | null) => {
