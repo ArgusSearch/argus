@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentReceiptChips } from "../../components/Receipts";
 import { agentApi, type AskAnswer } from "../../lib/agent";
+import { AvatarSlot } from "./AvatarSlot";
 import { useAgent } from "./agent";
 
 type Listener = () => void;
@@ -117,10 +118,17 @@ export function AskPanel({ incident }: { incident: string | null }) {
         {turns.map((t, i) => (
           <li key={i} className="ws-ask-turn">
             <p className="ws-ask-q">{t.question}</p>
-            {!t.answer && !t.error && <p className="ws-ask-wait">Checking…</p>}
+            {!t.answer && !t.error && (
+              <p className="ws-ask-wait">
+                <AvatarSlot role="detective" status="working" /> Checking…
+              </p>
+            )}
             {t.error && <p className="ws-act-error">{t.error}</p>}
             {t.answer && (
               <div className="ws-ask-a">
+                <span className="ws-ask-who">
+                  <AvatarSlot role="narrator" nameplate /> answers
+                </span>
                 <p>{t.answer.answer}</p>
                 {t.answer.claims.length > 0 && (
                   <ul>

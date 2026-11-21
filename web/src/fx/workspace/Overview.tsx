@@ -14,6 +14,8 @@ import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
 import { ActionCard } from "./ActionCard";
 import { proposalFor, useAgent } from "./agent";
+import { AvatarSlot } from "./AvatarSlot";
+import { roleOf } from "../../lib/agent";
 import { health, keyMetrics, tasks, tiles, type Check, type Health, type Task, type Tile } from "./health";
 import { CountUp, useCountUp, usePointerLight } from "./motion";
 import { affectedPath, type PathSubject } from "./path";
@@ -273,6 +275,7 @@ function AgentCard() {
         <ol className="ws-agent-lines">
           {lines.map((r) => (
             <li key={r.seq}>
+              <AvatarSlot role={roleOf(r)} />
               <span className="mono">{hhmm(r.sim_ts)}</span>
               <span>{r.text || r.observation?.summary || r.kind.replace(/_/g, " ")}</span>
             </li>

@@ -13,6 +13,7 @@ import type { RunView } from "../../lib/store";
 import type { IncidentState } from "../../lib/types";
 import { proposalFor, useAgent } from "./agent";
 import { approve, useApproval } from "./approvals";
+import { AvatarSlot } from "./AvatarSlot";
 import { Pill } from "./ui";
 import type { Tone } from "./plain";
 
@@ -84,7 +85,10 @@ function Proposal({ proposal, compact }: { proposal: ProposalView; compact: bool
   return (
     <div className={`ws-act${compact ? " compact" : ""}`}>
       <p className="ws-act-text">
-        <span>Proposed by Argus · {proposal.id}</span>
+        <span className="ws-act-by">
+          <AvatarSlot role="operator" nameplate status={proposal.state === "AWAIT_OPERATOR" ? "waiting" : stage.reached === 3 ? "done" : "working"} />
+          applies it once you approve · {proposal.id}
+        </span>
         {proposal.action}
       </p>
       <ol className="ws-act-steps" aria-label={`progress: ${stage.word}`}>

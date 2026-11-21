@@ -88,7 +88,14 @@ export type ActivityKind =
   | "watch"
   | "run_finished";
 
+/** The seven agent roles (lane G's village, web/src/village/roles.ts): who did a step. */
+export type AgentRole = "watcher" | "cartographer" | "detective" | "market" | "skeptic" | "narrator" | "operator";
+
+export const AGENT_ROLES: readonly AgentRole[] = ["watcher", "cartographer", "detective", "market", "skeptic", "narrator", "operator"];
+
 export interface ActivityRecord {
+  /** who did the step; derived by `roleOf` while the API does not send it */
+  role?: AgentRole;
   seq: number;
   run_id: string | null;
   sim_ts: string;
@@ -219,4 +226,58 @@ export const agentApi = {
 /** A proposal that is still moving: the page polls it until it settles. */
 export function settling(state: ProposalState): boolean {
   return state === "APPLYING" || state === "APPLIED" || state === "VERIFYING";
+}
+
+/** The role a check belongs to, by its tool (the same mapping as lane G's village beats). */
+export function roleOfTool(tool: string | null | undefined, kind?: string): AgentRole {
+  switch (tool) {
+    case "check_freshness":
+      return "watcher";
+    case "check_identities":
+      return "cartographer";
+    case "decompose_formula":
+      return kind === "impact" ? "narrator" : "cartographer";
+    case "holdout_check":
+    case "placebo_test":
+    case "skeptic":
+      return "skeptic";
+    case "check_control_group":
+    case "market_control":
+      return "market";
+    case "counterfactual_impact":
+    case "verdict":
+      return "narrator";
+    case "propose_action":
+      return "operator";
+    default:
+      return "detective";
+  }
+}
+
+/** Who did an activity step: the record's own role when the API sends one, else by its kind and tool. */
+export function roleOf(rec: ActivityRecord): AgentRole {
+  if (rec.role && AGENT_ROLES.includes(rec.role)) return rec.role;
+  switch (rec.kind) {
+    case "watch":
+      return "watcher";
+    case "gate":
+    case "rejected":
+      return "skeptic";
+    case "report":
+    case "chat_question":
+    case "chat_answer":
+    case "run_finished":
+      return "narrator";
+    case "action_proposed":
+    case "action_decided":
+    case "action_applied":
+    case "effect_checked":
+      return "operator";
+    case "run_started":
+    case "budget":
+    case "fallback":
+      return "detective";
+    default:
+      return roleOfTool(rec.tool ?? rec.observation?.tool ?? null);
+  }
 }

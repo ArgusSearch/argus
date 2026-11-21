@@ -89,3 +89,20 @@ describe("the agent presentation's wire shapes", () => {
     expect(withRun("/agent/activity?since=3")).toBe("/agent/activity?since=3");
   });
 });
+
+describe("who did a step", () => {
+  it("takes the record's own role, else maps kind and tool like the village does", async () => {
+    const { roleOf, AGENT_ROLES } = await import("../../../src/lib/agent");
+    const rec = (over: Record<string, unknown>) => ({ seq: 1, run_id: "r", sim_ts: "2026-11-20T02:00:00", kind: "tool_call", stage: "ACT", actor: "model", text: "", anomaly_id: null, incident_id: null, action_id: null, tool: null, args: null, observation: null, receipt_links: [], model: null, input_tokens: null, output_tokens: null, usd: null, gate_action: null, ...over }) as never;
+    expect(roleOf(rec({ role: "market" }))).toBe("market");
+    expect(roleOf(rec({ kind: "watch" }))).toBe("watcher");
+    expect(roleOf(rec({ kind: "gate" }))).toBe("skeptic");
+    expect(roleOf(rec({ kind: "chat_answer" }))).toBe("narrator");
+    expect(roleOf(rec({ kind: "action_decided" }))).toBe("operator");
+    expect(roleOf(rec({ kind: "tool_call", tool: "holdout_check" }))).toBe("skeptic");
+    expect(roleOf(rec({ kind: "tool_result", tool: "check_identities" }))).toBe("cartographer");
+    expect(roleOf(rec({ kind: "tool_result", tool: "market_control" }))).toBe("market");
+    expect(roleOf(rec({ kind: "thought", tool: null }))).toBe("detective");
+    expect(AGENT_ROLES).toHaveLength(7);
+  });
+});

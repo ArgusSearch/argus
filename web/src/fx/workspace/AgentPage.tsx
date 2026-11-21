@@ -4,7 +4,8 @@
 
 import { useMemo, useState } from "react";
 import { AgentReceiptChips } from "../../components/Receipts";
-import type { ActivityKind, ActivityRecord, RunSummary } from "../../lib/agent";
+import { roleOf, type ActivityKind, type ActivityRecord, type RunSummary } from "../../lib/agent";
+import { AvatarSlot } from "./AvatarSlot";
 import { dayLabel, hhmm, humanize } from "../../lib/format";
 import { openIncidentPage } from "../nav";
 import { useAgent } from "./agent";
@@ -64,11 +65,12 @@ function Line({ r }: { r: ActivityRecord }) {
   return (
     <li className={`ag-line a-${r.actor} k-${r.kind}`}>
       <span className="ag-time mono">{hhmm(r.sim_ts)}</span>
-      <span className={`ag-who ${r.actor}`} title={r.actor === "model" ? "the language model" : r.actor === "host" ? "Argus' own code" : "a person"}>
-        {r.actor === "model" ? "AI" : r.actor === "host" ? "Argus" : "You"}
-      </span>
+      <AvatarSlot role={roleOf(r)} size="md" nameplate status={r.kind === "rejected" || r.kind === "fallback" ? "alarm" : r.kind === "action_proposed" ? "waiting" : undefined} />
       <div className="ag-body">
         <span className="ag-kind">
+          <span className={`ag-who ${r.actor}`} title={r.actor === "model" ? "the language model wrote this" : r.actor === "host" ? "Argus' own code ran this" : "a person did this"}>
+            {r.actor === "model" ? "AI" : r.actor === "host" ? "Argus" : "You"}
+          </span>
           <Pill tone={k.tone}>{k.word}</Pill>
           {r.tool && <span className="mono ag-tool">{r.tool}</span>}
           {r.kind === "tool_result" && <Outcome outcome={o?.outcome ?? null} />}
