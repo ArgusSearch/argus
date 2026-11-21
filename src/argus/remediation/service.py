@@ -498,7 +498,7 @@ class RemediationService:
             span = f"{window.start:%Y-%m-%d %H:%M}-{window.end:%H:%M}"
             for n, (series, link, revision, label, kind) in enumerate(
                 (
-                    (verdict.treated, t_link, execution.world_revision, "treated", "recovered"),
+                    (verdict.treated, t_link, execution.world_revision, "treated world", "recovered"),
                     (verdict.untreated, u_link, FACTUAL, "untreated twin", "observed"),
                 ),
                 start=1,
