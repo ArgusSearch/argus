@@ -1,0 +1,8 @@
+name: cvr_percent
+description: Orders per 100 sessions
+sql: |
+  SELECT ts, country,
+         100.0 * SUM(orders) / NULLIF(SUM(sessions), 0) AS value
+  FROM fact_orders_hourly
+  JOIN fact_funnel_hourly USING (ts, country, platform, channel, category)
+  GROUP BY ALL

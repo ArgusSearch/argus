@@ -1,0 +1,8 @@
+name: revenue_per_session
+description: GMV per shop session in EUR
+sql: |
+  SELECT ts, country, platform,
+         SUM(gmv) / NULLIF(SUM(sessions), 0) AS value
+  FROM fact_orders_hourly
+  JOIN fact_funnel_hourly USING (ts, country, platform, channel, category)
+  GROUP BY ALL

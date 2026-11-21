@@ -1,0 +1,7 @@
+name: payment_failures
+description: Payment attempts that failed
+sql: |
+  SELECT ts, country, provider,
+         SUM(payment_attempts) - SUM(payment_successes) AS value
+  FROM fact_payments_hourly
+  GROUP BY ALL

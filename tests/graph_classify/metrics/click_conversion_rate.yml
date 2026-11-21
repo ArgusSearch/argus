@@ -1,0 +1,7 @@
+name: click_conversion_rate
+description: Share of ad clicks that lead to an attributed order
+sql: |
+  SELECT ts, advertiser_id, country,
+         SUM(ad_conversions)::DOUBLE / NULLIF(SUM(ad_clicks), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL
