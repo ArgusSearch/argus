@@ -200,6 +200,13 @@
 
 .ui-offline-detail {
   min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .ui-offline-detail {
+    white-space: normal;
+  }
 }
 
 .ui-offline code {
