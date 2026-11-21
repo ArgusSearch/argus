@@ -29,6 +29,14 @@ def test_showcase_order_and_expected_change_cut() -> None:
         assert [chapter["id"] for chapter in chapters] == ["fault", "expected_change", "metric_placement", "agent"]
         assert chapters[0]["start"]["scenario"] == "s1"
         assert chapters[2]["path"] == "/graph/metrics" and chapters[2]["expected"] == ["EXACT", "AMBIGUOUS"]
+        cases = chapters[2]["cases"]
+        assert [case["name"] for case in cases] == [
+            "cost_per_impression",
+            "conversions_per_impression",
+            "revenue_per_conversion",
+            "revenue_per_impression",
+        ]
+        assert [case["placed_as"] for case in cases if case["show"]] == ["EXACT", "AMBIGUOUS"]
         assert chapters[3]["start"]["variant"] == "agent" and chapters[3]["start"]["scenario"] == "s4"
         assert client.post("/demo/start", json={"scenario": "s2", "variant": "agent"}).status_code == 422
 
