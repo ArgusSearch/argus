@@ -20,6 +20,7 @@
 
 .analysis-page-links h2 {
   margin: var(--fx-space-2) var(--fx-space-2) var(--fx-space-1);
+  font-size: var(--fx-text-xs);
 }
 
 .analysis-page-links .analysis-secondary {
@@ -74,6 +75,11 @@
   gap: var(--fx-space-2) var(--fx-space-3);
 }
 
+.analysis-header .ws-head {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .analysis-share {
   display: flex;
   flex-wrap: wrap;
@@ -88,10 +94,6 @@
 .analysis-share [role="status"] {
   color: var(--fx-ink-2);
   font-size: var(--fx-text-sm);
-}
-
-.analysis-share [role="status"]:empty {
-  display: none;
 }
 
 .analysis-query {

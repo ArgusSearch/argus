@@ -15,9 +15,10 @@ interface AnalysisShellProps {
   query: AnalysisQuery;
   openIncident: (id: string) => void;
   secondaryLinks: ReactNode;
+  streamError?: string | null;
 }
 
-export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks }: AnalysisShellProps) {
+export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks, streamError }: AnalysisShellProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [pagesOpen, setPagesOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
@@ -61,7 +62,10 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
           menu.current?.focus();
         }}
       >
-        <button className="btn analysis-menu" type="button" ref={menu} aria-expanded={pagesOpen} aria-controls={pagesId} onClick={() => setPagesOpen(!pagesOpen)}>
+        <button className="btn analysis-menu" type="button" ref={menu} aria-expanded={pagesOpen} aria-controls={pagesId} onClick={(event) => {
+          event.currentTarget.focus();
+          setPagesOpen(!pagesOpen);
+        }}>
           Analysis pages
         </button>
         <div id={pagesId} className="analysis-page-links">
@@ -125,6 +129,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
             </p>
           )}
         </section>
+        {streamError && <p className="fx-empty" role="status">Could not refresh the recorded run. {streamError}</p>}
         <AnalysisPages graph={graph} view={view} query={query} window={window} incidents={incidents} signals={signals} navigate={navigate} openIncident={openIncident} />
       </div>
     </main>

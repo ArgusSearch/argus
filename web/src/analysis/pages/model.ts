@@ -1,6 +1,6 @@
 import { segmentLabel } from "../../lib/format";
 import type { IncidentView, RunView } from "../../lib/store";
-import type { Graph, Incident, Segment } from "../../lib/types";
+import type { Findings, Graph, Incident, Segment } from "../../lib/types";
 import { ANALYSIS_PERIODS, segmentKey, type AnalysisPeriod, type AnalysisQuery } from "../shell/query";
 
 export const AD_METRICS = ["ad_impressions", "ad_clicks", "ad_spend", "ad_conversions", "attributed_gmv", "ctr", "cpc", "cpa", "roas", "planned_spend", "pacing_ratio"];
@@ -51,9 +51,10 @@ export function analysisSignals(view: RunView, query: AnalysisQuery, window: Ana
   ).slice().reverse();
 }
 
-export function visibleFindings(incident: Incident, summaries: IncidentView[], window: AnalysisWindow): boolean {
-  const summary = summaries.find((item) => item.id === incident.id);
-  if (!summary || summary.state !== incident.state || summary.updatedAt !== incident.updated_at) return false;
+type FindingVersion = Pick<Incident, "id" | "state" | "updated_at"> & { findings: Pick<Findings, "as_of"> };
+
+export function visibleFindings(incident: FindingVersion, summary: IncidentView | undefined, window: AnalysisWindow): boolean {
+  if (summary?.id !== incident.id || summary.state !== incident.state || time(summary.updatedAt) !== time(incident.updated_at)) return false;
   const known = time(incident.findings.as_of);
   return known !== null && window.end !== null && known <= window.end;
 }

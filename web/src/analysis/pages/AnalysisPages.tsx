@@ -1,12 +1,13 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Num, ReceiptChips } from "../../components/Receipts";
 import { dayLabel, eur, hhmm, humanize, pct, segmentLabel } from "../../lib/format";
 import type { IncidentView, RunView } from "../../lib/store";
 import type { Anomaly, Graph, GraphNode } from "../../lib/types";
-import { health } from "../../fx/workspace/health";
-import { metricName, STATE } from "../../fx/workspace/plain";
+import { health, keyMetrics } from "../../fx/workspace/health";
+import { metricName, STATE, unusualness } from "../../fx/workspace/plain";
 import { Card, Pill, useIncidents } from "../../fx/workspace/ui";
 import { calendarEntries } from "../../settings/model";
+import { metricStatus } from "../../views/model";
 import { analysisHref, followLink, navigateWorkspaceURL } from "../shell/location";
 import { segmentKey, type AnalysisQuery } from "../shell/query";
 import { AD_METRICS, FUNNEL_METRICS, inWindow, matchesSegment, observedSegments, visibleFindings, type AnalysisWindow } from "./model";
@@ -110,7 +111,36 @@ function Overview(props: PageProps) {
           <p className="fx-card-note">Shop health and graph totals cover the whole run.</p>
         </Card>
       </div>
+      {Object.keys(query.segment).length === 0 && <CurrentMetrics {...props} />}
     </>
+  );
+}
+
+function CurrentMetrics({ graph, view, query, navigate }: PageProps) {
+  const ids = query.metric ? [query.metric] : keyMetrics(graph);
+  const { alarm_z: alarm, wiggle_z: wiggle } = view.thresholds;
+  return (
+    <Card title="Latest metric checks">
+      {graph && view.tick && ids.length ? (
+        <table className="analysis-table">
+          <thead><tr><th scope="col">Metric</th><th scope="col">Current status</th><th scope="col" className="analysis-number">Deviation (|z|)</th></tr></thead>
+          <tbody>
+            {ids.map((id) => {
+              const state = metricStatus(view, id);
+              const tone = state.state === "root" ? "alarm" : state.state === "checking" ? "probe" : unusualness(state.z, wiggle, alarm).tone;
+              return (
+                <tr key={id}>
+                  <th scope="row"><QueryLink query={{ ...query, page: "metrics", metric: id }} navigate={navigate}>{metricName(graph, id)}</QueryLink></th>
+                  <td><Pill tone={tone}>{state.label}</Pill></td>
+                  <td className="analysis-number">{state.z?.toFixed(1) ?? "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : <Empty>Waiting for scored metrics.</Empty>}
+      {view.tick && <p className="fx-card-note">Whole-shop checks for {dayLabel(view.tick.hour)} {hhmm(view.tick.hour)} UTC.</p>}
+    </Card>
   );
 }
 
@@ -143,14 +173,20 @@ function Signals({ graph, signals, window }: Pick<PageProps, "graph" | "signals"
   );
 }
 
-function ScopedFindings({ graph, view, query, incidents, window, openIncident }: PageProps) {
+function ScopedFindings(props: PageProps) {
+  const [attempt, setAttempt] = useState(0);
+  if (!props.incidents.length) return null;
+  return <IncidentFindings key={attempt} {...props} retry={() => setAttempt((count) => count + 1)} />;
+}
+
+function IncidentFindings({ graph, view, query, incidents, window, openIncident, retry }: PageProps & { retry: () => void }) {
   const { incidents: details, failed } = useIncidents(view);
-  const findings = details.filter((incident) => visibleFindings(incident, incidents, window)).flatMap(({ id, findings }) => {
+  const matching = new Map(incidents.map((incident) => [incident.id, incident]));
+  const findings = details.filter((incident) => visibleFindings(incident, matching.get(incident.id), window)).flatMap(({ id, findings }) => {
     const root = findings.root;
     if (!root || (query.metric && root.node !== query.metric) || !matchesSegment(root.segment, query.segment)) return [];
     return [{ id, root }];
   });
-  if (!incidents.length) return null;
   return (
     <Card title="Measured incident changes">
       {findings.length ? (
@@ -168,7 +204,12 @@ function ScopedFindings({ graph, view, query, incidents, window, openIncident }:
             );
           })}
         </ul>
-      ) : <Empty>{failed ? "Could not read incident findings." : "No scoped finding is available at this point in the run."}</Empty>}
+      ) : failed ? (
+        <div>
+          <Empty>Could not read incident findings.</Empty>
+          <button className="btn" type="button" onClick={retry}>Retry</button>
+        </div>
+      ) : <Empty>No scoped finding is available at this point in the run.</Empty>}
     </Card>
   );
 }

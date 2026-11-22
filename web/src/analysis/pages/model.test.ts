@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyView, type IncidentView } from "../../lib/store";
 import type { Anomaly } from "../../lib/types";
 import { DEFAULT_QUERY } from "../shell/query";
-import { analysisIncidents, analysisSignals, analysisWindow, inWindow, matchesSegment } from "./model";
+import { analysisIncidents, analysisSignals, analysisWindow, inWindow, matchesSegment, visibleFindings } from "./model";
 
 const incident: IncidentView = {
   id: "INC-0001", title: "Payments down", state: "resolved", verdict: "SUPPORTED_CAUSE",
@@ -47,5 +47,16 @@ describe("active-stream analysis", () => {
     expect(analysisSignals(view, { ...query, segment: { country: "DE" } }, window)).toEqual([]);
     expect(matchesSegment(incident.segment, { country: "DE" })).toBe(true);
     expect(matchesSegment(incident.segment, { country: "FR" })).toBe(false);
+  });
+
+  it("reveals findings only for the current incident version at the selected cursor", () => {
+    const window = analysisWindow("2026-11-22T01:00:00", "7d");
+    const details = {
+      id: incident.id, state: incident.state, updated_at: `${incident.updatedAt}Z`, findings: { as_of: incident.updatedAt },
+    };
+    expect(visibleFindings(details, incident, window)).toBe(true);
+    expect(visibleFindings(details, { ...incident, state: "explained" }, window)).toBe(false);
+    expect(visibleFindings(details, undefined, window)).toBe(false);
+    expect(visibleFindings({ ...details, findings: { as_of: "2026-11-22T02:00:00" } }, incident, window)).toBe(false);
   });
 });

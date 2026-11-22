@@ -18,7 +18,7 @@ function IncidentReceipt({ id, receipt, view }: { id: string; receipt: string; v
   const open = useOpenReceipt();
   const opened = useRef(false);
   useEffect(() => {
-    if (opened.current || !incident || !visibleFindings(incident, [summary], analysisWindow(view.simTs, "all"))) return;
+    if (opened.current || !incident || !visibleFindings(incident, summary, analysisWindow(view.simTs, "all"))) return;
     const { findings } = incident;
     if (findings.root?.change_pct.receipt !== receipt && !findings.trail.some((step) => step.receipts.includes(receipt))) return;
     opened.current = true;

@@ -61,6 +61,7 @@ export function readAnalysisQuery(search: string): AnalysisQuery | null {
 
 export function analysisURL(current: string, query: AnalysisQuery | null): URL {
   const url = new URL(current);
+  if (url.searchParams.get("view") === "settings") url.searchParams.delete("tab");
   for (const key of ["view", "incident", "receipt", "analysis", "metric", "segment", "period"]) url.searchParams.delete(key);
   if (query) {
     url.searchParams.set("view", "dashboard");

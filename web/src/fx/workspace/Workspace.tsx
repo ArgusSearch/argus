@@ -105,6 +105,10 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   const query = useAnalysisQuery();
   const analysis = section === "dashboard" ? query : null;
   const [waitingForDemo] = useState(() => emptyView(null, "replay"));
+  const params = new URLSearchParams(window.location.search);
+  const wantsPresentation = Boolean(params.get("agentrun")) || ["s1", "s4", "1"].includes(params.get("agentdemo") ?? "");
+  const presentationPending = (demo !== null || wantsPresentation) && !demo?.snapshot;
+  const analysisView = presentationPending ? waitingForDemo : view;
   useLayoutEffect(() => {
     document.documentElement.dataset.fxSection = section;
     if (window.matchMedia("(max-width: 1179px)").matches) window.scrollTo(0, 0);
@@ -112,11 +116,12 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   useEffect(() => watchHost(), []);
   return (
     <>
-      <Sidebar section={section} view={view} />
+      <Sidebar section={section} view={analysis ? analysisView : view} />
       {analysis ? (
         <AnalysisShell
-          graph={demo && !demo.snapshot ? null : graph}
-          view={demo && !demo.snapshot ? waitingForDemo : view}
+          graph={presentationPending ? null : graph}
+          view={analysisView}
+          streamError={demo?.error}
           query={analysis}
           openIncident={onOpenIncident}
           secondaryLinks={<>
@@ -130,7 +135,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       {section === "incident" && incident && (
         <>
           <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />
-          <LinkedReceipt id={incident} view={demo && !demo.snapshot ? waitingForDemo : view} />
+          <LinkedReceipt id={incident} view={analysisView} />
         </>
       )}
       {section === "glossary" && <GlossaryPage />}
