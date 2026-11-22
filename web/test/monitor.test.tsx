@@ -33,6 +33,7 @@ describe("workspace monitoring", () => {
     const investigating = loadThrough((event) => event.type === "investigation_step");
     expect(quiet.simTs).not.toBe(investigating.simTs);
     for (const view of [quiet, investigating]) {
+      expect(select(view).timeLabel).toBe(view.simTs!.slice(11, 16));
       const pages = [
         <Header view={view} health={null} connection="open" presenting={false} />,
         <Overview view={view} graph={null} onOpenIncident={noop} onSelectNode={noop} />,
@@ -48,6 +49,7 @@ describe("workspace monitoring", () => {
         expect(html).toContain(select(view).timeLabel);
       }
     }
+    expect(select({ ...quiet, mode: "replay" }).timeLabel).toMatch(/^\w{3} \d{2} \w{3} · \d{2}:\d{2}$/);
   });
 
   it("shares the incident lifecycle and the autonomy counts with the Village", () => {

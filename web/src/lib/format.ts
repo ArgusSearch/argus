@@ -21,6 +21,11 @@ export function dayLabel(ts: string | null | undefined): string {
   return ts ? DAY.format(parse(ts)) : "";
 }
 
+export function shopTimeLabel(ts: string | null | undefined, mode: "live" | "replay" | null | undefined): string | null {
+  if (!ts) return null;
+  return mode === "live" ? hhmm(ts) : `${dayLabel(ts)} · ${hhmm(ts)}`;
+}
+
 export function eur(value: number, signed = false): string {
   const sign = value < 0 ? "-" : signed && value > 0 ? "+" : "";
   const abs = Math.abs(value);

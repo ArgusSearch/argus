@@ -284,6 +284,12 @@
   opacity: 0;
 }
 
+/* Keep the stage paint behind Overview without showing the moving graph through its cards. */
+:root[data-fx][data-fx-section="dashboard"]:not(.argus-demo):has(.ws-overview) #fx-stage > *,
+:root[data-fx][data-fx-section="dashboard"]:not(.argus-demo):has(.ws-overview) #fx-stage::after {
+  opacity: 0;
+}
+
 /* ---------------------------------------------------------------- sidebar */
 
 :root[data-fx] .fx-side {

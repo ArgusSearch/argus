@@ -5,7 +5,7 @@ import { useOperatorSettings } from "../../settings/operator";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { staticReplay } from "../../lib/deployment";
-import { dayLabel, hhmm } from "../../lib/format";
+import { shopTimeLabel } from "../../lib/format";
 import type { Health } from "../../lib/types";
 import { AgentAvatar, type RoleId } from "../../village/avatars";
 import { useFx } from "../StyleProvider";
@@ -64,7 +64,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
     if (shown) dialog.current?.focus({ preventScroll: true });
   }, [shown]);
 
-  const lastCheck = health?.sim_ts ? `${dayLabel(health.sim_ts)} · ${hhmm(health.sim_ts)}` : null;
+  const lastCheck = shopTimeLabel(health?.sim_ts, health?.mode);
   const checkStatus = health === null ? "Connection unavailable" : "Connecting…";
 
   return (

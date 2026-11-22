@@ -5,7 +5,7 @@ import { activityAvatarRole, type AvatarCues } from "../village/avatars/state";
 import { ROLE_IDS, type RoleId } from "../village/roles";
 import { roleOfTool, type ActivityRecord, type ProposalView, type RunSummary } from "./agent";
 import type { ConnectionState } from "./api";
-import { dayLabel, hhmm, monitoringText } from "./format";
+import { monitoringText, shopTimeLabel } from "./format";
 import type { RunView } from "./store";
 import type { Graph, Health } from "./types";
 
@@ -93,7 +93,7 @@ export function selectMonitor(view: RunView, graph: Graph | null, health: Health
 
   return {
     time,
-    timeLabel: time ? `${dayLabel(time)} · ${hhmm(time)}` : null,
+    timeLabel: shopTimeLabel(time, view.mode ?? health?.mode),
     connection,
     incidents,
     openIncidents,
