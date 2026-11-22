@@ -35,6 +35,19 @@ The Desktop workflow builds the **Argus-Windows-x64** artifact for relevant pull
 
 ## Architecture
 
-Both `node` and `cargo` were available on the Apple Silicon build host. Electron provides the same Chromium runtime on macOS and Windows and manages the bundled Python child process through standard pipes. PyInstaller builds that child alongside the locked FastAPI and DuckDB dependencies. The OS allocates an ephemeral `127.0.0.1` port, and each launch uses a private session token. The app waits for `/health` before opening Mission Control, retries a crashed sidecar once and closes the sidecar's control pipe on quit.
+Electron provides the same Chromium runtime on macOS and Windows and manages the bundled Python child process through standard pipes. PyInstaller builds that child alongside the locked FastAPI and DuckDB dependencies. The OS allocates an ephemeral `127.0.0.1` port, and each launch uses a private session token. The app waits for `/health` before opening Mission Control, retries a crashed sidecar once and closes the sidecar's control pipe on quit.
 
 The build reuses FastAPI's existing static mount and health route. The frozen Python layout preserves the existing resource lookup, and the Vite build uses same-origin requests. The replay loader compares artifact names in the manifest's forward-slash format so that nested artifacts verify on Windows. The desktop app builds directly from `web/`.
+
+## Third-party notices
+
+The [desktop npm lockfile](package-lock.json) pins Electron and electron-builder. The [sidecar build script](scripts/build.mjs) pins PyInstaller and Keyring. The notice paths below are relative to the installed app directory in the [tested Windows build](https://github.com/ArgusSearch/argus/actions/runs/45001389510/artifacts/14745519890).
+
+| Component | Version | Role and notice |
+| --- | --- | --- |
+| Electron | 45.4.1 | MIT. Runs the desktop shell. The app ships `LICENSE.electron.txt` and Chromium's `LICENSES.chromium.html`. |
+| electron-builder | 26.18.0 | MIT. Build dependency that assembles the app and generates the installers. [Upstream source and license](https://github.com/electron-userland/electron-builder) |
+| Keyring | 25.7.0 | MIT. Stores the provider key in the system credential store. The frozen API ships its notice at `resources/sidecar/src/keyring-25.7.0.dist-info/licenses/LICENSE`. |
+| PyInstaller | 6.22.3 | Freezes the API and embeds its bootloader and runtime hooks in `argus-sidecar.exe`. The bootloader has a GPL-2.0-or-later exception for generated executables. The bundled runtime hooks use Apache-2.0. [PyInstaller license and exception](https://pyinstaller.org/en/stable/license.html) |
+
+The [Mission Control credits](../README.md#prior-work-and-inspiration) also apply to the bundled web build.

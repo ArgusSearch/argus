@@ -24,21 +24,18 @@ Reproduce the comparison with `uv run argus-bench run --agents argus,argus-stage
 
 The optional model chooses additional checks. The two checked-in live captures logged **$0.0392 for payments (S1)** and **$0.0459 for ad pacing (S4)** in investigation costs, with four model calls apiece. Offline playback makes no provider calls. [S1 cost record](fixtures/agent/v1/s1/activity.jsonl#L16) · [S4 cost record](fixtures/agent/v1/s4/activity.jsonl#L15) · [Cost and replay contract](docs/ext/agent.md#modes)
 
-## Demo
+## Demo and links
 
-| Watch | Availability |
-| --- | --- |
-| Live Mission Control | **TODO** · link after deployment is verified |
-| Pitch video | **TODO** · final video link |
-| Product showcase | **TODO** · final video link |
-| Demo recording | **TODO** · final video link |
-
-<!-- TODO(live): insert https://argus.caniberk.dev after deployment verification. -->
-<!-- TODO(videos): replace the three placeholders with the final unlisted YouTube or Drive URLs. -->
+- [Live Mission Control](https://argus-eye.pages.dev/) runs on simulated shop data.
+- [Windows x64 installer](https://github.com/ArgusSearch/argus/actions/runs/45001389510/artifacts/14745519890) from the Desktop workflow. Sign in to GitHub to download the ZIP, then run the included installer. [Artifact access and expiry](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+- [Desktop installation and build guide](desktop/README.md)
+- Pitch video <!--VIDEO_URL-->
+- Product showcase <!--SHOWCASE_URL-->
+- Presentation slides <!--SLIDES_URL-->
 
 ### Quickstart
 
-In a clone of this repository, run the commands below with [uv](https://docs.astral.sh/uv/), `make` and [Node.js](https://nodejs.org/) 22.12 or newer.
+In a clone of this repository, run the commands below with `uv`, `make` and Node.js 24, the version used in CI. The web lockfile records the other Node.js versions supported by Vite and Vitest. [uv setup](https://docs.astral.sh/uv/) · [CI workflow](.github/workflows/ci.yml) · [Web lockfile](web/package-lock.json)
 
 ```bash
 make web
@@ -47,13 +44,15 @@ make api
 
 Open [Mission Control](http://127.0.0.1:8000/). The recorded S1 world starts on its own. Use `?fx=night` for the dark theme in the opening screenshot. Select **Play the S4 agent run** in the sidebar to replay the ad-pacing investigation and try the approval flow. This path needs no API key. [Demo controls](docs/ext/demo.md)
 
+For the planned budget increase, use `make api SCENARIO=s2` in place of `make api` and open **While you slept**. [Recorded outcome](fixtures/s2/notes.json)
+
 For a fresh simulation with live SQL re-runs, use `make demo` in place of `make api`. To run and grade the PayCo investigation in the terminal, use `make s1`.
 
 ## Desktop app
 
 Argus Desktop opens Mission Control with the bundled local API and the sealed MockMart replay. Open **Settings** from the app menu to save your own Anthropic API key and run the live agent over the simulated shop.
 
-On macOS, drag `Argus.app` from the unsigned DMG to Applications. For a trusted build, use **right-click Open**, **System Settings → Privacy & Security → Open Anyway**, or `xattr -cr /Applications/Argus.app` if macOS blocks the launch. On Windows, download **Argus-Windows-x64** from a successful Desktop workflow run, extract the ZIP and run the included installer. [Build and installation instructions](desktop/README.md)
+On macOS, build the DMG and drag `Argus.app` to Applications. On Windows, use the installer linked above. [Build and installation instructions](desktop/README.md)
 
 ## How the app works
 
@@ -112,7 +111,7 @@ Open **Village** to follow the case as it passes between the watcher, detective,
 
 ### Extend the graph
 
-In **Visualization** or **Metric tree**, select **Add the ad metric pack**. Argus places cost per impression as `CTR × CPC` and attaches the definition check and edge tests. The same flow handles ambiguous and rejected definitions with a certificate explaining the result. [Placement guide](docs/ext/graph-extension.md) · [Recorded placement and SQL receipts](fixtures/graph_extension/placements.json)
+In a local Mission Control session, open **Visualization** or **Metric tree** and select **Add the ad metric pack**. Argus places cost per impression as `CTR × CPC` and attaches the definition check and edge tests. The same flow handles ambiguous and rejected definitions with a certificate explaining the result. [Placement guide](docs/ext/graph-extension.md) · [Recorded placement and SQL receipts](fixtures/graph_extension/placements.json)
 
 ![The placement card shows the new cost-per-impression metric, its formula and the evidence for adding it](docs/assets/new-metric.jpg)
 
@@ -120,11 +119,11 @@ In **Visualization** or **Metric tree**, select **Add the ad metric pack**. Argu
 
 | Criterion | What you can verify |
 | --- | --- |
-| **Metric graph (40%)** | The seed graph has **27 metrics and 44 typed edges** across the shop funnel and ads business. Argus re-tests formula and breakdown edges on the data each simulated day. Submit a YAML definition with `name`, `description` and `sql` to `POST /graph/metrics` to see automatic placement or a certificate explaining why it could not be placed. [Seed graph](graph/seed_graph.yml) · [Edge tests](src/argus/graph/edge_tests.py) · [Graph extension](docs/ext/graph-extension.md) |
+| **Metric graph (40%)** | The seed graph has **27 metrics and 44 typed edges** across the shop funnel and ads business. Argus re-tests formula and breakdown edges on the data each simulated day. Submit a definition with `name`, `description` and `sql` to `POST /graph/metrics` to see automatic placement or a certificate explaining why it could not be placed. [Seed graph](graph/seed_graph.yml) · [Edge tests](src/argus/graph/edge_tests.py) · [Graph extension](docs/ext/graph-extension.md) |
 | **Autonomous monitoring and investigation (40%)** | Each simulated hour, Argus checks data delivery, scores key metrics, investigates an uncovered anomaly, and follows the root segment through recovery. The planned S2 spend increase stays in **Didn't wake you** with its evidence. [Runtime](src/argus/runtime/) · [Logged S2 outcome](fixtures/s2/notes.json) · [Decision rules](#how-argus-decides) |
 | **Demo (20%)** | Replay the investigation and approval, inspect receipts, or run `uv run argus-bench blind` to grade a case whose truth was sealed before the run. [Demo playback](docs/ext/demo.md) · [Blind challenge](src/bench/blind.py) |
 
-[Track rubric](docs/plan/c8-team-plan-v2.md)
+[Track rubric](docs/lanes.md)
 
 ![A planned budget increase is explained under Didn't wake you](docs/assets/didnt-wake-you.jpg)
 
@@ -167,15 +166,15 @@ The model chooses what to check. Argus decides what the evidence supports.
 | Counter-check | A second model in a fresh context tries to falsify a supported cause | Code judges the receipts and can downgrade the verdict | E21 requires 3 of 3 planted false causes removed and 0 of 6 true causes vetoed. E22 checks verdict safety across 18 cases |
 | Case memory | Uses past denials and verified outcomes when considering another proposal | The deterministic proposal policy reads memory as advice. Evidence comes from checks | E23 checks denial and approval precedents. E24 requires identical verdicts, roots and proposals in 3 poisoned-memory trials |
 | Cause chain | Links the event, root segment, formula hops and EUR impact | Every link carries a receipt that can be re-run | E25 checks 6 supported cases and 3 negative scenarios |
-| Budget | Stops the detective and critic at fixed caps | Stage 2 completes in the same tick | E26 checks caps of 12 detective calls and 3 critic calls, exact recorded cost and zero replay spend |
+| Budget | Stops the detective and critic at fixed caps | Stage 2 completes in the same tick | E26 checks caps of 12 detective tool calls and 3 critic tool calls, exact recorded cost and zero replay spend |
 
 The host verifies numbers against receipts. The deterministic investigation rules govern supported causes. Operator approval is required, and the playbook derives the action parameters.
 
-The default v1 profile has 17 offline agent evals. The v2 release requires the
+The [default v1 profile](scripts/agent_eval/offline_report.py) has 17 offline agent evals. The v2 release requires the
 intelligence evals and six retained live trials, with three passes each on S1
 and S4. Live v2 qualification is pending. Sealed v1 investigation cassettes
 replay the provider exchange and activity offline byte for byte.
-See the [v2 capture and qualification guide](fixtures/agent/v2/README.md).
+See the [eval implementation](tests/agent_evals/) and [v2 capture and qualification guide](fixtures/agent/v2/README.md).
 
 ## Tech stack
 
@@ -183,19 +182,19 @@ Python and DuckDB power the simulator and investigation engine. sqlglot handles 
 
 ## Prior work and inspiration
 
-- **Investigation methods.** The metric walk uses additive LMDI. Segment localisation draws on Adtributor, HotSpot and RiskLoc. The mix and rate split follows E. M. Kitagawa (*JASA*, 1955), and robust z-scores use the median absolute deviation described by Iglewicz and Hoaglin (ASQC, 1993). [LMDI guide](https://doi.org/10.1016/j.enpol.2003.10.010) · [Adtributor](https://www.usenix.org/conference/nsdi14/technical-sessions/presentation/bhagwan) · [HotSpot](https://doi.org/10.1109/ACCESS.2018.2804764) · [RiskLoc](https://arxiv.org/abs/2205.10004)
+- **Investigation methods.** The metric walk uses additive LMDI. Segment localisation draws on Adtributor, HotSpot and RiskLoc. The mix and rate split follows E. M. Kitagawa, and robust z-scores use the median absolute deviation described by Iglewicz and Hoaglin. [LMDI guide](https://doi.org/10.1016/j.enpol.2003.10.010) · [Adtributor](https://www.usenix.org/conference/nsdi14/technical-sessions/presentation/bhagwan) · [HotSpot](https://ieeexplore.ieee.org/document/8288614/) · [RiskLoc](https://arxiv.org/abs/2205.10004) · [Kitagawa](https://doi.org/10.1080/01621459.1955.10501299) · [Iglewicz and Hoaglin](https://asq.org/quality-press/display-item?item=E0801)
 - **Agent design.** ReAct informed the check-and-observe loop, Reflexion informed counter-checking and case memory, and Tree of Thoughts informed the competing-hypotheses design. [ReAct](https://arxiv.org/abs/2210.03629) · [Reflexion](https://arxiv.org/abs/2303.11366) · [Tree of Thoughts](https://arxiv.org/abs/2305.10601)
-- **UI credit.** The agent timeline and composer redesign draws on T3 Code, including folded runs, inline approvals, follow-tail scrolling and question history. The React implementation adapts the follow-tail state machine and the rule for the live status line. [T3 Code](https://github.com/pingdotgg/t3code) · [MIT notice](#built-on)
+- **UI credit.** The agent timeline and composer redesign draws on T3 Code, including folded runs, inline approvals, follow-tail scrolling and question history. The React implementation adapts the follow-tail state machine and the rule for the live status line. The Village avatars use Jakub Antalik’s Bot Avatars, and Mission Control uses IBM Plex Mono. [T3 Code](https://github.com/pingdotgg/t3code) · [MIT notice](#built-on) · [Avatar and font credits](docs/decisions.md#libraries-for-the-argus-ice-style-layer)
 
-### Evaluated and not used
+### Evaluated libraries
 
-- Merlion's evaluated release required NumPy below 2 and brought in a forecasting stack.
-- PyRCA's evaluated release required scikit-learn below 1.2 and a Java bridge.
-- DoWhy resolved to 45 packages in the evaluation. MockMart's untreated twin provides the comparison for action effects.
+- Merlion, PyRCA and DoWhy were evaluated for forecasting, root-cause analysis and causal inference. MockMart's untreated twin provides the comparison for action effects.
 
 ## Built on
 
 Argus’s core monitoring and investigation algorithms were implemented during the hackathon. Dependencies come from PyPI and npm. Versions below follow the repository’s [Python lockfile](uv.lock) and [web lockfile](web/package-lock.json).
+
+The desktop app ships Electron and uses Keyring for OS credential storage. electron-builder packages the installer, and PyInstaller freezes the Python API. [Desktop dependency versions and notices](desktop/README.md#third-party-notices)
 
 | Library | Locked version | License | Role |
 | --- | --- | --- | --- |

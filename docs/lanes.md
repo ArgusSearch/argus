@@ -1,5 +1,7 @@
 # Lanes: how four people build in parallel
 
+> Historical build plan. The rubric below describes the track. The first packages and ownership reflect the initial implementation plan. See the [README](../README.md) for current entry points.
+
 Each lane owns a set of folders.
 Agents and people change only files in their own lane; a contract change (`src/argus/contracts/`) needs the producer and the consumers to agree (see `docs/contracts.md`).
 Every package of work ends with a named test and `make check` green.
@@ -21,9 +23,8 @@ Every package of work ends with a named test and `make check` green.
 
 ### G Graph
 
-1. Onboarding pipeline in `src/argus/cartographer/`: parse (start from `argus.contracts.metric.parse_metric`), fan-out guard, candidate edges, formula check on 28 days through `argus.semantic.runner.Runner`, dimension check, `Certificate`, `GraphChange`.
-   Done when `metrics/roas_by_advertiser.yml` places as EXACT `attributed_gmv / ad_spend` with a certificate.
-2. `POST /metrics` (replace the stub in `src/argus/api/app.py` together with lane U).
+1. Onboard metric definitions with parsing, a fan-out guard, candidate edges, formula and dimension checks, a `Certificate` and a `GraphChange`.
+2. Expose placement through the API. See the [implemented graph extension](ext/graph-extension.md) for `POST /graph/metrics` and its recorded cases.
 3. Cause edges: the lagged-correlation test with Benjamini-Hochberg for `cause` edges (`EdgeTestKind.LAGGED_CORR_BH` is defined, `EdgeTester` marks it not run).
 4. Graph drift: a BROKEN edge already lands in the changelog; emit `graph_changed` events and a drift notice.
 

@@ -1,15 +1,16 @@
 # Demo playback API v1
 
-Mission Control can start one 90-second run with `POST /demo/start` and follow its cues with `GET /demo/events`.
-The server uses the checked-in S1 and S4 recordings of the Argus runtime.
-S1 shows the PayCo failure and S4 shows the ad pacer overburn.
+Mission Control starts a recorded run with `POST /demo/start` and follows its cues with `GET /demo/events`.
+S1 shows the PayCo failure, S2 shows a planned budget increase that Argus logs without an incident, and S4 shows the ad pacer overburn.
+The standard S1 and S4 timelines run for 90 seconds at normal speed. S2 runs for 12 seconds.
 
 ## Start and controls
 
-`POST /demo/start` accepts `{"scenario":"s4","speed":1}`.
-Both fields are optional and default to `s4` and `1`.
-`scenario` accepts `s1` or `s4`.
+`POST /demo/start` accepts `{"scenario":"s4","speed":1,"variant":"legacy"}`.
+All fields are optional. `scenario` accepts `s1`, `s2` or `s4` and defaults to `s4`.
 `speed` is a finite number from `0.25` to `100`.
+It defaults to `1`. The `variant` defaults to `legacy`, the standard recording documented here.
+On a replay server, `variant: "agent"` selects the sealed agent presentation for S1 or S4. See the [agent presentation guide](../pitch/agent-scene.md).
 
 `GET /demo/state`, start, and the controls return the same state shape:
 
@@ -76,7 +77,8 @@ Use `kind` to choose what to render and `data.phase` to distinguish investigatio
 | 82000 | `morning_report` | `digest`: the existing Argus morning digest shape (title, since, until, lines, markdown); `report`: `/demo/report/morning` |
 
 The verdict pairs the recorded calendar check with the resulting classification.
-In both supported recordings the calendar check proceeds to an investigation, and the resulting verdict is `SUPPORTED_CAUSE`.
+In the standard S1 and S4 recordings the calendar check proceeds to an investigation, and the resulting verdict is `SUPPORTED_CAUSE`.
+S2 plays `quiet_world` followed by `expected_change` at 4,000 ms, with the recorded note and its receipt IDs.
 The morning digest folds the recording through the first scored 08:00 after detection.
 The recorded attention score is optional.
 A null value cues focus on the detected metric using the anomaly that Argus actually selected.
@@ -97,13 +99,13 @@ Append `?run_id=<run_id>` to pin a path to a run, as with the other demo routes.
   `?format=markdown` returns its Markdown.
   Its receipt links point at `/demo/receipts/<id>` and `/demo/report/morning/queries/<id>?stream=…&through_seq=…`, which re-run the report's event and findings queries over the recording prefix.
 
-Both return HTTP 404 until their beat is due.
+Both return HTTP 404 until their beat is due. S2 has no incident or morning report, so both paths return HTTP 404 for that scenario.
 These routes return HTTP 409 before start or for a replaced run.
 
 ## Headless dry run
 
 `uv run argus demo --scenario s4` prints the same cue timeline and exits immediately.
-It supports `--scenario s1` and `--speed 2`.
+Use `--scenario s2` for the planned-change timeline, or `--speed 2` to inspect the cues at double speed.
 The shared CLI registers the command in `src/argus/cli.py`, and the shared API mounts these routes in `src/argus/api/app.py`.
 
 For a quick HTTP smoke test, start the API with `make api`, then run:
