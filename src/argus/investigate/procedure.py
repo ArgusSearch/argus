@@ -201,6 +201,15 @@ class StageTwoInvestigation(Investigation):
         self.selector = selector
         self.settings = settings or Settings()
         self.thresholds = self.settings.thresholds
+        if settings is None:
+            self.thresholds = self.thresholds.model_copy(
+                update={
+                    "supported": SUPPORTED_MIN_EXPLAINED,
+                    "stop": STOP_EXPLAINED,
+                    "plan_band": PLAN_BAND_REL,
+                    "plan_min": PLAN_BAND_MIN,
+                }
+            )
         self.tools: StageTwoToolbox = StageTwoToolbox(graph, runner, as_of)
         self.ledger = Ledger(self.thresholds.checks)
         self.planner = planner
