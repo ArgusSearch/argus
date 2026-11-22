@@ -144,9 +144,32 @@ class LiveSource:
 
     mode: Literal["replay", "live"] = "live"
 
-    def __init__(self, world: Path, seconds_per_tick: float = 2.0, stage: int = 2) -> None:
+    def __init__(
+        self,
+        world: Path,
+        seconds_per_tick: float = 2.0,
+        stage: int = 2,
+        agent: str | None = None,
+        agent_recording: Path | None = None,
+    ) -> None:
+        from argus.agent.service import build, configured_mode
+
         self.bus = EventHub(RunState(load_seed_graph()))
-        self.runtime = Runtime(world, bus=self.bus, stage=stage)
+        # the agent (argus.agent): off unless --agent live/record or ARGUS_AGENT, and then only with a key
+        self.agent = build(configured_mode(agent), stream=self.bus.stream, recording=agent_recording)
+        if self.agent.selector is not None:
+            self.agent.selector.through_seq = lambda: self.bus.last_seq
+        self.runtime = Runtime(world, bus=self.bus, stage=stage, selector=self.agent.selector)
+        self.remediation: Any = None
+        if self.agent.enabled:
+            # PROPOSE -> AWAIT_OPERATOR -> APPLY -> VERIFY (lane C); the clock holds while an operator decides
+            from argus.agent.actions import Proposer
+            from argus.remediation import RemediationService
+
+            proposer: list[Proposer] = []
+            self.remediation = RemediationService.for_runtime(self.runtime, publish=lambda e: proposer[0].publish(e))
+            proposer.append(Proposer(self.agent.journal, self.remediation))
+            self.runtime.on_incident = proposer[0].on_incident
         self.seconds_per_tick = seconds_per_tick
         self.speed = 1.0
         self.playing = True
@@ -167,12 +190,18 @@ class LiveSource:
 
     def _run(self) -> None:
         for as_of in self._ticks:
-            while not self.playing and not self._to_end and not self._stop.is_set():
+            while (not self.playing and not self._to_end) or self._held():
+                if self._stop.is_set():
+                    return
                 self._wake.wait(0.5)
                 self._wake.clear()
             if self._stop.is_set():
                 return
             self.runtime.tick(as_of)
+            if self.remediation is not None:
+                self.remediation.tick(as_of)
+                if self.agent.selector is not None:
+                    self.agent.selector.world_revision = self.world_revision()
             self.position += 1
             deadline = time.monotonic() + self.seconds_per_tick / self.speed
             while not self._to_end and not self._stop.is_set() and (left := deadline - time.monotonic()) > 0:
@@ -182,6 +211,15 @@ class LiveSource:
                 if not self.playing:
                     break
 
+    def world_revision(self) -> str:
+        """'factual', or the branch of the action the run switched to."""
+        active = self.remediation.active_world() if self.remediation is not None else None
+        return str(active[1]) if active else "factual"
+
+    def _held(self) -> bool:
+        """The simulated clock waits while an action waits for the operator or the simulator."""
+        return self.remediation is not None and bool(self.remediation.holds_clock()) and not self._stop.is_set()
+
     def stop(self) -> None:
         self._stop.set()
         self._wake.set()
@@ -190,6 +228,9 @@ class LiveSource:
         if self._thread is not None:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()
+        self.agent.save()
+        if self.remediation is not None:
+            self.remediation.close()
 
     # ------------------------------------------------------------------ read
 
@@ -244,6 +285,7 @@ class LiveSource:
             "total": len(self._ticks),
             "sim_ts": as_of.isoformat() if as_of else None,
             "loop": False,
+            "held": self._held(),
         }
 
     def control(self, action: Action | None, speed: float | None) -> dict[str, Any]:

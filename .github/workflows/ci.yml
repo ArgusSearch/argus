@@ -12,12 +12,20 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ARGUS_DISABLE_PROVIDER: "1"
+  ANTHROPIC_API_KEY: ""
+  ANTHROPIC_AUTH_TOKEN: ""
+  OPENAI_API_KEY: ""
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -29,6 +37,49 @@ jobs:
       - name: Install the locked environment
         run: uv sync --frozen
       - name: Lint, types, contracts, Mission Control, tests
-        run: make check
+        run: make lint typecheck contracts-check contracts-frozen web test-app
       - name: S1 end to end (single command from the README)
         run: make s1
+
+  agent-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Run all 17 deterministic agent evals offline
+        run: make agent-eval
+      - name: Upload offline agent evaluation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval-${{ github.sha }}
+          path: runs/agent-eval/
+          if-no-files-found: warn
+
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Verify the sealed Stage 2 bench
+        run: make bench
+      - name: Upload sealed bench results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-2-bench-${{ github.sha }}
+          path: |
+            runs/bench/scorecard.json
+            runs/bench/**/commitment.json
+            runs/bench/**/reveal.json
+          if-no-files-found: warn

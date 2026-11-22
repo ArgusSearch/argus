@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { dayLabel, eur, hhmm, humanize, impactNoun, pct, segmentLabel, share } from "../lib/format";
+import { dayLabel, eur, hhmm, humanize, impactNoun, pct, segmentLabel, share, verdictLabel } from "../lib/format";
 import { isRuledOut, type IncidentView } from "../lib/store";
 import type { Graph, Incident, IncidentState, TrailStep } from "../lib/types";
 import { Bars, TimeChart, type SeriesPoint } from "./charts";
 import { Segments } from "./Feed";
 import { Num, ReceiptChips } from "./Receipts";
+import { ErrorState, Skeleton } from "../ui";
 
 const LIFECYCLE: IncidentState[] = ["open", "investigating", "explained", "monitoring", "resolved"];
 
@@ -35,7 +36,8 @@ export function IncidentSheet({
   onClose: () => void;
 }) {
   const [incident, setIncident] = useState<Incident | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
   const [copied, setCopied] = useState(false);
   const version = summary?.lastSeq ?? 0;
 
@@ -47,12 +49,12 @@ export function IncidentSheet({
         setIncident(i);
         setError(null);
       },
-      (e: Error) => live && setError(e.message),
+      (e: unknown) => live && setError(e),
     );
     return () => {
       live = false;
     };
-  }, [id, version]);
+  }, [id, version, attempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -82,16 +84,16 @@ export function IncidentSheet({
           <div className="sheet-top">
             <span className="mono">{id}</span>
             {incident && <span className={`pill state-${incident.state}`}>{incident.state}</span>}
-            {incident && <span className={`pill ${incident.verdict}`}>{incident.verdict.replace("_", " ")}</span>}
+            {incident && <span className={`pill ${incident.verdict}`}>{verdictLabel(incident.verdict)}</span>}
             <span className="spacer" />
             <button className="btn" onClick={copy} disabled={!incident}>
-              {copied ? "Copied" : "Copy report (Markdown)"}
+              {copied ? "Copied" : "Copy as Markdown"}
             </button>
             <button className="icon-btn" onClick={onClose} aria-label="Close">
               ✕
             </button>
           </div>
-          <h2 className="sheet-title">{incident?.title ?? summary?.title ?? "Loading…"}</h2>
+          <h2 className="sheet-title">{incident?.title ?? summary?.title ?? "Loading the incident…"}</h2>
           {incident && (
             <div className="sheet-meta">
               <span>
@@ -117,7 +119,8 @@ export function IncidentSheet({
           )}
         </div>
         <div className="sheet-body">
-          {error && <p className="muted">{error}</p>}
+          {error !== null && !incident && <ErrorState error={error} route={`/incidents/${id}`} onRetry={() => setAttempt((n) => n + 1)} />}
+          {error === null && !incident && <Skeleton variant="sheet" label="Loading the incident" />}
           {f && incident && (
             <>
               <div className="sec">
