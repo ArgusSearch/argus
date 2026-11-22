@@ -335,7 +335,8 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
   const [fresh, setFresh] = useState<Set<number>>(() => new Set());
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [rail, setRailState] = useState(() => readFlag(RAIL_KEY, typeof window === "undefined" || window.innerWidth >= 1280));
+  // the rail starts hidden on narrow screens, where it covers the conversation
+  const [rail, setRailState] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1280 && readFlag(RAIL_KEY, true));
   const [history, setHistory] = useState<string[]>(loadHistory);
   const position = useRef<HistoryPosition | null>(null);
   const pending = useRef<AbortController | null>(null);
