@@ -32,7 +32,16 @@ from argus.agent.ask import AskRunner, AskScope
 from argus.agent.investigate import AgentSelector
 from argus.agent.journal import Journal
 from argus.agent.profile import V1, Profile
-from argus.agent.provider import AnthropicClient, Cassette, RecordingClient, ReplayClient, SpendLedger
+from argus.agent.provider import (
+    ANTHROPIC_MODELS,
+    OPENAI_ASTRA,
+    AgentModels,
+    Cassette,
+    RecordingClient,
+    ReplayClient,
+    SpendLedger,
+    live_client,
+)
 from argus.agent.service import AgentService
 from argus.agent.types import AgentMode, Decision, LlmClient
 from argus.evidence import EvidenceStore
@@ -81,6 +90,7 @@ def run_world(
     decide: Decide = "none",
     asks: Sequence[AskPlan] = (),
     profile: Profile = V1,
+    models: AgentModels = ANTHROPIC_MODELS,
 ) -> SessionResult:
     """Run the live window with the agent. `decide`: what the scripted operator does with each proposal, in
     the hour it appears (the clock holds for a decision, so that is the hour a human would decide in)."""
@@ -97,6 +107,8 @@ def run_world(
         spend=spend,
         through_seq=lambda: runtime_ref[0].bus.history[-1].seq,
         profile=profile,
+        model=models.loop,
+        critic_model=models.critic,
     )
     runtime = Runtime(world, selector=selector)
     runtime_ref.append(runtime)
@@ -109,7 +121,12 @@ def run_world(
         runtime.on_incident = proposer[0].on_incident
         store = EvidenceStore()
         agent = AgentService(
-            mode, journal, client=client, store=store, asker=AskRunner(client, journal, store, mode, spend)
+            mode,
+            journal,
+            client=client,
+            store=store,
+            models=models,
+            asker=AskRunner(client, journal, store, mode, spend, model=models.loop),
         )
         answers: list[dict[str, Any]] = []
 
@@ -171,13 +188,21 @@ def record(
     decide: Decide = "none",
     asks: Sequence[AskPlan] = (),
     profile: Profile = V1,
+    *,
+    models: AgentModels = ANTHROPIC_MODELS,
 ) -> SessionResult:
-    recorder = RecordingClient(client or AnthropicClient())
-    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide, asks=asks, profile=profile)
+    if client is None:
+        client, models = live_client(critic=profile.on("critic"))
+    recorder = RecordingClient(client)
+    result = run_world(
+        world, recorder, "record", spend=SpendLedger(), decide=decide, asks=asks, profile=profile, models=models
+    )
     out.mkdir(parents=True, exist_ok=True)
     session: dict[str, Any] = {"decide": decide, "asks": [a.to_json() for a in asks]}
     if profile != V1:
         session.update(profile.to_json())
+    if models.provider == "openai":
+        session.update(provider=models.provider, critic_model=models.critic)
     (out / "session.json").write_text(json.dumps(session) + "\n")
     if asks:
         _jsonl(out / ASK, result.asks)
@@ -191,14 +216,20 @@ def record(
     return result
 
 
-def _replay_investigation(world: Path, client: ReplayClient, profile: Profile) -> SessionResult:
+def _replay_investigation(world: Path, client: ReplayClient, profile: Profile, models: AgentModels) -> SessionResult:
     """Reproduce a sealed investigation capture, which has no operator or Ask service."""
     from argus.runtime.loop import Runtime
 
     journal = Journal()
     runtime: Runtime
     selector = AgentSelector(
-        client, journal, mode="replay", profile=profile, through_seq=lambda: runtime.bus.history[-1].seq
+        client,
+        journal,
+        mode="replay",
+        profile=profile,
+        through_seq=lambda: runtime.bus.history[-1].seq,
+        model=models.loop,
+        critic_model=models.critic,
     )
     runtime = Runtime(world, selector=selector)
     try:
@@ -222,11 +253,18 @@ def replay(world: Path, recording: Path, strict: bool = True) -> list[str]:
     settings = manifest if investigation_only else meta
     session = json.loads(settings.read_text()) if settings.exists() else {}
     profile = Profile.of(session.get("profile") or "v1", session.get("features"))
+    models = (
+        AgentModels.openai(critic=session.get("critic_model", OPENAI_ASTRA))
+        if session.get("provider") == "openai"
+        else ANTHROPIC_MODELS
+    )
     asks = [AskPlan.from_json(a) for a in session.get("asks", [])]
     if investigation_only:
-        result = _replay_investigation(world, client, profile)
+        result = _replay_investigation(world, client, profile, models)
     else:
-        result = run_world(world, client, "replay", decide=session.get("decide", "none"), asks=asks, profile=profile)
+        result = run_world(
+            world, client, "replay", decide=session.get("decide", "none"), asks=asks, profile=profile, models=models
+        )
     problems: list[str] = []
     recorded_activity = [json.loads(line) for line in (recording / ACTIVITY).read_text().splitlines() if line]
     produced = [r.model_dump(mode="json") for r in result.journal.records]

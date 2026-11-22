@@ -9,7 +9,7 @@ from pathlib import Path
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="agent_cmd", required=True)
-    rec = sub.add_parser("record", help="run Argus with the agent live over a world (needs ANTHROPIC_API_KEY)")
+    rec = sub.add_parser("record", help="run Argus with the agent live over a world (needs a provider key)")
     rec.add_argument("--world", type=Path, required=True)
     rec.add_argument("--out", type=Path, required=True)
     rec.add_argument(
