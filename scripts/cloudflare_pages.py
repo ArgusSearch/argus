@@ -91,6 +91,8 @@ def verify_dns(token, path, name, target):
 
 def main():
     command, *args = sys.argv[1:]
+    if command == "web-domain" and args != ["--go"]:
+        raise SystemExit("Use web-domain --go to attach the Pages domain.")
     token = credential()
     if command == "project":
         print(project(token))

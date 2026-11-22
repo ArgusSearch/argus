@@ -20,6 +20,14 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PAT
 export CI=1 WRANGLER_LOG_PATH="$state/wrangler.log" CLOUDFLARE_ACCOUNT_ID=c452dd4753dd99c4d03eec47380d0470
 
 fail() { printf '%s\n' "$*" >&2; exit 1; }
+usage() { fail "Use --go, --go --attach-web, --watch, --web-only or --rollback."; }
+
+if [ "$#" -gt 1 ]; then
+  [ "$#" -eq 2 ] && [ "$1" = --go ] && [ "$2" = --attach-web ] || usage
+  exec python3 "$bin/cloudflare_pages.py" web-domain --go
+fi
+
+case "$mode" in --go|--watch|--web-only|--rollback|--serve) ;; *) usage ;; esac
 mkdir -p "$state" "$state/releases"
 
 if [ "$mode" = --serve ]; then
@@ -35,11 +43,6 @@ if [ "$mode" = --serve ]; then
     ARGUS_DISABLE_PROVIDER=1 "$release/.venv/bin/python" "$origin" "${args[@]}"
 fi
 
-if [ "$mode" = --attach-web ]; then
-  exec python3 "$bin/cloudflare_pages.py" web-domain
-fi
-
-case "$mode" in --go|--watch|--web-only|--rollback) ;; *) fail "Use --go, --watch, --web-only, --attach-web or --rollback." ;; esac
 if [ "${ARGUS_DEPLOY_LOCKED:-}" != "$state" ]; then
   exec python3 - "$state" "$bin/deploy_cloudflare.sh" "$mode" <<'PY'
 import fcntl
@@ -229,7 +232,7 @@ EOF
   if [[ "$dns" == *API_CNAME_MISSING ]]; then
     cloudflared tunnel --origincert "$cert" route dns "$tunnel" argus-api.caniberk.dev
   fi
-  python3 "$bin/cloudflare_pages.py" web-domain
+  python3 "$bin/cloudflare_pages.py" web-domain --go
 }
 
 restart_api() { launchctl kickstart -k "$domain/$label.api"; }
