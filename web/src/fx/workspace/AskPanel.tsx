@@ -207,7 +207,6 @@ function Work({ ms, checks }: { ms: number | null; checks: CheckStep[] }) {
   if (!checks.length)
     return (
       <div className="cw-work" role="separator">
-        <span className="cw-rule" />
         <span>{label}</span>
         <span className="cw-rule" />
       </div>
@@ -215,7 +214,6 @@ function Work({ ms, checks }: { ms: number | null; checks: CheckStep[] }) {
   return (
     <details className="cw-work-fold">
       <summary className="cw-work">
-        <span className="cw-rule" />
         <span>
           {label}
           <svg className="cw-chev" viewBox="0 0 16 16" aria-hidden="true">
@@ -671,10 +669,6 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
               }}
             />
             <div className="cw-bar">
-              <span className="cw-chip" title="The model the agent answers with">
-                <i className={`cw-dot s-${status.toLowerCase()}`} aria-hidden="true" />
-                {modelLabel(agent.health)}
-              </span>
               <span className="cw-chip" title="What the question is about">
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M2.5 6.5L8 2.5l5.5 4v7h-11z" />
@@ -686,6 +680,10 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
                   <path d="M4.5 7.5v-2a3.5 3.5 0 017 0v2M3.5 7.5h9v6h-9z" />
                 </svg>
                 Read only
+              </span>
+              <span className="cw-chip cw-model" title="The model the agent answers with">
+                <i className={`cw-dot s-${status.toLowerCase()}`} aria-hidden="true" />
+                {modelLabel(agent.health)}
               </span>
               {busy ? (
                 <button className="cw-send stop" type="submit" title="Stop waiting for the answer (Esc)" aria-label="Stop">
