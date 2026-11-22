@@ -203,7 +203,7 @@ export class VillageEngine {
       it.group.add(room.group);
       this.rooms.set(it.role.id, room);
     }
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = window.devicePixelRatio || 1;
     ROLE_IDS.forEach((id, i) => {
       const bot = new Bot(id, 0.13 + i * 0.137, dpr, this.reduced);
       bot.sprite.position.copy(seatPoint(id));

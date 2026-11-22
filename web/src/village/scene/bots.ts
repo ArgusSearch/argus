@@ -9,6 +9,7 @@ import {
   Color,
   Group,
   LinearFilter,
+  LinearMipmapLinearFilter,
   Mesh,
   MeshBasicMaterial,
   SRGBColorSpace,
@@ -18,6 +19,7 @@ import {
 } from "three";
 import { AvatarPainter, OVERSCAN, type AvatarStatus } from "../avatars/painter";
 import { PERSONAS } from "../avatars/personas";
+import { avatarPixelRatio } from "../avatars/resolution";
 import type { RoleId } from "../roles";
 import { glowTexture } from "./util";
 
@@ -41,17 +43,20 @@ export class Bot {
 
   constructor(role: RoleId, seed: number, dpr: number, private readonly reduced: boolean) {
     this.role = role;
-    this.dpr = dpr;
+    this.dpr = avatarPixelRatio(dpr);
     this.painter = new AvatarPainter(PERSONAS[role], seed, reduced);
     this.canvas = document.createElement("canvas");
-    const px = Math.round(PAINT_BOX * OVERSCAN * dpr);
+    const px = Math.round(PAINT_BOX * OVERSCAN * this.dpr);
     this.canvas.width = px;
     this.canvas.height = px;
     this.ctx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
     this.texture = new CanvasTexture(this.canvas);
     this.texture.colorSpace = SRGBColorSpace;
-    this.texture.minFilter = LinearFilter;
-    this.texture.generateMipmaps = false;
+    // The camera shrinks the painted canvas to a few dozen pixels. Filter the fine costume/fur detail
+    // across mip levels instead of sampling a single full-size texture, which shimmers while moving.
+    this.texture.minFilter = LinearMipmapLinearFilter;
+    this.texture.magFilter = LinearFilter;
+    this.texture.generateMipmaps = true;
     const material = new SpriteMaterial({ map: this.texture, transparent: true, alphaTest: 0.04, depthWrite: true, toneMapped: false });
     material.color.setScalar(1.08);
     this.sprite = new Sprite(material);
