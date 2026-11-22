@@ -10,6 +10,10 @@ import { calendarEntries } from "../../settings/model";
 import { metricStatus } from "../../views/model";
 import { AnalyticsPanels, ShopMetrics, type AnalyticsPanelsProps } from "../analytics";
 import { EvidenceCards } from "../cards/EvidenceCards";
+import {
+  DetectionTrend, DeviationHistory, DriverDecompositionCard, FunnelStages, IncidentCohorts, MetricInputs, PeriodComparison,
+  SegmentBreakdown, VisibleIncidents, type Linker,
+} from "../insights";
 import { analysisHref, followLink, navigateWorkspaceURL } from "../shell/location";
 import { segmentKey, type AnalysisQuery } from "../shell/query";
 import { AD_METRICS, FUNNEL_METRICS, inWindow, matchesSegment, observedSegments, visibleFindings, type AnalysisWindow } from "./model";
@@ -27,6 +31,15 @@ interface PageProps {
 
 function QueryLink({ query, navigate, children }: Pick<PageProps, "query" | "navigate"> & { children: ReactNode }) {
   return <a href={analysisHref(query)} onClick={(event) => followLink(event, () => navigate(query))}>{children}</a>;
+}
+
+function makeLinker({ query, navigate }: Pick<PageProps, "query" | "navigate">): Linker {
+  return (label, change) => {
+    const next: AnalysisQuery = change.segment
+      ? { ...query, page: "segments", segment: change.segment }
+      : { ...query, page: "metrics", metric: change.metric ?? query.metric, segment: {} };
+    return <QueryLink query={next} navigate={navigate}>{label}</QueryLink>;
+  };
 }
 
 function incidentURL(id: string, receipt?: string) {
@@ -76,6 +89,7 @@ function IncidentList({ graph, query, incidents, navigate, openIncident, window 
 function Overview(props: PageProps) {
   const { graph, view, query, incidents, signals, window, navigate } = props;
   const openReceipt = useOpenReceipt();
+  const link = makeLinker(props);
   const status = health(view, graph);
   const ready = window.end !== null;
   const resolved = incidents.filter((incident) => incident.state === "resolved").length;
@@ -102,9 +116,20 @@ function Overview(props: PageProps) {
         ))}
       </div>
       <ShopMetrics view={view} graph={graph} />
+      <div className="analysis-columns">
+        <DetectionTrend graph={graph} view={view} window={window} metric={query.metric} />
+        <PeriodComparison graph={graph} view={view} metric={query.metric} segment={query.segment} />
+      </div>
+      <DeviationHistory graph={graph} view={view} window={window} order={keyMetrics(graph)} link={link} />
       <Card title="Affected metrics" action={<QueryLink query={{ ...query, page: "incidents" }} navigate={navigate}>All incidents</QueryLink>}>
         <IncidentList {...props} />
       </Card>
+      <div className="analysis-columns">
+        <VisibleIncidents view={view} window={window}>
+          {(details) => <DriverDecompositionCard graph={graph} incidents={details} metric={query.metric} incidentLink={(id) => <IncidentLink id={id} openIncident={props.openIncident} />} />}
+        </VisibleIncidents>
+        <IncidentCohorts incidents={incidents} window={window} />
+      </div>
       {Object.keys(query.segment).length === 0 && <CurrentMetrics {...props} />}
       <EvidenceCards key={view.stream} view={view} graph={graph} metricId={metricId} observations={observations} statuses={incidents}
         renderReceipt={(id, label) => id && <button type="button" className="rcpt" onClick={() => openReceipt(id)}>{label}</button>} />
@@ -305,49 +330,98 @@ function Changes({ graph, view, query, window }: PageProps) {
   );
 }
 
+function incidentLinker(openIncident: PageProps["openIncident"]) {
+  return (id: string) => <IncidentLink id={id} openIncident={openIncident} />;
+}
+
 export function AnalysisPages(props: PageProps) {
-  switch (props.query.page) {
+  const { graph, view, query, window, incidents, signals } = props;
+  const link = makeLinker(props);
+  const incidentLink = incidentLinker(props.openIncident);
+  switch (query.page) {
     case "overview":
       return <Overview {...props} />;
     case "metrics":
-      return props.query.metric ? (
+      return query.metric ? (
         <>
+          <div className="analysis-columns">
+            <DetectionTrend graph={graph} view={view} window={window} metric={query.metric} />
+            <PeriodComparison graph={graph} view={view} metric={query.metric} segment={query.segment} />
+          </div>
           <div className="analysis-columns">
             <Card title="Metric definition"><MetricDefinitions {...props} /></Card>
             <Card title="Related incidents"><IncidentList {...props} /></Card>
           </div>
-          <ScopedEvidence key={props.view.stream} {...props} analytics="both" />
+          <div className="analysis-columns">
+            <VisibleIncidents view={view} window={window}>
+              {(details) => <DriverDecompositionCard graph={graph} incidents={details} metric={query.metric} incidentLink={incidentLink} />}
+            </VisibleIncidents>
+            <MetricInputs graph={graph} view={view} metric={query.metric} link={link} />
+          </div>
+          <ScopedEvidence key={view.stream} {...props} analytics="both" />
           <Card title="Anomaly observations"><Signals {...props} /></Card>
         </>
       ) : (
         <>
+          <DeviationHistory graph={graph} view={view} window={window} order={keyMetrics(graph)} link={link} />
           <Card title="Affected metrics"><IncidentList {...props} /></Card>
           <Card title="Metric definitions"><MetricDefinitions {...props} /></Card>
         </>
       );
     case "segments":
-    case "countries":
+    case "countries": {
+      const countries = query.page === "countries";
+      const scopedSignals = countries ? signals.filter((signal) => signal.segment.country) : signals;
+      const scopedIncidents = countries ? incidents.filter((incident) => incident.segment.country) : incidents;
       return (
         <>
-          <Card title={props.query.page === "countries" ? "Countries in matching evidence" : "Segments in matching evidence"}><SegmentList {...props} /></Card>
+          <SegmentBreakdown signals={scopedSignals} incidents={scopedIncidents} link={link} window={window} />
+          <Card title={countries ? "Countries in matching evidence" : "Segments in matching evidence"}><SegmentList {...props} /></Card>
           <Card title="Related incidents"><IncidentList {...props} /></Card>
-          <ScopedEvidence key={props.view.stream} {...props} analytics={props.query.page === "countries" ? "distribution" : undefined} />
+          <ScopedEvidence key={view.stream} {...props} analytics={countries ? "distribution" : undefined} />
           <Card title="Anomaly observations"><Signals {...props} /></Card>
         </>
       );
+    }
     case "ads":
     case "funnel": {
-      const ads = props.query.page === "ads";
+      const ads = query.page === "ads";
       const ids = ads ? AD_METRICS : FUNNEL_METRICS;
+      const related = incidents.filter((incident) => ids.includes(incident.root_node));
       return (
         <>
-          <Card title="Related incidents"><IncidentList {...props} incidents={props.incidents.filter((incident) => ids.includes(incident.root_node))} /></Card>
+          {ads ? (
+            <div className="analysis-columns">
+              <DetectionTrend graph={graph} view={view} window={window} metric={query.metric && ids.includes(query.metric) ? query.metric : "ad_spend"} />
+              <PeriodComparison graph={graph} view={view} metric={query.metric && ids.includes(query.metric) ? query.metric : "ad_spend"} segment={query.segment} />
+            </div>
+          ) : (
+            <VisibleIncidents view={view} window={window}>
+              {(details) => (
+                <>
+                  <FunnelStages graph={graph} view={view} steps={FUNNEL_METRICS} window={window} incidents={details} link={link} />
+                  <DriverDecompositionCard graph={graph} incidents={details} metric="orders" incidentLink={incidentLink} />
+                </>
+              )}
+            </VisibleIncidents>
+          )}
+          <DeviationHistory graph={graph} view={view} window={window} order={ids} only={ads ? ids : [...ids, "cvr", "payment_success_rate", "view_rate", "cart_rate", "checkout_rate", "attempt_rate"]} link={link} />
+          <Card title="Related incidents"><IncidentList {...props} incidents={related} /></Card>
           <Card title={ads ? "Advertising metric definitions" : "Funnel steps"}><MetricDefinitions {...props} ids={ids} /></Card>
         </>
       );
     }
     case "incidents":
-      return <Card title="Incidents in this period"><IncidentList {...props} /></Card>;
+      return (
+        <>
+          <div className="analysis-columns">
+            <IncidentCohorts incidents={incidents} window={window} />
+            <PeriodComparison graph={graph} view={view} metric={query.metric} segment={query.segment} />
+          </div>
+          <Card title="Incidents in this period"><IncidentList {...props} /></Card>
+          <SegmentBreakdown signals={signals} incidents={incidents} link={link} window={window} />
+        </>
+      );
     case "changes":
       return <Card title="Changes checked in investigations"><Changes {...props} /></Card>;
     case "live-fix":

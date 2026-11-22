@@ -26,6 +26,8 @@ export interface HourStat {
   hour: string;
   /** |z| of every metric scored this hour */
   z: number[];
+  /** the same |z| by metric id, for the per-metric trend and history views */
+  byNode: Record<string, number>;
   /** incidents open at this tick, as the watcher reported it */
   open: number;
   /** the EUR impact of every incident filed so far (sum of their severities at this tick) */
@@ -209,6 +211,7 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
       const hour: HourStat = {
         hour: p.hour,
         z: p.scored_nodes.map((node) => Math.abs(p.max_abs_z[node] ?? 0)),
+        byNode: Object.fromEntries(p.scored_nodes.map((node) => [node, Math.abs(p.max_abs_z[node] ?? 0)])),
         open: p.open_incidents,
         eur: Object.values(v.incidents).reduce((sum, inc) => sum + Math.abs(inc.severity_eur), 0),
         completeness: p.freshness.length ? Math.min(...p.freshness.map((f) => f.completeness)) : 1,

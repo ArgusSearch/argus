@@ -1,0 +1,358 @@
+.in-card {
+  min-width: 0;
+}
+
+.in-card .fx-card-note {
+  margin: var(--fx-space-2) 0 0;
+}
+
+.in-lede {
+  margin: 0 0 var(--fx-space-2);
+  color: var(--text-2);
+}
+
+.in-lede strong {
+  color: var(--text);
+}
+
+.in-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--fx-space-2);
+  margin-bottom: var(--fx-space-2);
+}
+
+.in-kpis dl {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.in-kpis dt {
+  color: var(--text-2);
+  font-size: var(--fx-text-xs);
+}
+
+.in-kpis dd {
+  margin: 0;
+  font-size: var(--fx-text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.in-trend {
+  display: block;
+  inline-size: 100%;
+  block-size: 160px;
+  overflow: visible;
+}
+
+.in-line {
+  fill: none;
+  stroke: var(--probe);
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.in-base {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.in-threshold {
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.in-threshold.t-watch { stroke: var(--watch); }
+.in-threshold.t-alarm { stroke: var(--alarm); }
+.in-dot { stroke: var(--panel); stroke-width: 1; }
+.in-dot.t-watch { fill: var(--watch); }
+.in-dot.t-alarm { fill: var(--alarm); }
+
+.in-axis {
+  fill: var(--text-2);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.in-compare th[scope="row"] {
+  font-weight: 400;
+}
+
+/* Deviation history heatmap */
+.in-heat-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.in-heat {
+  inline-size: 100%;
+  min-inline-size: 640px;
+  border-collapse: collapse;
+}
+
+.in-heat :is(th, td) {
+  padding: 3px var(--fx-space-2);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.in-heat th[scope="row"] {
+  font-weight: 400;
+}
+
+.in-heat :is(.in-heat-cells, .in-heat-days) {
+  inline-size: 100%;
+  padding-inline: 0;
+}
+
+.in-heat-cells,
+.in-heat-days {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(3px, 1fr));
+  gap: 1px;
+}
+
+.in-heat-days span {
+  grid-row: 1;
+  color: var(--text-2);
+  font-size: var(--fx-text-2xs);
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.in-heat-cells i,
+.in-legend i {
+  display: block;
+  block-size: 16px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.in-heat-cells i.t-calm,
+.in-legend i.t-calm {
+  background: color-mix(in srgb, var(--probe) calc(12% + 30% * var(--z, 0.2)), transparent);
+}
+
+.in-heat-cells i.t-watch,
+.in-legend i.t-watch {
+  background: var(--watch);
+}
+
+.in-heat-cells i.t-alarm,
+.in-legend i.t-alarm {
+  background: var(--alarm);
+}
+
+.in-heat-cells i.t-none {
+  background: transparent;
+  outline: 1px dashed var(--line);
+  outline-offset: -1px;
+}
+
+.in-heat-cells i[data-flag],
+.in-legend i[data-flag] {
+  box-shadow: inset 0 0 0 2px var(--alarm);
+}
+
+.in-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fx-space-1) var(--fx-space-3);
+}
+
+.in-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fx-space-1);
+}
+
+.in-legend i {
+  inline-size: 12px;
+  block-size: 12px;
+}
+
+/* Bars */
+.in-bar-col {
+  min-inline-size: 140px;
+}
+
+td.in-bar-col {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-space-2);
+}
+
+.in-bar,
+.in-stack {
+  display: flex;
+  flex: 1 1 auto;
+  min-inline-size: 60px;
+  block-size: 8px;
+  border-radius: var(--fx-radius-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.in-bar i {
+  display: block;
+  background: var(--probe);
+}
+
+.in-stack i { display: block; }
+.in-stack i.t-alarm { background: var(--alarm); }
+.in-stack i.t-watch { background: var(--watch); }
+.in-stack i.t-ok { background: var(--ok); }
+
+.in-bar-value {
+  flex: 0 0 auto;
+  color: var(--text-2);
+  font-size: var(--fx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Driver decomposition */
+.in-drivers {
+  display: grid;
+  gap: var(--fx-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.in-drivers li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.2fr) minmax(6rem, 2fr) 4.5rem 6rem;
+  align-items: center;
+  gap: var(--fx-space-2);
+  padding-block: 4px;
+  border-bottom: var(--fx-hair) solid var(--fx-glass-border);
+}
+
+.in-drivers li:last-child {
+  border-bottom: 0;
+}
+
+.in-driver-share,
+.in-driver-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.in-diverge {
+  position: relative;
+  display: block;
+  block-size: 10px;
+  background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat;
+}
+
+.in-diverge i {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 2px;
+}
+
+.in-diverge i[data-side="pos"] {
+  inset-inline-start: 50%;
+  background: var(--alarm);
+}
+
+.in-diverge i[data-side="neg"] {
+  inset-inline-end: 50%;
+  background: var(--ok);
+}
+
+/* Funnel */
+.in-funnel {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.in-funnel li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(10rem, 1.6fr) minmax(6rem, 0.8fr) minmax(4rem, 0.5fr) minmax(10rem, 1.6fr);
+  align-items: center;
+  gap: var(--fx-space-2) var(--fx-space-3);
+  padding-block: var(--fx-space-2);
+  border-bottom: var(--fx-hair) solid var(--fx-glass-border);
+}
+
+.in-funnel li:last-child {
+  border-bottom: 0;
+}
+
+.in-funnel-step {
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 50%;
+  background: var(--line);
+  font-size: var(--fx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.in-funnel li > div:first-of-type {
+  display: grid;
+  gap: 2px;
+}
+
+.in-funnel li > div:first-of-type span,
+.in-funnel dt,
+.in-funnel-share span:last-child {
+  color: var(--text-2);
+  font-size: var(--fx-text-sm);
+}
+
+.in-funnel dl {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.in-funnel dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.in-funnel-share {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 850px) {
+  .in-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .in-funnel li {
+    grid-template-columns: 1.75rem minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .in-funnel li > div:first-of-type {
+    grid-column: 2 / -1;
+  }
+
+  .in-funnel li > dl:first-of-type {
+    grid-column-start: 2;
+  }
+
+  .in-funnel-share {
+    grid-column: 2 / -1;
+  }
+
+  .in-drivers li {
+    grid-template-columns: minmax(0, 1fr) 4rem 5.5rem;
+  }
+
+  .in-drivers .in-diverge {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
