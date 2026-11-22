@@ -11,6 +11,7 @@ from argus.investigate.planner import Planner
 from argus.investigate.procedure import EvidenceSelector, StageTwoInvestigation
 from argus.market import check_control_group
 from argus.semantic.runner import Runner
+from argus.settings import Settings
 
 
 class MarketInvestigation(StageTwoInvestigation):
@@ -41,5 +42,6 @@ def investigate(
     on_step: Callable[[TrailStep], None] | None = None,
     planner: Planner | None = None,
     selector: EvidenceSelector | None = None,
+    settings: Settings | None = None,
 ) -> Findings:
-    return MarketInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector).run()
+    return MarketInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector, settings).run()

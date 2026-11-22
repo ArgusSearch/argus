@@ -10,7 +10,7 @@ import asyncio
 import threading
 import time
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, Recording, load_recording
@@ -21,7 +21,14 @@ from argus.contracts.findings import Incident, Note, Receipt
 from argus.contracts.graph import Graph
 from argus.graph.store import load_seed_graph
 from argus.narrator.report import render
+from argus.notifications import IncidentNotices
 from argus.runtime.loop import Runtime
+from argus.settings import SettingsStore
+
+if TYPE_CHECKING:
+    from argus.agent.service import AgentService
+    from argus.agent.settings_runtime import SettingsAgent
+    from argus.investigate.procedure import EvidenceSelector
 
 __all__ = ["FIXTURES", "ControlError", "LiveSource", "ReplaySource", "RerunUnavailable", "Source"]
 
@@ -156,19 +163,22 @@ class LiveSource:
 
         self.bus = EventHub(RunState(load_seed_graph()))
         # the agent (argus.agent): off unless --agent live/record or ARGUS_AGENT, and then only with a key
-        self.agent = build(configured_mode(agent), stream=self.bus.stream, recording=agent_recording)
-        if self.agent.selector is not None:
-            self.agent.selector.through_seq = lambda: self.bus.last_seq
-        self.runtime = Runtime(world, bus=self.bus, stage=stage, selector=self.agent.selector)
+        self._agent_mode = configured_mode(agent)
+        self._initial_agent = build(self._agent_mode, stream=self.bus.stream, recording=agent_recording)
+        self._settings_agent: SettingsAgent | None = None
+        self._notices: IncidentNotices | None = None
+        if self._initial_agent.selector is not None:
+            self._initial_agent.selector.through_seq = lambda: self.bus.last_seq
+        self.runtime = Runtime(world, bus=self.bus, stage=stage, selector=self._initial_agent.selector)
         self.remediation: Any = None
-        if self.agent.enabled:
+        if self._agent_mode != "off":
             # PROPOSE -> AWAIT_OPERATOR -> APPLY -> VERIFY (lane C); the clock holds while an operator decides
             from argus.agent.actions import Proposer
             from argus.remediation import RemediationService
 
             proposer: list[Proposer] = []
             self.remediation = RemediationService.for_runtime(self.runtime, publish=lambda e: proposer[0].publish(e))
-            proposer.append(Proposer(self.agent.journal, self.remediation))
+            proposer.append(Proposer(self._initial_agent.journal, self.remediation))
             self.runtime.on_incident = proposer[0].on_incident
         self.seconds_per_tick = seconds_per_tick
         self.speed = 1.0
@@ -180,6 +190,32 @@ class LiveSource:
         self._to_end = False
         self.bus.pace_steps = lambda: 0.0 if self._to_end else 0.45 * self.seconds_per_tick / self.speed
         self._thread: threading.Thread | None = None
+
+    @property
+    def agent(self) -> AgentService:
+        return self._settings_agent.refresh() if self._settings_agent is not None else self._initial_agent
+
+    @agent.setter
+    def agent(self, service: AgentService) -> None:
+        self._initial_agent = service
+        self._settings_agent = None
+
+    def configure_settings(self, settings: SettingsStore) -> None:
+        from argus.agent.settings_runtime import SettingsAgent
+
+        self._settings_agent = SettingsAgent(self._initial_agent, self._agent_mode, settings)
+        self.runtime.settings = settings.read
+        self.runtime.prepare_selector = self._prepare_selector
+        self._notices = IncidentNotices(settings)
+        self.runtime.on_notice = self._notices.add
+
+    def _prepare_selector(self) -> EvidenceSelector | None:
+        selector = self.agent.selector
+        if selector is not None and self._settings_agent is not None:
+            selector.budget = self._settings_agent.budget()
+            selector.through_seq = lambda: self.bus.last_seq
+            selector.world_revision = self.world_revision()
+        return selector
 
     # ------------------------------------------------------------------ run
 
@@ -205,6 +241,8 @@ class LiveSource:
                 raise
             if self._stop.is_set():
                 return
+            if self._notices is not None:
+                self._notices.flush(as_of)
             if self.remediation is not None:
                 self.remediation.tick(as_of)
                 if self.agent.selector is not None:
@@ -238,6 +276,8 @@ class LiveSource:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()
         self.agent.save()
+        if self._notices is not None:
+            await asyncio.to_thread(self._notices.close)
         if self.remediation is not None:
             self.remediation.close()
 

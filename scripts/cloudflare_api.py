@@ -27,8 +27,8 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
         raise RuntimeError("Public demo requires a clean checkout and a credential-free environment")
     replay_source = ReplaySource(loop=world is None)
     live_source = LiveSource(world, agent="off") if world else replay_source
-    replay = create_app(replay_source, bench_out=bench_out)
-    live = create_app(live_source, bench_out=bench_out) if world else replay
+    replay = create_app(replay_source, bench_out=bench_out, public_settings=True)
+    live = create_app(live_source, bench_out=bench_out, public_settings=True) if world else replay
     apps = [live, replay] if world else [replay]
     for app in apps:
         app.user_middleware[:] = [entry for entry in app.user_middleware if entry.cls is not CORSMiddleware]
@@ -128,17 +128,21 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
             )
             await snapshot(scope, receive, send)
             return
-        if path.startswith("/agent/") and headers.get("origin") in WEB_ORIGINS:
+        if path.startswith(("/agent/", "/settings")) and headers.get("origin") in WEB_ORIGINS:
             # The outer middleware has verified the public demo origin. OperatorGate still requires its
             # loopback session and CSRF token, and recorded decisions only update the sealed playback.
             scope = {**scope, "headers": [(key, value) for key, value in scope["headers"] if key != b"origin"]}
 
         async def secure_cookie(message):
-            if message["type"] == "http.response.start" and path == "/agent/operator/session":
+            if message["type"] == "http.response.start" and path in (
+                "/agent/operator/session",
+                "/settings/operator/session",
+            ):
                 values = MutableHeaders(scope=message)
                 if cookie := values.get("set-cookie"):
                     if sealed:
                         cookie = cookie.replace("Path=/agent", "Path=/sealed-run/agent")
+                        cookie = cookie.replace("Path=/settings", "Path=/sealed-run/settings")
                     if headers.get("origin") == PAGES_ORIGIN:
                         cookie = cookie.replace("SameSite=strict", "SameSite=None") + "; Partitioned"
                     values["set-cookie"] = cookie + "; Secure"
@@ -156,7 +160,7 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
     return CORSMiddleware(
         dispatch,
         allow_origins=list(WEB_ORIGINS),
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Content-Type", "X-Argus-CSRF"],
         allow_credentials=True,
     )

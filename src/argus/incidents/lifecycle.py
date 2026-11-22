@@ -178,7 +178,9 @@ class IncidentBook:
         self._monitors[inc.id] = _Monitor(aov=aov, last_hour=hour)
         return inc, "opened"
 
-    def monitor(self, runner: Runner, hour: datetime, as_of: datetime) -> list[tuple[Incident, str]]:
+    def monitor(
+        self, runner: Runner, hour: datetime, as_of: datetime, calm_hours: int = CALM_HOURS
+    ) -> list[tuple[Incident, str]]:
         """Advance the lifecycle of every open incident from its root segment's value this hour."""
         changes = []
         for inc in self.open_incidents():
@@ -196,15 +198,15 @@ class IncidentBook:
                 mon.calm = 0
                 inc.severity_eur = round(inc.severity_eur + abs(cell.deviation) * mon.aov, 2)
             reason = f"root segment z {z:+.1f} at {hour:%Y-%m-%d %H:%M}"
-            if inc.state is IncidentState.EXPLAINED and mon.calm >= 1:
+            if inc.state is IncidentState.EXPLAINED and 1 <= mon.calm < calm_hours:
                 self._move(inc, IncidentState.MONITORING, hour, reason)
                 changes.append((inc, "state"))
             elif inc.state is IncidentState.MONITORING and mon.calm == 0:
                 self._move(inc, IncidentState.EXPLAINED, hour, reason)
                 changes.append((inc, "state"))
-            elif inc.state is IncidentState.MONITORING and mon.calm >= CALM_HOURS:
+            elif inc.state in (IncidentState.EXPLAINED, IncidentState.MONITORING) and mon.calm >= calm_hours:
                 inc.resolved_at = hour
-                self._move(inc, IncidentState.RESOLVED, hour, f"{CALM_HOURS} consecutive normal hours")
+                self._move(inc, IncidentState.RESOLVED, hour, f"{calm_hours} consecutive normal hours")
                 changes.append((inc, "state"))
             inc.updated_at = hour
         return changes

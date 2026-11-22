@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from argus.contracts.findings import Direction, TrailStep
 from argus.contracts.graph import Graph
 from argus.graph.store import load_seed_graph
-from argus.investigate.playbook import STEPS, Playbook, PlaybookStep, choose_playbook
+from argus.investigate.playbook import GENERAL_PLAYBOOK, STEPS, Playbook, PlaybookStep, choose_playbook
 
 
 class PlaybookDefinition(BaseModel):
@@ -57,6 +57,7 @@ def map_playbook(
     if not trail:
         return None
     registry = {book.id: book for book in playbook_registry()}
+    registry[GENERAL_PLAYBOOK.id] = PlaybookDefinition(id=GENERAL_PLAYBOOK.id, name=GENERAL_PLAYBOOK.name, steps=STEPS)
     known_steps = {step.id for step in STEPS}
     tags = [step.data.get("playbook") for step in trail]
     tagged_book = next(

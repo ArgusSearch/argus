@@ -74,7 +74,7 @@ class Toolbox:
         self.as_of = as_of
 
     # ------------------------------------------------------------------ data before business
-    def check_freshness(self, tables: list[str], window: Window) -> CheckFreshnessOutput:
+    def check_freshness(self, tables: list[str], window: Window, minimum: float = COMPLETE) -> CheckFreshnessOutput:
         found = completeness(self.runner, tables, window.start, window.end, self.as_of)
         hours = window_hours(window)
         rows = []
@@ -86,7 +86,7 @@ class Toolbox:
                     table=t,
                     hour=window.end,
                     completeness=round(worst, 4),
-                    status="ok" if worst >= COMPLETE else "pending",
+                    status="ok" if worst >= minimum else "pending",
                 )
             )
         # one receipt for the whole check, so the trail shows the SQL

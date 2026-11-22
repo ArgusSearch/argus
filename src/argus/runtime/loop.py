@@ -25,6 +25,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -37,7 +38,7 @@ from argus.contracts.events import (
     InvestigationStepPayload,
     TickPayload,
 )
-from argus.contracts.findings import Anomaly, Findings, Incident, TableFreshness, TrailStep
+from argus.contracts.findings import Anomaly, Findings, Incident, TableFreshness, TrailStep, Verdict
 from argus.contracts.graph import Graph
 from argus.detect import Watcher, WatcherConfig
 from argus.graph.edge_tests import EdgeStatusChange, EdgeTester
@@ -49,6 +50,7 @@ from argus.market.investigator import investigate
 from argus.narrator.report import render
 from argus.runtime.bus import EventBus
 from argus.semantic.runner import Runner
+from argus.settings import Settings
 from argus.watcher.detect import Detector
 from argus.watcher.freshness import COMPLETE, completeness
 
@@ -79,6 +81,9 @@ class Runtime:
         self.stage = stage
         self.selector = selector  # the agent's pre-verdict loop (argus.agent); None: Stage 2 alone
         self.on_incident: Callable[[Incident, str], None] | None = None  # the agent proposes actions here
+        self.settings: Callable[[], Settings] = Settings
+        self.on_notice: Callable[[Incident, datetime], None] | None = None
+        self.prepare_selector: Callable[[], EvidenceSelector | None] | None = None
         self.manifest = read_manifest(self.world)
         self.lag = timedelta(hours=int(self.manifest.get("delivery_lag_hours", 2)))
         self.runner = Runner(self.world)
@@ -136,50 +141,62 @@ class Runtime:
     def tick(self, as_of: datetime) -> None:
         with self.lock:
             self.as_of = as_of
+            settings = self.settings()
+            policy, thresholds = settings.autonomy, settings.thresholds
             hour = as_of - self.lag
             day = hour.replace(hour=0)
-            if self._last_edge_test_day != day:
+            if policy.retest_graph == "alone" and self._last_edge_test_day != day:
                 self._last_edge_test_day = day
-                for edge_change in self.tester.run_all(as_of, self.changelog):
+                for edge_change in self.tester.run_all(
+                    as_of, self.changelog, review_probation=policy.review_probation == "asks"
+                ):
                     self._emit_edge(edge_change, as_of)
                 self.book.graph = self.detector.graph = self.graph
                 self.plan_watch.update_graph(self.graph)
 
-            tables = sorted(self.detector.all_tables())
-            found = completeness(self.runner, tables, hour - STALE_LOOKBACK, hour, as_of)
+            tables = sorted(self.detector.all_tables()) if policy.monitor == "alone" else []
+            found = completeness(self.runner, tables, hour - STALE_LOOKBACK, hour, as_of) if tables else {}
             fresh = [
                 TableFreshness(
                     table=t,
                     hour=hour,
                     completeness=round(min(1.0, found.get((t, hour), 0.0)), 4),
-                    status="ok" if found.get((t, hour), 0.0) >= COMPLETE else "pending",
+                    status="ok" if found.get((t, hour), 0.0) >= thresholds.freshness else "pending",
                 )
                 for t in tables
             ]
             pending_tables = {f.table for f in fresh if f.status == "pending"}
             self._data_notes(fresh, pending_tables, as_of)
-            stale = {t: {ts for (name, ts), v in found.items() if name == t and v < COMPLETE} for t in tables}
-            self.detector.refresh(hour, as_of, stale)
-
             scored, pending, zs = [], [], {}
-            for node in self.detector.nodes:
-                if set(self.detector.tables(node)) & pending_tables:
-                    pending.append(node)
-                    continue
-                score = self.detector.score(node, hour)
-                if score is None:
-                    pending.append(node)
-                    continue
-                scored.append(node)
-                zs[node] = round(abs(score.z), 2)
-                opened, _closed = self.detector.observe(score, as_of)
-                if opened is not None:
-                    self._on_anomaly(opened, as_of)
-            for planned in self.plan_watch.check_plans(as_of):
-                self._on_anomaly(planned, as_of)
+            if policy.monitor == "alone":
+                stale = {t: {ts for (name, ts), v in found.items() if name == t and v < COMPLETE} for t in tables}
+                self.detector.refresh(hour, as_of, stale)
+                for node in self.detector.nodes:
+                    if policy.defer_late_data == "alone" and set(self.detector.tables(node)) & pending_tables:
+                        pending.append(node)
+                        continue
+                    score = self.detector.score(node, hour)
+                    if score is None:
+                        pending.append(node)
+                        continue
+                    scored.append(node)
+                    zs[node] = round(abs(score.z), 2)
+                    lines = thresholds.per_metric.get(node, thresholds)
+                    opened, _closed = self.detector.observe(score, as_of, lines, thresholds.calm_hours)
+                    if opened is not None:
+                        self._on_anomaly(opened, as_of, settings)
+                config = self.plan_watch.config
+                self.plan_watch.config = replace(
+                    config, rules=replace(config.rules, open_z=thresholds.alarm_z, run_z=thresholds.pair_z)
+                )
+                for planned in self.plan_watch.check_plans(as_of):
+                    self._on_anomaly(planned, as_of, settings)
+            elif self.detector.cache.frames:
+                self.detector.cache.frames.clear()
 
-            for inc, change in self.book.monitor(self.runner, hour, as_of):
-                self._emit_incident(inc, change, as_of, inc.history[-1].reason)
+            if policy.manage_incident == "alone":
+                for inc, change in self.book.monitor(self.runner, hour, as_of, thresholds.calm_hours):
+                    self._emit_incident(inc, change, as_of, inc.history[-1].reason)
 
             self.emit(
                 TickPayload(
@@ -194,10 +211,14 @@ class Runtime:
                 as_of,
             )
 
-    def _on_anomaly(self, anomaly: Anomaly, as_of: datetime) -> None:
+    def _on_anomaly(self, anomaly: Anomaly, as_of: datetime, settings: Settings | None = None) -> None:
+        settings = settings or self.settings()
+        policy = settings.autonomy
         self.anomalies[anomaly.id] = anomaly
         self.emit(anomaly, as_of)
-        covering = self.book.covering(anomaly.node, anomaly.direction)
+        if policy.investigate == "off":
+            return
+        covering = self.book.covering(anomaly.node, anomaly.direction) if policy.hold_alert == "alone" else None
         if covering is not None:
             note = self.book.suppress(anomaly, covering, as_of)
             self.emit(note, as_of)
@@ -206,20 +227,32 @@ class Runtime:
         def on_step(step: TrailStep) -> None:
             self.emit(InvestigationStepPayload(anomaly_id=anomaly.id, step=step), as_of)
 
-        findings = self._investigate(anomaly, as_of, on_step)
+        findings = self._investigate(anomaly, as_of, on_step, settings)
+        if policy.manage_incident == "off":
+            return
         incident, change = self.book.record(findings, anomaly, as_of)
         if incident is None:
             self.emit(self.book.notes[-1], as_of)
         else:
             self._emit_incident(incident, change, as_of, findings.verdict.value)
-            if self.on_incident is not None:
+            if self.on_incident is not None and policy.approve_action == "asks":
                 self.on_incident(incident, change)
+            ambiguous = incident.verdict in (Verdict.HYPOTHESIS, Verdict.UNEXPLAINED)
+            if (
+                self.on_notice is not None
+                and change in {"opened", "reopened", "confirmed"}
+                and (not ambiguous or policy.review_ambiguous_cause == "asks")
+            ):
+                self.on_notice(incident, as_of)
 
-    def _investigate(self, anomaly: Anomaly, as_of: datetime, on_step: Callable[[TrailStep], None]) -> Findings:
+    def _investigate(
+        self, anomaly: Anomaly, as_of: datetime, on_step: Callable[[TrailStep], None], settings: Settings
+    ) -> Findings:
         if self.stage == 1:
             return investigate_stage_one(self.graph, self.runner, anomaly, as_of, on_step)
         try:
-            return investigate(self.graph, self.runner, anomaly, as_of, on_step, selector=self.selector)
+            selector = self.prepare_selector() if self.prepare_selector is not None else self.selector
+            return investigate(self.graph, self.runner, anomaly, as_of, on_step, selector=selector, settings=settings)
         except Exception as exc:
             # One failing investigation must not stop the watch: Stage 1 still files findings for it.
             log.exception("Stage-2 investigation of %s failed; falling back to Stage 1", anomaly.id)

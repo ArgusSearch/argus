@@ -125,12 +125,17 @@ class EdgeTester:
         passed = bool(hours and worst <= (edge.test.max_rel_err or 0))
         return EdgeTestResult(ran_at=as_of, passed=passed, max_rel_err=worst, hours=hours, receipts=receipts)
 
-    def run_all(self, as_of: datetime, changelog: Changelog) -> list[EdgeStatusChange]:
+    def run_all(
+        self, as_of: datetime, changelog: Changelog, *, review_probation: bool = True
+    ) -> list[EdgeStatusChange]:
         """Test every formula and breakdown edge; return the edges whose status changed (or first ran)."""
         cache: dict[str, tuple[np.ndarray, str]] = {}
         changes: list[EdgeStatusChange] = []
         updated = []
         for edge in self.graph.edges:
+            if not review_probation and edge.status is EdgeStatus.PROBATION:
+                updated.append(edge)
+                continue
             if edge.kind is EdgeKind.FORMULA:
                 result = self.test_formula(edge, as_of, cache)
             elif edge.kind is EdgeKind.BREAKDOWN:

@@ -30,7 +30,9 @@ from argus.agent.routes import router as agent_router
 from argus.api.digest import Digest, build_digest
 from argus.api.hub import EventHub
 from argus.api.rerun import RerunResult, RerunUnavailable
-from argus.api.sources import ControlError, Source
+from argus.api.settings_routes import create_router as settings_router
+from argus.api.settings_routes import local_settings_path
+from argus.api.sources import ControlError, LiveSource, Source
 from argus.api.state import ALARM_Z, PAIR_Z, WIGGLE_Z
 from argus.contracts import CONTRACT_VERSION
 from argus.contracts.events import ROUTES
@@ -43,6 +45,7 @@ from argus.graph.extension_api import create_router as graph_extension_router
 from argus.graph.extension_api import extension_for
 from argus.graph.store import REPO
 from argus.narrator.routes import router as narrator_router
+from argus.settings import SettingsStore
 
 WEB_DIST = REPO / "web" / "dist"
 BENCH_OUT = REPO / "runs" / "bench"
@@ -87,8 +90,22 @@ def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
 
 
 def create_app(
-    source: Source, start: bool = True, web_dist: Path = WEB_DIST, *, bench_out: Path = BENCH_OUT
+    source: Source,
+    start: bool = True,
+    web_dist: Path = WEB_DIST,
+    *,
+    bench_out: Path = BENCH_OUT,
+    settings_path: Path | None = None,
+    public_settings: bool = False,
 ) -> FastAPI:
+    from argus.agent.settings_runtime import default_settings
+
+    settings = SettingsStore(
+        None if public_settings else settings_path or local_settings_path(source), default_settings()
+    )
+    if not public_settings and isinstance(source, LiveSource):
+        source.configure_settings(settings)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         restore = end_streams_on_exit(source.bus)
@@ -108,7 +125,8 @@ def create_app(
         description="The analyst that never sleeps. Contract C5: REST routes plus the SSE stream at /events.",
         lifespan=lifespan,
     )
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PATCH"], allow_headers=["*"])
+    app.include_router(settings_router(source, settings, simulator=public_settings))
     app.include_router(narrator_router(source))
     app.include_router(counterfactual_router(source))
     # a replay server plays the sealed agent presentation; the demo and agent routes share its one clock
@@ -128,6 +146,7 @@ def create_app(
     @app.get("/health")
     def health() -> dict[str, Any]:
         last = hub.history[-1] if hub.history else None
+        thresholds = settings.read().thresholds if source.mode == "live" and not public_settings else None
         return {
             "status": "ok",
             "mode": source.mode,
@@ -137,7 +156,11 @@ def create_app(
             "last_seq": hub.last_seq,
             "sim_ts": last.sim_ts.isoformat() if last else None,
             "run": source.status(),
-            "thresholds": {"alarm_z": ALARM_Z, "pair_z": PAIR_Z, "wiggle_z": WIGGLE_Z},
+            "thresholds": {
+                "alarm_z": thresholds.alarm_z if thresholds else ALARM_Z,
+                "pair_z": thresholds.pair_z if thresholds else PAIR_Z,
+                "wiggle_z": thresholds.wiggle_z if thresholds else WIGGLE_Z,
+            },
             **source.describe(),
         }
 
