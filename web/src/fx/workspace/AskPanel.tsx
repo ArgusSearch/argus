@@ -14,6 +14,7 @@ import { AgentReceiptChips, useOpenReceipt } from "../../components/Receipts";
 import { agentApi, type ActivityRecord, type AskAnswer, type ReceiptLink } from "../../lib/agent";
 import { ApiError } from "../../lib/api";
 import { useAgentDemo } from "../../lib/agentDemo";
+import { monitoringText } from "../../lib/format";
 import { AvatarSlot } from "./AvatarSlot";
 import { activityAvatarRole } from "../../village/avatars/state";
 import { useAgent, type AgentState } from "./agent";
@@ -50,22 +51,22 @@ function Tagged({ text, links }: { text: string; links: Map<string, ReceiptLink>
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(TAG)) {
-    out.push(text.slice(last, m.index));
+    out.push(monitoringText(text.slice(last, m.index)));
     const link = links.get(m[1]);
     out.push(
       link ? (
-        <button key={`${m.index}`} className="rcpt" title={`Open the query behind this number (${link.run_id})`} onClick={() => openReceipt(link)}>
-          {m[1]}
+        <button key={`${m.index}`} className="rcpt" title="Open the query behind this number" onClick={() => openReceipt(link)}>
+          View query
         </button>
       ) : (
         <span key={`${m.index}`} className="muted mono">
-          [{m[1]}]
+          [Query unavailable]
         </span>
       ),
     );
     last = (m.index ?? 0) + m[0].length;
   }
-  out.push(text.slice(last));
+  out.push(monitoringText(text.slice(last)));
   return <>{out}</>;
 }
 

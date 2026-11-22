@@ -37,10 +37,10 @@ for (const viewport of VIEWPORTS) {
       await shot(1, "mid-run");
       await replay(request, { speed: 8 });
 
-      // 2. INC-0001 explained (the toast announces it)
+      // 2. The incident is explained (the toast announces it).
       const card = incidentCard(page);
       await expect(card.locator(".pill.SUPPORTED_CAUSE")).toBeVisible({ timeout: 90_000 });
-      await expect(page.getByRole("status")).toContainText("INC-0001 explained", { timeout: 10_000 });
+      await expect(page.getByRole("status").filter({ hasText: "Incident explained" })).toBeVisible();
       await shot(2, "inc-0001-explained");
 
       // 3. the incident sheet
@@ -50,9 +50,8 @@ for (const viewport of VIEWPORTS) {
 
       // 4. a receipt drawer over the sheet
       const num = sheet.locator("button.num").first();
-      const id = /receipt (r\d+)/.exec((await num.getAttribute("title")) ?? "")?.[1];
       await num.click();
-      const drawer = page.getByRole("dialog", { name: `Receipt ${id}` });
+      const drawer = page.getByRole("dialog", { name: "Evidence query" });
       await expect(drawer.locator("pre.sql")).toContainText("SELECT");
       await page.waitForTimeout(500);
       await shot(4, "receipt-drawer");

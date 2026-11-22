@@ -4,8 +4,7 @@ import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
 import { go } from "../fx/nav";
 import { staticReplay } from "../lib/deployment";
-import { ArgusVillage } from "./ArgusVillage";
-import { useAgent } from "../fx/workspace/agent";
+import { CurrentVillage } from "./CurrentVillage";
 
 export interface VillageProps {
   graph: Graph | null;
@@ -13,10 +12,8 @@ export interface VillageProps {
   onSelectNode: (id: string) => void;
 }
 
-export default function Village(_props: VillageProps) {
-  const agent = useAgent();
-  const liveAvatars = agent.enabled && !agent.scope?.startsWith("demo:") ? agent.avatars : undefined;
-  return <ArgusVillage onMetricMap={staticReplay ? undefined : () => go("graph")} liveAvatars={liveAvatars} onLiveDecision={agent.refresh} />;
+export default function Village({ graph }: VillageProps) {
+  return <CurrentVillage graph={graph} onMetricMap={staticReplay ? undefined : () => go("graph")} />;
 }
 
 export { Village };

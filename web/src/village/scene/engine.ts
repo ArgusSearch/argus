@@ -490,16 +490,16 @@ export class VillageEngine {
       this.file.place(p, 0.25 + Math.sin(carrier[1].phase) * 0.12, 1);
       this.file.setColor("#7cc4ff", 2);
       if (motion) this.trail(p, "#8fd0ff");
-    } else if (slot?.beat.caseId && !(slot.beat.kind === "lifecycle" && slot.beat.done.endsWith("closed"))) {
-      const id = slot.beat.role;
+    } else if (state?.beat?.caseId && !(state.beat.kind === "lifecycle" && state.beat.done.endsWith("closed"))) {
+      const id = state.beat.role;
       const r = ROLE[id];
       const desk = new Vector3(r.x - 0.62, SEAT.deskTop + 0.12 + Math.sin(this.time * 2) * 0.035, r.z + SEAT.desk.z - 0.05);
       if (gate) desk.set(POST.x, 1.3 + Math.sin(this.time * 2) * 0.05, POST.z);
       // it pops as it lands, then floats over the desk turning slowly
-      const since = slot.from ? t - slot.start - TRAVEL : Infinity;
+      const since = slot?.from ? t - slot.start - TRAVEL : Infinity;
       const pop = motion && since >= 0 && since < 0.5 ? Math.sin((since / 0.5) * Math.PI) * (1 - since / 0.5) * 0.9 : 0;
       this.file.place(desk, 0, 1, 1 + pop, motion ? Math.sin(this.time * 0.7) * 0.35 : 0);
-      this.file.setColor(gate ? "#ff8a6a" : slot.beat.outcome === "alarm" ? "#ff7a6a" : "#7cc4ff", gate ? 2.2 + Math.sin(this.time * 4) * 0.6 : 1.8);
+      this.file.setColor(gate ? "#ff8a6a" : state.beat.outcome === "alarm" ? "#ff7a6a" : "#7cc4ff", gate ? 2.2 + Math.sin(this.time * 4) * 0.6 : 1.8);
       this.trailFrom = null;
     } else {
       this.file.place(this.file.group.position, 0, 0);

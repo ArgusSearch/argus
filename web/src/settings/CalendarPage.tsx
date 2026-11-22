@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ReceiptChips } from "../components/Receipts";
+import { useAppState } from "../lib/AppState";
 import { dayLabel, hhmm, pct } from "../lib/format";
 import { AGENT_ROLES } from "../lib/agent";
 import type { RunView } from "../lib/store";
@@ -23,14 +24,14 @@ function firstPick(entries: CalendarEntry[]): string | null {
 
 export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunView }) {
   const agent = useAgent();
+  const { monitor } = useAppState();
   const entries = useMemo(() => calendarEntries(view, graph, agent.proposals), [view, graph, agent.proposals]);
-  const now = view.simTs;
+  const now = monitor.time;
   const [weekStart, setWeekStart] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  // Open on the latest held alert even after the run clock moves into a different week.
-  const featured = entries.findLast((entry) => entry.plan?.note);
-  const runDate = now ?? entries.at(-1)?.ts ?? new Date().toISOString();
-  const week = weekOf(weekStart ?? featured?.ts ?? runDate);
+  const [initialDate] = useState(() => new Date().toISOString());
+  const runDate = now ?? initialDate;
+  const week = weekOf(weekStart ?? runDate);
   const inWeek = entries.filter((e) => week.includes(e.ts.slice(0, 10)));
   const selected = inWeek.find((e) => e.id === picked) ?? inWeek.find((e) => e.id === firstPick(inWeek)) ?? null;
   const plans = inWeek.filter((e) => e.lane === "plan");
@@ -46,8 +47,8 @@ export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunVi
             <Btn onClick={() => setWeekStart(shiftWeek(week, -1)[0])} title="Previous week">
               <Chevron />
             </Btn>
-            <Btn onClick={() => setWeekStart(weekOf(runDate)[0])} title="The week of the run's current hour">
-              Run week
+            <Btn onClick={() => setWeekStart(null)} title="The week of the shop's current hour">
+              Current week
             </Btn>
             <Btn onClick={() => setWeekStart(shiftWeek(week, 1)[0])} title="Next week">
               <Chevron next />
@@ -61,7 +62,7 @@ export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunVi
             {plans.length} logged {plans.length === 1 ? "change" : "changes"} seen
           </Badge>
           <Badge tone={held ? "ok" : "muted"}>{held} held back as planned</Badge>
-          {now && <Badge>Run clock {dayLabel(now)} {hhmm(now)}</Badge>}
+          {monitor.timeLabel && <Badge>Shop time {monitor.timeLabel}</Badge>}
         </div>
       </PageHead>
 
@@ -73,7 +74,7 @@ export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunVi
                 <span className="cs-overline">Lane</span>
               </div>
               {week.map((d) => (
-                <div key={d} role="columnheader" className={`cs-cal-day${(selected?.ts ?? now)?.startsWith(d) ? " today" : ""}`}>
+                <div key={d} role="columnheader" className={`cs-cal-day${now?.startsWith(d) ? " today" : ""}`}>
                   <span>{weekday(d)}</span>
                   <b>{dayNum(d)}</b>
                 </div>
@@ -100,7 +101,7 @@ export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunVi
                 {week.map((d) => {
                   const here = inWeek.filter((e) => e.lane === lane && e.ts.startsWith(d));
                   return (
-                    <div key={d} role="cell" className={`cs-cal-cell${(selected?.ts ?? now)?.startsWith(d) ? " today" : ""}`}>
+                    <div key={d} role="cell" className={`cs-cal-cell${now?.startsWith(d) ? " today" : ""}`}>
                       {here.slice(0, VISIBLE_PER_CELL).map((entry) => <Event key={entry.id} entry={entry} selected={selected?.id === entry.id} onPick={setPicked} />)}
                       {here.length > VISIBLE_PER_CELL && (
                         <details className="cs-cal-more">

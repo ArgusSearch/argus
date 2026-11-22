@@ -11,7 +11,7 @@ import { useAgent } from "../../fx/workspace/agent";
 import { incidentWhere, metricName, STATE, VERDICT, wherePhrase } from "../../fx/workspace/plain";
 import { Pill, useIncident } from "../../fx/workspace/ui";
 import { useAgentDemo } from "../../lib/agentDemo";
-import { dayLabel, eur, hhmm, humanize, share } from "../../lib/format";
+import { dayLabel, eur, hhmm, humanize, monitoringText, share } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { ProposalView } from "../../lib/agent";
 import type { Anomaly, Graph, Incident, Quantity, Verdict } from "../../lib/types";
@@ -64,7 +64,7 @@ function LiveFixWorkspace({ view, graph = null, incidentId, runId, onSelectRun, 
     <section className="lf" aria-label="Live Fix" data-mobile-view={mobileView}>
       <header className="lf-header">
         <div><h1>Live Fix</h1>{source && <span className="lf-source mono">{source}</span>}</div>
-        <span className="lf-incident-id mono">{subject ?? thread?.id}</span>
+        <span className="lf-incident-id mono">{subject ? "Incident investigation" : thread ? monitoringText(thread.title) : null}</span>
         <nav aria-label="Live Fix panels" className="lf-mobile-nav">
           {[["work", "Work"], ["runs", "Runs"], ["insights", "Insights"]].map(([id, label]) => (
             <button type="button" className="btn" aria-pressed={mobileView === id} key={id} onClick={() => setMobileView(id)}>{label}</button>
@@ -101,8 +101,8 @@ function Threads({ threads, selected, onSelect }: { threads: LiveFixThread[]; se
             <ul>{visible.map((thread) => (
               <li key={thread.id}>
                 <button type="button" className="lf-thread" aria-current={selected === thread.id ? "true" : undefined} onClick={() => onSelect(thread.id)}>
-                  <strong>{thread.title}</strong>
-                  <span className="lf-thread-meta mono"><span>{thread.id}</span>{thread.at && <time dateTime={thread.at}>{hhmm(thread.at)}</time>}</span>
+                  <strong>{monitoringText(thread.title)}</strong>
+                  <span className="lf-thread-meta mono">{thread.at && <time dateTime={thread.at}>{dayLabel(thread.at)} {hhmm(thread.at)}</time>}</span>
                   {thread.state !== "settled" && <small>{thread.state}</small>}
                 </button>
               </li>
@@ -160,7 +160,7 @@ function Investigation({ thread, incident, incidentId, incidentError, graph, vie
             {thread && <RunWork thread={thread} roles={roles} clockId={clockId} />}
             {line && clockId && <div className="lf-live" role="status">
               <AgentAvatar role={line.role} status="working" size={32} badge={false} />
-              <div><strong>{line.verb}</strong>{line.text && <p>{line.text}</p>}</div>
+              <div><strong>{humanize(line.verb)}</strong>{line.text && <p>{monitoringText(line.text)}</p>}</div>
               <span className="mono" title="Time observed in this browser">Watching for <Elapsed id={clockId} live /></span>
             </div>}
           </Transcript>
@@ -243,7 +243,7 @@ function RunWork({ thread, roles, clockId }: { thread: LiveFixThread; roles: Ret
             if (!record.text && !record.receipt_links.length) return null;
             return <li className="lf-record" key={step.key}>
               <span className="mono">{hhmm(record.sim_ts)} UTC · {humanize(record.kind)}</span>
-              <p>{record.text}</p>
+              <p>{monitoringText(record.text)}</p>
               <AgentReceiptChips links={record.receipt_links} max={record.receipt_links.length} />
             </li>;
           })}

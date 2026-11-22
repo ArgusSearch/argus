@@ -2,11 +2,14 @@
 // the query, the result, the decision and its receipts; next to it the case file (where, suspects, verdict).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Num, ReceiptChips } from "../components/Receipts";
-import { dayLabel, hhmm, segmentLabel } from "../lib/format";
+import { AgentReceiptChips, Num, ReceiptChips } from "../components/Receipts";
+import { useAgent } from "../fx/workspace/agent";
+import { useAppState } from "../lib/AppState";
+import type { ActivityRecord } from "../lib/agent";
+import { dayLabel, hhmm, humanize, monitoringText, segmentLabel } from "../lib/format";
 import { isRuledOut, type RunView, type StepView } from "../lib/store";
 import type { Graph, Quantity } from "../lib/types";
-import { investigations, nodeLabel } from "./model";
+import { nodeLabel } from "./model";
 import { breadcrumb, chapters, CHAPTER_TITLE, scopeLabel, spreadOf, stepQuestion, suspects, verdictOf } from "./investigation";
 
 interface Props {
@@ -42,31 +45,31 @@ function StepCard({ s, latest }: { s: StepView; latest: boolean }) {
       <div className="iv-step-body">
         <div className="iv-step-head">
           <h4>{stepQuestion(step)}</h4>
-          <span className="iv-tool mono" title="the C6 tool the investigator called">
-            {step.tool}
+          <span className="iv-tool mono">
+            {humanize(step.tool)}
           </span>
           <span className="iv-time mono">{hhmm(s.simTs)}</span>
         </div>
         {step.hypothesis && (
           <div className="iv-hyp">
             <label>Suspect</label>
-            <span className={refuted ? "struck" : undefined}>{step.hypothesis}</span>
+            <span className={refuted ? "struck" : undefined}>{monitoringText(step.hypothesis)}</span>
           </div>
         )}
         {step.prediction && (
           <div className="iv-pred">
             <label>Prediction, written before the query</label>
-            <span>{step.prediction}</span>
+            <span>{monitoringText(step.prediction)}</span>
           </div>
         )}
-        <div className="iv-result">{step.kind === "verdict" ? (VERDICT_TEXT[step.result] ?? step.result) : step.result}</div>
+        <div className="iv-result">{monitoringText(step.kind === "verdict" ? (VERDICT_TEXT[step.result] ?? step.result) : step.result)}</div>
         <div className={`iv-decision${refuted ? " refuted" : kept ? " kept" : ""}`}>
           <span className="iv-mark" aria-hidden>
             {refuted ? "✗" : kept ? "✓" : "→"}
           </span>
           <span>
-            {step.decision}
-            {step.why && <span className="muted"> · {step.why}</span>}
+            {monitoringText(step.decision)}
+            {step.why && <span className="muted"> · {monitoringText(step.why)}</span>}
           </span>
         </div>
         {step.receipts.length > 0 && (
@@ -79,11 +82,47 @@ function StepCard({ s, latest }: { s: StepView; latest: boolean }) {
   );
 }
 
+function AgentChecks({ records }: { records: ActivityRecord[] }) {
+  if (!records.length) return null;
+  return (
+    <div className="iv-chapter">
+      <div className="iv-chapter-title">Agent checks</div>
+      {records.map((record) => (
+        <article className="iv-step" key={record.seq}>
+          <div className="iv-step-body">
+            <div className="iv-step-head">
+              <h4>{record.tool ? humanize(record.tool) : "Investigation update"}</h4>
+              <span className="iv-time mono">{hhmm(record.sim_ts)}</span>
+            </div>
+            <div className="iv-result">{monitoringText(record.observation?.summary || record.text)}</div>
+            <AgentReceiptChips links={record.receipt_links.length ? record.receipt_links : record.observation?.receipt_refs ?? []} />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }: Props) {
-  const list = investigations(view);
+  const { monitor } = useAppState();
+  const agent = useAgent();
   const [picked, setPicked] = useState<string | null>(null);
-  const current = list.find((i) => i.anomalyId === picked) ?? list[list.length - 1] ?? null;
-  const steps = useMemo(() => (current ? view.steps.filter((s) => s.anomalyId === current.anomalyId) : []), [view.steps, current]);
+  const currentId = monitor.investigating?.id ?? monitor.runningInvestigation?.anomaly_id;
+  const start = currentId ? view.anomalies.find((a) => a.id === currentId) : undefined;
+  const list = start && !monitor.cases.some((item) => item.anomalyId === start.id)
+    ? [...monitor.cases, { anomalyId: start.id, node: start.node, incidentId: monitor.runningInvestigation?.incident_id ?? null, steps: 0 }]
+    : monitor.cases;
+  const defaultCase = list.find((i) => i.anomalyId === currentId) ?? list.at(-1);
+  const current = list.find((i) => i.anomalyId === picked) ?? defaultCase;
+  const steps = useMemo(() => (current ? view.steps.filter((s) => s.anomalyId === current.anomalyId) : []), [view.steps, current?.anomalyId]);
+  const relevantRun = current
+    ? agent.runs.findLast((run) => run.kind === "investigate" && (run.anomaly_id === current.anomalyId
+      || (current.incidentId && run.incident_id === current.incidentId)))
+    : monitor.runningInvestigation;
+  const records = relevantRun
+    ? agent.records.filter((r) => r.run_id === relevantRun.run_id && (r.kind === "tool_call" || r.kind === "tool_result" || r.kind === "report"))
+    : [];
+  const working = current ? current.anomalyId === currentId : monitor.activeInvestigation;
   const anomaly = current ? view.anomalies.find((a) => a.id === current.anomalyId) : undefined;
   const incident = current?.incidentId ? view.incidents[current.incidentId] : undefined;
   const skeptic = current?.incidentId ? view.skeptic.filter((k) => k.incident_id === current.incidentId) : [];
@@ -93,23 +132,24 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
   // no segment path: the change is spread over the scope of the cause that was kept (S4: country DE, FR)
   const spread = spreadOf(suspectList);
   const verdict = verdictOf(trail);
-  const latestSeq = steps.length ? steps[steps.length - 1].seq : -1;
+  const latestSeq = steps.at(-1)?.seq;
+  const latestAgentSeq = records.at(-1)?.seq;
   const end = useRef<HTMLDivElement>(null);
   const following = picked === null;
 
   // a running investigation keeps its newest step in view
   useEffect(() => {
     if (following) end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [latestSeq, following]);
+  }, [latestSeq, latestAgentSeq, following]);
 
   if (!current || !anomaly) {
     return (
       <section className="vw iv" aria-label="investigation">
         <div className="vw-empty">
-          <div className="vw-empty-title">No investigation yet</div>
-          Argus scores the ★ metrics against the same hour of the last four weeks, every hour. The first anomaly opens an investigation here by
-          itself, with no one asking.
+          <div className="vw-empty-title">{working ? "Investigating a metric change" : "No investigation yet"}</div>
+          {working ? "Argus is checking what changed." : "Argus checks your key metrics every hour. Investigations appear here when a metric moves outside its usual range."}
         </div>
+        <AgentChecks records={records} />
       </section>
     );
   }
@@ -124,16 +164,16 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
           {incident && (
             <>
               <div className="iv-meta">
-                {incident.title} · {incident.state}
+                {monitoringText(incident.title)} · {incident.state}
               </div>
               <button className="btn primary" onClick={() => onOpenIncident(incident.id)}>
-                Open the report · {incident.id}
+                Open the incident report
               </button>
             </>
           )}
         </>
       ) : (
-        <div className="muted">Not decided yet. Argus stops when the evidence explains at least 80% of the change.</div>
+        <div className="muted">{working ? "Argus is still checking the evidence." : "No verdict was filed for this investigation."}</div>
       )}
     </div>
   );
@@ -142,10 +182,10 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
       <div className="vw-bar">
         <div>
           <h2 className="vw-title">
-            Investigation <span className="mono muted">{current.anomalyId}</span>
+            Investigation <span className="mono muted">{nodeLabel(graph, anomaly.node)}</span>
           </h2>
           <p className="vw-sub">
-            A fixed playbook, then the suspects. Every prediction is written down before its query runs; every number opens its SQL.
+            Follow the checks, possible causes and evidence behind a metric change.
           </p>
         </div>
         <span className="tv-fill" />
@@ -157,9 +197,9 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
                 role="tab"
                 aria-selected={i.anomalyId === current.anomalyId}
                 className={`chip-btn${i.anomalyId === current.anomalyId ? " on" : ""}`}
-                onClick={() => setPicked(i.anomalyId === list[list.length - 1].anomalyId ? null : i.anomalyId)}
+                onClick={() => setPicked(i.anomalyId === defaultCase?.anomalyId ? null : i.anomalyId)}
               >
-                {i.incidentId ?? i.anomalyId} · {nodeLabel(graph, i.node)}
+                {nodeLabel(graph, i.node)} · {hhmm(view.anomalies.find((a) => a.id === i.anomalyId)?.detected_at)}
               </button>
             ))}
           </div>
@@ -171,7 +211,7 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
             <div key={`${g.chapter}-${i}`} className={`iv-chapter c-${g.chapter}`}>
               <div className="iv-chapter-title">{CHAPTER_TITLE[g.chapter]}</div>
               {g.steps.map((s) => (
-                <StepCard key={s.seq} s={s} latest={s.seq === latestSeq && !verdict} />
+                <StepCard key={s.seq} s={s} latest={s.seq === latestSeq && working && !verdict} />
               ))}
             </div>
           ))}
@@ -194,7 +234,8 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
               ))}
             </div>
           )}
-          {!verdict && (
+          <AgentChecks records={records} />
+          {working && (
             <div className="iv-working" role="status">
               <span className="iv-spinner" aria-hidden />
               Working on the next check…
@@ -235,7 +276,7 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
             {crumbs.crumbs.length ? (
               <nav className="iv-crumbs" aria-label="root-cause path">
                 <button className="iv-crumb node" onClick={() => onSelectNode(anomaly.node)}>
-                  {anomaly.node}
+                  {nodeLabel(graph, anomaly.node)}
                 </button>
                 {crumbs.crumbs.map((c) => (
                   <span key={`${c.dim}-${c.value}`} className="iv-crumb-wrap">

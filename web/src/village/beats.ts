@@ -5,7 +5,7 @@
 import { segmentLabel } from "../lib/format";
 import type { ArgusEvent, IncidentUpdatedPayload, TrailStep } from "../lib/types";
 import type { RoleId } from "./roles";
-import type { ActivityRecord, Decision, ProposalView, TapeIncident, TapePart, TapePlacement, VillageTape } from "./types";
+import type { ActivityRecord, Decision, ProposalView, ReceiptLink, TapeIncident, TapePart, TapePlacement, VillageTape } from "./types";
 
 export type Outcome = "ok" | "kept" | "refuted" | "alarm" | "info" | "wait" | "denied";
 
@@ -19,6 +19,8 @@ export interface LogEntry {
   hypothesis: string | null;
   outcome: Outcome;
   receipts: string[];
+  linkedReceipts?: boolean;
+  agentReceipts?: ReceiptLink[];
 }
 
 export type BeatKind =

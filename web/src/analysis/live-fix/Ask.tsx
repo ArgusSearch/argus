@@ -6,6 +6,7 @@ import { CheckRow } from "../../agent-ui/RunLog";
 import { AgentReceiptChips, useOpenReceipt } from "../../components/Receipts";
 import { agentApi, type ActivityRecord, type AskAnswer, type ReceiptLink } from "../../lib/agent";
 import { ApiError } from "../../lib/api";
+import { monitoringText } from "../../lib/format";
 import { AgentAvatar } from "../../village/avatars";
 import { uniqueReceipts } from "./model";
 
@@ -28,11 +29,11 @@ function AnswerBody({ answer, records }: { answer: AskAnswer; records: ActivityR
     let offset = 0;
     for (const match of body.matchAll(/\[([a-z]\d+)\]/g)) {
       const link = receipts.find((receipt) => receipt.receipt_id === match[1]) ?? links.get(match[1]);
-      pieces.push(body.slice(offset, match.index));
-      pieces.push(link ? <button key={match.index} className="rcpt" type="button" aria-label={`Open receipt ${link.receipt_id}`} onClick={() => open(link)}>{link.receipt_id}</button> : match[0]);
+      pieces.push(monitoringText(body.slice(offset, match.index)));
+      pieces.push(link ? <button key={match.index} className="rcpt" type="button" onClick={() => open(link)}>View query</button> : "[Query unavailable]");
       offset = match.index + match[0].length;
     }
-    pieces.push(body.slice(offset));
+    pieces.push(monitoringText(body.slice(offset)));
     return pieces;
   };
   return (

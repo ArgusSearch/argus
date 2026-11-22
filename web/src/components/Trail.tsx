@@ -1,7 +1,8 @@
 // The live investigation: a fixed playbook, each step with its prediction, result, decision and receipts.
 
 import { Fragment, useEffect, useRef } from "react";
-import { hhmm, humanize, verdictLabel } from "../lib/format";
+import { useAppState } from "../lib/AppState";
+import { hhmm, humanize, monitoringText, verdictLabel } from "../lib/format";
 import { isRuledOut, type RunView } from "../lib/store";
 import { ReceiptChips } from "./Receipts";
 
@@ -19,12 +20,12 @@ const PLAYBOOK: [string, string][] = [
 ];
 
 export function Trail({ view }: { view: RunView }) {
+  const { monitor } = useAppState();
   const anomaly = view.anomalies[view.anomalies.length - 1];
   const steps = anomaly ? view.steps.filter((s) => s.anomalyId === anomaly.id) : [];
   const skeptic = steps.length ? view.skeptic.filter((s) => s.incident_id === steps[0].incidentId) : [];
   const done = new Set(steps.map((s) => s.step.kind));
-  const finished = done.has("verdict");
-  const current = finished ? null : (steps[steps.length - 1]?.step.kind ?? (anomaly ? "freshness" : null));
+  const current = monitor.investigating ? (steps.at(-1)?.step.kind ?? "freshness") : null;
   const scroller = useRef<HTMLDivElement>(null);
   const total = steps.length + skeptic.length;
 
@@ -65,14 +66,14 @@ export function Trail({ view }: { view: RunView }) {
                   <span className="tstep-n">{step.step}</span>
                   <span className="tstep-kind">{humanize(step.kind)}</span>
                   <span className="mono" style={{ marginLeft: "auto" }}>
-                    {step.tool}
+                    {humanize(step.tool)}
                   </span>
                 </div>
-                {step.prediction && <div className="tstep-pred">Predicts: {step.prediction}</div>}
-                <div className="tstep-result">{verdictLabel(step.result)}</div>
+                {step.prediction && <div className="tstep-pred">Predicts: {monitoringText(step.prediction)}</div>}
+                <div className="tstep-result">{monitoringText(verdictLabel(step.result))}</div>
                 <div className={`tstep-decision${refuted ? " refuted" : ""}`}>
                   <span>{refuted ? "✗" : "→"}</span>
-                  <span>{step.decision}</span>
+                  <span>{monitoringText(step.decision)}</span>
                 </div>
                 <ReceiptChips ids={step.receipts} />
               </article>
@@ -87,14 +88,14 @@ export function Trail({ view }: { view: RunView }) {
                   refute
                 </span>
               </div>
-              <div className="tstep-pred">{s.check}</div>
-              <div className="tstep-result">{s.result}</div>
+              <div className="tstep-pred">{monitoringText(s.check)}</div>
+              <div className="tstep-result">{monitoringText(s.result)}</div>
               <ReceiptChips ids={s.receipts} />
             </article>
           ))}
         </div>
       ) : anomaly ? (
-        <div className="trail-empty">Opening the investigation…</div>
+        <div className="trail-empty">{monitor.investigating ? "Opening the investigation…" : "No checks were logged for this alert."}</div>
       ) : (
         <Watchlist view={view} />
       )}

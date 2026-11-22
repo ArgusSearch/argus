@@ -6,11 +6,11 @@
 import "./agent-ui.css";
 import { memo } from "react";
 import { AgentReceiptChips } from "../components/Receipts";
+import { useAgentAvatars } from "../lib/AppState";
 import type { ActivityKind, ActivityRecord, ProposalView } from "../lib/agent";
-import { hhmm, humanize } from "../lib/format";
+import { hhmm, humanize, monitoringText } from "../lib/format";
 import { Proposal } from "../fx/workspace/ActionCard";
 import { AvatarSlot } from "../fx/workspace/AvatarSlot";
-import { useAgent } from "../fx/workspace/agent";
 import { activityAvatarRole } from "../village/avatars/state";
 import { VERDICT, type Tone } from "../fx/workspace/plain";
 import { Pill } from "../fx/workspace/ui";
@@ -80,7 +80,7 @@ function ModelCost({ r }: { r: ActivityRecord }) {
 
 /** A check and its result as one row: what was suspected, what would follow, what came back. */
 export const CheckRow = memo(function CheckRow({ check, time = true }: { check: CheckStep; time?: boolean }) {
-  const current = useAgent().avatars[check.role];
+  const current = useAgentAvatars()[check.role];
   const { call, result } = check;
   const cue = current && (current.key === call?.seq || current.key === result?.seq) ? current : undefined;
   const o = call?.observation ?? result?.observation ?? null;
@@ -101,27 +101,27 @@ export const CheckRow = memo(function CheckRow({ check, time = true }: { check: 
       <div className="ag-body">
         <span className="ag-kind">
           <Pill tone="probe">Check</Pill>
-          <span className="mono au-tool">{check.tool}</span>
+          <span className="mono au-tool">{humanize(check.tool)}</span>
           {outcome ? <Pill tone={outcomeTone(outcome)}>{humanize(outcome)}</Pill> : running && <span className="au-running">running</span>}
         </span>
-        {call?.text && call.text !== o?.prediction && <p className="ag-text">{call.text}</p>}
+        {call?.text && call.text !== o?.prediction && <p className="ag-text">{monitoringText(call.text)}</p>}
         {o && (o.hypothesis || o.prediction) && (
           <p className="ag-pred">
             {o.hypothesis && (
               <>
                 <span>Suspect</span>
-                {o.hypothesis}
+                {monitoringText(o.hypothesis)}
               </>
             )}
             {o.prediction && (
               <>
                 <span>If so, then</span>
-                {o.prediction}
+                {monitoringText(o.prediction)}
               </>
             )}
           </p>
         )}
-        {result && (result.text || result.observation?.summary) && <p className="ag-text au-result">{result.text || result.observation?.summary}</p>}
+        {result && (result.text || result.observation?.summary) && <p className="ag-text au-result">{monitoringText(result.text || result.observation?.summary || "")}</p>}
         {(links.length > 0 || call?.model) && (
           <span className="ag-meta">
             <AgentReceiptChips links={links} />
@@ -136,9 +136,9 @@ export const CheckRow = memo(function CheckRow({ check, time = true }: { check: 
 /** Any other step: what the model said, what the gate did, what was proposed or decided. */
 function RecordRow({ r, proposal }: { r: ActivityRecord; proposal: ProposalView | null }) {
   const role = activityAvatarRole(r);
-  const current = useAgent().avatars[role];
+  const current = useAgentAvatars()[role];
   const cue = current?.key === r.seq ? current : undefined;
-  const k = KIND[r.kind];
+  const k = KIND[r.kind] ?? { word: humanize(String(r.kind)), tone: "muted" };
   if (r.kind === "action_proposed" && proposal) return <ApprovalRow proposal={proposal} at={r.sim_ts} />;
   return (
     <li className={`au-step k-${r.kind}`}>
@@ -148,9 +148,9 @@ function RecordRow({ r, proposal }: { r: ActivityRecord; proposal: ProposalView 
         <span className="ag-kind">
           <Who actor={r.actor} />
           <Pill tone={k.tone}>{k.word}</Pill>
-          {r.tool && <span className="mono au-tool">{r.tool}</span>}
+          {r.tool && <span className="mono au-tool">{humanize(r.tool)}</span>}
         </span>
-        {r.text && <p className="ag-text">{r.text}</p>}
+        {r.text && <p className="ag-text">{monitoringText(r.text)}</p>}
         {(r.receipt_links.length > 0 || r.model || (r.incident_id && LINKED.has(r.kind))) && (
           <span className="ag-meta">
             <AgentReceiptChips links={r.receipt_links} />
@@ -194,7 +194,7 @@ function StepRow({ step, proposals }: { step: Step; proposals: ProposalView[] })
 
 /** The faces of the roles that worked on a run, overlapping like a group chat's avatars. */
 function Faces({ group, live }: { group: RunGroup; live: boolean }) {
-  const { avatars } = useAgent();
+  const avatars = useAgentAvatars();
   const roles = group.roles.slice(0, 4);
   return (
     <span className="au-faces" aria-hidden="true">
@@ -209,13 +209,13 @@ function Faces({ group, live }: { group: RunGroup; live: boolean }) {
 function LiveRow({ group, clockId }: { group: RunGroup; clockId: string }) {
   const now = liveLine(group);
   const role = activityAvatarRole(group.records[group.records.length - 1]);
-  const current = useAgent().avatars[role];
+  const current = useAgentAvatars()[role];
   return (
     <div className="au-live" aria-live="polite">
       <AvatarSlot role={role} size="md" nameplate cue={current?.runId === group.runId ? current : undefined} />
       <span className="au-live-text">
-        <b className="au-shine">{now.verb}</b>
-        {now.text && <span>{now.text}</span>}
+        <b className="au-shine">{humanize(now.verb)}</b>
+        {now.text && <span>{monitoringText(now.text)}</span>}
       </span>
       <span className="au-live-time">
         Working for <Elapsed id={clockId} live />
@@ -253,7 +253,6 @@ export const RunGroupView = memo(function RunGroupView({ group, clockId, live, o
         <Faces group={group} live={live} />
         <span className="au-title">
           <b>{GROUP_TITLE[group.kind]}</b>
-          {group.runId && <span className="mono">{group.runId}</span>}
         </span>
         <span className="au-sum">{groupSummary(group, live)}</span>
         <span className="au-side">

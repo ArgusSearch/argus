@@ -9,12 +9,12 @@ export interface AutonomyCount {
   value: number;
 }
 
-export function autonomyCounts(view: RunView): AutonomyCount[] {
+export function autonomyCounts(view: RunView, investigationCount = investigations(view).length): AutonomyCount[] {
   return [
     { key: "hours", label: view.ticks === 1 ? "hour watched" : "hours watched", value: view.ticks },
     { key: "edges", label: view.edgeChanges.length === 1 ? "edge test" : "edge tests", value: view.edgeChanges.length },
     { key: "anomalies", label: view.anomalies.length === 1 ? "anomaly" : "anomalies", value: view.anomalies.length },
-    { key: "investigations", label: "investigated", value: investigations(view).length },
+    { key: "investigations", label: "investigated", value: investigationCount },
     { key: "incidents", label: Object.keys(view.incidents).length === 1 ? "incident" : "incidents", value: Object.keys(view.incidents).length },
     { key: "notes", label: "didn't wake you", value: view.notes.length },
   ];

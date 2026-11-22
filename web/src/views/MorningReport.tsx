@@ -2,16 +2,18 @@
 // change Argus deliberately did not wake anyone for. Every number keeps its receipt.
 
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { analysisWindow, visibleFindings } from "../analysis/pages/model";
 import { Segments } from "../components/Feed";
 import { AgentReceiptChips, Num, ReceiptChips, useOpenReceipt } from "../components/Receipts";
 import { demoMorningReport, useAgentDemo, type NarratorReceipt, type NarratorReport } from "../lib/agentDemo";
 import { api, type Digest, type DigestLine } from "../lib/api";
-import { dayLabel, eur, hhmm, impactNoun, share } from "../lib/format";
+import { useAppState } from "../lib/AppState";
+import { dayLabel, eur, hhmm, impactNoun, share, timestamp } from "../lib/format";
 import type { RunView } from "../lib/store";
 import type { Graph, Incident, Note } from "../lib/types";
 import { explain, views } from "./data";
 import { parseMarkdown, type Block, type Inline } from "./markdown";
-import { plainWords } from "../fx/workspace/plain";
+import { metricName, plainWords } from "../fx/workspace/plain";
 
 const VERDICT_TEXT: Record<string, string> = {
   SUPPORTED_CAUSE: "Supported cause",
@@ -33,15 +35,15 @@ function Inlines({ parts }: { parts: Inline[] }) {
   return (
     <>
       {parts.map((p, i) => {
-        if (p.t === "code") return <code key={i}>{p.v}</code>;
-        if (p.t === "bold") return <strong key={i}>{p.v}</strong>;
+        if (p.t === "code") return <code key={i}>{plainWords(p.v)}</code>;
+        if (p.t === "bold") return <strong key={i}>{plainWords(p.v)}</strong>;
         if (p.t === "receipt")
           return (
             <button key={i} className="rcpt" title="Open the query behind this number" onClick={() => openReceipt(p.v)}>
-              {p.v}
+              View query
             </button>
           );
-        return <Fragment key={i}>{p.v}</Fragment>;
+        return <Fragment key={i}>{plainWords(p.v)}</Fragment>;
       })}
     </>
   );
@@ -230,7 +232,7 @@ function NarratorChips({ links }: { links: NarratorReceipt[] }) {
       <AgentReceiptChips links={agent} max={4} />
       {run.slice(0, 3).map((l) => (
         <a key={l.id} className="rcpt" href={l.href} target="_blank" rel="noreferrer" title="The run query behind this line (JSON)">
-          {l.id}
+          View query
         </a>
       ))}
     </>
@@ -240,10 +242,10 @@ function NarratorChips({ links }: { links: NarratorReceipt[] }) {
 export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | null; view: RunView; onOpenIncident: (id: string) => void }) {
   // during the agent presentation the report, the incidents and the notes are the presentation's run
   const demo = useAgentDemo();
+  const { monitor } = useAppState();
   const [scopedLinks, setScopedLinks] = useState<Record<string, NarratorReceipt[]> | null>(null);
-  const [digest, setDigest] = useState<Digest | null>(null);
-  const [incidents, setIncidents] = useState<Incident[] | null>(null);
-  const [notes, setNotes] = useState<Note[] | null>(null);
+  const [fetchedDigest, setDigest] = useState<Digest | null>(null);
+  const [fetchedIncidents, setIncidents] = useState<Incident[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // re-read when something the page shows changed: an incident moved, a note arrived, or six more hours passed
@@ -264,7 +266,6 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
           setDigest(d);
           setScopedLinks(d.links);
           setIncidents([...(demoIncidents ?? [])].sort((a, b) => a.opened_at.localeCompare(b.opened_at)));
-          setNotes(view.notes);
           setError(null);
         },
         (e: unknown) => live && setError(explain(e, "The run's morning report")),
@@ -274,12 +275,11 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
       };
     }
     setScopedLinks(null);
-    Promise.all([api.digest(), views.incidents(), views.notes()]).then(
-      ([d, i, n]) => {
+    Promise.all([api.digest(), views.incidents()]).then(
+      ([d, i]) => {
         if (!live) return;
         setDigest(d);
         setIncidents([...i].sort((a, b) => a.opened_at.localeCompare(b.opened_at)));
-        setNotes(n);
         setError(null);
       },
       (e: unknown) => live && setError(explain(e, "The morning report")),
@@ -289,6 +289,10 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
     };
   }, [version, demo?.runId, demoIncidents, reportReady]);
 
+  const digest = fetchedDigest && (!fetchedDigest.until || timestamp(fetchedDigest.until) <= timestamp(monitor.time)) ? fetchedDigest : null;
+  const reportWindow = analysisWindow(monitor.time, "all");
+  const incidents = fetchedIncidents?.filter((incident) => demo || visibleFindings(incident, view.incidents[incident.id], reportWindow));
+  const notes = view.notes;
   const alarm = view.thresholds.alarm_z;
   return (
     <section className="vw mr" aria-label="morning report">
@@ -300,7 +304,7 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
               <h1>{"Since you were away"}</h1>
               <p className="muted">
                 {digest?.since && digest.until
-                  ? `${dayLabel(digest.since)} ${hhmm(digest.since)} to ${dayLabel(digest.until)} ${hhmm(digest.until)} (simulated time)`
+                  ? `Report covers ${dayLabel(digest.since)} ${hhmm(digest.since)} to ${dayLabel(digest.until)} ${hhmm(digest.until)} UTC`
                   : "Everything Argus did on its own, one line each."}
               </p>
             </div>
@@ -349,12 +353,12 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
           {incidents && (
             <>
               <h2 className="mr-h2">
-                Incidents <span className="muted">· {incidents.length}</span>
+                Incidents <span className="muted">· {monitor.incidents.length}</span>
               </h2>
               {incidents.length ? (
                 incidents.map((inc) => <IncidentReport key={inc.id} incident={inc} graph={graph} onOpenIncident={onOpenIncident} demoRun={demo?.runId} />)
               ) : (
-                <div className="mr-quiet">No incident. Nothing crossed the alarm line long enough to page anyone.</div>
+                <div className="mr-quiet">{monitor.incidents.length ? "Loading incident details…" : "No incidents so far."}</div>
               )}
             </>
           )}
@@ -374,13 +378,13 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
                       <article key={note.id} className={`mr-note k-${note.kind}`}>
                         <div className="mr-note-head">
                           <span className="mr-label">{noteLabel(note)}</span>
-                          {note.node && <span className="mono">{note.node}</span>}
+                          {note.node && <span className="mono">{metricName(graph, note.node)}</span>}
                           <span className="tv-fill" />
                           <span className="mono muted">
                             {dayLabel(note.sim_ts)} {hhmm(note.sim_ts)}
                           </span>
                         </div>
-                        <div className="mr-note-reason">{note.reason}</div>
+                        <div className="mr-note-reason">{plainWords(note.reason, graph)}</div>
                         <Segments segment={note.segment} />
                         {values.length > 0 && (
                           <div className="mr-note-nums">

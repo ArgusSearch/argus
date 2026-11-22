@@ -6,6 +6,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "../../fx/tokens.css";
 import { ArgusVillage } from "../ArgusVillage";
+import { initialSource } from "../source";
 
 const style = document.createElement("style");
 style.textContent = "html,body,#village{margin:0;height:100%;background:#a2a8b5}";
@@ -13,6 +14,6 @@ document.head.append(style);
 
 createRoot(document.getElementById("village") as HTMLElement).render(
   <StrictMode>
-    <ArgusVillage onMetricMap={() => alert("The shell opens the metric map here.")} />
+    <ArgusVillage initial={initialSource(location.search)} onMetricMap={() => alert("The shell opens the metric map here.")} />
   </StrictMode>,
 );

@@ -8,16 +8,15 @@ import { analysisHref, followLink, navigateWorkspaceURL, useAnalysisQuery } from
 import { DEFAULT_QUERY } from "../../analysis/shell/query";
 import { Mark } from "../../components/Header";
 import { useAgentDemo } from "../../lib/agentDemo";
+import { AppStateProvider, useAppState } from "../../lib/AppState";
 import { emptyView, type RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
-import { autonomyCounts } from "../../views/autonomy";
-import { investigations } from "../../views/model";
 import { EntryGate } from "../entry/EntryGate";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
 import { useText } from "../../settings/language";
 import { AgentPage } from "./AgentPage";
-import { AgentProvider, useAgent, useHumanActions } from "./agent";
+import { useAgent, useHumanActions } from "./agent";
 import { AskPanel, setAskOpen, useAskOpen } from "./AskPanel";
 import { AgentTeam } from "./AvatarSlot";
 import { IncidentPage } from "./IncidentPage";
@@ -36,11 +35,7 @@ export interface WorkspaceProps {
 /** Renders nothing without the flag; with it, the sidebar and the workspace's pages as items of the app's grid. */
 export function FxWorkspace(props: WorkspaceProps) {
   if (!fxOn()) return null;
-  return (
-    <AgentProvider stream={props.view.stream}>
-      <Workspace {...props} />
-    </AgentProvider>
-  );
+  return <Workspace {...props} />;
 }
 
 /** Lane G's village view, when its folder exists: `web/src/village/Village.tsx`, default (or `Village`) export. */
@@ -79,6 +74,7 @@ export function StaticWorkspace() {
 
   if (section !== "settings" && section !== "calendar" && section !== "village") return <EntryGate />;
   return (
+    <AppStateProvider view={view} graph={null} health={null} connection="offline">
     <div className="app">
       <Sidebar section={section} view={view} recorded />
       {section === "village" ? (
@@ -89,6 +85,7 @@ export function StaticWorkspace() {
         </Suspense>
       )}
     </div>
+    </AppStateProvider>
   );
 }
 
@@ -120,7 +117,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   useEffect(() => watchHost(), []);
   return (
     <>
-      <Sidebar section={section} view={analysis ? analysisView : view} />
+      <Sidebar section={section} view={view} />
       {analysis ? (
         <Suspense fallback={null}>
           <AnalysisShell
@@ -279,10 +276,9 @@ const NAV: NavItem[] = [
 function Sidebar({ section, view, recorded = false }: { section: Section; view: RunView; recorded?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const tr = useText();
-  const counts = autonomyCounts(view);
-  const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
-  const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
-  const open = Object.values(view.incidents).filter((i) => i.state !== "resolved").length;
+  const { monitor } = useAppState();
+  const value = (key: string) => monitor.autonomy.find((count) => count.key === key)?.value ?? 0;
+  const open = monitor.openIncidents.length;
   const query = useAnalysisQuery();
   const analysis = !recorded && section === "dashboard" && query !== null;
   const current = analysis ? "analysis" : section === "incident" ? "incidents" : section;
@@ -389,7 +385,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
                 {item.icon}
               </svg>
               <span>{tr(item.label)}</span>
-              {item.id === "investigation" && running && <i className="fx-side-live" aria-label="investigation running" />}
+              {item.id === "investigation" && monitor.activeInvestigation && <i className="fx-side-live" aria-label="investigation running" />}
               {item.id === "agent" && agent.waiting > 0 && (
                 <em className="fx-side-badge" title="Proposals waiting for your approval" aria-label={`${agent.waiting} waiting for your approval`}>
                   {agent.waiting}

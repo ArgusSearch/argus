@@ -10,6 +10,7 @@ import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
 import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
+import { AppStateProvider } from "./lib/AppState";
 import { demoGraph, useAgentDemo } from "./lib/agentDemo";
 import { pollEvents } from "./lib/deployment";
 import { api, follow, type ConnectionState } from "./lib/api";
@@ -166,7 +167,7 @@ export function App() {
       const key = `${inc.id}:explained`;
       if (inc.verdict !== "UNEXPLAINED" && (reviewAmbiguous || inc.verdict !== "HYPOTHESIS") && !announced.current.has(key)) {
         announced.current.add(key);
-        setToast({ text: `${inc.id} explained: ${inc.title}`, incident: inc.id });
+        setToast({ text: `Incident explained: ${inc.title}`, incident: inc.id });
       }
     }
   }, [demoRun, liveNotices, reviewAmbiguous, view.incidents]);
@@ -199,7 +200,7 @@ export function App() {
   const closeNode = useCallback(() => setNodeId(null), []);
   // during the agent presentation (lane F) the page shows the presentation's snapshot, not the live stream
   const shown = useMemo(
-    () => (demo?.snapshot ? foldAll(emptyView(`demo:${demo.runId}`, "replay", view.thresholds), demo.snapshot.events) : view),
+    () => (demoRun ? foldAll(emptyView(`demo:${demoRun}`, "replay", view.thresholds), demo?.snapshot?.events ?? []) : view),
     [demo?.runId, demo?.snapshot, view],
   );
   const checking = checkingNode(shown);
@@ -208,6 +209,7 @@ export function App() {
   const sceneView = useMemo(() => (story ? { ...shown, focus: story } : shown), [shown, story]);
 
   return (
+    <AppStateProvider view={shown} graph={graph} health={health} connection={connection} readAgent={fxOn()}>
     <ReceiptProvider rerunAvailable={health?.rerun === true}>
       <div className="app">
         <Header
@@ -267,5 +269,6 @@ export function App() {
         </div>
       )}
     </ReceiptProvider>
+    </AppStateProvider>
   );
 }

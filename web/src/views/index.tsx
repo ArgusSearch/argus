@@ -3,8 +3,8 @@
 // the switcher by itself. Deep link to a view with ?view=tree|investigation|report|scorecard.
 
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
-import { useAgentDemo } from "../lib/agentDemo";
 import { fxOn } from "../fx/flag";
+import { useAppState } from "../lib/AppState";
 import type { RunView } from "../lib/store";
 import type { Graph, Health } from "../lib/types";
 import { AutonomyStrip } from "./AutonomyStrip";
@@ -39,7 +39,7 @@ function initialTab(): DemoTab {
 }
 
 export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, children }: ViewHostProps) {
-  const demo = useAgentDemo();
+  const { monitor } = useAppState();
   const [tab, setTabState] = useState<DemoTab>(initialTab);
   const setTab = useCallback((next: DemoTab) => setTabState(next), []);
   const { options, beat } = useDemo({ view, graph, health, setTab, onOpenIncident });
@@ -72,7 +72,6 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
     return () => window.removeEventListener("keydown", onKey);
   }, [selectTab]);
 
-  const running = view.anomalies.length > 0 && !view.steps.some((s) => s.step.kind === "verdict" && s.anomalyId === view.anomalies[view.anomalies.length - 1].id);
   const fallback = <div className="vw-empty">Loading…</div>;
 
   return (
@@ -89,11 +88,11 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
               title={`${t.label} (${t.key})`}
             >
               {t.label}
-              {t.id === "investigation" && running && <span className="vh-live" aria-label="investigation running" />}
+              {t.id === "investigation" && monitor.activeInvestigation && <span className="vh-live" aria-label="investigation running" />}
             </button>
           ))}
         </nav>
-        <AutonomyStrip view={view} />
+        <AutonomyStrip counts={monitor.autonomy} />
       </div>
       <div className="vh-body">
         <div className="vh-graph" hidden={tab !== "graph"}>
@@ -103,8 +102,8 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
           <div className="vh-view" role="tabpanel">
             <Suspense fallback={fallback}>
               {tab === "tree" && <TreeView graph={graph} view={view} onSelectNode={onSelectNode} />}
-              {tab === "investigation" && <InvestigationView graph={graph} view={view} onSelectNode={onSelectNode} onOpenIncident={onOpenIncident} />}
-              {tab === "report" && <MorningReport key={demo?.runId} graph={graph} view={view} onOpenIncident={onOpenIncident} />}
+              {tab === "investigation" && <InvestigationView key={view.stream} graph={graph} view={view} onSelectNode={onSelectNode} onOpenIncident={onOpenIncident} />}
+              {tab === "report" && <MorningReport key={view.stream} graph={graph} view={view} onOpenIncident={onOpenIncident} />}
               {tab === "scorecard" && <ScorecardView />}
             </Suspense>
           </div>

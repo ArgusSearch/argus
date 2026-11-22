@@ -1,4 +1,5 @@
 import { useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useAppState } from "../../lib/AppState";
 import { dayLabel, hhmm, segmentLabel } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
@@ -20,6 +21,7 @@ interface AnalysisShellProps {
 }
 
 export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks, streamError }: AnalysisShellProps) {
+  const { monitor } = useAppState();
   const heading = useRef<HTMLHeadingElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const [pagesOpen, setPagesOpen] = useState(false);
@@ -104,7 +106,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
                 <h1 id="analysis-heading" tabIndex={-1} ref={heading}>{label}</h1>
                 <p>
                   {view.mode === "live" ? "Live" : view.mode === "replay" ? "History" : "Connecting"}
-                  {view.simTs ? ` · As of ${dayLabel(view.simTs)} ${hhmm(view.simTs)} UTC` : ""}
+                  {view.simTs && monitor.timeLabel ? ` · As of ${monitor.timeLabel} UTC` : ""}
                 </p>
               </div>
               <div className="analysis-share">

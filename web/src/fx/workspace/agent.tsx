@@ -7,9 +7,10 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useApprovalCount } from "./approvals";
 import { pendingProposals } from "../../agent-ui/activity";
 import { useWaitingTitle } from "../../agent-ui/hooks";
-import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
+import { agentApi, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { pollEvents, publicApi, remoteGuidedRun } from "../../lib/deployment";
+import { timestamp } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import { avatarCues, WORK_CUE_MS, type AvatarCues } from "../../village/avatars/state";
 
@@ -54,13 +55,19 @@ const ACTIVITY_MS = pollEvents ? 2500 : 1500;
 const ACTIONS_MS = pollEvents ? 3000 : 2000;
 const KEEP = 600;
 
-export function AgentProvider({ stream, children }: { stream: string | null; children: ReactNode }) {
+export function AgentProvider({ stream, asOf, active = true, children }: {
+  stream: string | null;
+  asOf?: string | null;
+  active?: boolean;
+  children: ReactNode;
+}) {
   const [health, setHealth] = useState<AgentHealth | null>(null);
   const [activity, setActivity] = useState(EMPTY_ACTIVITY);
   const [avatarClock, setAvatarClock] = useState(0);
   const [proposals, setProposals] = useState<ProposalView[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [tick, setTick] = useState(0);
+  const proposalRevision = useRef(0);
   // a replay server's own agent is off, but during the agent presentation the same routes answer for its run
   const demoId = useAgentDemo()?.runId;
   const scope = demoId ? `demo:${demoId}` : stream;
@@ -75,10 +82,11 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     setProposals([]);
     setRuns([]);
   }
-  const enabled = Boolean(health && (health.enabled || demoId));
+  const enabled = Boolean(active && health && (health.enabled || demoId));
 
   // Public budget availability changes independently of the shop clock.
   useEffect(() => {
+    if (!active) return;
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -92,7 +100,7 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
       live = false;
       clearTimeout(timer);
     };
-  }, [stream]);
+  }, [active, stream]);
 
   // Activity is incremental within one source. A new demo gets its own cursor even if the live stream never changed.
   useEffect(() => {
@@ -145,9 +153,10 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     let timer = 0;
     const pull = async () => {
       if (!document.hidden) {
+        const revision = proposalRevision.current;
         const [p, r] = await Promise.allSettled([agentApi.actions(), agentApi.runs()]);
         if (!live || activeScope.current !== scope) return;
-        if (p.status === "fulfilled") setProposals(p.value);
+        if (p.status === "fulfilled" && revision === proposalRevision.current) setProposals(p.value);
         if (r.status === "fulfilled") setRuns(r.value);
       }
       if (live) timer = window.setTimeout(pull, ACTIONS_MS);
@@ -162,15 +171,27 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   const refresh = useCallback(() => setTick((t) => t + 1), []);
   const put = useCallback((p: ProposalView) => {
     if (activeScope.current !== scope) return;
+    proposalRevision.current += 1;
     setProposals((all) => (all.some((x) => x.id === p.id) ? all.map((x) => (x.id === p.id ? p : x)) : [...all, p]));
-    if (settling(p.state)) setTick((t) => t + 1);
+    setTick((t) => t + 1);
   }, [scope]);
 
-  const waiting = enabled ? pendingProposals(proposals).length : 0;
+  const visible = useMemo(() => {
+    if (asOf === undefined) return { records: activity.records, runs, proposals };
+    const end = timestamp(asOf);
+    const records = activity.records.filter((record) => timestamp(record.sim_ts) <= end);
+    const pendingRuns = new Set(runs.filter((run) => !(timestamp(run.sim_ts) <= end)).map((run) => run.run_id));
+    return {
+      records,
+      runs: runs.filter((run) => !pendingRuns.has(run.run_id)),
+      proposals: asOf ? proposals.filter((proposal) => !pendingRuns.has(proposal.run_id)) : [],
+    };
+  }, [activity.records, asOf, proposals, runs]);
+  const waiting = enabled ? pendingProposals(visible.proposals).length : 0;
   useWaitingTitle(waiting);
   const { roles: avatars, nextExpiry } = useMemo(
-    () => avatarCues(activity.records, proposals, activity.online ? runs : [], activity.until, Math.max(avatarClock, performance.now())),
-    [activity, avatarClock, proposals, runs],
+    () => avatarCues(visible.records, visible.proposals, activity.online ? visible.runs : [], activity.until, Math.max(avatarClock, performance.now())),
+    [activity, avatarClock, visible],
   );
   useEffect(() => {
     if (!Number.isFinite(nextExpiry)) return;
@@ -178,8 +199,8 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     return () => window.clearTimeout(timer);
   }, [nextExpiry, avatarClock]);
   const value = useMemo<AgentState>(
-    () => ({ scope, enabled, health, records: activity.records, proposals, runs, avatars, waiting, refresh, put }),
-    [scope, enabled, health, activity.records, proposals, runs, avatars, waiting, refresh, put],
+    () => ({ scope, enabled, health, ...visible, avatars, waiting, refresh, put }),
+    [scope, enabled, health, visible, avatars, waiting, refresh, put],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

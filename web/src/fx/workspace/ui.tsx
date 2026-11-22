@@ -2,6 +2,7 @@
 // tooltip, the mini chart of the KPI tiles, and the hook that keeps the full incidents (with findings) current.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { analysisWindow, visibleFindings } from "../../analysis/pages/model";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { api } from "../../lib/api";
 import type { RunView } from "../../lib/store";
@@ -110,7 +111,8 @@ export function useIncidents(view: RunView): { incidents: Incident[]; failed: bo
   }, [version, view.stream, demo?.runId]);
   // the agent presentation carries its incidents in its snapshot
   if (demo) return { incidents: demo.snapshot?.incidents ?? [], failed: false };
-  return state;
+  const window = analysisWindow(view.simTs, "all");
+  return { ...state, incidents: state.incidents.filter((incident) => visibleFindings(incident, view.incidents[incident.id], window)) };
 }
 
 /** One incident with its findings, re-read whenever it changes on the stream. */
