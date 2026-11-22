@@ -391,6 +391,8 @@ export const agentApi = {
   // every agent route is pinned to the demo presentation while one plays (withRun appends its run_id)
   activity: (since = 0) => call<{ stream: string; mode: AgentMode; records: ActivityRecord[] }>(withRun(`/agent/activity?since=${since}`)),
   runs: () => call<RunSummary[]>(withRun("/agent/runs")),
+  boards: (since = 0) => call<{ boards: Board[]; next_cursor: number }>(withRun(`/agent/boards?since=${since}`)),
+  incidentBoard: (id: string) => call<Board>(withRun(`/agent/boards/incident/${encodeURIComponent(id)}`)),
   actions: () => call<ProposalView[]>(withRun("/agent/actions")),
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
     decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }),

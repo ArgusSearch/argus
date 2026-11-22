@@ -10,7 +10,8 @@ pending action through the same local operator gate as a live run.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from contextlib import nullcontext
 from datetime import datetime
 from typing import Any, Literal
 
@@ -19,15 +20,26 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from argus.agent.ask import AskScope
+from argus.agent.board import DETECTIVE_CAPS, build_board, build_boards, revision_of, run_of
+from argus.agent.chain import STAGE2_RUN
 from argus.agent.journal import Journal
 from argus.agent.provider import ProviderUnavailable
 from argus.agent.service import AgentService
-from argus.agent.types import ActivityRecord, ProposalView, ReceiptLink, RunSummary
+from argus.agent.types import (
+    BOARD_VERSION,
+    FEATURES,
+    ActivityRecord,
+    Board,
+    ProfileName,
+    ProposalView,
+    ReceiptLink,
+    RunSummary,
+)
 from argus.api.sources import LiveSource, Source
 from argus.contracts.events import EventType
-from argus.contracts.findings import Receipt
+from argus.contracts.findings import Incident, Receipt
 from argus.demo.agent import AgentView
-from argus.demo.bundle import AskAnswer, ReceiptProof
+from argus.demo.bundle import AskAnswer, ReceiptProof, receipt_keys
 from argus.demo.playback import ControlError, Playback
 from argus.remediation.api import DecisionBody, OperatorGate, OperatorSession
 
@@ -104,6 +116,16 @@ def _recorded_runs(activity: Iterable[ActivityRecord]) -> list[RunSummary]:
     return list(runs.values())
 
 
+def _incident_cites(ref: ReceiptLink, incidents: Iterable[Incident], records: Sequence[ActivityRecord]) -> bool:
+    for incident in incidents:
+        run = run_of(incident, records)
+        if (ref.run_id, ref.world_revision) != (run or STAGE2_RUN, revision_of(run, records)):
+            continue
+        if ref.receipt_id in receipt_keys(incident.findings.model_dump(mode="json")):
+            return True
+    return False
+
+
 def router(source: Source, playback: Playback | None = None) -> APIRouter:
     routes = APIRouter(prefix="/agent", tags=["agent"])
     off = _service(source)
@@ -127,9 +149,72 @@ def router(source: Source, playback: Playback | None = None) -> APIRouter:
         found = getattr(source, "agent", None)
         return found if isinstance(found, AgentService) else off
 
+    def profile_name(svc: AgentService) -> ProfileName:
+        return "v2" if getattr(getattr(svc, "profile", None), "name", None) == "v2" else "v1"
+
+    def live_settings(playback_id: str | None) -> tuple[ProfileName | None, tuple[float, int]]:
+        svc = service()
+        if playback_id is not None or svc.selector is None:
+            return None, DETECTIVE_CAPS
+        budget = svc.selector.budget
+        return profile_name(svc), (budget.usd, budget.tool_calls)
+
+    def evidence(run_id: str | None) -> tuple[list[ActivityRecord], list[Incident], dict[str, RunSummary]]:
+        """What the board reads: the presentation at its clock, or the live journal and the source's incidents."""
+        if run_id is not None:
+            view = presentation(run_id)
+            records = list(view.activity)
+            return records, list(view.incidents), {r.run_id: r for r in _recorded_runs(records)}
+        svc = service()
+        lock = source.runtime.lock if isinstance(source, LiveSource) else nullcontext()
+        with lock:
+            incidents = source.incidents()
+            with svc.journal.lock:
+                return list(svc.journal.records), incidents, dict(svc.journal.runs)
+
     @routes.get("/health")
     def health() -> dict[str, Any]:
-        return service().health()
+        svc = service()
+        features = getattr(getattr(svc, "profile", None), "features", ())
+        return {
+            **svc.health(),
+            "profile": profile_name(svc),
+            "features": [f for f in FEATURES if f in features],
+            "board_version": BOARD_VERSION,
+        }
+
+    @routes.get("/boards")
+    async def boards(since: int = 0, run_id: str | None = None) -> dict[str, Any]:
+        """One board per agent investigation visible now. Boards are recomputed whole and small, so every visible
+        board is returned; `next_cursor` is the last activity seq they reflect (poll again when it moves)."""
+        records, incidents, runs = await run_in_threadpool(evidence, run_id)
+        profile, caps = live_settings(run_id)
+        shown = await run_in_threadpool(build_boards, records, incidents, runs, profile=profile, detective_caps=caps)
+        return {
+            "boards": [b.model_dump(mode="json") for b in shown],
+            "next_cursor": max([since, *(b.through_seq for b in shown)]),
+        }
+
+    @routes.get("/boards/incident/{incident_id}", responses={404: {}})
+    async def incident_board(incident_id: str, run_id: str | None = None) -> Board:
+        """The board of one incident; with the agent off it derives from the findings alone (profile stage2)."""
+        records, incidents, runs = await run_in_threadpool(evidence, run_id)
+        incident = next((i for i in incidents if i.id == incident_id), None)
+        if incident is None:
+            raise HTTPException(404, f"no incident {incident_id}")
+        agent_run = run_of(incident, records)
+        run = runs.get(agent_run) if agent_run is not None else None
+        profile, caps = live_settings(run_id)
+        return await run_in_threadpool(
+            build_board,
+            records,
+            None,
+            run,
+            incident=incident,
+            run_id=agent_run,
+            profile=profile if agent_run is not None else None,
+            detective_caps=caps,
+        )
 
     @routes.get("/activity")
     async def activity(since: int = 0, run_id: str | None = None) -> dict[str, Any]:
@@ -219,7 +304,16 @@ def router(source: Source, playback: Playback | None = None) -> APIRouter:
     async def receipt(run_id: str, world_revision: str, receipt_id: str, request: Request) -> Receipt | ReceiptProof:
         ref = ReceiptLink(run_id=run_id, world_revision=world_revision, receipt_id=receipt_id)
         if (presented := request.query_params.get("run_id")) is not None:
-            proof = presentation(presented).receipts.get(ref.key())
+            view = presentation(presented)
+            proof = view.receipts.get(ref.key())
+            # a board cites the investigation's C4 receipts qualified with its run; the presentation releases them
+            # under their bare ids (only what the visible findings reference)
+            if (
+                proof is None
+                and ref.receipt_id in view.receipts
+                and _incident_cites(ref, view.incidents, view.activity)
+            ):
+                proof = view.receipts[ref.receipt_id]
             if proof is None:
                 raise HTTPException(404, f"no released receipt {ref.key()}")
             return proof
@@ -240,6 +334,11 @@ def router(source: Source, playback: Playback | None = None) -> APIRouter:
         # an investigation run cites the runtime's own receipts: serve only those it cited, in its revision
         if svc.journal.cited(ref) and (found := source.receipt(receipt_id)) is not None:
             return found
+        # a board cites the C4 receipts of an incident's findings (also the C5 /receipts route serves those)
+        if _incident_cites(ref, source.incidents(), svc.journal.since(0)):
+            found = source.receipt(receipt_id)
+            if found is not None:
+                return found
         raise HTTPException(404, f"no receipt {ref.key()}")
 
     return routes
