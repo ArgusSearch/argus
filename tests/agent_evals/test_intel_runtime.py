@@ -70,6 +70,16 @@ def critic_call(request, name, args):
     return tool_use(name, args, model=request.model, n=int(request.key.rsplit(":", 1)[1]))
 
 
+def critic_results(journal):
+    return [
+        entry.observation
+        for entry in journal.records
+        if entry.kind == "tool_result"
+        and entry.observation is not None
+        and entry.observation.call_id.rsplit(":", 1)[-1].startswith("c")
+    ]
+
+
 def end_critic(request):
     return critic_call(request, "submit_challenge", {"opinion": "upheld", "summary": "The check is complete."})
 
@@ -242,12 +252,16 @@ def test_e22_critic_is_isolated_and_bounded(world_case, payments, fail):
     runtime, journal, requests = run_v2(case, respond, features=("critic",), first_incident=True)
     (incident,) = runtime.book.incidents.values()
     critics = [r for r in requests if r.key.startswith("critic:")]
-    detective_models = {r.model for r in requests if r.key.startswith("investigate:")}
+    detective = [r for r in requests if r.key.startswith("investigate:")]
+    assert any(THOUGHT in json.dumps(request.messages) for request in detective)
+    detective_models = {r.model for r in detective}
     assert 1 <= len(critics) <= 3
     assert detective_models.isdisjoint(r.model for r in critics)
     assert all(THOUGHT not in r.system and THOUGHT not in json.dumps(r.messages) for r in critics)
-    calls = [r for r in journal.records if r.kind == "tool_call" and r.role == "skeptic" and r.tool == "placebo_test"]
+    calls = critic_results(journal)
     assert len(calls) <= 3
+    if not fail:
+        assert calls and any(item.receipt_refs for item in calls)
     assert sum(u.usd or 0 for u in journal.usage if u.model in {r.model for r in critics}) <= 0.20
     assert incident.verdict == deterministic.verdict and incident.findings.as_of == deterministic.as_of
     if fail:
@@ -279,9 +293,7 @@ def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):
     assert 0 < len(detective_calls) <= 12
     critics = {r.model for r in requests if r.key.startswith("critic:")}
     assert critics
-    critic_calls = [
-        r for r in journal.records if r.kind == "tool_call" and r.tool == "placebo_test" and r.role == "skeptic"
-    ]
+    critic_calls = critic_results(journal)
     assert 0 < len(critic_calls) <= 3
     assert run.tool_calls == len(detective_calls) + len(critic_calls)
     assert 0 < sum(u.usd or 0 for u in journal.usage if u.model in critics) <= 0.20
