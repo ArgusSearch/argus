@@ -1,10 +1,9 @@
-// The Mission Control entry card identifies the operator and shows the latest check from GET /health.
+// The Mission Control entry card identifies the operator and shows the latest check.
 
-import { translate } from "../../settings/language";
 import { useOperatorSettings } from "../../settings/operator";
-import { useEffect, useRef, useState } from "react";
-import { api } from "../../lib/api";
-import { staticReplay } from "../../lib/deployment";
+import { useEffect, useRef } from "react";
+import type { ConnectionState } from "../../lib/api";
+import { exampleShopName, staticReplay } from "../../lib/deployment";
 import { shopTimeLabel } from "../../lib/format";
 import type { Health } from "../../lib/types";
 import { AgentAvatar, type RoleId } from "../../village/avatars";
@@ -22,25 +21,22 @@ const CREW: readonly RoleId[] = ["watcher", "cartographer", "detective", "market
 /** Keys the entry keeps from the page behind it (the view host's 1 to 5, the Ask panel's /). */
 const PASS_THROUGH = new Set(["Tab", "Enter", " ", "Escape", "Shift"]);
 
+const BERLIN_CHECK_TIME = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Berlin", weekday: "short", day: "2-digit", month: "short",
+  hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short",
+});
+
 /** The entry screen itself; EntryGate.tsx decides when it shows and loads this module only then. */
-export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEnter: () => void }) {
+export default function EntryPage({ health, connection, leaving, onEnter }: {
+  health: Health | null;
+  connection: ConnectionState;
+  leaving: boolean;
+  onEnter: () => void;
+}) {
   const { phase } = useFx();
   const { snapshot } = useOperatorSettings();
   const name = snapshot?.settings.account.name.trim() || "Batu";
-  const [health, setHealth] = useState<Health | null>();
   const dialog = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (staticReplay) return;
-    let live = true;
-    api.health().then(
-      (h) => live && setHealth(h),
-      () => live && setHealth(null),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
 
   // the page behind keeps its shortcuts to itself while the entry is up; Enter anywhere on the card enters
   useEffect(() => {
@@ -64,8 +60,9 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
     if (shown) dialog.current?.focus({ preventScroll: true });
   }, [shown]);
 
-  const lastCheck = shopTimeLabel(health?.sim_ts, health?.mode);
-  const checkStatus = health === null ? "Connection unavailable" : "Connecting…";
+  const checkedAt = health?.mode === "live" ? health.last_checked_at : null;
+  const lastCheck = health?.mode === "replay" ? shopTimeLabel(health.sim_ts, health.mode) : null;
+  const checkStatus = connection === "offline" ? "Connection unavailable" : "Connecting…";
 
   return (
     <div
@@ -118,14 +115,16 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
             <div>
               <dt>Shop</dt>
               <dd>
-                <span>{translate(snapshot?.settings.appearance.language ?? "en", "Example shop")}</span>
+                <span>{exampleShopName}</span>
               </dd>
             </div>
             <div>
               <dt>{staticReplay ? "Mode" : "Last check"}</dt>
               <dd>
                 <i className={`fx-entry-dot${health ? " on" : ""}`} aria-hidden="true" />
-                <span>{staticReplay ? "Pre-registered result" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
+                {checkedAt ? <time dateTime={checkedAt}>{BERLIN_CHECK_TIME.format(new Date(checkedAt))}</time> : (
+                  <span>{staticReplay ? "Pre-registered result" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
+                )}
                 {health?.mode === "live" && <em>live</em>}
               </dd>
             </div>

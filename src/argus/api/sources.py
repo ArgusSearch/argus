@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
@@ -204,6 +205,7 @@ class LiveSource:
         self.speed = 1.0
         self.playing = True
         self.position = 0
+        self._last_checked_at: datetime | None = None
         self._ticks = self.runtime.ticks()
         self._stop = threading.Event()
         self._wake = threading.Event()
@@ -261,6 +263,7 @@ class LiveSource:
                 if self._stop.is_set():
                     return
                 raise
+            self._last_checked_at = datetime.now(UTC)
             if self._stop.is_set():
                 return
             tick = self.bus.state.last_tick
@@ -387,8 +390,10 @@ class LiveSource:
         return self.status()
 
     def describe(self) -> dict[str, Any]:
+        checked_at = self._last_checked_at
         return {
             "source": str(self.runtime.world),
             "world_start": self.runtime.manifest.get("world_start"),
+            "last_checked_at": checked_at.isoformat() if checked_at else None,
             "rerun": True,
         }

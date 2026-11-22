@@ -1,5 +1,6 @@
 import type { ConnectionState } from "../lib/api";
 import { useAppState } from "../lib/AppState";
+import { exampleShopName } from "../lib/deployment";
 import type { RunView } from "../lib/store";
 import type { Health } from "../lib/types";
 import { AgentRecordingLink } from "../fx/workspace/AgentRunControls";
@@ -39,7 +40,7 @@ export function Header({
       <span className={`mode ${mode}`}>
         <span className="dot" />
         {mode === "offline" ? "API offline" : mode === "connecting" ? "Connecting to API" : presenting || mode === "replay"
-          ? tr("Example shop history") : `Live · ${tr("Example shop")}`}
+          ? tr("Example shop history") : `Live · ${exampleShopName}`}
       </span>
       <AgentRecordingLink />
     </header>

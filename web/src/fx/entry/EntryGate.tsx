@@ -4,7 +4,9 @@
 
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import type { ConnectionState } from "../../lib/api";
 import { staticReplay } from "../../lib/deployment";
+import type { Health } from "../../lib/types";
 import { tokenMs } from "../motion";
 import { go } from "../nav";
 import { entryWanted, readEntered, rememberEntered, searchAfterEntry } from "./gate";
@@ -15,7 +17,10 @@ const EntryPage = lazy(() => import("./EntryPage"));
 type Stage = "open" | "leaving" | "gone";
 
 /** Renders the entry screen when this page load wants it; nothing otherwise. */
-export function EntryGate() {
+export function EntryGate({ health = null, connection = "connecting" }: {
+  health?: Health | null;
+  connection?: ConnectionState;
+} = {}) {
   const [stage, setStage] = useState<Stage>(() => (staticReplay || entryWanted(window.location.search, readEntered()) ? "open" : "gone"));
 
   useLayoutEffect(() => {
@@ -54,7 +59,7 @@ export function EntryGate() {
   if (stage === "gone") return null;
   return createPortal(
     <Suspense fallback={null}>
-      <EntryPage leaving={stage === "leaving"} onEnter={enter} />
+      <EntryPage health={health} connection={connection} leaving={stage === "leaving"} onEnter={enter} />
     </Suspense>,
     document.body,
   );

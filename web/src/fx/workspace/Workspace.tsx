@@ -101,6 +101,7 @@ function VillageSurface(props: VillageProps) {
 }
 
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
+  const { health, monitor } = useAppState();
   const { section, incident } = useLocation();
   const demo = useAgentDemo();
   const query = useAnalysisQuery();
@@ -152,7 +153,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
         </Suspense>
       )}
       <AskPanel key={demo?.runId} incident={section === "incident" ? incident : null} />
-      <EntryGate />
+      <EntryGate health={health} connection={monitor.connection} />
     </>
   );
 }

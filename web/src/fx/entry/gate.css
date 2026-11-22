@@ -1,7 +1,12 @@
 /* Loaded with EntryGate (the main bundle), so the app behind the entry screen is hidden from the first frame,
    before the lazy entry screen and its own styles arrive. */
 
-:root[data-fx-entry="open"] .app {
+:root[data-fx-entry="open"] :is(.app, .toast) {
+  visibility: hidden;
+}
+
+:root[data-fx-entry="open"] #fx-stage > *,
+:root[data-fx-entry="open"] #fx-stage::after {
   visibility: hidden;
 }
 

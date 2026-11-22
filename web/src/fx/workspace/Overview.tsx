@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
-import { publicApi } from "../../lib/deployment";
+import { exampleShopName, publicApi } from "../../lib/deployment";
 import { count, dayLabel, eur, hhmm, monitoringText } from "../../lib/format";
 import type { MonitorState } from "../../lib/monitor";
 import type { RunView } from "../../lib/store";
@@ -89,13 +89,13 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
         <div>
           {sources.size > 0 ? <select className="btn" aria-label={tr("Dashboard source")}
             value={sourceMetrics ? selectedSource : ""} onChange={(event) => setSelectedSource(event.target.value)}>
-            <option value="">{tr("Example shop")}</option>
+            <option value="">{exampleShopName}</option>
             {[...sources.keys()].sort().map((id) => {
               const name = id.charAt(0).toUpperCase() + id.slice(1);
               const target = connected?.find((connection) => connection.id === id)?.target;
               return <option key={id} value={id}>{target ? `${name} · ${target}` : name}</option>;
             })}
-          </select> : <p>{tr("Example shop")}</p>}
+          </select> : <p>{exampleShopName}</p>}
         </div>
         {!sourceMetrics && <>
         <h1>{headline(monitor, h)}</h1>

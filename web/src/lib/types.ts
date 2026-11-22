@@ -324,6 +324,7 @@ export interface Health {
   events: number;
   last_seq: number;
   sim_ts: string | null;
+  last_checked_at?: string | null;
   run: ReplayStatus;
   thresholds: Thresholds;
   source: string;

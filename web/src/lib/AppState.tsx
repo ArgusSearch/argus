@@ -7,6 +7,7 @@ import type { Graph, Health } from "./types";
 
 interface AppState {
   view: RunView;
+  health: Health | null;
   monitor: MonitorState;
 }
 
@@ -31,7 +32,7 @@ export function AppStateProvider({ readAgent = false, ...props }: ProviderProps 
 function MonitorProvider({ view, graph, health, connection, children }: ProviderProps) {
   const agent = useAgent();
   const value = useMemo(
-    () => ({ view, monitor: selectMonitor(view, graph, health, connection, agent) }),
+    () => ({ view, health, monitor: selectMonitor(view, graph, health, connection, agent) }),
     [view, graph, health, connection, agent],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
