@@ -605,7 +605,7 @@
         "ran_at": "2026-11-22T02:00:00",
         "passed": true,
         "median_rel": 0.0,
-        "p95_rel": 1.5310117541201998e-16,
+        "p95_rel": 1.5235802842071211e-16,
         "max_rel_err": null,
         "hours": 672,
         "receipts": [
@@ -645,7 +645,7 @@
         "ran_at": "2026-11-22T02:00:00",
         "passed": true,
         "median_rel": 0.0,
-        "p95_rel": 1.621745421895084e-16,
+        "p95_rel": 1.6697857056144435e-16,
         "max_rel_err": null,
         "hours": 672,
         "receipts": [
@@ -688,7 +688,7 @@
         "ran_at": "2026-11-22T02:00:00",
         "passed": true,
         "median_rel": 0.0,
-        "p95_rel": 2.1826156070471317e-16,
+        "p95_rel": 2.1827896000817034e-16,
         "max_rel_err": null,
         "hours": 672,
         "receipts": [
@@ -809,7 +809,7 @@
         "ran_at": "2026-11-22T02:00:00",
         "passed": true,
         "median_rel": 0.0,
-        "p95_rel": 1.3871035299123993e-16,
+        "p95_rel": 1.3733208120215295e-16,
         "max_rel_err": null,
         "hours": 672,
         "receipts": [
@@ -849,7 +849,7 @@
         "ran_at": "2026-11-22T02:00:00",
         "passed": true,
         "median_rel": 0.0,
-        "p95_rel": 1.5724121529828046e-16,
+        "p95_rel": 1.5056969658830305e-16,
         "max_rel_err": null,
         "hours": 672,
         "receipts": [

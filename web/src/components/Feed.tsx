@@ -1,12 +1,20 @@
 // The right rail: incidents, "didn't wake you" notes and graph changes, newest first.
 
 import { useState } from "react";
-import { eur, hhmm, impactNoun, segmentEntries } from "../lib/format";
+import { eur, hhmm, impactNoun, segmentEntries, verdictLabel } from "../lib/format";
 import { type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
 import type { Graph, Note } from "../lib/types";
 import { Num, ReceiptChips } from "./Receipts";
+import { EmptyState } from "../ui";
 
 type Tab = "all" | "incidents" | "quiet" | "graph";
+
+const EMPTY: Record<Tab, [string, string]> = {
+  all: ["Nothing yet. Argus is watching.", "Incidents, notes and graph changes appear here the moment Argus files them."],
+  incidents: ["No incidents. Argus is watching every metric.", "An incident opens only when a change crosses the alarm line."],
+  quiet: ["No \"didn't wake you\" notes yet.", "When Argus sees a change and decides it is not worth waking you, it says why here."],
+  graph: ["No graph changes yet.", "Every edge test and every new metric shows up here."],
+};
 
 export function Segments({ segment }: { segment: Record<string, string> }) {
   const entries = segmentEntries(segment);
@@ -37,7 +45,7 @@ function IncidentCard({ inc, graph, onOpen }: { inc: IncidentView; graph: Graph 
       <div className="card-head">
         <span className="card-kind">{inc.id}</span>
         <span className={`pill state-${inc.state}`}>{STATE_TEXT[inc.state]}</span>
-        <span className={`pill ${inc.verdict}`}>{inc.verdict.replace("_", " ")}</span>
+        <span className={`pill ${inc.verdict}`}>{verdictLabel(inc.verdict)}</span>
         <span className="card-time">{hhmm(inc.updatedAt)}</span>
       </div>
       <div className="card-title">{inc.title}</div>
@@ -62,7 +70,7 @@ function IncidentCard({ inc, graph, onOpen }: { inc: IncidentView; graph: Graph 
 
 function noteKind(note: Note): { key: string; label: string } {
   if (note.kind === "expected") return { key: "expected", label: "Didn't wake you" };
-  if (note.kind === "data_issue") return { key: "data_issue", label: "Data issue · held back" };
+  if (note.kind === "data_issue") return { key: "data_issue", label: "Data issue · didn't wake you" };
   if (note.reason.includes("symptom of")) return { key: "symptom", label: "Symptom silenced" };
   return { key: "suppressed", label: "Noticed, not paged" };
 }
@@ -222,7 +230,10 @@ export function Feed({
             />
           ))
         ) : (
-          <div className="feed-empty">Nothing here yet.</div>
+          <EmptyState
+            title={tab === "incidents" && graph ? `No incidents. Argus is watching ${graph.nodes.length} metrics.` : EMPTY[tab][0]}
+            detail={EMPTY[tab][1]}
+          />
         )}
       </div>
     </aside>

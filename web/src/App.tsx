@@ -1,7 +1,6 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Feed } from "./components/Feed";
-import { GraphView } from "./components/GraphView";
 import { Header } from "./components/Header";
 import { IncidentSheet } from "./components/IncidentSheet";
 import { NodeSheet } from "./components/NodeSheet";
@@ -9,11 +8,16 @@ import { AutonomyLegend, DigestModal } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
+import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
+import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
+import { useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
-import { emptyView, foldAll, recount, type RunView } from "./lib/store";
+import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
 import { OfflineBanner, Skeleton } from "./ui";
+import { ViewHost } from "./views";
 
+/** The graph's legend in plain words: what a line is, and what a block's color says. */
 function Legend() {
   const line = (dash: string | undefined, color: string) => (
     <svg width="26" height="8" aria-hidden>
@@ -22,13 +26,15 @@ function Legend() {
   );
   return (
     <div className="legend">
-      <span className="legend-item">{line(undefined, "#6b7590")}formula</span>
-      <span className="legend-item">{line("2 4", "#7a76b8")}evidence</span>
-      <span className="legend-item">{line("6 5", "#e3a63b")}cause (probation)</span>
-      <span className="legend-item">{line(undefined, "#f2585d")}broken</span>
+      <span className="legend-item">{line(undefined, "#6b7590")}built from</span>
+      <span className="legend-item">{line("2 4", "#7a76b8")}change log</span>
+      <span className="legend-item">
+        <span className="swatch" style={{ borderColor: "#3fbf8f" }} />
+        normal
+      </span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#e3a63b" }} />
-        wiggle
+        unusual
       </span>
       <span className="legend-item">
         <span className="swatch" style={{ borderColor: "#f2585d" }} />
@@ -52,6 +58,8 @@ export function App() {
   const [digestOpen, setDigestOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
+  // a new metric placed itself (POST /graph/metrics): refetch the graph so the node appears everywhere
+  const extension = useGraphExtension(useCallback(() => void api.graph().then(setGraph, () => undefined), []));
 
   useEffect(() => {
     api.graph().then(setGraph, () => undefined);
@@ -67,9 +75,14 @@ export function App() {
     });
   }, []);
 
-  // a page opened while the API was down has no graph yet: fetch it once the stream is open
+  // A page opened while the API was down can fetch the graph once the stream opens.
   useEffect(() => {
-    if (connection === "open" && !graph) api.graph().then(setGraph, () => undefined);
+    if (connection !== "open" || graph) return;
+    let live = true;
+    api.graph().then((next) => live && setGraph(next), () => undefined);
+    return () => {
+      live = false;
+    };
   }, [connection, graph]);
 
   // the watcher's lines come from the API; counters folded before they arrived are recounted
@@ -120,19 +133,30 @@ export function App() {
   }, [toast]);
 
   const closeIncident = useCallback(() => setIncidentId(null), []);
+  // with the style layer an incident opens as its own page; without it, as the sheet over the graph
   const openIncident = useCallback((id: string) => {
-    setIncidentId(id);
+    if (fxOn()) openIncidentPage(id);
+    else setIncidentId(id);
     setToast(null);
   }, []);
   const closeDigest = useCallback(() => setDigestOpen(false), []);
   const closeNode = useCallback(() => setNodeId(null), []);
-  const latest = view.anomalies[view.anomalies.length - 1];
+  // during the agent presentation (lane F) the page shows the presentation's snapshot, not the live stream
+  const demo = useAgentDemo();
+  const shown = useMemo(
+    () => (demo?.snapshot ? foldAll(emptyView(`demo:${demo.runId}`, "replay", view.thresholds), demo.snapshot.events) : view),
+    [demo?.runId, demo?.snapshot, view],
+  );
+  const checking = checkingNode(shown);
+  // the visualization's incident story lights its path on the map (style layer only; null otherwise)
+  const story = useStoryFocus();
+  const sceneView = useMemo(() => (story ? { ...shown, focus: story } : shown), [shown, story]);
 
   return (
     <ReceiptProvider>
       <div className="app">
         <Header
-          view={view}
+          view={shown}
           health={health}
           connection={connection}
           onDigest={() => {
@@ -140,18 +164,17 @@ export function App() {
             setToast(null);
           }}
         />
-        <Ticker view={view} />
+        <Ticker view={shown} />
+        <ViewHost graph={graph} view={shown} health={health} onSelectNode={setNodeId} onOpenIncident={openIncident}>
         <div className="main">
           <div className="left">
             <section className="graph" aria-label="metric graph">
               <div className="graph-bar">
-                <span className="panel-title">Metric graph</span>
-                <span className="sub">
-                  {graph ? `${graph.nodes.length} metrics · ${graph.edges.length} typed edges, each with a live test · ${graph.logs.length} logs` : "loading"}
-                </span>
-                {latest && view.focus && (
+                <span className="panel-title">How your shop's numbers connect</span>
+                <span className="sub">Argus follows these lines to find the cause.</span>
+                {checking && (
                   <span className="checking">
-                    checking <b className="mono">{latest.node}</b>
+                    checking <b className="mono">{checking}</b>
                   </span>
                 )}
               </div>
@@ -160,24 +183,27 @@ export function App() {
                 {!graph && <Skeleton variant="graph" label="Loading the metric graph" />}
                 {graph && (
                   <ReactFlowProvider>
-                    <GraphView graph={graph} view={view} onSelectNode={setNodeId} />
+                    <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />
                   </ReactFlowProvider>
                 )}
+                <GraphExtensionLayer ext={extension} />
               </div>
               <div className="graph-foot">
                 <Legend />
-                {graph && <AutonomyLegend view={view} graph={graph} />}
+                {graph && <AutonomyLegend view={shown} graph={graph} />}
               </div>
             </section>
-            <Trail view={view} />
+            <Trail view={shown} />
           </div>
-          <Feed view={view} graph={graph} onOpenIncident={openIncident} />
+          <Feed view={shown} graph={graph} onOpenIncident={openIncident} />
         </div>
+        </ViewHost>
+        <FxWorkspace graph={graph} view={shown} onOpenIncident={openIncident} onSelectNode={setNodeId} />
       </div>
       {incidentId && (
-        <IncidentSheet id={incidentId} summary={view.incidents[incidentId]} graph={graph} onClose={closeIncident} />
+        <IncidentSheet id={incidentId} summary={shown.incidents[incidentId]} graph={graph} onClose={closeIncident} />
       )}
-      {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={view} onClose={closeNode} />}
+      {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={shown} onClose={closeNode} />}
       {digestOpen && <DigestModal version={view.lastSeq} onClose={closeDigest} />}
       {toast && (
         <div className="toast" role="status">
@@ -185,10 +211,7 @@ export function App() {
           {toast.incident && (
             <button
               className="btn primary"
-              onClick={() => {
-                setIncidentId(toast.incident ?? null);
-                setToast(null);
-              }}
+              onClick={() => toast.incident && openIncident(toast.incident)}
             >
               Open report
             </button>

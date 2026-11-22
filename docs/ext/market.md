@@ -40,12 +40,12 @@ The following is an excerpt from the seed 7 sessions event, showing its last evi
       "ts": "2026-11-20T18:00:00",
       "metric_value": 118442.0,
       "metric_expected": 168058.0,
-      "control_value": 71.1755370019866,
-      "control_expected": 97.83038712267445,
+      "control_value": 71.1755,
+      "control_expected": 97.8304,
       "metric_change_pct": -29.52314082043104,
-      "control_change_pct": -27.24598246479797,
-      "adjusted_expected": 122268.94678930983,
-      "residual_pct": -3.129941730752217,
+      "control_change_pct": -27.246029863927777,
+      "adjusted_expected": 122268.86713128026,
+      "residual_pct": -3.1298786200180895,
       "baseline_weeks": 4
     }
   ]

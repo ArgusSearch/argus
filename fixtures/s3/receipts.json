@@ -3,27 +3,27 @@
     "id": "r1",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:8020fa97c28e24d5",
+    "result_hash": "sha256:a4725b00372d34af",
     "rows": 672,
-    "ms": 11.53,
+    "ms": 11.51,
     "purpose": "edge test: hourly gmv"
   },
   {
     "id": "r2",
     "sql": "WITH t0 AS (SELECT ts, SUM(orders) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:925a4c8d00c12827",
+    "result_hash": "sha256:cf7d9245d1ba446d",
     "rows": 672,
-    "ms": 11.06,
+    "ms": 10.12,
     "purpose": "edge test: hourly orders"
   },
   {
     "id": "r3",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS num, SUM(orders) AS den FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d4e04128cad671a9",
+    "result_hash": "sha256:0d995c52ffc9d599",
     "rows": 672,
-    "ms": 12.96,
+    "ms": 13.38,
     "purpose": "edge test: hourly aov"
   },
   {
@@ -32,124 +32,124 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:e72d90d045bc5bcd",
     "rows": 672,
-    "ms": 11.98,
+    "ms": 11.82,
     "purpose": "edge test: hourly sessions"
   },
   {
     "id": "r5",
     "sql": "WITH t0 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(orders) AS num FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:3ad68d1ac8a81160",
+    "result_hash": "sha256:99bf5fc7d61da6a3",
     "rows": 672,
-    "ms": 14.23,
+    "ms": 16.95,
     "purpose": "edge test: hourly cvr"
   },
   {
     "id": "r6",
     "sql": "WITH t0 AS (SELECT ts, SUM(product_views) AS num, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:5945827a4bf4efa9",
+    "result_hash": "sha256:9bbcdd7a202cd25d",
     "rows": 672,
-    "ms": 11.54,
+    "ms": 13.02,
     "purpose": "edge test: hourly view_rate"
   },
   {
     "id": "r7",
     "sql": "WITH t0 AS (SELECT ts, SUM(carts) AS num, SUM(product_views) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:13854810648985dd",
+    "result_hash": "sha256:dc29efa07e677d47",
     "rows": 672,
-    "ms": 11.91,
+    "ms": 13.88,
     "purpose": "edge test: hourly cart_rate"
   },
   {
     "id": "r8",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS num, SUM(carts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:4d4f2ae32b9de015",
+    "result_hash": "sha256:04e2d4c6bd9f4cf0",
     "rows": 672,
-    "ms": 11.37,
+    "ms": 13.02,
     "purpose": "edge test: hourly checkout_rate"
   },
   {
     "id": "r9",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(payment_attempts) AS num FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:59b8e8a25677fc4e",
+    "result_hash": "sha256:a679607721203726",
     "rows": 672,
-    "ms": 16.58,
+    "ms": 12.34,
     "purpose": "edge test: hourly attempt_rate"
   },
   {
     "id": "r10",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS num, SUM(payment_attempts) AS den FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:f706ca63e89746c5",
+    "result_hash": "sha256:5f65f437ecdd9411",
     "rows": 672,
-    "ms": 4.61,
+    "ms": 5.5,
     "purpose": "edge test: hourly payment_success_rate"
   },
   {
     "id": "r11",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS value FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:925a4c8d00c12827",
+    "result_hash": "sha256:cf7d9245d1ba446d",
     "rows": 672,
-    "ms": 3.73,
+    "ms": 3.92,
     "purpose": "edge test: hourly payment_successes"
   },
   {
     "id": "r12",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:9abd4807094c1272",
+    "result_hash": "sha256:3ce34023f1230f0d",
     "rows": 672,
-    "ms": 4.07,
+    "ms": 5.28,
     "purpose": "edge test: hourly ad_spend"
   },
   {
     "id": "r13",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:cfe66c636bb201fe",
+    "result_hash": "sha256:8a51388458899984",
     "rows": 672,
-    "ms": 3.82,
+    "ms": 4.05,
     "purpose": "edge test: hourly ad_clicks"
   },
   {
     "id": "r14",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS num, SUM(ad_clicks) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:3a04361deba4e464",
+    "result_hash": "sha256:6d752e1087502c2f",
     "rows": 672,
-    "ms": 5.24,
+    "ms": 5.59,
     "purpose": "edge test: hourly cpc"
   },
   {
     "id": "r15",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:f76e6806085a9694",
+    "result_hash": "sha256:c88d4b943e405de4",
     "rows": 672,
-    "ms": 4.06,
+    "ms": 4.65,
     "purpose": "edge test: hourly ad_impressions"
   },
   {
     "id": "r16",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS num, SUM(ad_impressions) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d860d95c0daa8e3a",
+    "result_hash": "sha256:f82ca7ba4200ebf4",
     "rows": 672,
-    "ms": 4.77,
+    "ms": 4.93,
     "purpose": "edge test: hourly ctr"
   },
   {
     "id": "r17",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:962243cdb5eca43b",
+    "result_hash": "sha256:5bfc3c9be4ea3706",
     "rows": 672,
-    "ms": 10.61,
+    "ms": 12.26,
     "purpose": "edge test: hourly impressions_per_session"
   },
   {
@@ -158,7 +158,7 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 10.05,
+    "ms": 12.21,
     "purpose": "edge test b_sessions_country: children sum"
   },
   {
@@ -167,7 +167,7 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 9.95,
+    "ms": 12.67,
     "purpose": "edge test b_sessions_platform: children sum"
   },
   {
@@ -176,7 +176,7 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 10.04,
+    "ms": 12.9,
     "purpose": "edge test b_sessions_channel: children sum"
   },
   {
@@ -185,88 +185,88 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 9.49,
+    "ms": 12.14,
     "purpose": "edge test b_sessions_category: children sum"
   },
   {
     "id": "r22",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.54,
+    "ms": 12.2,
     "purpose": "edge test b_orders_country: children sum"
   },
   {
     "id": "r23",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 10.01,
+    "ms": 11.18,
     "purpose": "edge test b_orders_platform: children sum"
   },
   {
     "id": "r24",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.17,
+    "ms": 13.88,
     "purpose": "edge test b_orders_channel: children sum"
   },
   {
     "id": "r25",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.38,
+    "ms": 11.66,
     "purpose": "edge test b_orders_category: children sum"
   },
   {
     "id": "r26",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d7c917df2c946aa2",
+    "result_hash": "sha256:df9d46f2829216c6",
     "rows": 672,
-    "ms": 9.27,
+    "ms": 11.25,
     "purpose": "edge test b_gmv_country: children sum"
   },
   {
     "id": "r27",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d7c917df2c946aa2",
+    "result_hash": "sha256:df9d46f2829216c6",
     "rows": 672,
-    "ms": 9.17,
+    "ms": 12.14,
     "purpose": "edge test b_gmv_platform: children sum"
   },
   {
     "id": "r28",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d7c917df2c946aa2",
+    "result_hash": "sha256:df9d46f2829216c6",
     "rows": 672,
-    "ms": 9.48,
+    "ms": 11.62,
     "purpose": "edge test b_gmv_channel: children sum"
   },
   {
     "id": "r29",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:d7c917df2c946aa2",
+    "result_hash": "sha256:df9d46f2829216c6",
     "rows": 672,
-    "ms": 9.99,
+    "ms": 11.77,
     "purpose": "edge test b_gmv_category: children sum"
   },
   {
     "id": "r30",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.12,
+    "ms": 11.09,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
@@ -275,16 +275,16 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 9.28,
+    "ms": 12.84,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
     "id": "r32",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.13,
+    "ms": 11.92,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
@@ -293,16 +293,16 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 9.01,
+    "ms": 11.85,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
     "id": "r34",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.48,
+    "ms": 11.75,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
@@ -311,16 +311,16 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 9.64,
+    "ms": 11.44,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
     "id": "r36",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 9.07,
+    "ms": 10.83,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
@@ -329,151 +329,151 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:22f99ba565cfa04d",
     "rows": 672,
-    "ms": 10.02,
+    "ms": 12.95,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
     "id": "r38",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 3.64,
+    "ms": 5.24,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r39",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:46b8c973139a4df8",
+    "result_hash": "sha256:22a8ef9e254fa5c8",
     "rows": 672,
-    "ms": 3.6,
+    "ms": 4.42,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r40",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 3.53,
+    "ms": 4.54,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r41",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:46b8c973139a4df8",
+    "result_hash": "sha256:22a8ef9e254fa5c8",
     "rows": 672,
-    "ms": 3.46,
+    "ms": 4.56,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r42",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:b1e46485c970a691",
+    "result_hash": "sha256:c12b3ce4f07f0c8c",
     "rows": 672,
-    "ms": 3.72,
+    "ms": 4.43,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r43",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:46b8c973139a4df8",
+    "result_hash": "sha256:22a8ef9e254fa5c8",
     "rows": 672,
-    "ms": 3.6,
+    "ms": 4.45,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r44",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.15,
+    "ms": 4.56,
     "purpose": "edge test b_ad_spend_advertiser_id: children sum"
   },
   {
     "id": "r45",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.12,
+    "ms": 4.77,
     "purpose": "edge test b_ad_spend_country: children sum"
   },
   {
     "id": "r46",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.04,
+    "ms": 4.82,
     "purpose": "edge test b_ad_spend_platform: children sum"
   },
   {
     "id": "r47",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.08,
+    "ms": 5.05,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r48",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:dd230276f8e62a94",
+    "result_hash": "sha256:9af857bfeb7fe7c3",
     "rows": 672,
-    "ms": 4.0,
+    "ms": 4.61,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r49",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 3.93,
+    "ms": 4.72,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r50",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:dd230276f8e62a94",
+    "result_hash": "sha256:9af857bfeb7fe7c3",
     "rows": 672,
-    "ms": 3.91,
+    "ms": 5.13,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r51",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.07,
+    "ms": 4.8,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r52",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:dd230276f8e62a94",
+    "result_hash": "sha256:9af857bfeb7fe7c3",
     "rows": 672,
-    "ms": 3.63,
+    "ms": 4.43,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r53",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 4.26,
+    "ms": 4.89,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
@@ -482,16 +482,16 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:3bde659fbcf0e24c",
     "rows": 672,
-    "ms": 2.86,
+    "ms": 3.3,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
     "id": "r55",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-21 01:00:00' AND TIMESTAMP '2026-11-18 00:00:00' GROUP BY ts",
     "as_of": "2026-11-18T02:00:00",
-    "result_hash": "sha256:2a26c88ba0786454",
+    "result_hash": "sha256:3eaefd499ede8c84",
     "rows": 672,
-    "ms": 3.88,
+    "ms": 5.25,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
@@ -500,34 +500,34 @@
     "as_of": "2026-11-18T02:00:00",
     "result_hash": "sha256:3bde659fbcf0e24c",
     "rows": 672,
-    "ms": 2.58,
+    "ms": 3.25,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
     "id": "r57",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:cae83f3fc159fc51",
+    "result_hash": "sha256:2f8af67d05d9cd52",
     "rows": 672,
-    "ms": 9.23,
+    "ms": 10.23,
     "purpose": "edge test: hourly gmv"
   },
   {
     "id": "r58",
     "sql": "WITH t0 AS (SELECT ts, SUM(orders) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:f02407008f990940",
+    "result_hash": "sha256:63acf57947f06821",
     "rows": 672,
-    "ms": 9.58,
+    "ms": 9.92,
     "purpose": "edge test: hourly orders"
   },
   {
     "id": "r59",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS num, SUM(orders) AS den FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:9929c41f9688722a",
+    "result_hash": "sha256:a9fa664e3f9eb78b",
     "rows": 672,
-    "ms": 11.12,
+    "ms": 13.01,
     "purpose": "edge test: hourly aov"
   },
   {
@@ -536,124 +536,124 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:835bf2feaa9dbe86",
     "rows": 672,
-    "ms": 8.66,
+    "ms": 9.95,
     "purpose": "edge test: hourly sessions"
   },
   {
     "id": "r61",
     "sql": "WITH t0 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(orders) AS num FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:c115269140f4b68a",
+    "result_hash": "sha256:7da59e086911be38",
     "rows": 672,
-    "ms": 14.54,
+    "ms": 14.23,
     "purpose": "edge test: hourly cvr"
   },
   {
     "id": "r62",
     "sql": "WITH t0 AS (SELECT ts, SUM(product_views) AS num, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:ef8a13130a024853",
+    "result_hash": "sha256:b747be011030161f",
     "rows": 672,
-    "ms": 12.43,
+    "ms": 11.61,
     "purpose": "edge test: hourly view_rate"
   },
   {
     "id": "r63",
     "sql": "WITH t0 AS (SELECT ts, SUM(carts) AS num, SUM(product_views) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:451a93b440684a3b",
+    "result_hash": "sha256:a333780f24e41556",
     "rows": 672,
-    "ms": 10.89,
+    "ms": 10.88,
     "purpose": "edge test: hourly cart_rate"
   },
   {
     "id": "r64",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS num, SUM(carts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:1139fd16f0be9d7c",
+    "result_hash": "sha256:32f40ee785a0a93c",
     "rows": 672,
-    "ms": 10.73,
+    "ms": 11.89,
     "purpose": "edge test: hourly checkout_rate"
   },
   {
     "id": "r65",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(payment_attempts) AS num FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:2e9061acac599bbe",
+    "result_hash": "sha256:7493782d26f4a2ce",
     "rows": 672,
-    "ms": 11.19,
+    "ms": 12.61,
     "purpose": "edge test: hourly attempt_rate"
   },
   {
     "id": "r66",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS num, SUM(payment_attempts) AS den FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:ed49c746c93f263c",
+    "result_hash": "sha256:73fb48f03f0a7151",
     "rows": 672,
-    "ms": 4.15,
+    "ms": 5.12,
     "purpose": "edge test: hourly payment_success_rate"
   },
   {
     "id": "r67",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS value FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:f02407008f990940",
+    "result_hash": "sha256:63acf57947f06821",
     "rows": 672,
-    "ms": 3.62,
+    "ms": 4.85,
     "purpose": "edge test: hourly payment_successes"
   },
   {
     "id": "r68",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:ad7e4fbc38706440",
+    "result_hash": "sha256:3f23141c1d910ad6",
     "rows": 672,
-    "ms": 3.83,
+    "ms": 4.18,
     "purpose": "edge test: hourly ad_spend"
   },
   {
     "id": "r69",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:c9ff29fdd881cadf",
+    "result_hash": "sha256:9fdbc85bb121f4d8",
     "rows": 672,
-    "ms": 3.78,
+    "ms": 4.01,
     "purpose": "edge test: hourly ad_clicks"
   },
   {
     "id": "r70",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS num, SUM(ad_clicks) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:83fa1669496735ad",
+    "result_hash": "sha256:3179bfbb8d881351",
     "rows": 672,
-    "ms": 4.41,
+    "ms": 5.62,
     "purpose": "edge test: hourly cpc"
   },
   {
     "id": "r71",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:f6c62d3ac08bf7a8",
+    "result_hash": "sha256:cea51585fe0dc4ab",
     "rows": 672,
-    "ms": 3.8,
+    "ms": 4.81,
     "purpose": "edge test: hourly ad_impressions"
   },
   {
     "id": "r72",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS num, SUM(ad_impressions) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:1a49eedb8de30c0d",
+    "result_hash": "sha256:9d4784a6a684afc4",
     "rows": 672,
-    "ms": 4.45,
+    "ms": 6.29,
     "purpose": "edge test: hourly ctr"
   },
   {
     "id": "r73",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:611190371ce51ac3",
+    "result_hash": "sha256:75fa63e6cb43066c",
     "rows": 672,
-    "ms": 10.53,
+    "ms": 10.99,
     "purpose": "edge test: hourly impressions_per_session"
   },
   {
@@ -662,7 +662,7 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 9.4,
+    "ms": 10.54,
     "purpose": "edge test b_sessions_country: children sum"
   },
   {
@@ -671,7 +671,7 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 9.37,
+    "ms": 11.64,
     "purpose": "edge test b_sessions_platform: children sum"
   },
   {
@@ -680,7 +680,7 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 9.96,
+    "ms": 11.07,
     "purpose": "edge test b_sessions_channel: children sum"
   },
   {
@@ -689,88 +689,88 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 8.77,
+    "ms": 11.58,
     "purpose": "edge test b_sessions_category: children sum"
   },
   {
     "id": "r78",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 8.81,
+    "ms": 10.72,
     "purpose": "edge test b_orders_country: children sum"
   },
   {
     "id": "r79",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 9.57,
+    "ms": 10.21,
     "purpose": "edge test b_orders_platform: children sum"
   },
   {
     "id": "r80",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 9.12,
+    "ms": 10.98,
     "purpose": "edge test b_orders_channel: children sum"
   },
   {
     "id": "r81",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 9.21,
+    "ms": 12.7,
     "purpose": "edge test b_orders_category: children sum"
   },
   {
     "id": "r82",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:af4dd130360432c4",
+    "result_hash": "sha256:d2236b0a1b3e63bf",
     "rows": 672,
-    "ms": 9.08,
+    "ms": 11.2,
     "purpose": "edge test b_gmv_country: children sum"
   },
   {
     "id": "r83",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:af4dd130360432c4",
+    "result_hash": "sha256:d2236b0a1b3e63bf",
     "rows": 672,
-    "ms": 9.42,
+    "ms": 11.56,
     "purpose": "edge test b_gmv_platform: children sum"
   },
   {
     "id": "r84",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:af4dd130360432c4",
+    "result_hash": "sha256:d2236b0a1b3e63bf",
     "rows": 672,
-    "ms": 9.29,
+    "ms": 11.66,
     "purpose": "edge test b_gmv_channel: children sum"
   },
   {
     "id": "r85",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:af4dd130360432c4",
+    "result_hash": "sha256:d2236b0a1b3e63bf",
     "rows": 672,
-    "ms": 10.06,
+    "ms": 12.81,
     "purpose": "edge test b_gmv_category: children sum"
   },
   {
     "id": "r86",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 8.83,
+    "ms": 12.58,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
@@ -779,16 +779,16 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 8.63,
+    "ms": 11.64,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
     "id": "r88",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 9.59,
+    "ms": 16.47,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
@@ -797,16 +797,16 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 8.87,
+    "ms": 12.75,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
     "id": "r90",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 8.88,
+    "ms": 14.31,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
@@ -815,16 +815,16 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 12.82,
+    "ms": 11.05,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
     "id": "r92",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 10.57,
+    "ms": 11.03,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
@@ -833,151 +833,151 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:8aa20af5f05ecb4a",
     "rows": 672,
-    "ms": 9.28,
+    "ms": 11.29,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
     "id": "r94",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 3.6,
+    "ms": 5.14,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r95",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:1d6137367a751405",
+    "result_hash": "sha256:280b15a34c6b4edd",
     "rows": 672,
-    "ms": 3.58,
+    "ms": 4.2,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r96",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 3.78,
+    "ms": 4.13,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r97",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:1d6137367a751405",
+    "result_hash": "sha256:280b15a34c6b4edd",
     "rows": 672,
-    "ms": 3.38,
+    "ms": 4.41,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r98",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:332d843c583747dc",
+    "result_hash": "sha256:137fce9e139320e2",
     "rows": 672,
-    "ms": 3.54,
+    "ms": 4.04,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r99",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:1d6137367a751405",
+    "result_hash": "sha256:280b15a34c6b4edd",
     "rows": 672,
-    "ms": 3.54,
+    "ms": 4.73,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r100",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 3.95,
+    "ms": 4.51,
     "purpose": "edge test b_ad_spend_advertiser_id: children sum"
   },
   {
     "id": "r101",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 3.88,
+    "ms": 4.71,
     "purpose": "edge test b_ad_spend_country: children sum"
   },
   {
     "id": "r102",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 4.21,
+    "ms": 4.99,
     "purpose": "edge test b_ad_spend_platform: children sum"
   },
   {
     "id": "r103",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 3.83,
+    "ms": 4.39,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r104",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:6c0d3276594d0e1c",
+    "result_hash": "sha256:d816f27900e7461d",
     "rows": 672,
-    "ms": 3.96,
+    "ms": 4.5,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r105",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 4.28,
+    "ms": 4.38,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r106",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:6c0d3276594d0e1c",
+    "result_hash": "sha256:d816f27900e7461d",
     "rows": 672,
-    "ms": 3.41,
+    "ms": 4.36,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r107",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 4.32,
+    "ms": 5.39,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r108",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:6c0d3276594d0e1c",
+    "result_hash": "sha256:d816f27900e7461d",
     "rows": 672,
-    "ms": 3.64,
+    "ms": 4.27,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r109",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 3.98,
+    "ms": 5.04,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
@@ -986,16 +986,16 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:b9f280dbeae6330e",
     "rows": 672,
-    "ms": 2.81,
+    "ms": 3.51,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
     "id": "r111",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-22 01:00:00' AND TIMESTAMP '2026-11-19 00:00:00' GROUP BY ts",
     "as_of": "2026-11-19T02:00:00",
-    "result_hash": "sha256:16541503acad0b93",
+    "result_hash": "sha256:75d4714244c29094",
     "rows": 672,
-    "ms": 3.97,
+    "ms": 4.59,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
@@ -1004,34 +1004,34 @@
     "as_of": "2026-11-19T02:00:00",
     "result_hash": "sha256:b9f280dbeae6330e",
     "rows": 672,
-    "ms": 2.66,
+    "ms": 3.98,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
     "id": "r113",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:451c307a6f0d818a",
+    "result_hash": "sha256:f08795c28ede64e2",
     "rows": 672,
-    "ms": 9.3,
+    "ms": 11.15,
     "purpose": "edge test: hourly gmv"
   },
   {
     "id": "r114",
     "sql": "WITH t0 AS (SELECT ts, SUM(orders) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:e13f2c24676e9e1f",
+    "result_hash": "sha256:9193542edac0bddf",
     "rows": 672,
-    "ms": 9.81,
+    "ms": 11.57,
     "purpose": "edge test: hourly orders"
   },
   {
     "id": "r115",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS num, SUM(orders) AS den FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:588da8178f22153f",
+    "result_hash": "sha256:adab44e4d5f2f5b2",
     "rows": 672,
-    "ms": 12.35,
+    "ms": 14.52,
     "purpose": "edge test: hourly aov"
   },
   {
@@ -1040,124 +1040,124 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:b34de05fd9f7c011",
     "rows": 672,
-    "ms": 10.67,
+    "ms": 13.5,
     "purpose": "edge test: hourly sessions"
   },
   {
     "id": "r117",
     "sql": "WITH t0 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(orders) AS num FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:0e3a3d7e4451d0be",
+    "result_hash": "sha256:35ccf5999036939c",
     "rows": 672,
-    "ms": 14.36,
+    "ms": 20.72,
     "purpose": "edge test: hourly cvr"
   },
   {
     "id": "r118",
     "sql": "WITH t0 AS (SELECT ts, SUM(product_views) AS num, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:db959120899ed9c9",
+    "result_hash": "sha256:2738622519b04268",
     "rows": 672,
-    "ms": 13.12,
+    "ms": 19.05,
     "purpose": "edge test: hourly view_rate"
   },
   {
     "id": "r119",
     "sql": "WITH t0 AS (SELECT ts, SUM(carts) AS num, SUM(product_views) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:f39295e90c61b96c",
+    "result_hash": "sha256:05fb418fe334f433",
     "rows": 672,
-    "ms": 13.56,
+    "ms": 28.33,
     "purpose": "edge test: hourly cart_rate"
   },
   {
     "id": "r120",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS num, SUM(carts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:7cd8ae8e8595553c",
+    "result_hash": "sha256:dae45458d63fd7f0",
     "rows": 672,
-    "ms": 12.96,
+    "ms": 22.37,
     "purpose": "edge test: hourly checkout_rate"
   },
   {
     "id": "r121",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(payment_attempts) AS num FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:04347cf5f32dd751",
+    "result_hash": "sha256:b2736bfa060e4663",
     "rows": 672,
-    "ms": 12.65,
+    "ms": 56.17,
     "purpose": "edge test: hourly attempt_rate"
   },
   {
     "id": "r122",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS num, SUM(payment_attempts) AS den FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:221b309bb20e8ece",
+    "result_hash": "sha256:67a64fb9940adb4c",
     "rows": 672,
-    "ms": 5.76,
+    "ms": 37.88,
     "purpose": "edge test: hourly payment_success_rate"
   },
   {
     "id": "r123",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS value FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:e13f2c24676e9e1f",
+    "result_hash": "sha256:9193542edac0bddf",
     "rows": 672,
-    "ms": 5.76,
+    "ms": 37.26,
     "purpose": "edge test: hourly payment_successes"
   },
   {
     "id": "r124",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:b24c9cb68f40d375",
+    "result_hash": "sha256:ac56f6c4ca7d1942",
     "rows": 672,
-    "ms": 4.82,
+    "ms": 41.27,
     "purpose": "edge test: hourly ad_spend"
   },
   {
     "id": "r125",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:f8f83c0799db6977",
+    "result_hash": "sha256:64d222e97355fdcd",
     "rows": 672,
-    "ms": 5.12,
+    "ms": 52.7,
     "purpose": "edge test: hourly ad_clicks"
   },
   {
     "id": "r126",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS num, SUM(ad_clicks) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:2268ef9b0422842c",
+    "result_hash": "sha256:311965b172b28931",
     "rows": 672,
-    "ms": 5.58,
+    "ms": 28.13,
     "purpose": "edge test: hourly cpc"
   },
   {
     "id": "r127",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:50d87a9c14aa9865",
+    "result_hash": "sha256:f52ed00448941836",
     "rows": 672,
-    "ms": 5.27,
+    "ms": 47.05,
     "purpose": "edge test: hourly ad_impressions"
   },
   {
     "id": "r128",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS num, SUM(ad_impressions) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:2c11b1339c0615e7",
+    "result_hash": "sha256:7b8e21f115b4f888",
     "rows": 672,
-    "ms": 6.35,
+    "ms": 35.32,
     "purpose": "edge test: hourly ctr"
   },
   {
     "id": "r129",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:8268550425a04f4e",
+    "result_hash": "sha256:9446c7bd71ba2114",
     "rows": 672,
-    "ms": 11.97,
+    "ms": 79.37,
     "purpose": "edge test: hourly impressions_per_session"
   },
   {
@@ -1166,7 +1166,7 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 12.1,
+    "ms": 58.4,
     "purpose": "edge test b_sessions_country: children sum"
   },
   {
@@ -1175,7 +1175,7 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 14.57,
+    "ms": 32.67,
     "purpose": "edge test b_sessions_platform: children sum"
   },
   {
@@ -1184,7 +1184,7 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 11.28,
+    "ms": 25.81,
     "purpose": "edge test b_sessions_channel: children sum"
   },
   {
@@ -1193,88 +1193,88 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 10.52,
+    "ms": 31.75,
     "purpose": "edge test b_sessions_category: children sum"
   },
   {
     "id": "r134",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 10.3,
+    "ms": 29.62,
     "purpose": "edge test b_orders_country: children sum"
   },
   {
     "id": "r135",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 10.06,
+    "ms": 23.63,
     "purpose": "edge test b_orders_platform: children sum"
   },
   {
     "id": "r136",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 10.93,
+    "ms": 14.64,
     "purpose": "edge test b_orders_channel: children sum"
   },
   {
     "id": "r137",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 11.02,
+    "ms": 14.43,
     "purpose": "edge test b_orders_category: children sum"
   },
   {
     "id": "r138",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:10522e5310352c9b",
+    "result_hash": "sha256:7b88c7632549f7f2",
     "rows": 672,
-    "ms": 13.57,
+    "ms": 14.58,
     "purpose": "edge test b_gmv_country: children sum"
   },
   {
     "id": "r139",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:10522e5310352c9b",
+    "result_hash": "sha256:7b88c7632549f7f2",
     "rows": 672,
-    "ms": 11.24,
+    "ms": 17.32,
     "purpose": "edge test b_gmv_platform: children sum"
   },
   {
     "id": "r140",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:10522e5310352c9b",
+    "result_hash": "sha256:7b88c7632549f7f2",
     "rows": 672,
-    "ms": 11.0,
+    "ms": 16.26,
     "purpose": "edge test b_gmv_channel: children sum"
   },
   {
     "id": "r141",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:10522e5310352c9b",
+    "result_hash": "sha256:7b88c7632549f7f2",
     "rows": 672,
-    "ms": 10.57,
+    "ms": 16.42,
     "purpose": "edge test b_gmv_category: children sum"
   },
   {
     "id": "r142",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 9.47,
+    "ms": 12.86,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
@@ -1283,16 +1283,16 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 9.97,
+    "ms": 19.25,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
     "id": "r144",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 10.68,
+    "ms": 15.91,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
@@ -1301,16 +1301,16 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 9.7,
+    "ms": 17.42,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
     "id": "r146",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 9.68,
+    "ms": 25.16,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
@@ -1319,16 +1319,16 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 9.77,
+    "ms": 21.89,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
     "id": "r148",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 10.27,
+    "ms": 18.04,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
@@ -1337,151 +1337,151 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:eb5018ebe2f8781a",
     "rows": 672,
-    "ms": 10.41,
+    "ms": 19.18,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
     "id": "r150",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 3.75,
+    "ms": 6.3,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r151",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:4fd6deefdc26a812",
+    "result_hash": "sha256:aa785d833faa54f2",
     "rows": 672,
-    "ms": 4.65,
+    "ms": 11.49,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r152",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 3.92,
+    "ms": 7.45,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r153",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:4fd6deefdc26a812",
+    "result_hash": "sha256:aa785d833faa54f2",
     "rows": 672,
-    "ms": 3.88,
+    "ms": 4.84,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r154",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:79778e08c2159d7e",
+    "result_hash": "sha256:141e6b75e4d474a2",
     "rows": 672,
-    "ms": 4.03,
+    "ms": 7.14,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r155",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:4fd6deefdc26a812",
+    "result_hash": "sha256:aa785d833faa54f2",
     "rows": 672,
-    "ms": 3.78,
+    "ms": 4.55,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r156",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.22,
+    "ms": 6.6,
     "purpose": "edge test b_ad_spend_advertiser_id: children sum"
   },
   {
     "id": "r157",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.22,
+    "ms": 6.29,
     "purpose": "edge test b_ad_spend_country: children sum"
   },
   {
     "id": "r158",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.48,
+    "ms": 5.09,
     "purpose": "edge test b_ad_spend_platform: children sum"
   },
   {
     "id": "r159",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.14,
+    "ms": 5.03,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r160",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:b9952df00287934e",
+    "result_hash": "sha256:9ba0efbb8b85ddf9",
     "rows": 672,
-    "ms": 4.07,
+    "ms": 5.11,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r161",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.12,
+    "ms": 15.76,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r162",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:b9952df00287934e",
+    "result_hash": "sha256:9ba0efbb8b85ddf9",
     "rows": 672,
-    "ms": 3.99,
+    "ms": 4.45,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r163",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.17,
+    "ms": 7.86,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r164",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:b9952df00287934e",
+    "result_hash": "sha256:9ba0efbb8b85ddf9",
     "rows": 672,
-    "ms": 3.81,
+    "ms": 7.7,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r165",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.23,
+    "ms": 5.43,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
@@ -1490,16 +1490,16 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:4a9c48c28337d9fb",
     "rows": 672,
-    "ms": 3.47,
+    "ms": 4.89,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
     "id": "r167",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-23 01:00:00' AND TIMESTAMP '2026-11-20 00:00:00' GROUP BY ts",
     "as_of": "2026-11-20T02:00:00",
-    "result_hash": "sha256:fe31e24014456052",
+    "result_hash": "sha256:42cb640a1a8cedf0",
     "rows": 672,
-    "ms": 4.88,
+    "ms": 13.22,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
@@ -1508,34 +1508,34 @@
     "as_of": "2026-11-20T02:00:00",
     "result_hash": "sha256:4a9c48c28337d9fb",
     "rows": 672,
-    "ms": 3.2,
+    "ms": 3.72,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
     "id": "r169",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a0826320e85dd0e1",
+    "result_hash": "sha256:7e26a8cdd31f3017",
     "rows": 672,
-    "ms": 9.62,
+    "ms": 11.35,
     "purpose": "edge test: hourly gmv"
   },
   {
     "id": "r170",
     "sql": "WITH t0 AS (SELECT ts, SUM(orders) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:52a38d08ac1ea1e4",
+    "result_hash": "sha256:02095d44ce0fdafe",
     "rows": 672,
-    "ms": 9.43,
+    "ms": 10.25,
     "purpose": "edge test: hourly orders"
   },
   {
     "id": "r171",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS num, SUM(orders) AS den FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:46fc587bbb8429d4",
+    "result_hash": "sha256:4ec0560d8e485d39",
     "rows": 672,
-    "ms": 12.27,
+    "ms": 12.05,
     "purpose": "edge test: hourly aov"
   },
   {
@@ -1544,124 +1544,124 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:4e2736fda50827b3",
     "rows": 672,
-    "ms": 9.37,
+    "ms": 10.46,
     "purpose": "edge test: hourly sessions"
   },
   {
     "id": "r173",
     "sql": "WITH t0 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(orders) AS num FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:17da046e48be102f",
+    "result_hash": "sha256:9a402ef2cff3f2a1",
     "rows": 672,
-    "ms": 12.54,
+    "ms": 17.24,
     "purpose": "edge test: hourly cvr"
   },
   {
     "id": "r174",
     "sql": "WITH t0 AS (SELECT ts, SUM(product_views) AS num, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:075b3c4eced0b76d",
+    "result_hash": "sha256:d701438d05132404",
     "rows": 672,
-    "ms": 11.3,
+    "ms": 12.87,
     "purpose": "edge test: hourly view_rate"
   },
   {
     "id": "r175",
     "sql": "WITH t0 AS (SELECT ts, SUM(carts) AS num, SUM(product_views) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:e9bd6446b6f38b5a",
+    "result_hash": "sha256:0eddfe28fa48a8c7",
     "rows": 672,
-    "ms": 10.83,
+    "ms": 12.5,
     "purpose": "edge test: hourly cart_rate"
   },
   {
     "id": "r176",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS num, SUM(carts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:8a710359ccb706ec",
+    "result_hash": "sha256:b694334afb4c6eca",
     "rows": 672,
-    "ms": 18.68,
+    "ms": 13.48,
     "purpose": "edge test: hourly checkout_rate"
   },
   {
     "id": "r177",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(payment_attempts) AS num FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a26e245be64639a7",
+    "result_hash": "sha256:a66e803ba14d67ba",
     "rows": 672,
-    "ms": 10.68,
+    "ms": 12.59,
     "purpose": "edge test: hourly attempt_rate"
   },
   {
     "id": "r178",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS num, SUM(payment_attempts) AS den FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:0971cdbe639f64f7",
+    "result_hash": "sha256:d56eb747f9a0d62c",
     "rows": 672,
-    "ms": 4.76,
+    "ms": 5.21,
     "purpose": "edge test: hourly payment_success_rate"
   },
   {
     "id": "r179",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS value FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:52a38d08ac1ea1e4",
+    "result_hash": "sha256:02095d44ce0fdafe",
     "rows": 672,
-    "ms": 3.91,
+    "ms": 4.25,
     "purpose": "edge test: hourly payment_successes"
   },
   {
     "id": "r180",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:cceebb2975a65e41",
+    "result_hash": "sha256:de02bba103521b8f",
     "rows": 672,
-    "ms": 4.05,
+    "ms": 4.77,
     "purpose": "edge test: hourly ad_spend"
   },
   {
     "id": "r181",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:cf0e0cb4a91e0b2c",
+    "result_hash": "sha256:e293250af39090f8",
     "rows": 672,
-    "ms": 4.08,
+    "ms": 4.3,
     "purpose": "edge test: hourly ad_clicks"
   },
   {
     "id": "r182",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS num, SUM(ad_clicks) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:033fc5febb8e1bf7",
+    "result_hash": "sha256:4c0c03529715a30b",
     "rows": 672,
-    "ms": 5.26,
+    "ms": 5.62,
     "purpose": "edge test: hourly cpc"
   },
   {
     "id": "r183",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1e9fafc179351ff9",
+    "result_hash": "sha256:0ee1ffb59a6b8467",
     "rows": 672,
-    "ms": 4.23,
+    "ms": 4.61,
     "purpose": "edge test: hourly ad_impressions"
   },
   {
     "id": "r184",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS num, SUM(ad_impressions) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:0f095f21314144d7",
+    "result_hash": "sha256:243a6f936fbdb995",
     "rows": 672,
-    "ms": 4.56,
+    "ms": 5.97,
     "purpose": "edge test: hourly ctr"
   },
   {
     "id": "r185",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:725a9b0d38977847",
+    "result_hash": "sha256:2cd6110517de4072",
     "rows": 672,
-    "ms": 10.8,
+    "ms": 11.26,
     "purpose": "edge test: hourly impressions_per_session"
   },
   {
@@ -1670,7 +1670,7 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.24,
+    "ms": 12.59,
     "purpose": "edge test b_sessions_country: children sum"
   },
   {
@@ -1679,7 +1679,7 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 11.55,
+    "ms": 11.96,
     "purpose": "edge test b_sessions_platform: children sum"
   },
   {
@@ -1688,7 +1688,7 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.84,
+    "ms": 11.86,
     "purpose": "edge test b_sessions_channel: children sum"
   },
   {
@@ -1697,88 +1697,88 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.16,
+    "ms": 13.28,
     "purpose": "edge test b_sessions_category: children sum"
   },
   {
     "id": "r190",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 9.95,
+    "ms": 13.18,
     "purpose": "edge test b_orders_country: children sum"
   },
   {
     "id": "r191",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 10.17,
+    "ms": 15.82,
     "purpose": "edge test b_orders_platform: children sum"
   },
   {
     "id": "r192",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 10.41,
+    "ms": 17.83,
     "purpose": "edge test b_orders_channel: children sum"
   },
   {
     "id": "r193",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 11.07,
+    "ms": 21.59,
     "purpose": "edge test b_orders_category: children sum"
   },
   {
     "id": "r194",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:09e0502bbf6f0b4a",
+    "result_hash": "sha256:fd9d28f6c3ca55de",
     "rows": 672,
-    "ms": 10.68,
+    "ms": 21.29,
     "purpose": "edge test b_gmv_country: children sum"
   },
   {
     "id": "r195",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:09e0502bbf6f0b4a",
+    "result_hash": "sha256:fd9d28f6c3ca55de",
     "rows": 672,
-    "ms": 10.68,
+    "ms": 15.52,
     "purpose": "edge test b_gmv_platform: children sum"
   },
   {
     "id": "r196",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:09e0502bbf6f0b4a",
+    "result_hash": "sha256:fd9d28f6c3ca55de",
     "rows": 672,
-    "ms": 10.29,
+    "ms": 14.97,
     "purpose": "edge test b_gmv_channel: children sum"
   },
   {
     "id": "r197",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:09e0502bbf6f0b4a",
+    "result_hash": "sha256:fd9d28f6c3ca55de",
     "rows": 672,
-    "ms": 10.59,
+    "ms": 16.07,
     "purpose": "edge test b_gmv_category: children sum"
   },
   {
     "id": "r198",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 9.93,
+    "ms": 30.55,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
@@ -1787,16 +1787,16 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.32,
+    "ms": 14.93,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
     "id": "r200",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 9.88,
+    "ms": 11.8,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
@@ -1805,16 +1805,16 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 9.83,
+    "ms": 11.79,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
     "id": "r202",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 9.94,
+    "ms": 12.39,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
@@ -1823,16 +1823,16 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.18,
+    "ms": 12.76,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
     "id": "r204",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 9.9,
+    "ms": 12.81,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
@@ -1841,151 +1841,151 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:3eb3b914eca860be",
     "rows": 672,
-    "ms": 10.0,
+    "ms": 11.36,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
     "id": "r206",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 4.0,
+    "ms": 4.43,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r207",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:2fdcd0d997ab9441",
+    "result_hash": "sha256:016234d60d712634",
     "rows": 672,
-    "ms": 4.15,
+    "ms": 4.55,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r208",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 3.76,
+    "ms": 5.37,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r209",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:2fdcd0d997ab9441",
+    "result_hash": "sha256:016234d60d712634",
     "rows": 672,
-    "ms": 4.09,
+    "ms": 4.9,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r210",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:1c391742bdcf94fc",
+    "result_hash": "sha256:30c163aff225ffc9",
     "rows": 672,
-    "ms": 3.71,
+    "ms": 5.28,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r211",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:2fdcd0d997ab9441",
+    "result_hash": "sha256:016234d60d712634",
     "rows": 672,
-    "ms": 3.8,
+    "ms": 5.1,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r212",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.47,
+    "ms": 7.6,
     "purpose": "edge test b_ad_spend_advertiser_id: children sum"
   },
   {
     "id": "r213",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.81,
+    "ms": 6.39,
     "purpose": "edge test b_ad_spend_country: children sum"
   },
   {
     "id": "r214",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.37,
+    "ms": 5.59,
     "purpose": "edge test b_ad_spend_platform: children sum"
   },
   {
     "id": "r215",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.54,
+    "ms": 7.39,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r216",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:5689fbf46344aa9f",
+    "result_hash": "sha256:6504fc8e1dbc751c",
     "rows": 672,
-    "ms": 4.12,
+    "ms": 5.79,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r217",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.51,
+    "ms": 6.16,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r218",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:5689fbf46344aa9f",
+    "result_hash": "sha256:6504fc8e1dbc751c",
     "rows": 672,
-    "ms": 4.42,
+    "ms": 6.54,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r219",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.51,
+    "ms": 6.88,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r220",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:5689fbf46344aa9f",
+    "result_hash": "sha256:6504fc8e1dbc751c",
     "rows": 672,
-    "ms": 4.1,
+    "ms": 5.93,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r221",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.39,
+    "ms": 7.22,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
@@ -1994,16 +1994,16 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:e7cb8fb0bcba2b46",
     "rows": 672,
-    "ms": 3.0,
+    "ms": 3.46,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
     "id": "r223",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-24 01:00:00' AND TIMESTAMP '2026-11-21 00:00:00' GROUP BY ts",
     "as_of": "2026-11-21T02:00:00",
-    "result_hash": "sha256:a8bdda696250cf39",
+    "result_hash": "sha256:0755009434c5da4d",
     "rows": 672,
-    "ms": 4.44,
+    "ms": 7.48,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
@@ -2012,34 +2012,34 @@
     "as_of": "2026-11-21T02:00:00",
     "result_hash": "sha256:e7cb8fb0bcba2b46",
     "rows": 672,
-    "ms": 3.06,
+    "ms": 3.55,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
     "id": "r225",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4031672cf33d9f1e",
+    "result_hash": "sha256:3f8e5c4fbae1b06b",
     "rows": 672,
-    "ms": 9.29,
+    "ms": 10.97,
     "purpose": "edge test: hourly gmv"
   },
   {
     "id": "r226",
     "sql": "WITH t0 AS (SELECT ts, SUM(orders) AS value FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:feb8f1f1ebe7a908",
+    "result_hash": "sha256:aeb52a7cff654f89",
     "rows": 672,
-    "ms": 9.12,
+    "ms": 12.35,
     "purpose": "edge test: hourly orders"
   },
   {
     "id": "r227",
     "sql": "WITH t0 AS (SELECT ts, SUM(gmv) AS num, SUM(orders) AS den FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:ac5428fefa69391d",
+    "result_hash": "sha256:66f36c2175cf579a",
     "rows": 672,
-    "ms": 11.16,
+    "ms": 13.42,
     "purpose": "edge test: hourly aov"
   },
   {
@@ -2048,124 +2048,124 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5a2585b1e0a61bb3",
     "rows": 672,
-    "ms": 9.22,
+    "ms": 11.55,
     "purpose": "edge test: hourly sessions"
   },
   {
     "id": "r229",
     "sql": "WITH t0 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(orders) AS num FROM fact_orders_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:90c8d11ae7c4d8ab",
+    "result_hash": "sha256:87d47cafd54f4758",
     "rows": 672,
-    "ms": 13.02,
+    "ms": 16.02,
     "purpose": "edge test: hourly cvr"
   },
   {
     "id": "r230",
     "sql": "WITH t0 AS (SELECT ts, SUM(product_views) AS num, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:b2685ee99337f1f0",
+    "result_hash": "sha256:8e5da231194a94bb",
     "rows": 672,
-    "ms": 10.59,
+    "ms": 12.7,
     "purpose": "edge test: hourly view_rate"
   },
   {
     "id": "r231",
     "sql": "WITH t0 AS (SELECT ts, SUM(carts) AS num, SUM(product_views) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:0e724c6b27187c8b",
+    "result_hash": "sha256:3b3014d204b56754",
     "rows": 672,
-    "ms": 12.45,
+    "ms": 13.9,
     "purpose": "edge test: hourly cart_rate"
   },
   {
     "id": "r232",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS num, SUM(carts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:1ab699da3b88e5b4",
+    "result_hash": "sha256:5955b693c0e6b2bb",
     "rows": 672,
-    "ms": 11.01,
+    "ms": 16.01,
     "purpose": "edge test: hourly checkout_rate"
   },
   {
     "id": "r233",
     "sql": "WITH t0 AS (SELECT ts, SUM(checkouts) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(payment_attempts) AS num FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:c114a9357c024b18",
+    "result_hash": "sha256:066e03d62611a70c",
     "rows": 672,
-    "ms": 10.73,
+    "ms": 14.41,
     "purpose": "edge test: hourly attempt_rate"
   },
   {
     "id": "r234",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS num, SUM(payment_attempts) AS den FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:3664fd41f8eec38c",
+    "result_hash": "sha256:bbebdfd14276325e",
     "rows": 672,
-    "ms": 5.05,
+    "ms": 5.24,
     "purpose": "edge test: hourly payment_success_rate"
   },
   {
     "id": "r235",
     "sql": "WITH t0 AS (SELECT ts, SUM(payment_successes) AS value FROM fact_payments_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:73831202a7063f44",
+    "result_hash": "sha256:6db393031f10f33d",
     "rows": 672,
-    "ms": 4.01,
+    "ms": 4.08,
     "purpose": "edge test: hourly payment_successes"
   },
   {
     "id": "r236",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:b57bb2cb90371752",
+    "result_hash": "sha256:61d4c22cbf1dfb58",
     "rows": 672,
-    "ms": 4.37,
+    "ms": 4.47,
     "purpose": "edge test: hourly ad_spend"
   },
   {
     "id": "r237",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:20fc2886d9f92e04",
+    "result_hash": "sha256:3b2952dc6e6caa4f",
     "rows": 672,
-    "ms": 4.24,
+    "ms": 5.75,
     "purpose": "edge test: hourly ad_clicks"
   },
   {
     "id": "r238",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_spend) AS num, SUM(ad_clicks) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:546d7f95fbe53e13",
+    "result_hash": "sha256:ffee1c3d2e8f1baf",
     "rows": 672,
-    "ms": 4.93,
+    "ms": 6.07,
     "purpose": "edge test: hourly cpc"
   },
   {
     "id": "r239",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS value FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, value FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:7600c88e9bc1d20f",
+    "result_hash": "sha256:18362c29d48fb22e",
     "rows": 672,
-    "ms": 4.42,
+    "ms": 5.2,
     "purpose": "edge test: hourly ad_impressions"
   },
   {
     "id": "r240",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_clicks) AS num, SUM(ad_impressions) AS den FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:311f7437b714afb4",
+    "result_hash": "sha256:7d6a792483abf53a",
     "rows": 672,
-    "ms": 4.94,
+    "ms": 5.27,
     "purpose": "edge test: hourly ctr"
   },
   {
     "id": "r241",
     "sql": "WITH t0 AS (SELECT ts, SUM(ad_impressions) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(sessions) AS den FROM fact_funnel_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00') GROUP BY ts)\nSELECT ts, num, den FROM t0 JOIN t1 USING (ts) ORDER BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:43c83f4310be39b2",
+    "result_hash": "sha256:31b050b99c3fa6d1",
     "rows": 672,
-    "ms": 11.02,
+    "ms": 13.01,
     "purpose": "edge test: hourly impressions_per_session"
   },
   {
@@ -2174,7 +2174,7 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 10.52,
+    "ms": 11.78,
     "purpose": "edge test b_sessions_country: children sum"
   },
   {
@@ -2183,7 +2183,7 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 10.12,
+    "ms": 14.78,
     "purpose": "edge test b_sessions_platform: children sum"
   },
   {
@@ -2192,7 +2192,7 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 10.23,
+    "ms": 13.96,
     "purpose": "edge test b_sessions_channel: children sum"
   },
   {
@@ -2201,88 +2201,88 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 10.26,
+    "ms": 13.64,
     "purpose": "edge test b_sessions_category: children sum"
   },
   {
     "id": "r246",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 11.03,
+    "ms": 11.84,
     "purpose": "edge test b_orders_country: children sum"
   },
   {
     "id": "r247",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 9.97,
+    "ms": 11.12,
     "purpose": "edge test b_orders_platform: children sum"
   },
   {
     "id": "r248",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 10.64,
+    "ms": 10.79,
     "purpose": "edge test b_orders_channel: children sum"
   },
   {
     "id": "r249",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 11.25,
+    "ms": 12.89,
     "purpose": "edge test b_orders_category: children sum"
   },
   {
     "id": "r250",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:60746775cd7295dc",
+    "result_hash": "sha256:94c5d59415ad8dcc",
     "rows": 672,
-    "ms": 11.12,
+    "ms": 11.55,
     "purpose": "edge test b_gmv_country: children sum"
   },
   {
     "id": "r251",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:60746775cd7295dc",
+    "result_hash": "sha256:94c5d59415ad8dcc",
     "rows": 672,
-    "ms": 10.61,
+    "ms": 12.25,
     "purpose": "edge test b_gmv_platform: children sum"
   },
   {
     "id": "r252",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:60746775cd7295dc",
+    "result_hash": "sha256:94c5d59415ad8dcc",
     "rows": 672,
-    "ms": 9.85,
+    "ms": 11.02,
     "purpose": "edge test b_gmv_channel: children sum"
   },
   {
     "id": "r253",
     "sql": "SELECT ts, SUM(gmv) AS total, SUM(gmv) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:60746775cd7295dc",
+    "result_hash": "sha256:94c5d59415ad8dcc",
     "rows": 672,
-    "ms": 10.29,
+    "ms": 11.79,
     "purpose": "edge test b_gmv_category: children sum"
   },
   {
     "id": "r254",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 9.54,
+    "ms": 10.2,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
@@ -2291,16 +2291,16 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 9.55,
+    "ms": 12.39,
     "purpose": "edge test b_cvr_country: children sum"
   },
   {
     "id": "r256",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 9.91,
+    "ms": 10.87,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
@@ -2309,16 +2309,16 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 9.91,
+    "ms": 11.5,
     "purpose": "edge test b_cvr_platform: children sum"
   },
   {
     "id": "r258",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE channel IN ('organic', 'paid', 'email', 'direct')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 9.5,
+    "ms": 10.66,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
@@ -2327,16 +2327,16 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 9.29,
+    "ms": 11.6,
     "purpose": "edge test b_cvr_channel: children sum"
   },
   {
     "id": "r260",
     "sql": "SELECT ts, SUM(orders) AS total, SUM(orders) FILTER (WHERE category IN ('electronics', 'fashion', 'home', 'beauty', 'toys', 'grocery')) AS children FROM fact_orders_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:4200fd36c79f1a0d",
+    "result_hash": "sha256:b8d2de25e9e65b85",
     "rows": 672,
-    "ms": 9.93,
+    "ms": 11.1,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
@@ -2345,151 +2345,151 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:5184c82d7e67c0de",
     "rows": 672,
-    "ms": 9.73,
+    "ms": 11.41,
     "purpose": "edge test b_cvr_category: children sum"
   },
   {
     "id": "r262",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:dd75c46061dce94b",
+    "result_hash": "sha256:c6b9efe79aaf7431",
     "rows": 672,
-    "ms": 4.13,
+    "ms": 4.33,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r263",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:f921fa0c9bb14ed5",
+    "result_hash": "sha256:0282370020c025a9",
     "rows": 672,
-    "ms": 3.94,
+    "ms": 5.3,
     "purpose": "edge test b_payment_success_rate_country: children sum"
   },
   {
     "id": "r264",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:dd75c46061dce94b",
+    "result_hash": "sha256:c6b9efe79aaf7431",
     "rows": 672,
-    "ms": 3.7,
+    "ms": 4.13,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r265",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:f921fa0c9bb14ed5",
+    "result_hash": "sha256:0282370020c025a9",
     "rows": 672,
-    "ms": 3.9,
+    "ms": 4.15,
     "purpose": "edge test b_payment_success_rate_platform: children sum"
   },
   {
     "id": "r266",
     "sql": "SELECT ts, SUM(payment_successes) AS total, SUM(payment_successes) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:dd75c46061dce94b",
+    "result_hash": "sha256:c6b9efe79aaf7431",
     "rows": 672,
-    "ms": 3.84,
+    "ms": 4.88,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r267",
     "sql": "SELECT ts, SUM(payment_attempts) AS total, SUM(payment_attempts) FILTER (WHERE provider IN ('PayCo', 'CardHub', 'WalletGo')) AS children FROM fact_payments_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:f921fa0c9bb14ed5",
+    "result_hash": "sha256:0282370020c025a9",
     "rows": 672,
-    "ms": 3.81,
+    "ms": 4.31,
     "purpose": "edge test b_payment_success_rate_provider: children sum"
   },
   {
     "id": "r268",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.41,
+    "ms": 6.56,
     "purpose": "edge test b_ad_spend_advertiser_id: children sum"
   },
   {
     "id": "r269",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.32,
+    "ms": 5.33,
     "purpose": "edge test b_ad_spend_country: children sum"
   },
   {
     "id": "r270",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.05,
+    "ms": 5.05,
     "purpose": "edge test b_ad_spend_platform: children sum"
   },
   {
     "id": "r271",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.29,
+    "ms": 4.92,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r272",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:8f11d8ff48709f3c",
+    "result_hash": "sha256:9c954290455d49f5",
     "rows": 672,
-    "ms": 4.02,
+    "ms": 4.28,
     "purpose": "edge test b_cpa_advertiser_id: children sum"
   },
   {
     "id": "r273",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.65,
+    "ms": 5.39,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r274",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:8f11d8ff48709f3c",
+    "result_hash": "sha256:9c954290455d49f5",
     "rows": 672,
-    "ms": 4.05,
+    "ms": 4.36,
     "purpose": "edge test b_cpa_country: children sum"
   },
   {
     "id": "r275",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.09,
+    "ms": 5.62,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r276",
     "sql": "SELECT ts, SUM(ad_conversions) AS total, SUM(ad_conversions) FILTER (WHERE platform IN ('android', 'ios', 'web')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:8f11d8ff48709f3c",
+    "result_hash": "sha256:9c954290455d49f5",
     "rows": 672,
-    "ms": 4.11,
+    "ms": 4.93,
     "purpose": "edge test b_cpa_platform: children sum"
   },
   {
     "id": "r277",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE advertiser_id IN ('adv_01', 'adv_02', 'adv_03', 'adv_04', 'adv_05', 'adv_06')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.59,
+    "ms": 6.14,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
@@ -2498,16 +2498,16 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:27efa6c2c4d003dc",
     "rows": 672,
-    "ms": 3.01,
+    "ms": 3.35,
     "purpose": "edge test b_pacing_ratio_advertiser_id: children sum"
   },
   {
     "id": "r279",
     "sql": "SELECT ts, SUM(ad_spend) AS total, SUM(ad_spend) FILTER (WHERE country IN ('DE', 'FR', 'UK', 'ES', 'NL')) AS children FROM fact_ads_hourly WHERE ts BETWEEN TIMESTAMP '2026-10-25 01:00:00' AND TIMESTAMP '2026-11-22 00:00:00' GROUP BY ts",
     "as_of": "2026-11-22T02:00:00",
-    "result_hash": "sha256:94e0a13de8f3e0a4",
+    "result_hash": "sha256:9f85e07bcf161850",
     "rows": 672,
-    "ms": 4.82,
+    "ms": 5.84,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   },
   {
@@ -2516,7 +2516,7 @@
     "as_of": "2026-11-22T02:00:00",
     "result_hash": "sha256:27efa6c2c4d003dc",
     "rows": 672,
-    "ms": 2.99,
+    "ms": 3.21,
     "purpose": "edge test b_pacing_ratio_country: children sum"
   }
 ]
