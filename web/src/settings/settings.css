@@ -8,7 +8,6 @@
 }
 
 :root[data-fx] .fx-dash.cs-surface {
-  grid-column: 2 / 4;
   padding: clamp(18px, 2vw, 32px) clamp(14px, 2.5vw, 46px) 32px;
   animation: none;
   scrollbar-color: var(--line-2) transparent;

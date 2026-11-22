@@ -84,7 +84,16 @@
   display: none;
 }
 
-:root[data-fx]:is([data-fx-section="dashboard"], [data-fx-section="incidents"], [data-fx-section="incident"], [data-fx-section="glossary"], [data-fx-section="agent"], [data-fx-section="village"]) .fx-dash {
+:root[data-fx]:is(
+  [data-fx-section="dashboard"],
+  [data-fx-section="incidents"],
+  [data-fx-section="incident"],
+  [data-fx-section="glossary"],
+  [data-fx-section="agent"],
+  [data-fx-section="village"],
+  [data-fx-section="settings"],
+  [data-fx-section="calendar"]
+) .fx-dash {
   grid-column: 2 / 4;
 }
 
