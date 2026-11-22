@@ -139,7 +139,8 @@ function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTar
   const [receipt, setReceipt] = useState<AgentReceipt | null>(null);
   // during the agent presentation a plain receipt id is one the presentation revealed: its own route
   const demo = typeof target === "string" && demoRunId() !== null;
-  const canRerun = !agent && !demo && rerunAvailable;
+  const recordedPlacement = !agent && id.startsWith("gx-");
+  const canRerun = !agent && !demo && !recordedPlacement && rerunAvailable;
   const [loadError, setLoadError] = useState<unknown>(null);
   const [runError, setRunError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
@@ -285,9 +286,11 @@ function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTar
                 ? `${runWhy.title}. ${runWhy.detail}`
                 : agent || demo
                   ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
-                  : canRerun
-                    ? "Runs the exact SQL again at the pinned as_of and compares the hash."
-                    : "SQL re-runs need a world. Start Argus over a world to verify this query."}
+                  : recordedPlacement
+                    ? "This query was captured with the recorded metric placement."
+                    : canRerun
+                      ? "Runs the exact SQL again at the pinned as_of and compares the hash."
+                      : "SQL re-runs need a world. Start Argus over a world to verify this query."}
             </span>
           )}
         </div>

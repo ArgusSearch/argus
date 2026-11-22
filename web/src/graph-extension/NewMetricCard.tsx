@@ -94,6 +94,11 @@ export function NewMetricCard({ placement, onClose }: { placement: PlacementResu
                 {t}
               </li>
             ))}
+            {view.verdict === "REJECTED" && cert.receipts.length > 0 && (
+              <li>
+                <ReceiptChips ids={cert.receipts} />
+              </li>
+            )}
           </ul>
         </div>
       )}

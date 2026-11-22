@@ -8,7 +8,8 @@
 * A replay has no world. It serves the recorded placement of the demo pack (`fixtures/graph_extension/`),
   matched by name and SQL, and adds the recorded node and edges to the replayed graph. Replay owns the event
   seq space, so nothing is published there; clients read `GET /graph/metrics` (its `version` moves).
-* A replay restart starts a new stream and resets the graph, so the placements of the old stream are dropped.
+* A local replay restart resets its graph and placements. Public deployments apply recorded placements as
+  visitor overlays that expire with the operator session.
 
 Every result is a `PlacementResult`: the verdict, the certificate, every candidate edge with its lifecycle and
 test, the repair diff of a fan-out, the before/after cards and the receipts of every query the placement ran.
@@ -222,6 +223,13 @@ def graph_with(graph: Graph, result: PlacementResult) -> Graph:
     return graph.model_copy(update={"nodes": nodes, "edges": edges})
 
 
+def graph_with_placements(graph: Graph, placements: Sequence[PlacementResult]) -> Graph:
+    for placement in placements:
+        if placement.enters_graph:
+            graph = graph_with(graph, placement)
+    return graph
+
+
 # --------------------------------------------------------------------------------------------- recording
 
 
@@ -288,24 +296,31 @@ class GraphExtension:
         mode: Literal["live", "replay"],
         runtime: Runtime | None = None,
         recording: Path = RECORDING,
+        *,
+        isolated: bool = False,
+        recorded: list[PlacementResult] | None = None,
+        placement_limit: int | None = None,
     ) -> None:
         self.hub = hub
         self.mode = mode
         self.runtime = runtime
         self.recording = recording
+        self.isolated = isolated
+        self.placement_limit = placement_limit
         self._lock = threading.Lock()
         self._stream = hub.stream
         self._placements: list[PlacementResult] = []
         self._version = 0
-        self._recorded: list[PlacementResult] | None = None
+        self._recorded = recorded
 
     # ------------------------------------------------------------------ read
 
     def _current(self) -> list[PlacementResult]:
-        """The placements of the current stream (a replay restart drops those of the old one)."""
+        """Local placements follow the run. Public placements follow the visitor session."""
         if self.hub.stream != self._stream:
             self._stream = self.hub.stream
-            self._placements = []
+            if not self.isolated:
+                self._placements = []
             self._version += 1
         return self._placements
 
@@ -317,11 +332,14 @@ class GraphExtension:
     def state(self) -> ExtensionState:
         with self._lock:
             placements = list(self._current())
+            stream = self._stream
             version = self._version
         recorded = [r.metric for r in self.recorded()]
-        return ExtensionState(
-            mode=self.mode, stream=self._stream, version=version, placements=placements, recorded=recorded
-        )
+        return ExtensionState(mode=self.mode, stream=stream, version=version, placements=placements, recorded=recorded)
+
+    def overlay(self, graph: Graph) -> Graph:
+        with self._lock:
+            return graph_with_placements(graph, self._current())
 
     def get(self, name: str) -> PlacementResult | None:
         with self._lock:
@@ -345,6 +363,8 @@ class GraphExtension:
             for p in current:
                 if _same_metric(p.metric, metric):
                     return p, False
+            if self.placement_limit is not None and len(current) >= self.placement_limit:
+                raise PlacementError(f"This session has reached its limit of {self.placement_limit} metric placements")
             result = self._place_live(metric) if self.runtime is not None else self._place_recorded(metric, current)
             current.append(result)
             self._version += 1
@@ -372,12 +392,16 @@ class GraphExtension:
         recorded = self.recorded()
         found = next((r for r in recorded if _same_metric(r.metric, metric)), None)
         if found is None:
+            if self.isolated:
+                raise PlacementError("Public metric placement accepts the recorded ad metrics as written")
             names = ", ".join(r.metric.name for r in recorded) or "none"
             raise PlacementError(
                 f"a replay has no world to classify {metric.name} against; it can place the recorded demo metrics "
                 f"({names}) exactly as written. `make demo` runs Argus live and places any metric"
             )
         graph = self.hub.state.current_graph()
+        if self.isolated:
+            graph = graph_with_placements(graph, current)
         have = {n.id for n in graph.nodes}
         missing = [n for n in found.requires if n not in have]
         if missing:
@@ -385,7 +409,7 @@ class GraphExtension:
                 f"{metric.name} was recorded after {', '.join(missing)}; place {'it' if len(missing) == 1 else 'them'}"
                 " first, the placement depends on them"
             )
-        if found.enters_graph:
+        if found.enters_graph and not self.isolated:
             with self.hub.state.lock:
                 self.hub.state.graph = graph_with(self.hub.state.graph, found)
         return found

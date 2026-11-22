@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -39,10 +39,11 @@ from argus.contracts.graph import Graph
 from argus.counterfactual.api import router as counterfactual_router
 from argus.demo.api import create_router as demo_router
 from argus.demo.playback import Playback
+from argus.graph.extension_api import PublicGraphExtensions, extension_for
 from argus.graph.extension_api import create_router as graph_extension_router
-from argus.graph.extension_api import extension_for
 from argus.graph.store import REPO
 from argus.narrator.routes import router as narrator_router
+from argus.remediation.api import OperatorGate
 
 WEB_DIST = REPO / "web" / "dist"
 BENCH_OUT = REPO / "runs" / "bench"
@@ -87,7 +88,12 @@ def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
 
 
 def create_app(
-    source: Source, start: bool = True, web_dist: Path = WEB_DIST, *, bench_out: Path = BENCH_OUT
+    source: Source,
+    start: bool = True,
+    web_dist: Path = WEB_DIST,
+    *,
+    bench_out: Path = BENCH_OUT,
+    public_gate: OperatorGate | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -113,15 +119,20 @@ def create_app(
     app.include_router(counterfactual_router(source))
     # a replay server plays the sealed agent presentation; the demo and agent routes share its one clock
     playback = Playback() if source.mode == "replay" else None
-    app.include_router(agent_router(source, playback))
+    app.include_router(agent_router(source, playback, operator_gate=public_gate))
     remediation = getattr(source, "remediation", None)
     if remediation is not None:
         from argus.remediation import create_router as remediation_router
 
         app.include_router(remediation_router(remediation))
-    extension = extension_for(source)
-    app.include_router(graph_extension_router(extension))
+    public_extensions = PublicGraphExtensions(source, public_gate) if public_gate else None
+    extension = public_extensions.base if public_extensions else extension_for(source)
+    app.include_router(graph_extension_router(extension, public_extensions))
     hub = source.bus
+
+    def placement_receipt(request: Request, receipt_id: str) -> Receipt | None:
+        active = public_extensions.read(request) if public_extensions else extension
+        return active.receipt(receipt_id) if active else None
 
     # ------------------------------------------------------------------ run and stream
 
@@ -194,8 +205,10 @@ def create_app(
     # ------------------------------------------------------------------ graph, incidents, notes, receipts
 
     @app.get("/graph")
-    def graph() -> Graph:
-        return source.graph()
+    def graph(request: Request) -> Graph:
+        base = source.graph()
+        overlay = public_extensions.read(request) if public_extensions else None
+        return overlay.overlay(base) if overlay else base
 
     @app.get("/incidents")
     def incidents() -> list[Incident]:
@@ -228,16 +241,19 @@ def create_app(
         return source.notes()
 
     @app.get("/receipts/{receipt_id}")
-    def receipt(receipt_id: str) -> Receipt:
-        found = source.receipt(receipt_id) or extension.receipt(receipt_id)
+    def receipt(receipt_id: str, request: Request) -> Receipt:
+        found = source.receipt(receipt_id) or placement_receipt(request, receipt_id)
         if found is None:
             raise HTTPException(404, f"no receipt {receipt_id}")
         return found
 
     @app.post("/receipts/{receipt_id}/rerun")
-    def rerun(receipt_id: str) -> RerunResult:
-        if source.receipt(receipt_id) is None and extension.receipt(receipt_id) is None:
-            raise HTTPException(404, f"no receipt {receipt_id}")
+    def rerun(receipt_id: str, request: Request) -> RerunResult:
+        if source.receipt(receipt_id) is None:
+            if placement_receipt(request, receipt_id) is None:
+                raise HTTPException(404, f"no receipt {receipt_id}")
+            if public_extensions:
+                raise HTTPException(409, "Public metric placement receipts were captured in the recorded demo")
         try:
             result = source.rerun(receipt_id)
         except RerunUnavailable as exc:

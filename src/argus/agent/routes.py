@@ -126,10 +126,12 @@ def _incident_cites(ref: ReceiptLink, incidents: Iterable[Incident], records: Se
     return False
 
 
-def router(source: Source, playback: Playback | None = None) -> APIRouter:
+def router(source: Source, playback: Playback | None = None, operator_gate: OperatorGate | None = None) -> APIRouter:
     routes = APIRouter(prefix="/agent", tags=["agent"])
     off = _service(source)
-    gate = OperatorGate() if playback is not None and getattr(source, "remediation", None) is None else None
+    gate = None
+    if playback is not None and getattr(source, "remediation", None) is None:
+        gate = operator_gate or OperatorGate()
 
     def presentation(run_id: str) -> AgentView:
         if playback is None:

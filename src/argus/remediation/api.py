@@ -13,6 +13,7 @@ import ipaddress
 import secrets
 import threading
 from collections.abc import Callable
+from time import monotonic
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
@@ -52,12 +53,23 @@ class OperatorSession(BaseModel):
 
 
 class OperatorGate:
-    """In-memory operator sessions for the local Mission Control. A restarted server asks for a new session."""
+    """In-memory operator sessions for Mission Control. A restarted server asks for a new session."""
 
-    def __init__(self, principal: str = "operator", allow_client: Callable[[str | None], bool] = is_local) -> None:
+    def __init__(
+        self,
+        principal: str = "operator",
+        allow_client: Callable[[str | None], bool] = is_local,
+        *,
+        cookie_path: str = "/agent",
+        session_ttl: int | None = None,
+        max_sessions: int = 256,
+    ) -> None:
         self.principal = principal
         self.allow_client = allow_client
-        self._sessions: dict[str, str] = {}
+        self.cookie_path = cookie_path
+        self.session_ttl = session_ttl
+        self.max_sessions = max_sessions
+        self._sessions: dict[str, tuple[str, float]] = {}
         self._lock = threading.Lock()
 
     def _origin_ok(self, request: Request) -> bool:
@@ -72,22 +84,55 @@ class OperatorGate:
         client = request.client.host if request.client else None
         if not self.allow_client(client) or not self._origin_ok(request):
             raise HTTPException(403, "operator sessions open only from the local machine")
-        sid, csrf = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
         with self._lock:
-            self._sessions[sid] = csrf
-        response.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/agent")
-        return OperatorSession(principal=self.principal, csrf_token=csrf)
+            now = monotonic()
+            if self.session_ttl is not None:
+                self._prune(now)
+                if existing := self._sessions.get(request.cookies.get(COOKIE, "")):
+                    return OperatorSession(principal=self.principal, csrf_token=existing[0])
+                if len(self._sessions) >= self.max_sessions:
+                    raise HTTPException(429, "Too many operator sessions", headers={"Retry-After": "60"})
+            sid, token = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+            self._sessions[sid] = (token, now)
+        response.set_cookie(
+            COOKIE, sid, httponly=True, samesite="strict", path=self.cookie_path, max_age=self.session_ttl
+        )
+        return OperatorSession(principal=self.principal, csrf_token=token)
+
+    def _prune(self, now: float) -> None:
+        if self.session_ttl is not None:
+            while self._sessions:
+                sid = next(iter(self._sessions))
+                if now - self._sessions[sid][1] < self.session_ttl:
+                    break
+                del self._sessions[sid]
+
+    def active_sessions(self) -> set[str]:
+        with self._lock:
+            self._prune(monotonic())
+            return set(self._sessions)
+
+    def session_id(self, request: Request) -> str | None:
+        sid = request.cookies.get(COOKIE, "")
+        with self._lock:
+            self._prune(monotonic())
+            return sid if sid in self._sessions else None
 
     def check(self, request: Request) -> str:
-        sid = request.cookies.get(COOKIE)
+        self.require_session(request)
+        return self.principal
+
+    def require_session(self, request: Request) -> str:
+        sid = request.cookies.get(COOKIE, "")
         token = request.headers.get(CSRF_HEADER)
         with self._lock:
-            expected = self._sessions.get(sid or "")
-        if expected is None or token is None or not secrets.compare_digest(expected, token):
+            self._prune(monotonic())
+            expected = self._sessions.get(sid)
+        if expected is None or token is None or not secrets.compare_digest(expected[0].encode(), token.encode()):
             raise HTTPException(403, "an operator session and its CSRF token are required")
         if not self._origin_ok(request):
             raise HTTPException(403, "cross-origin decisions are refused")
-        return self.principal
+        return sid
 
 
 def create_router(service: RemediationService, gate: OperatorGate | None = None) -> APIRouter:
