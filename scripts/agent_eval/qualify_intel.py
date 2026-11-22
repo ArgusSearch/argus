@@ -45,8 +45,10 @@ def _checks(bundle: Bundle) -> tuple[list[str], int, int, bool]:
         if block["type"] == "tool_use"
     ]
     declaration = next((i for i, (tool, _) in enumerate(calls) if tool == "propose_hypotheses"), None)
-    causal = next((i for i, (tool, _) in enumerate(calls) if tool in CAUSAL_CHECKS), len(calls))
-    if declaration is None or declaration >= causal:
+    causal = next((i for i, (tool, _) in enumerate(calls) if tool in CAUSAL_CHECKS), None)
+    if causal is None:
+        issues.append("no detective causal check")
+    elif declaration is None or declaration >= causal:
         issues.append("causal check before declaration")
     first_checks: dict[str, str] = {}
     for tool, args in calls:
