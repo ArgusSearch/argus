@@ -74,9 +74,7 @@
 :root[data-fx] .cw-rail-title,
 :root[data-fx] .cw-rail-label {
   color: var(--fx-ink-3);
-  font: var(--fx-weight-medium, 500) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud, 0.12em);
-  text-transform: uppercase;
+  font: 500 var(--fx-text-sm) / 1.2 var(--fx-font-sans);
 }
 
 :root[data-fx] .cw-rail-label {
@@ -211,9 +209,7 @@
   align-items: center;
   gap: 5px;
   color: var(--fx-ink-3);
-  font: 500 var(--fx-text-2xs) / 1 var(--fx-font-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 500 var(--fx-text-xs) / 1 var(--fx-font-sans);
 }
 
 :root[data-fx] .cw-status i,
@@ -589,9 +585,7 @@
 
 :root[data-fx] .cw-label {
   color: var(--fx-ink-3);
-  font: 500 var(--fx-text-2xs) / 1.6 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud, 0.12em);
-  text-transform: uppercase;
+  font: 500 var(--fx-text-xs) / 1.6 var(--fx-font-sans);
 }
 
 :root[data-fx] .cw-claims ul {
