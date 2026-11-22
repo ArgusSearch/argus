@@ -103,15 +103,15 @@ Open **Ask Argus** and enter the S4 recording’s question, **Could higher traff
 
 ### 7. Explore the Village and Settings
 
-Open **Village** to follow the case as it passes between the watcher, detective, skeptic, narrator, market analyst, operator and cartographer. The **Settings** integration preview shows the operating policy and detector thresholds, with planned changes alongside them in Calendar.
+Open **Village** to follow the case as it passes between the watcher, detective, skeptic, narrator, market analyst, operator and cartographer. **Settings** shows the operating policy and detector thresholds. Edits in the public demo apply to the current simulator session. Scheduled changes appear in **Calendar**.
 
-| Village | Settings preview |
+| Village | Settings |
 | --- | --- |
 | ![Argus Village shows the case moving between agents in their igloos](docs/assets/village.jpg) | ![Settings shows the shop’s read-only operating policy and monitoring thresholds](docs/assets/settings.jpg) |
 
 ### Extend the graph
 
-In a local Mission Control session, open **Visualization** or **Metric tree** and select **Add the ad metric pack**. Argus places cost per impression as `CTR × CPC` and attaches the definition check and edge tests. The same flow handles ambiguous and rejected definitions with a certificate explaining the result. [Placement guide](docs/ext/graph-extension.md) · [Recorded placement and SQL receipts](fixtures/graph_extension/placements.json)
+In the public demo, open **Village → New metric** to watch a recorded placement, then select **Visualization → Add the ad metric pack** to try placement in your session. The pack places cost per impression as `CTR × CPC` and attaches the definition check and edge tests. It also includes ambiguous and rejected definitions with certificates explaining the results. [Live demo](https://argus-eye.pages.dev/) · [Placement guide](docs/ext/graph-extension.md) · [Recorded placement and SQL receipts](fixtures/graph_extension/placements.json)
 
 ![The placement card shows the new cost-per-impression metric, its formula and the evidence for adding it](docs/assets/new-metric.jpg)
 
@@ -144,16 +144,16 @@ Freshness -> Detect -> Investigate -> Verdict -> Incident or note
                                        Mission Control
 ```
 
-MockMart provides business facts, logs and delayed batches in DuckDB. Every investigation query is pinned to the data available at its `as_of` time, and its canonical result hash can be compared on re-run. Only the benchmark reads the separate truth database. [Contracts](docs/contracts.md) · [Semantic layer](src/argus/semantic/)
+MockMart provides business facts, logs and delayed batches in DuckDB. The recorded S1 receipts show the queries, the data cutoff (`as_of`) and result hashes that can be compared when rerunning against the simulation. Only the benchmark reads the separate truth database. [S1 receipts](fixtures/receipts.json) · [Contracts](docs/contracts.md) · [Semantic layer](src/argus/semantic/)
 
 ## How Argus decides
 
 1. **What to watch.** Argus checks freshness before scoring the 7 north-star metrics against their usual hour-of-week behaviour. It opens an anomaly at `|z| > 5`, or `|z| > 3.5 in 2 of the last 3 hours` in the same direction. A planned change adds a check on its segment for 24 hours. The optional attention budget of 6 more looks per tick is implemented and tested separately from the runtime.
 2. **Which edge to follow.** Formula edges split the change using additive LMDI. Argus follows the factor whose movement exceeds its usual spread (|z| >= 3). Breakdown edges show which dimensions to examine, and evidence edges point to the logs that can explain what changed.
 3. **Which group to check.** Argus seeks the smallest set of at most 3 values of one dimension that explains at least 67% of the deviation. It descends when a single group’s share of the deviation exceeds its share of volume by 25 points and `|z| >= 3`. It checks suspects from 3 hours before to 1 hour after the segment’s onset using the unaffected scope or neighbouring groups, then looks for the same deviation in up to 8 earlier weeks as a placebo.
-4. **When to stop.** Argus judges at most 12 checks and asks the optional planner for more only while the explained share is below 80%. A supported cause needs an aligned event validated by a holdout or control, a root with `|z| >= 3`, at least 20% explained, and a placebo that does not recur. If evidence falls short, Argus reports a hypothesis or an unexplained verdict and records the unexplained share.
+4. **When to stop.** Argus judges at most 12 checks and asks the optional planner for more only while the explained share is below 80%. The procedure looks for an aligned event, validates it against a holdout or control, checks the affected segment’s significance and explained share, and looks for similar historical movements. The S1 recording shows the checks that supported the PayCo verdict. [S1 investigation trail](fixtures/report.md)
 
-The optional agent writes a prediction and picks a typed check. The engine runs and judges it, verifies the numbers and admits the verdict. Provider failures and exhausted budgets fall back to the deterministic investigation in the same tick. The same engine files and resolves incidents automatically. Applying a playbook requires human approval. [Thresholds and rules](docs/ALGORITHM.md) · [Agent contract](docs/ext/agent.md)
+The optional agent writes a prediction and picks a typed check. The engine runs and judges the check and determines the verdict. Provider failures and exhausted budgets fall back to the deterministic investigation in the same tick. The engine files and resolves incidents automatically. Applying a playbook requires human approval. [Thresholds and rules](docs/ALGORITHM.md) · [Agent contract](docs/ext/agent.md)
 
 ### Agent intelligence and release evals
 
@@ -162,13 +162,13 @@ The model chooses what to check. Argus decides what the evidence supports.
 | Technique | What it does | What keeps it honest | Release eval |
 | --- | --- | --- | --- |
 | Competing hypotheses | Puts rival causes and their cheapest decisive checks on a board | Judged checks determine each card's status | E18 checks 8 positive board reconstructions and 3 negative scenarios |
-| Self-written checks | Writes a SELECT for a cut outside the fixed tool menu | A parser limits queries to as-of views. A receipt pins the result. Stage 2 alone can grant a supported cause | E19 requires 28 SQL rejections, 10 accepted cuts and visibility at `as_of`. E20 checks both directions of a PayCo comparison |
+| Self-written checks | Writes a SELECT for a cut outside the fixed tool menu | A parser limits queries to as-of views. E19 verifies receipt hashes for accepted cuts. Stage 2 controls supported verdicts | E19 requires 28 SQL rejections, 10 accepted cuts and visibility at `as_of`. E20 checks both directions of a PayCo comparison |
 | Counter-check | A second model in a fresh context tries to falsify a supported cause | Code judges the receipts and can downgrade the verdict | E21 requires 3 of 3 planted false causes removed and 0 of 6 true causes vetoed. E22 checks verdict safety across 18 cases |
 | Case memory | Uses past denials and verified outcomes when considering another proposal | The deterministic proposal policy reads memory as advice. Evidence comes from checks | E23 checks denial and approval precedents. E24 requires identical verdicts, roots and proposals in 3 poisoned-memory trials |
-| Cause chain | Links the event, root segment, formula hops and EUR impact | Every link carries a receipt that can be re-run | E25 checks 6 supported cases and 3 negative scenarios |
+| Cause chain | Links the event, root segment, formula hops and EUR impact | Supported chains in the eval include query receipts | E25 checks 6 supported cases and 3 negative scenarios |
 | Budget | Stops the detective and critic at fixed caps | Stage 2 completes in the same tick | E26 checks caps of 12 detective tool calls and 3 critic tool calls, exact recorded cost and zero replay spend |
 
-The host verifies numbers against receipts. The deterministic investigation rules govern supported causes. Operator approval is required, and the playbook derives the action parameters.
+The S1 incident and S4 rollback recordings link their impact and effect figures to SQL receipts. The deterministic investigation rules govern supported causes. The playbook derives action parameters and waits for operator approval. [S1 evidence](fixtures/report.md) · [S4 effect receipts](fixtures/agent/v1/s4/approve/receipts.json)
 
 The [default v1 profile](scripts/agent_eval/offline_report.py) has 17 offline agent evals. The v2 release requires the
 intelligence evals and six retained live trials, with three passes each on S1
@@ -178,13 +178,13 @@ See the [eval implementation](tests/agent_evals/) and [v2 capture and qualificat
 
 ## Tech stack
 
-Python and DuckDB power the simulator and investigation engine. sqlglot handles SQL lineage and Pydantic defines the contracts. FastAPI serves REST and server-sent events. Mission Control is TypeScript and React built with Vite, with Three.js and React Flow for graph views. The Anthropic SDK is optional for live model calls.
+Python and DuckDB power the simulator and investigation engine. sqlglot handles SQL lineage and Pydantic defines the contracts. FastAPI serves REST and server-sent events. Mission Control is TypeScript and React built with Vite, with Three.js and React Flow for graph views. The optional live agent supports Anthropic and the OpenAI Responses API. [OpenAI transport](src/argus/agent/openai_provider.py)
 
 ## Prior work and inspiration
 
 - **Investigation methods.** The metric walk uses additive LMDI. Segment localisation draws on Adtributor, HotSpot and RiskLoc. The mix and rate split follows E. M. Kitagawa, and robust z-scores use the median absolute deviation described by Iglewicz and Hoaglin. [LMDI guide](https://doi.org/10.1016/j.enpol.2003.10.010) · [Adtributor](https://www.usenix.org/conference/nsdi14/technical-sessions/presentation/bhagwan) · [HotSpot](https://ieeexplore.ieee.org/document/8288614/) · [RiskLoc](https://arxiv.org/abs/2205.10004) · [Kitagawa](https://doi.org/10.1080/01621459.1955.10501299) · [Iglewicz and Hoaglin](https://asq.org/quality-press/display-item?item=E0801)
 - **Agent design.** ReAct informed the check-and-observe loop, Reflexion informed counter-checking and case memory, and Tree of Thoughts informed the competing-hypotheses design. [ReAct](https://arxiv.org/abs/2210.03629) · [Reflexion](https://arxiv.org/abs/2303.11366) · [Tree of Thoughts](https://arxiv.org/abs/2305.10601)
-- **UI credit.** The agent timeline and composer redesign draws on T3 Code, including folded runs, inline approvals, follow-tail scrolling and question history. The React implementation adapts the follow-tail state machine and the rule for the live status line. The Village avatars use Jakub Antalik’s Bot Avatars, and Mission Control uses IBM Plex Mono. [T3 Code](https://github.com/pingdotgg/t3code) · [MIT notice](#built-on) · [Avatar and font credits](docs/decisions.md#libraries-for-the-argus-ice-style-layer)
+- **UI credit.** The agent timeline and composer redesign draws on T3 Code, including folded runs, inline approvals, follow-tail scrolling and question history. The React implementation adapts the follow-tail state machine and the rule for the live status line. The Village avatars use Jakub Antalik’s Bot Avatars, and Mission Control uses IBM Plex Mono. Find the bundled notices at the bottom of **Settings**. [T3 Code](https://github.com/pingdotgg/t3code) · [Bundled license texts](web/public/assets/THIRD_PARTY_LICENSES.txt) · [Avatar and font credits](docs/decisions.md#libraries-for-the-argus-ice-style-layer)
 
 ### Evaluated libraries
 
@@ -208,38 +208,10 @@ The desktop app ships Electron and uses Keyring for OS credential storage. elect
 | React Flow / Three.js | 13.0.2 / 0.187.0 | MIT / MIT | Metric graph and 3D scenes |
 | Fontsource IBM Plex Mono / Bot Avatars | 5.3.0 / 0.2.2 | OFL-1.1 / MIT | Typography and avatars |
 | TypeScript / Vite / Vite React plugin / Vitest | 7.0.2 / 8.3.8 / 6.3.0 / 5.1.1 | Apache-2.0 / MIT / MIT / MIT | Web build and tests |
-| pytest / Ruff / mypy / httpx2 | 9.2.0 / 0.17.6 / 2.4.1 / 2.16.2 | MIT / MIT / MIT / BSD-3-Clause | Python tests and checks |
+| pytest / Ruff / mypy | 9.2.0 / 0.17.6 / 2.4.1 | MIT / MIT / MIT | Python tests and checks |
+| httpx2 | 2.16.2 | BSD-3-Clause | OpenAI transport and HTTP tests |
 | PyYAML type stubs | 6.0.12.20261113 | Apache-2.0 | Python type checking |
 | React / React DOM / Three.js type stubs | 19.3.0 / 19.3.0 / 0.187.0 | MIT | Web type checking |
-
-<details>
-<summary>T3 Code license (MIT)</summary>
-
-```text
-MIT License
-
-Copyright (c) 2026 T3 Tools Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
 
 ## Team
 
