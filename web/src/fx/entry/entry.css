@@ -1,5 +1,4 @@
-/* The entry screen (EntryPage.tsx): a split card over the ice scene. The night panel on the left keeps the brand's
-   rule (the mark lives on black); the sign-in panel on the right is the workspace's frosted glass. */
+/* The entry screen pairs Argus's night scene with the workspace's neutral sign-in surface. */
 
 :root[data-fx] .fx-entry {
   position: fixed;
@@ -9,8 +8,10 @@
   place-items: safe center center;
   padding: var(--fx-edge);
   overflow: auto;
-  background: radial-gradient(120% 90% at 50% 40%, rgba(195, 201, 214, 0.1), rgba(138, 145, 160, 0.38));
-  color: var(--fx-ink-0);
+  --fx-hud: var(--workspace-muted);
+  --fx-hud-dim: var(--workspace-muted);
+  background: var(--workspace-canvas);
+  color: var(--workspace-ink);
   outline: none;
   transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
 }
@@ -40,13 +41,10 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr);
-  width: min(1120px, 100%);
-  height: min(660px, calc(100vh - 2 * var(--fx-edge)));
+  width: min(1040px, 100%);
   min-height: 560px;
-  /* no clip on the card itself: a rounded clip around the glass's backdrop blur costs the frame rate, so each half
-     rounds its own corners */
-  border-radius: 20px;
-  box-shadow: var(--fx-shadow-pop);
+  border: 1px solid var(--workspace-line);
+  border-radius: 16px;
   opacity: 0;
   transform: translateY(18px) scale(0.985);
   filter: blur(var(--fx-blur-reveal));
@@ -81,7 +79,7 @@
   min-width: 0;
   padding: 28px 28px clamp(18px, 3vh, 26px);
   overflow: hidden;
-  border-radius: 20px 0 0 20px;
+  border-radius: 15px 0 0 15px;
   background:
     radial-gradient(90% 55% at 50% 108%, rgba(137, 62, 238, 0.32), rgba(52, 36, 91, 0.18) 45%, transparent 75%),
     radial-gradient(140% 90% at 50% 0%, #120c24 0%, #05040a 60%, #000 100%);
@@ -201,12 +199,9 @@
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  padding: clamp(28px, 5vh, 52px) clamp(28px, 3.6vw, 60px);
-  border: var(--fx-hair) solid var(--fx-glass-border);
-  border-left: 0;
-  border-radius: 0 20px 20px 0;
-  background: var(--fx-glass-2);
-  backdrop-filter: blur(var(--fx-blur-2)) saturate(var(--fx-saturate));
+  padding: 40px clamp(28px, 3.6vw, 56px);
+  border-radius: 0 15px 15px 0;
+  background: var(--workspace-surface);
 }
 
 :root[data-fx] .fx-entry-form > * {
@@ -230,25 +225,26 @@
 
 :root[data-fx] .fx-entry-form h1 {
   margin: 0;
-  color: var(--fx-ink-0);
-  font: var(--fx-weight-medium) clamp(28px, 4.4vh, 36px) / 1.08 var(--fx-font-sans);
+  color: var(--workspace-ink);
+  font: 650 36px / 1.12 var(--fx-font-sans);
   letter-spacing: var(--fx-tracking-display);
+  text-wrap: balance;
 }
 
 :root[data-fx] .fx-entry-lede {
   max-width: 44ch;
   margin: 10px 0 0;
   text-wrap: pretty;
-  color: var(--fx-ink-2);
+  color: var(--workspace-muted);
   font: var(--fx-weight-regular) 14px / var(--fx-leading-body) var(--fx-font-sans);
 }
 
 :root[data-fx] .fx-entry-who {
   display: grid;
   margin: clamp(18px, 3.4vh, 30px) 0 0;
-  border: var(--fx-hair) solid var(--line);
+  border: 1px solid var(--workspace-line);
   border-radius: 12px;
-  background: var(--fx-card);
+  background: var(--workspace-canvas);
 }
 
 :root[data-fx] .fx-entry-who > div {
@@ -261,14 +257,12 @@
 }
 
 :root[data-fx] .fx-entry-who > div + div {
-  border-top: var(--fx-hair) solid var(--line);
+  border-top: 1px solid var(--workspace-line);
 }
 
 :root[data-fx] .fx-entry-who dt {
-  color: var(--fx-ink-3);
-  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
-  letter-spacing: var(--fx-tracking-hud);
-  text-transform: uppercase;
+  color: var(--workspace-muted);
+  font: 500 12px / 1.3 var(--fx-font-sans);
 }
 
 :root[data-fx] .fx-entry-who dd {
@@ -277,9 +271,10 @@
   gap: 9px;
   min-width: 0;
   margin: 0;
-  color: var(--fx-ink-0);
+  color: var(--workspace-ink);
   font: var(--fx-weight-medium) var(--fx-text-md) / 1.3 var(--fx-font-sans);
-  white-space: nowrap;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
 }
 
 :root[data-fx] .fx-entry-who em {
@@ -300,8 +295,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--fx-ink-1);
-  color: #fff;
+  flex: none;
+  background: var(--workspace-ink);
+  color: var(--workspace-surface);
   font: var(--fx-weight-medium) 9.5px / 1 var(--fx-font-mono);
   letter-spacing: 0.04em;
 }
@@ -323,15 +319,16 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  height: 50px;
+  min-height: 48px;
   margin: clamp(18px, 3.4vh, 28px) 0 0;
   border: 0;
-  border-radius: 12px;
-  background: var(--fx-ink-0);
-  color: #fff;
-  font: var(--fx-weight-medium) 15px / 1 var(--fx-font-sans);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--workspace-ink);
+  color: var(--workspace-surface);
+  font: 600 14px / 1.3 var(--fx-font-sans);
+  overflow-wrap: anywhere;
   cursor: pointer;
-  box-shadow: 0 14px 30px -16px rgba(11, 19, 32, 0.6);
 }
 
 :root[data-fx] .fx-entry.shown .fx-entry-go {
@@ -342,6 +339,7 @@
 }
 
 :root[data-fx] .fx-entry-go svg {
+  flex: none;
   width: 16px;
   height: 16px;
   fill: none;
@@ -353,7 +351,7 @@
 }
 
 :root[data-fx] .fx-entry-go:hover {
-  background: var(--fx-ink-1);
+  background: color-mix(in srgb, var(--workspace-ink) 87%, var(--workspace-surface));
   transform: translateY(-1px);
 }
 
@@ -368,12 +366,13 @@
 
 :root[data-fx] .fx-entry-go:disabled {
   cursor: default;
+  opacity: 0.7;
 }
 
 :root[data-fx] .fx-entry-alt {
   align-self: center;
   margin: 14px 0 0;
-  color: var(--fx-ink-2);
+  color: var(--workspace-muted);
   font: var(--fx-weight-regular) var(--fx-text-sm) / 1.3 var(--fx-font-sans);
   text-decoration: underline;
   text-decoration-color: var(--line-2);
@@ -381,7 +380,7 @@
 }
 
 :root[data-fx] .fx-entry-alt:hover {
-  color: var(--fx-ink-0);
+  color: var(--workspace-ink);
   text-decoration-color: currentColor;
 }
 
@@ -407,13 +406,16 @@
   }
 
   :root[data-fx] .fx-entry-art {
-    border-radius: 20px 20px 0 0;
+    border-radius: 15px 15px 0 0;
   }
 
   :root[data-fx] .fx-entry-form {
-    border-left: var(--fx-hair) solid var(--fx-glass-border);
-    border-top: 0;
-    border-radius: 0 0 20px 20px;
+    border-radius: 0 0 15px 15px;
+    padding: 28px;
+  }
+
+  :root[data-fx] .fx-entry-form h1 {
+    font-size: 28px;
   }
 
   :root[data-fx] .fx-entry-card {
@@ -432,6 +434,14 @@
 }
 
 @media (max-width: 480px) {
+  :root[data-fx] .fx-entry-mark {
+    margin-bottom: 24px;
+  }
+
+  :root[data-fx] .fx-entry-form {
+    padding: 24px;
+  }
+
   :root[data-fx] .fx-entry-crew {
     width: 100%;
   }
@@ -448,11 +458,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
     padding: 10px 12px;
-  }
-
-  :root[data-fx] .fx-entry-who dd {
-    flex-wrap: wrap;
-    white-space: normal;
   }
 
   :root[data-fx] :is(.fx-entry-monogram, .fx-entry-dot) {
