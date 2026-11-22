@@ -229,7 +229,7 @@ function ThresholdsTab({ graph, editor }: { graph: Graph | null; editor: Editor<
       </Card>
       <Card title="Per-metric thresholds" desc="Override the Watcher defaults for a metric.">
         <Row label="Metric">
-          <select className="cs-input" aria-label={tr("Metric")} value={metric} onChange={(event) => pickMetric(event.target.value)}>
+          <select className="cs-input" name="metric" aria-label={tr("Metric")} value={metric} onChange={(event) => pickMetric(event.target.value)}>
             <option value="">{tr("Select a metric")}</option>
             {graph?.nodes.filter((node) => node.north_star).map((node) => <option key={node.id} value={node.id}>{node.label}</option>)}
           </select>
@@ -372,10 +372,10 @@ function QuietTab({ editor }: { editor: Editor<Settings["quiet_hours"]> }) {
         <Row label="Quiet hours" help="Hold outgoing notices until the quiet window ends."><Switch on={q.enabled} label="Quiet hours" onChange={(on) => editor.set("enabled", on)} /></Row>
         {(["start", "end"] as const).map((field) => {
           const label = field === "start" ? "Start" : "End";
-          return <Row key={field} label={label}><input className="cs-input" type="time" aria-label={tr(label)}
+          return <Row key={field} label={label}><input className="cs-input" type="time" name={field} aria-label={tr(label)}
             value={q[field]} onChange={(event) => editor.set(field, event.target.value)} /></Row>;
         })}
-        <Row label="Timezone"><input className="cs-input" aria-label={tr("Timezone")} value={q.timezone} maxLength={96}
+        <Row label="Timezone"><input className="cs-input" name="timezone" aria-label={tr("Timezone")} value={q.timezone} maxLength={96}
           onChange={(event) => editor.set("timezone", event.target.value)} /></Row>
         <Row label="Page anyway above" help="Estimated impact in EUR per hour. Leave blank to hold all notices.">
           <NumberInput label="Page anyway above" step={0.01} value={q.bypass_eur} onChange={(value) => editor.set("bypass_eur", value)} />

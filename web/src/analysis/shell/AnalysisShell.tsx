@@ -115,7 +115,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
             <section className="analysis-query" aria-label="Analysis query">
               <label>
                 <span>Metric</span>
-                <select value={query.metric} onChange={(event) => navigate({ ...query, metric: event.target.value, segment: {} })}>
+                <select name="metric" value={query.metric} onChange={(event) => navigate({ ...query, metric: event.target.value, segment: {} })}>
                   <option value="">All metrics</option>
                   {query.metric && !metrics.some((metric) => metric.id === query.metric) && <option value={query.metric}>{metricName(graph, query.metric)}</option>}
                   {metrics.map((metric) => <option key={metric.id} value={metric.id}>{metric.label}</option>)}
@@ -123,7 +123,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
               </label>
               <label>
                 <span>Segment</span>
-                <select value={hasScope ? selectedScope : ""} onChange={(event) => navigate({
+                <select name="segment" value={hasScope ? selectedScope : ""} onChange={(event) => navigate({
                   ...query, segment: segments.find((segment) => segmentKey(segment) === event.target.value) ?? {},
                 })}>
                   <option value="">Any segment</option>
@@ -133,7 +133,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
               </label>
               <label>
                 <span>Period</span>
-                <select value={query.period} onChange={(event) => navigate({ ...query, period: event.target.value as AnalysisPeriod })}>
+                <select name="period" value={query.period} onChange={(event) => navigate({ ...query, period: event.target.value as AnalysisPeriod })}>
                   {ANALYSIS_PERIODS.map(([period, name]) => <option key={period} value={period}>{name}</option>)}
                 </select>
               </label>

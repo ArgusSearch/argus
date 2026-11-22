@@ -19,11 +19,16 @@ export function EntryGate() {
   const [stage, setStage] = useState<Stage>(() => (staticReplay || entryWanted(window.location.search, readEntered()) ? "open" : "gone"));
 
   useLayoutEffect(() => {
+    if (stage === "gone") return;
     const root = document.documentElement;
-    if (stage === "gone") delete root.dataset.fxEntry;
-    else root.dataset.fxEntry = stage;
+    const workspace = document.getElementById("root");
+    const wasInert = workspace?.inert ?? false;
+    root.dataset.fxEntry = stage;
+    // The entry is portalled outside the app root. Keep its background, including notices, out of keyboard focus.
+    if (workspace) workspace.inert = true;
     return () => {
       delete root.dataset.fxEntry;
+      if (workspace) workspace.inert = wasInert;
     };
   }, [stage]);
 

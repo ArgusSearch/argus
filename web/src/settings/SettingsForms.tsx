@@ -7,9 +7,9 @@ import { Badge, Btn, Card, Empty, Row } from "./ui";
 export function AccountTab() {
   const tr = useText();
   return <EditorSection area="account">{(editor) => <Card title="Your profile">
-    <Row label="Name"><input className="cs-input" aria-label={tr("Name")} value={editor.value.name} autoComplete="name"
+    <Row label="Name"><input className="cs-input" name="name" aria-label={tr("Name")} value={editor.value.name} autoComplete="name"
       maxLength={120} onChange={(event) => editor.set("name", event.target.value)} /></Row>
-    <Row label="Email"><input className="cs-input" aria-label={tr("Email")} type="email" value={editor.value.email}
+    <Row label="Email"><input className="cs-input" name="email" aria-label={tr("Email")} type="email" value={editor.value.email}
       maxLength={254} autoComplete="email" onChange={(event) => editor.set("email", event.target.value)} /></Row>
   </Card>}</EditorSection>;
 }
@@ -17,13 +17,13 @@ export function AccountTab() {
 export function AppearanceTab() {
   const tr = useText();
   return <EditorSection area="appearance">{(editor) => <Card title="Appearance">
-    <Row label="Theme"><select className="cs-input" aria-label={tr("Theme")} value={editor.value.theme ?? ""}
+    <Row label="Theme"><select className="cs-input" name="theme" aria-label={tr("Theme")} value={editor.value.theme ?? ""}
       onChange={(event) => editor.set("theme", (event.target.value || null) as Settings["appearance"]["theme"])}>
       <option value="">{tr("Default")}</option>
       <option value="light">{tr("Light")}</option>
       <option value="dark">{tr("Dark")}</option>
     </select></Row>
-    <Row label="Language"><select className="cs-input" aria-label={tr("Language")} value={editor.value.language}
+    <Row label="Language"><select className="cs-input" name="language" aria-label={tr("Language")} value={editor.value.language}
       onChange={(event) => editor.set("language", event.target.value === "de" ? "de" : "en")}>
       <option value="en">English</option>
       <option value="de">Deutsch</option>
@@ -37,7 +37,7 @@ export function AiTab() {
     const { provider, model, api_key_configured } = editor.value;
     return <Card title="AI model" desc="Changes apply to the next live model run. Provider keys are stored on the local API server.">
       <Row label="Provider">
-        <select className="cs-input" aria-label={tr("Provider")} value={provider ?? ""} onChange={(event) => {
+        <select className="cs-input" name="provider" aria-label={tr("Provider")} value={provider ?? ""} onChange={(event) => {
           editor.set("provider", (event.target.value || null) as Settings["ai"]["provider"]);
           editor.set("model", "");
           if (editor.changes.api_key !== undefined) editor.change("api_key", null);
@@ -48,23 +48,23 @@ export function AiTab() {
         </select>
       </Row>
       <Row label="Model" help="Leave blank to use the provider’s default.">
-        <input className="cs-input" aria-label={tr("Model")} maxLength={100} disabled={!provider} value={model}
+        <input className="cs-input" name="model" aria-label={tr("Model")} maxLength={100} disabled={!provider} value={model}
           placeholder={tr("Provider default")} onChange={(event) => editor.set("model", event.target.value)} />
       </Row>
-      <SecretField label="API key" configured={api_key_configured && !("provider" in editor.changes)}
+      <SecretField name="api_key" label="API key" configured={api_key_configured && !("provider" in editor.changes)}
         disabled={editor.simulator || !provider} value={editor.changes.api_key} onChange={(value) => editor.change("api_key", value)} />
       {editor.simulator && <Empty>{tr("Provider credentials are available on the local API.")}</Empty>}
     </Card>;
   }}</EditorSection>;
 }
 
-function SecretField({ label, configured, disabled, value, onChange }: {
-  label: string; configured: boolean; disabled?: boolean; value: unknown; onChange: (value: string | null) => void;
+function SecretField({ name, label, configured, disabled, value, onChange }: {
+  name: string; label: string; configured: boolean; disabled?: boolean; value: unknown; onChange: (value: string | null) => void;
 }) {
   const tr = useText();
   return <Row label={label}>
     <span className="cs-chips end">
-      <input className="cs-input" type="password" aria-label={tr(label)} autoComplete="new-password"
+      <input className="cs-input" type="password" name={name} aria-label={tr(label)} autoComplete="new-password"
         spellCheck={false} maxLength={label === "API key" ? 512 : 2048} disabled={disabled}
         placeholder={configured && value !== null ? "••••••••" : ""}
         value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value || null)} />
@@ -108,7 +108,7 @@ export function NotificationsTab() {
   return <EditorSection area="notifications">{(editor) => <>
     <Card title="Email" desc="The local API uses its configured SMTP server.">
       <Row label="Email">
-        <input className="cs-input" aria-label={tr("Email")} type="email" autoComplete="email" maxLength={254}
+        <input className="cs-input" name="email" aria-label={tr("Email")} type="email" autoComplete="email" maxLength={254}
           value={editor.value.email} onChange={(event) => editor.set("email", event.target.value)} />
       </Row>
       <Row label="Email test">
@@ -128,7 +128,7 @@ function Destination({ channel, label, field, configured, editor }: {
   channel: string; label: string; field: string; configured: boolean; editor: Editor<Settings["notifications"]>;
 }) {
   return <>
-    <SecretField label={label} configured={configured} disabled={editor.simulator} value={editor.changes[field]}
+    <SecretField name={field} label={label} configured={configured} disabled={editor.simulator} value={editor.changes[field]}
       onChange={(value) => editor.change(field, value)} />
     <Row label={`${label} test`}>
       <TestButton key={`${configured}:${field in editor.changes}`} area="notifications" body={{ channel }} label="Send test"
@@ -163,13 +163,13 @@ function ShopConnections({ editor }: { editor: Editor<Settings["sources"]> }) {
     </Card>
     {editor.value.sources.map(({ id, connector, name, url }) => <Card key={id} title={name || CONNECTORS[connector]}
       action={<Badge>{CONNECTORS[connector]}</Badge>}>
-      <Row label="Name"><input className="cs-input" aria-label={tr("Name")} value={name} maxLength={120}
+      <Row label="Name"><input className="cs-input" name={`source-${id}-name`} aria-label={tr("Name")} value={name} maxLength={120}
         onChange={(event) => update(id, { name: event.target.value })} /></Row>
-      <Row label="Connector"><select className="cs-input" aria-label={tr("Connector")} value={connector}
+      <Row label="Connector"><select className="cs-input" name={`source-${id}-connector`} aria-label={tr("Connector")} value={connector}
         onChange={(event) => update(id, { connector: event.target.value as DataSource["connector"] })}>
         {Object.entries(CONNECTORS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
       </select></Row>
-      <Row label="Endpoint URL"><input className="cs-input" type="url" aria-label={tr("Endpoint URL")} value={url} maxLength={2048}
+      <Row label="Endpoint URL"><input className="cs-input" type="url" name={`source-${id}-url`} aria-label={tr("Endpoint URL")} value={url} maxLength={2048}
         onChange={(event) => update(id, { url: event.target.value })} /></Row>
       <Row label="Connection">
         <span className="cs-chips end">

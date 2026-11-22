@@ -241,6 +241,7 @@
   margin: 34vh 0 0 46%;
   overflow: clip;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 

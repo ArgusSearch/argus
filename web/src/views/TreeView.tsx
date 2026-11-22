@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
 import { metricStatus } from "./model";
-import { buildTree, countMetrics, openPathTo, statusOrNull, VIA_LABEL, type TreeRow } from "./tree";
+import { buildTree, countMetrics, flatten, openPathTo, statusOrNull, VIA_LABEL, type TreeRow } from "./tree";
 
 interface Props {
   graph: Graph | null;
@@ -24,6 +24,7 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
   const tree = useMemo(() => (graph ? buildTree(graph) : null), [graph]);
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState("");
+  const [collapsedMatches, setCollapsedMatches] = useState<Set<string>>(() => new Set());
   const labels = useMemo(() => new Map((graph?.nodes ?? []).map((n) => [n.id, n])), [graph]);
   const logLabels = useMemo(() => new Map((graph?.logs ?? []).map((l) => [l.id, l.label])), [graph]);
   const focusNodes = view.focus?.nodes ?? [];
@@ -54,34 +55,39 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
   if (!graph || !tree) return <div className="vw-empty">Loading the metric graph…</div>;
 
   const q = query.trim().toLowerCase();
-  const matches = (row: TreeRow): boolean => {
-    if (!q) return true;
+  const filtered = (rows: TreeRow[]): TreeRow[] => rows.flatMap((row) => {
+    const children = filtered(row.children);
     const label = row.kind === "metric" ? (labels.get(row.id)?.label ?? row.id) : row.kind === "log" ? (logLabels.get(row.id) ?? row.id) : row.id;
-    return row.id.toLowerCase().includes(q) || label.toLowerCase().includes(q) || row.children.some(matches);
-  };
+    return children.length || row.id.toLowerCase().includes(q) || label.toLowerCase().includes(q)
+      ? [{ ...row, children }]
+      : [];
+  });
+  const roots = q ? filtered(tree.roots) : tree.roots;
+  const unattached = q ? filtered(tree.unattached) : tree.unattached;
 
-  const toggle = (key: string) =>
-    setOpen((prev) => {
+  const toggle = (key: string) => {
+    const setBranches = q ? setCollapsedMatches : setOpen;
+    setBranches((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+  };
 
-  const setAll = (value: boolean) => {
-    if (!value) return setOpen(new Set());
-    const keys: string[] = [];
-    const walk = (r: TreeRow) => {
-      if (r.children.length) keys.push(r.key);
-      r.children.forEach(walk);
-    };
-    [...tree.roots, ...tree.unattached].forEach(walk);
-    setOpen(new Set(keys));
+  const branchKeys = () => new Set(
+    flatten([...roots, ...unattached])
+      .filter((row) => row.children.length > 0)
+      .map((row) => row.key),
+  );
+
+  const setAll = (expand: boolean) => {
+    if (q) setCollapsedMatches(expand ? new Set() : branchKeys());
+    else setOpen(expand ? branchKeys() : new Set());
   };
 
   const renderRow = (row: TreeRow) => {
-    if (!matches(row)) return null;
-    const expanded = q ? true : open.has(row.key);
+    const expanded = q ? !collapsedMatches.has(row.key) : open.has(row.key);
     const status = statusOrNull(row.edge, view.edges);
     const hasKids = row.children.length > 0;
     const indent = { paddingLeft: 14 + row.depth * 20 };
@@ -150,7 +156,18 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
           </p>
         </div>
         <span className="tv-fill" />
-        <input className="vw-search" name="metric-search" placeholder="Find a metric" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Find a metric" />
+        <input
+          className="vw-search"
+          name="metric-search"
+          placeholder="Find a metric"
+          aria-label="Find a metric"
+          value={query}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (next.trim().toLowerCase() !== q) setCollapsedMatches(new Set());
+            setQuery(next);
+          }}
+        />
         <button className="btn" onClick={() => setAll(true)}>
           Expand all
         </button>
@@ -159,16 +176,19 @@ export function TreeView({ graph, view, onSelectNode }: Props) {
         </button>
       </div>
       <div className="vw-scroll">
-        <ul className="tv-list" role="tree" aria-label="metrics under the north stars">
-          {tree.roots.map(renderRow)}
-        </ul>
-        {tree.unattached.length > 0 && (
+        {q && roots.length === 0 && unattached.length === 0 && <p className="vw-empty" role="status">No matches found.</p>}
+        {roots.length > 0 && (
+          <ul className="tv-list" role="tree" aria-label="metrics under the north stars">
+            {roots.map(renderRow)}
+          </ul>
+        )}
+        {unattached.length > 0 && (
           <>
             <div className="tv-section">
               Not under a north star <span className="muted">· metrics that no outcome is built from yet</span>
             </div>
             <ul className="tv-list" role="tree" aria-label="unattached metrics">
-              {tree.unattached.map(renderRow)}
+              {unattached.map(renderRow)}
             </ul>
           </>
         )}
