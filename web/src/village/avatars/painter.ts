@@ -144,6 +144,8 @@ export class AvatarPainter {
     drawBotAvatarFrame(bctx, box, this.sim.pose, this.cfg);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.clearRect(0, 0, a, a);
     const pose = this.sim.pose;
     const e = box / 100;

@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import type { RoleId } from "../roles";
 import { AvatarPainter, OVERSCAN, type AvatarStatus } from "./painter";
 import { agentName, PERSONAS } from "./personas";
+import { avatarPixelRatio } from "./resolution";
 import type { AvatarCue } from "./state";
 import "./avatars.css";
 
@@ -52,7 +53,7 @@ function tick(now: number) {
   const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
   last = now;
   const still = calm() || document.hidden;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = avatarPixelRatio(window.devicePixelRatio);
   let live = false;
   for (const e of entries) {
     if (!e.visible) continue;
