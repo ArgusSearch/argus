@@ -3,6 +3,7 @@ import { dayLabel, hhmm, segmentLabel } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { metricName } from "../../fx/workspace/plain";
+import { LiveFix } from "../live-fix";
 import { AnalysisPages } from "../pages/AnalysisPages";
 import { analysisIncidents, analysisSignals, analysisWindow, observedSegments } from "../pages/model";
 import { analysisHref, followLink, navigateWorkspaceURL } from "./location";
@@ -20,6 +21,7 @@ interface AnalysisShellProps {
 
 export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks, streamError }: AnalysisShellProps) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const [pagesOpen, setPagesOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const pagesId = useId();
@@ -34,11 +36,15 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
   const signals = analysisSignals(view, query, window);
   const selectedScope = segmentKey(query.segment);
   const hasScope = Object.keys(query.segment).length > 0;
-  const focusQuery = () => heading.current?.focus();
+  const liveFix = query.page === "live-fix";
+  const focusQuery = (next: AnalysisQuery) => {
+    if (liveFix || next.page === "live-fix") content.current?.focus();
+    else heading.current?.focus();
+  };
   const navigate = (next: AnalysisQuery) => {
     setShareStatus("");
     navigateWorkspaceURL(analysisHref(next));
-    if (next.page !== query.page) focusQuery();
+    if (next.page !== query.page) focusQuery(next);
   };
   const copyQuery = async () => {
     try {
@@ -50,7 +56,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
   };
   const label = query.page === "metrics" && query.metric ? metricName(graph, query.metric) : title;
   return (
-    <main className="fx-dash ws-page analysis-shell" aria-labelledby="analysis-heading">
+    <main className="fx-dash ws-page analysis-shell" aria-labelledby={liveFix ? undefined : "analysis-heading"} aria-label={liveFix ? "Live Fix" : undefined}>
       <nav
         className="analysis-pages"
         aria-label="Analysis pages"
@@ -76,7 +82,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
               <a key={page} href={analysisHref(next)} aria-current={query.page === page ? "page" : undefined} onClick={(event) => followLink(event, () => {
                 navigate(next);
                 setPagesOpen(false);
-                focusQuery();
+                if (next.page === query.page) focusQuery(next);
               })}>{name}</a>
             );
           })}
@@ -84,53 +90,63 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
           {secondaryLinks}
         </div>
       </nav>
-      <div className="analysis-content">
-        <header className="analysis-header">
-          <div className="ws-head">
-            <h1 id="analysis-heading" tabIndex={-1} ref={heading}>{label}</h1>
-            <p>
-              {view.mode === "live" ? "Live" : view.mode === "replay" ? "Replay" : "Connecting"}
-              {view.simTs ? ` · As of ${dayLabel(view.simTs)} ${hhmm(view.simTs)} UTC` : ""}
-            </p>
-          </div>
-          <div className="analysis-share">
-            <button type="button" className="btn" onClick={() => void copyQuery()}>Copy query link</button>
-            <span role="status">{shareStatus}</span>
-          </div>
-        </header>
-        <section className="analysis-query" aria-label="Analysis query">
-          <label>
-            <span>Metric</span>
-            <select value={query.metric} onChange={(event) => navigate({ ...query, metric: event.target.value, segment: {} })}>
-              <option value="">All metrics</option>
-              {query.metric && !metrics.some((metric) => metric.id === query.metric) && <option value={query.metric}>{metricName(graph, query.metric)}</option>}
-              {metrics.map((metric) => <option key={metric.id} value={metric.id}>{metric.label}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Segment</span>
-            <select value={hasScope ? selectedScope : ""} onChange={(event) => navigate({
-              ...query, segment: segments.find((segment) => segmentKey(segment) === event.target.value) ?? {},
-            })}>
-              <option value="">Any segment</option>
-              {hasScope && !segments.some((segment) => segmentKey(segment) === selectedScope) && <option value={selectedScope}>{segmentLabel(query.segment)}</option>}
-              {segments.map((segment) => <option key={segmentKey(segment)} value={segmentKey(segment)}>{segmentLabel(segment)}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Period</span>
-            <select value={query.period} onChange={(event) => navigate({ ...query, period: event.target.value as AnalysisPeriod })}>
-              {ANALYSIS_PERIODS.map(([period, name]) => <option key={period} value={period}>{name}</option>)}
-            </select>
-          </label>
-          {view.firstHour && window.end !== null && (
-            <p className="analysis-coverage">
-              Run data starts {dayLabel(view.firstHour)} {hhmm(view.firstHour)} UTC
-            </p>
-          )}
-        </section>
-        {streamError && <p className="fx-empty" role="status">Could not refresh the recorded run. {streamError}</p>}
-        <AnalysisPages graph={graph} view={view} query={query} window={window} incidents={incidents} signals={signals} navigate={navigate} openIncident={openIncident} />
+      <div className="analysis-content" ref={content} tabIndex={-1}>
+        {liveFix ? (
+          <>
+            {streamError && <p className="fx-empty" role="status">Could not refresh the recorded run. {streamError}</p>}
+            <LiveFix graph={graph} view={view} incidentId={query.incidentId} runId={query.runId}
+              onSelectRun={(runId) => navigate({ ...query, incidentId: undefined, runId })} onOpenIncident={openIncident} />
+          </>
+        ) : (
+          <>
+            <header className="analysis-header">
+              <div className="ws-head">
+                <h1 id="analysis-heading" tabIndex={-1} ref={heading}>{label}</h1>
+                <p>
+                  {view.mode === "live" ? "Live" : view.mode === "replay" ? "Replay" : "Connecting"}
+                  {view.simTs ? ` · As of ${dayLabel(view.simTs)} ${hhmm(view.simTs)} UTC` : ""}
+                </p>
+              </div>
+              <div className="analysis-share">
+                <button type="button" className="btn" onClick={() => void copyQuery()}>Copy query link</button>
+                <span role="status">{shareStatus}</span>
+              </div>
+            </header>
+            <section className="analysis-query" aria-label="Analysis query">
+              <label>
+                <span>Metric</span>
+                <select value={query.metric} onChange={(event) => navigate({ ...query, metric: event.target.value, segment: {} })}>
+                  <option value="">All metrics</option>
+                  {query.metric && !metrics.some((metric) => metric.id === query.metric) && <option value={query.metric}>{metricName(graph, query.metric)}</option>}
+                  {metrics.map((metric) => <option key={metric.id} value={metric.id}>{metric.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Segment</span>
+                <select value={hasScope ? selectedScope : ""} onChange={(event) => navigate({
+                  ...query, segment: segments.find((segment) => segmentKey(segment) === event.target.value) ?? {},
+                })}>
+                  <option value="">Any segment</option>
+                  {hasScope && !segments.some((segment) => segmentKey(segment) === selectedScope) && <option value={selectedScope}>{segmentLabel(query.segment)}</option>}
+                  {segments.map((segment) => <option key={segmentKey(segment)} value={segmentKey(segment)}>{segmentLabel(segment)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Period</span>
+                <select value={query.period} onChange={(event) => navigate({ ...query, period: event.target.value as AnalysisPeriod })}>
+                  {ANALYSIS_PERIODS.map(([period, name]) => <option key={period} value={period}>{name}</option>)}
+                </select>
+              </label>
+              {view.firstHour && window.end !== null && (
+                <p className="analysis-coverage">
+                  Run data starts {dayLabel(view.firstHour)} {hhmm(view.firstHour)} UTC
+                </p>
+              )}
+            </section>
+            {streamError && <p className="fx-empty" role="status">Could not refresh the recorded run. {streamError}</p>}
+            <AnalysisPages graph={graph} view={view} query={query} window={window} incidents={incidents} signals={signals} navigate={navigate} openIncident={openIncident} />
+          </>
+        )}
       </div>
     </main>
   );

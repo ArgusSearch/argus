@@ -8,6 +8,7 @@ export const ANALYSIS_PAGES = [
   ["ads", "Ads"],
   ["funnel", "Funnel"],
   ["incidents", "Incidents"],
+  ["live-fix", "Live Fix"],
   ["changes", "Changes"],
 ] as const;
 
@@ -26,6 +27,8 @@ export interface AnalysisQuery {
   metric: string;
   segment: Segment;
   period: AnalysisPeriod;
+  incidentId?: string;
+  runId?: string;
 }
 
 export const DEFAULT_QUERY: AnalysisQuery = { page: "overview", metric: "", segment: {}, period: "7d" };
@@ -56,19 +59,27 @@ export function readAnalysisQuery(search: string): AnalysisQuery | null {
     metric: params.get("metric") ?? "",
     segment: readSegment(params.get("segment")),
     period: ANALYSIS_PERIODS.find(([id]) => id === params.get("period"))?.[0] ?? DEFAULT_QUERY.period,
+    ...(page === "live-fix" && {
+      incidentId: params.get("fixIncident") || undefined,
+      runId: params.get("run") || undefined,
+    }),
   };
 }
 
 export function analysisURL(current: string, query: AnalysisQuery | null): URL {
   const url = new URL(current);
   if (url.searchParams.get("view") === "settings") url.searchParams.delete("tab");
-  for (const key of ["view", "incident", "receipt", "analysis", "metric", "segment", "period"]) url.searchParams.delete(key);
+  for (const key of ["view", "incident", "receipt", "analysis", "metric", "segment", "period", "fixIncident", "run"]) url.searchParams.delete(key);
   if (query) {
     url.searchParams.set("view", "dashboard");
     url.searchParams.set("analysis", query.page);
     if (query.metric) url.searchParams.set("metric", query.metric);
     if (Object.keys(query.segment).length) url.searchParams.set("segment", segmentKey(query.segment));
     if (query.period !== DEFAULT_QUERY.period) url.searchParams.set("period", query.period);
+    if (query.page === "live-fix") {
+      if (query.incidentId) url.searchParams.set("fixIncident", query.incidentId);
+      if (query.runId) url.searchParams.set("run", query.runId);
+    }
   }
   return url;
 }

@@ -3,6 +3,7 @@
 // findings the API serves; the internal terms stay in the evidence and in the glossary tooltips.
 
 import { useEffect, useState } from "react";
+import { followLink, navigateWorkspaceURL } from "../../analysis/shell/location";
 import { TimeChart, type SeriesPoint } from "../../components/charts";
 import { Num, ReceiptChips } from "../../components/Receipts";
 import { useAgentDemo } from "../../lib/agentDemo";
@@ -99,7 +100,13 @@ function Step({ n, title, term, children }: { n: number; title: string; term?: s
   );
 }
 
-export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; graph: Graph | null; view: RunView; onSelectNode: (id: string) => void }) {
+export function IncidentPage({ id, graph, view, onSelectNode, liveFixHref }: {
+  id: string;
+  graph: Graph | null;
+  view: RunView;
+  onSelectNode: (id: string) => void;
+  liveFixHref: string;
+}) {
   const summary = view.incidents[id];
   const { incident, error } = useIncident(id, summary?.lastSeq ?? 0, view.stream);
   const demo = useAgentDemo();
@@ -139,7 +146,7 @@ export function IncidentPage({ id, graph, view, onSelectNode }: { id: string; gr
         <span className="mono">{id}</span>
       </nav>
       {!incident && <p className="fx-empty">{error ? `The incident could not be loaded: ${error}` : "Loading the incident…"}</p>}
-      {incident && <Story incident={incident} graph={graph} view={view} onSelectNode={onSelectNode} copy={copy} copied={copied} />}
+      {incident && <Story incident={incident} graph={graph} view={view} onSelectNode={onSelectNode} copy={copy} copied={copied} liveFixHref={liveFixHref} />}
       {copyError && <p className="ws-act-error" role="alert">{copyError}</p>}
     </main>
   );
@@ -152,6 +159,7 @@ function Story({
   onSelectNode,
   copy,
   copied,
+  liveFixHref,
 }: {
   incident: Incident;
   graph: Graph | null;
@@ -159,6 +167,7 @@ function Story({
   onSelectNode: (id: string) => void;
   copy: () => void;
   copied: boolean;
+  liveFixHref: string;
 }) {
   const f = incident.findings;
   const root = f.root;
@@ -204,6 +213,7 @@ function Story({
           <button className="btn" onClick={copy}>
             {copied ? "Copied" : "Copy report"}
           </button>
+          <a className="btn" href={liveFixHref} onClick={(event) => followLink(event, () => navigateWorkspaceURL(liveFixHref))}>Open Live Fix</a>
         </div>
       </header>
 

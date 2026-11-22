@@ -22,4 +22,16 @@ describe("analysis query links", () => {
     const clean = analysisURL("https://argus.test/?view=dashboard&analysis=ads&metric=ctr&period=24h&fx=ice", null);
     expect(clean.search).toBe("?fx=ice");
   });
+
+  it("keeps the Live Fix subject and recorded source in a shareable URL", () => {
+    const query = { ...DEFAULT_QUERY, page: "live-fix", incidentId: "INC-0001", runId: "run:2" } as const;
+    const url = analysisURL("https://argus.test/?view=incident&incident=INC-0001&agentrun=presentation-1", query);
+
+    expect(readAnalysisQuery(url.search)).toEqual(query);
+    expect(url.searchParams.get("agentrun")).toBe("presentation-1");
+    expect(url.searchParams.has("incident")).toBe(false);
+    const overview = analysisURL(url.href, DEFAULT_QUERY);
+    expect(overview.searchParams.has("fixIncident")).toBe(false);
+    expect(overview.searchParams.has("run")).toBe(false);
+  });
 });

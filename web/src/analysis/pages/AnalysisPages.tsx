@@ -2,12 +2,13 @@ import { useState, type ReactNode } from "react";
 import { Num, ReceiptChips } from "../../components/Receipts";
 import { dayLabel, eur, hhmm, humanize, pct, segmentLabel } from "../../lib/format";
 import type { IncidentView, RunView } from "../../lib/store";
-import type { Anomaly, Graph, GraphNode } from "../../lib/types";
+import type { Anomaly, Graph, GraphNode, Incident } from "../../lib/types";
 import { health, keyMetrics } from "../../fx/workspace/health";
 import { metricName, STATE, unusualness } from "../../fx/workspace/plain";
 import { Card, Pill, useIncidents } from "../../fx/workspace/ui";
 import { calendarEntries } from "../../settings/model";
 import { metricStatus } from "../../views/model";
+import { AnalyticsPanels, ShopMetrics, type AnalyticsPanelsProps } from "../analytics";
 import { analysisHref, followLink, navigateWorkspaceURL } from "../shell/location";
 import { segmentKey, type AnalysisQuery } from "../shell/query";
 import { AD_METRICS, FUNNEL_METRICS, inWindow, matchesSegment, observedSegments, visibleFindings, type AnalysisWindow } from "./model";
@@ -95,22 +96,10 @@ function Overview(props: PageProps) {
           </dl>
         ))}
       </div>
-      <div className="analysis-columns">
-        <Card title="Affected metrics" action={<QueryLink query={{ ...query, page: "incidents" }} navigate={navigate}>All incidents</QueryLink>}>
-          <IncidentList {...props} />
-        </Card>
-        <Card title="Current shop health">
-          <ul className="analysis-rows">
-            {status.checks.map((check) => (
-              <li key={check.key} className="analysis-health-row">
-                <span>{check.label}</span>
-                <strong>{check.total ? `${check.passed}/${check.total}` : "—"}</strong>
-              </li>
-            ))}
-          </ul>
-          <p className="fx-card-note">Shop health and graph totals cover the whole run.</p>
-        </Card>
-      </div>
+      <ShopMetrics view={view} graph={graph} />
+      <Card title="Affected metrics" action={<QueryLink query={{ ...query, page: "incidents" }} navigate={navigate}>All incidents</QueryLink>}>
+        <IncidentList {...props} />
+      </Card>
       {Object.keys(query.segment).length === 0 && <CurrentMetrics {...props} />}
     </>
   );
@@ -173,14 +162,34 @@ function Signals({ graph, signals, window }: Pick<PageProps, "graph" | "signals"
   );
 }
 
-function ScopedFindings(props: PageProps) {
+type ScopedEvidenceProps = PageProps & { analytics?: AnalyticsPanelsProps["section"] };
+
+function ScopedEvidence(props: ScopedEvidenceProps) {
   const [attempt, setAttempt] = useState(0);
-  if (!props.incidents.length) return null;
-  return <IncidentFindings key={attempt} {...props} retry={() => setAttempt((count) => count + 1)} />;
+  if (!props.analytics && !props.incidents.length) return null;
+  return <EvidencePanels key={attempt} {...props} retry={() => setAttempt((count) => count + 1)} />;
 }
 
-function IncidentFindings({ graph, view, query, incidents, window, openIncident, retry }: PageProps & { retry: () => void }) {
+function EvidencePanels({ analytics, retry, ...props }: ScopedEvidenceProps & { retry: () => void }) {
+  const { graph, view, query, navigate } = props;
   const { incidents: details, failed } = useIncidents(view);
+  return (
+    <>
+      {analytics && <AnalyticsPanels graph={graph} view={view} incidents={details} query={query} section={analytics}
+        incidentError={failed && !props.incidents.length ? "Could not read incident findings." : null} onRetry={retry}
+        onPeriodChange={(period) => navigate({ ...query, period })}
+        segmentHref={(segment) => analysisHref({ ...query, page: "segments", segment })}
+        incidentHref={incidentURL} onNavigate={(event) => followLink(event, () => navigateWorkspaceURL(event.currentTarget.href))} />}
+      {props.incidents.length > 0 && <IncidentFindings {...props} details={details} failed={failed} retry={retry} />}
+    </>
+  );
+}
+
+function IncidentFindings({ graph, query, incidents, window, openIncident, details, failed, retry }: PageProps & {
+  details: Incident[];
+  failed: boolean;
+  retry: () => void;
+}) {
   const matching = new Map(incidents.map((incident) => [incident.id, incident]));
   const findings = details.filter((incident) => visibleFindings(incident, matching.get(incident.id), window)).flatMap(({ id, findings }) => {
     const root = findings.root;
@@ -300,7 +309,7 @@ export function AnalysisPages(props: PageProps) {
             <Card title="Metric definition"><MetricDefinitions {...props} /></Card>
             <Card title="Related incidents"><IncidentList {...props} /></Card>
           </div>
-          <ScopedFindings key={props.view.stream} {...props} />
+          <ScopedEvidence key={props.view.stream} {...props} analytics="both" />
           <Card title="Anomaly observations"><Signals {...props} /></Card>
         </>
       ) : (
@@ -315,7 +324,7 @@ export function AnalysisPages(props: PageProps) {
         <>
           <Card title={props.query.page === "countries" ? "Countries in matching evidence" : "Segments in matching evidence"}><SegmentList {...props} /></Card>
           <Card title="Related incidents"><IncidentList {...props} /></Card>
-          <ScopedFindings key={props.view.stream} {...props} />
+          <ScopedEvidence key={props.view.stream} {...props} analytics={props.query.page === "countries" ? "distribution" : undefined} />
           <Card title="Anomaly observations"><Signals {...props} /></Card>
         </>
       );
@@ -334,5 +343,7 @@ export function AnalysisPages(props: PageProps) {
       return <Card title="Incidents in this period"><IncidentList {...props} /></Card>;
     case "changes":
       return <Card title="Changes checked in investigations"><Changes {...props} /></Card>;
+    case "live-fix":
+      return null;
   }
 }

@@ -9,6 +9,8 @@ import { groupRuns, isLive } from "../../agent-ui/activity";
 import { runClock } from "../../agent-ui/clock";
 import { JumpToLatest, useFollowTail } from "../../agent-ui/hooks";
 import { RunGroupView, usd } from "../../agent-ui/RunLog";
+import { DEFAULT_QUERY } from "../../analysis/shell/query";
+import { analysisHref, followLink, navigateWorkspaceURL } from "../../analysis/shell/location";
 import { type RunSummary } from "../../lib/agent";
 import { dayLabel, hhmm, humanize } from "../../lib/format";
 import { openIncidentPage } from "../nav";
@@ -36,6 +38,7 @@ const verdictWord = (code: string) => VERDICT[code as keyof typeof VERDICT]?.lab
 
 function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => void }) {
   const s = STATUS[run.status];
+  const liveFixHref = analysisHref({ ...DEFAULT_QUERY, page: "live-fix", runId: run.run_id });
   return (
     <li className="ag-run">
       <span className="ag-run-head">
@@ -60,6 +63,7 @@ function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => vo
           Open {run.incident_id}
         </button>
       )}
+      <a className="ag-link" href={liveFixHref} onClick={(event) => followLink(event, () => navigateWorkspaceURL(liveFixHref))}>Open Live Fix</a>
     </li>
   );
 }

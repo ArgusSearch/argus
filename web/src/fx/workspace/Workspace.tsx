@@ -134,7 +134,8 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       {section === "incidents" && <IncidentsPage graph={graph} view={view} onOpenIncident={onOpenIncident} />}
       {section === "incident" && incident && (
         <>
-          <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />
+          <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode}
+            liveFixHref={analysisHref({ ...(query ?? DEFAULT_QUERY), page: "live-fix", incidentId: incident, runId: undefined })} />
           <LinkedReceipt id={incident} view={analysisView} />
         </>
       )}
