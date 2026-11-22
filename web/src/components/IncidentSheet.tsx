@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { dayLabel, eur, hhmm, humanize, impactNoun, pct, segmentLabel, share } from "../lib/format";
+import { dayLabel, eur, hhmm, humanize, impactNoun, pct, segmentLabel, share, verdictLabel } from "../lib/format";
 import { isRuledOut, type IncidentView } from "../lib/store";
 import type { Graph, Incident, IncidentState, TrailStep } from "../lib/types";
 import { Bars, TimeChart, type SeriesPoint } from "./charts";
@@ -82,7 +82,7 @@ export function IncidentSheet({
           <div className="sheet-top">
             <span className="mono">{id}</span>
             {incident && <span className={`pill state-${incident.state}`}>{incident.state}</span>}
-            {incident && <span className={`pill ${incident.verdict}`}>{incident.verdict.replace("_", " ")}</span>}
+            {incident && <span className={`pill ${incident.verdict}`}>{verdictLabel(incident.verdict)}</span>}
             <span className="spacer" />
             <button className="btn" onClick={copy} disabled={!incident}>
               {copied ? "Copied" : "Copy report (Markdown)"}

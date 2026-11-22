@@ -1,0 +1,89 @@
+/* The agent avatar: a canvas 1.5 times the body box (room for hops and the HUD ring), pulled back by a quarter
+   of the body on each side so the body itself sits in a box of --av-size. */
+
+.agent-avatar {
+  --av-size: 64px;
+  --av-glow: #7cc4ff;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.agent-avatar-stage {
+  position: relative;
+  width: var(--av-size);
+  height: var(--av-size);
+  flex: none;
+}
+
+.agent-avatar-stage canvas {
+  position: absolute;
+  left: calc(var(--av-size) * -0.25);
+  top: calc(var(--av-size) * -0.25);
+  width: calc(var(--av-size) * 1.5);
+  height: calc(var(--av-size) * 1.5);
+  pointer-events: none;
+}
+
+.agent-avatar-badge {
+  position: absolute;
+  top: calc(var(--av-size) * -0.08);
+  right: calc(var(--av-size) * -0.08);
+  width: max(14px, calc(var(--av-size) * 0.3));
+  height: max(14px, calc(var(--av-size) * 0.3));
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 800 max(9px, calc(var(--av-size) * 0.19)) / 1 Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #fff;
+  box-shadow: 0 3px 8px -2px rgba(11, 19, 32, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.agent-avatar-badge.need {
+  background: #e5534b;
+  animation: agent-avatar-need 1.4s ease-in-out infinite;
+}
+
+.agent-avatar-badge.done {
+  background: #2f9e6e;
+}
+
+@keyframes agent-avatar-need {
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar-badge.need {
+    animation: none;
+  }
+}
+
+.agent-avatar-plate {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 9px 5px;
+  border-radius: 8px;
+  background: rgba(11, 19, 32, 0.78);
+  box-shadow: inset 0 -2px 0 var(--av-glow);
+  white-space: nowrap;
+}
+
+.agent-avatar-plate b {
+  font: 600 12px/1.1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+.agent-avatar-plate span {
+  font: 500 10px/1.1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--av-glow);
+}

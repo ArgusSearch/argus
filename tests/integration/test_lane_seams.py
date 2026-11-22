@@ -176,7 +176,9 @@ def test_s5_market_control_reaches_the_stream_notes_and_morning_report(tmp_path:
         assert "checkout" in lines[f"{incident.id}:verdict"].text.lower()
         # The cause is our own routing change, so Argus asks to undo it, not to route around PayCo.
         assert "Roll back dep_checkout-routing_retry-policy" in lines[f"{incident.id}:approval"].text
-        assert f"{incident.id}:uncertainty" not in lines
+        # Its own deploy also answers whether the fault sits inside PayCo, so the report does not ask that.
+        uncertainty = lines.get(f"{incident.id}:uncertainty")
+        assert uncertainty is None or "inside PayCo" not in uncertainty.text
         playbooks = sorted((run.playbook_id, run.incident_id or "") for run in report.investigations)
         assert playbooks == [
             ("revenue_drop", ""),
