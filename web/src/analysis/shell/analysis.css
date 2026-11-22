@@ -1,0 +1,317 @@
+:root[data-fx] .analysis-shell {
+  grid-template-columns: 196px minmax(0, 1fr);
+  align-items: start;
+}
+
+.analysis-pages {
+  display: grid;
+  min-width: 0;
+  padding: var(--fx-space-3);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  color: var(--fx-ink-0);
+  background: var(--fx-glass-1);
+}
+
+.analysis-page-links {
+  display: grid;
+  gap: var(--fx-space-1);
+}
+
+.analysis-page-links h2 {
+  margin: var(--fx-space-2) var(--fx-space-2) var(--fx-space-1);
+  font-size: var(--fx-text-xs);
+}
+
+.analysis-page-links .analysis-secondary {
+  margin-top: var(--fx-space-4);
+}
+
+.analysis-page-links a {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding-inline: var(--fx-space-2);
+  border-radius: var(--fx-radius-1);
+  color: var(--fx-ink-1);
+  text-decoration: none;
+}
+
+.analysis-page-links a:hover {
+  background: var(--fx-card-hover);
+}
+
+.analysis-page-links a[aria-current="page"] {
+  color: var(--fx-ink-0);
+  background: var(--fx-card);
+  font-weight: 600;
+}
+
+.analysis-pages .analysis-menu {
+  display: none;
+}
+
+.analysis-content {
+  display: grid;
+  gap: var(--fx-space-4);
+  min-width: 0;
+}
+
+.analysis-content a {
+  color: var(--fx-ink-0);
+  text-underline-offset: 0.2em;
+}
+
+.analysis-shell :is(a, button, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: 2px;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--fx-space-2) var(--fx-space-3);
+}
+
+.analysis-header .ws-head {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.analysis-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fx-space-2);
+}
+
+.analysis-share .btn {
+  min-height: 44px;
+}
+
+.analysis-share [role="status"] {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-sm);
+}
+
+.analysis-query {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr);
+  gap: var(--fx-space-3);
+  padding: var(--fx-space-3);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-glass-1);
+}
+
+.analysis-coverage {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-xs);
+}
+
+.analysis-query label {
+  display: grid;
+  gap: var(--fx-space-1);
+  min-width: 0;
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-xs);
+}
+
+.analysis-query select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: var(--fx-space-2);
+  border: var(--fx-hair) solid var(--line-2);
+  border-radius: var(--fx-radius-1);
+  color: var(--fx-ink-0);
+  background: var(--fx-glass-solid);
+  font: inherit;
+  font-size: var(--fx-text-sm);
+}
+
+.analysis-stats,
+.analysis-columns {
+  display: grid;
+  gap: var(--fx-space-3);
+}
+
+.analysis-stats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.analysis-stats dl,
+.analysis-stats dd {
+  margin: 0;
+}
+
+.analysis-columns {
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: var(--fx-space-4);
+  align-items: start;
+}
+
+.analysis-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-rows li {
+  display: grid;
+  gap: var(--fx-space-1);
+  padding-block: var(--fx-space-2);
+  border-bottom: var(--fx-hair) solid var(--fx-glass-border);
+  overflow-wrap: anywhere;
+}
+
+.analysis-rows li:last-child {
+  border-bottom: 0;
+}
+
+.analysis-rows :is(.analysis-incident, .analysis-health-row) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--fx-space-2) var(--fx-space-3);
+}
+
+.analysis-incident > div,
+.analysis-definition {
+  display: grid;
+  gap: var(--fx-space-1);
+}
+
+.analysis-incident > div:first-child {
+  flex: 1 1 12rem;
+}
+
+.analysis-rows li > span:not(.ws-pill, .receipts),
+.analysis-incident > div > span,
+.analysis-definition small,
+.analysis-table th span {
+  color: var(--fx-ink-2);
+}
+
+.analysis-definition p {
+  margin: 0;
+}
+
+.analysis-definition code {
+  overflow-wrap: anywhere;
+}
+
+.analysis-table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.analysis-table :is(th, td) {
+  padding: var(--fx-space-2);
+  border-bottom: var(--fx-hair) solid var(--fx-glass-border);
+}
+
+.analysis-table th span {
+  display: block;
+  font-weight: 400;
+}
+
+.analysis-table .analysis-number {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-fx] a.fx-side-item {
+  text-decoration: none;
+}
+
+@media (min-width: 1180px) {
+  :root[data-fx] .app:has(.analysis-shell) {
+    --fx-side-w: 64px;
+  }
+
+  :root[data-fx] .fx-side[data-analysis] {
+    padding-inline: var(--fx-space-2);
+  }
+
+  :root[data-fx] .fx-side[data-analysis] :is(.fx-side-brand, .fx-side-item, .fx-side-ask) {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  :root[data-fx] .fx-side[data-analysis] :is(.fx-side-brand div, .fx-side-item span, .fx-side-group, .fx-side-foot, .fx-side-ask span, .fx-side-ask kbd, .fx-demo) {
+    display: none;
+  }
+
+  :root[data-fx] .fx-side[data-analysis] :is(.fx-side-badge, .fx-side-live) {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    margin: 0;
+  }
+}
+
+@media (max-width: 1340px) {
+  .analysis-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  :root[data-fx] .analysis-shell,
+  .analysis-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analysis-pages .analysis-menu {
+    display: inline-flex;
+    justify-self: start;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .analysis-page-links {
+    display: none;
+  }
+
+  .analysis-pages[data-open="true"] .analysis-page-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: var(--fx-space-2);
+  }
+
+  .analysis-page-links h2 {
+    grid-column: 1 / -1;
+  }
+
+  .analysis-page-links a {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 560px) {
+  .analysis-query {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysis-query label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .analysis-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

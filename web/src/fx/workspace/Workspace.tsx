@@ -3,6 +3,7 @@
 // number on these pages is one the API sent; the pages only pick, order and label them in plain words.
 
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
+import { AnalysisShell, analysisHref, DEFAULT_QUERY, followLink, LinkedReceipt, navigateWorkspaceURL, useAnalysisQuery } from "../../analysis";
 import { Mark } from "../../components/Header";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { emptyView, type RunView } from "../../lib/store";
@@ -101,6 +102,13 @@ function VillageSurface(props: VillageProps) {
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
   const demo = useAgentDemo();
+  const query = useAnalysisQuery();
+  const analysis = section === "dashboard" ? query : null;
+  const [waitingForDemo] = useState(() => emptyView(null, "replay"));
+  const params = new URLSearchParams(window.location.search);
+  const wantsPresentation = Boolean(params.get("agentrun")) || ["s1", "s4", "1"].includes(params.get("agentdemo") ?? "");
+  const presentationPending = (demo !== null || wantsPresentation) && !demo?.snapshot;
+  const analysisView = presentationPending ? waitingForDemo : view;
   useLayoutEffect(() => {
     document.documentElement.dataset.fxSection = section;
     if (window.matchMedia("(max-width: 1179px)").matches) window.scrollTo(0, 0);
@@ -108,10 +116,28 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   useEffect(() => watchHost(), []);
   return (
     <>
-      <Sidebar section={section} view={view} />
-      {section === "dashboard" && <Overview graph={graph} view={view} onOpenIncident={onOpenIncident} onSelectNode={onSelectNode} />}
+      <Sidebar section={section} view={analysis ? analysisView : view} />
+      {analysis ? (
+        <AnalysisShell
+          graph={presentationPending ? null : graph}
+          view={analysisView}
+          streamError={demo?.error}
+          query={analysis}
+          openIncident={onOpenIncident}
+          secondaryLinks={<>
+            <AnalysisWorkspaceLink section="report">Morning report</AnalysisWorkspaceLink>
+            <AnalysisWorkspaceLink section="calendar">Calendar</AnalysisWorkspaceLink>
+            <AnalysisWorkspaceLink section="settings" tab="sources">Data sources</AnalysisWorkspaceLink>
+          </>}
+        />
+      ) : section === "dashboard" && <Overview graph={graph} view={view} onOpenIncident={onOpenIncident} onSelectNode={onSelectNode} />}
       {section === "incidents" && <IncidentsPage graph={graph} view={view} onOpenIncident={onOpenIncident} />}
-      {section === "incident" && incident && <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />}
+      {section === "incident" && incident && (
+        <>
+          <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />
+          <LinkedReceipt id={incident} view={analysisView} />
+        </>
+      )}
       {section === "glossary" && <GlossaryPage />}
       {section === "agent" && <AgentPage />}
       {section === "village" && <VillageSurface graph={graph} view={view} onSelectNode={onSelectNode} />}
@@ -127,10 +153,18 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   );
 }
 
+function AnalysisWorkspaceLink({ section, tab, children }: { section: Section; tab?: string; children: ReactNode }) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("view", section);
+  if (tab) url.searchParams.set("tab", tab);
+  else url.searchParams.delete("tab");
+  return <a href={url.href} onClick={(event) => followLink(event, () => navigateWorkspaceURL(url.href))}>{children}</a>;
+}
+
 /* ------------------------------------------------------------------ sidebar */
 
 interface NavItem {
-  id: Section;
+  id: Section | "analysis";
   group: string;
   label: string;
   hint: string;
@@ -146,6 +180,13 @@ const NAV: NavItem[] = [
     label: "Overview",
     hint: "Shop health, this week's costs and what needs your decision",
     icon: <path d="M2.5 2.5h4.5v6h-4.5zM9 2.5h4.5v3.5h-4.5zM9 8h4.5v5.5h-4.5zM2.5 10.5h4.5v3h-4.5z" />,
+  },
+  {
+    id: "analysis",
+    group: "Monitor",
+    label: "Analysis",
+    hint: "Explore metrics, segments and incident evidence",
+    icon: <path d="M2.5 2.5v11h11M5 10l3-3 2 1.5 3.5-4" />,
   },
   {
     id: "incidents",
@@ -234,7 +275,9 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
   const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
   const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
   const open = Object.values(view.incidents).filter((i) => i.state !== "resolved").length;
-  const current = section === "incident" ? "incidents" : section;
+  const query = useAnalysisQuery();
+  const analysis = !recorded && section === "dashboard" && query !== null;
+  const current = analysis ? "analysis" : section === "incident" ? "incidents" : section;
   const agent = useAgent();
   const asking = useAskOpen();
   const humans = useHumanActions(view);
@@ -247,6 +290,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
     <nav
       className="fx-side"
       aria-label="sections"
+      data-analysis={analysis ? "" : undefined}
       data-menu-open={menuOpen}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || !menuOpen) return;
@@ -294,7 +338,31 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
         </button>
       )}
       <ul className="fx-side-nav">
-        {items.map((item, i) => (
+        {items.map((item, i) => {
+          const id = item.id;
+          if (id === "analysis") {
+            const href = analysisHref(query ?? DEFAULT_QUERY);
+            return (
+              <li key={id}>
+                <a
+                  className={`fx-side-item${analysis ? " on" : ""}`}
+                  aria-current={analysis ? "page" : undefined}
+                  aria-label={item.label}
+                  title={item.hint}
+                  href={href}
+                  onClick={(event) => followLink(event, () => {
+                    if (menuOpen) event.currentTarget.closest("nav")?.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
+                    setMenuOpen(false);
+                    navigateWorkspaceURL(href);
+                  })}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true">{item.icon}</svg>
+                  <span>{item.label}</span>
+                </a>
+              </li>
+            );
+          }
+          return (
           <li key={item.id}>
             {item.group !== items[i - 1]?.group && <span className="fx-side-group">{item.group}</span>}
             <button
@@ -305,7 +373,8 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
               onClick={(event) => {
                 if (menuOpen) event.currentTarget.closest("nav")?.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
                 setMenuOpen(false);
-                go(item.id);
+                if (id === "dashboard" && query) navigateWorkspaceURL(analysisHref(null));
+                else go(id);
               }}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -325,9 +394,10 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
               )}
             </button>
           </li>
-        ))}
+          );
+        })}
         <li>
-          <button className="fx-side-item" onClick={() => window.location.assign("/?challenge=reveal")}>
+          <button className="fx-side-item" aria-label="Sealed result" onClick={() => window.location.assign("/?challenge=reveal")}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3.5 2.5h9v11h-9zM5.5 8l1.5 1.5 3.5-3.5" />
             </svg>
