@@ -38,8 +38,9 @@ class Server:
     url: str
     started: float
 
-    def client(self, *, transport: httpx2.HTTPTransport | None = None) -> httpx2.Client:
-        return httpx2.Client(base_url=self.url, timeout=TIMEOUT, trust_env=False, transport=transport)
+    def client(self, *, transport: httpx2.HTTPTransport | None = None, read_timeout: float = TIMEOUT) -> httpx2.Client:
+        timeout = httpx2.Timeout(TIMEOUT, read=read_timeout)
+        return httpx2.Client(base_url=self.url, timeout=timeout, trust_env=False, transport=transport)
 
 
 @contextmanager
@@ -83,17 +84,19 @@ class Frame:
         return event
 
 
-def frames(response: httpx2.Response) -> Iterator[Frame]:
+def frames(response: httpx2.Response, *, timeout: float = TIMEOUT) -> Iterator[Frame]:
     response.raise_for_status()
     assert response.headers["content-type"].split(";")[0] == "text/event-stream"
     fields: dict[str, str] = {}
     data: list[str] = []
-    deadline = time.monotonic() + TIMEOUT
+    deadline = time.monotonic() + timeout
+    received = 0
     for line in response.iter_lines():
         if time.monotonic() >= deadline:
-            raise TimeoutError("SSE stream did not finish before the deadline")
+            raise TimeoutError(f"SSE stream did not finish within {timeout:g}s ({received} frames received)")
         if not line:
             if data:
+                received += 1
                 yield Frame(fields.get("event", "message"), fields.get("id"), "\n".join(data))
             fields.clear()
             data.clear()
