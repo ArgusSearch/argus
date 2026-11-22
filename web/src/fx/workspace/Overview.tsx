@@ -100,9 +100,6 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
         {!sourceMetrics && <>
         <h1>{headline(monitor, h)}</h1>
         <p>Argus checks the shop's key numbers every hour, investigates anomalies, and asks for approval before acting.</p>
-        {limits?.daily_usd !== undefined && <p className="fx-card-note">
-          {limits.session_hour} live investigations per session per hour · {limits.ip_hour} per IP per hour · ${limits.spent_today_usd?.toFixed(2)} of ${limits.daily_usd.toFixed(2)} today (UTC)
-        </p>}
         {limits?.message && <p className="fx-card-note" role="status">{limits.message}</p>}
         </>}
       </header>
