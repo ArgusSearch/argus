@@ -214,9 +214,7 @@ def test_openai_sol_critic_has_a_fresh_context(case: Any, s1_world: WorldPaths) 
             return reply(1, "submit_challenge", {"opinion": "upheld", "summary": "it held"}, model=OPENAI_SOL)
         return detective(request).model_copy(update={"model": OPENAI_SOL})
 
-    findings, journal = run(
-        case, s1_world, FakeLlmClient(responder=respond), model=OPENAI_SOL, critic_model=OPENAI_SOL
-    )
+    findings, journal = run(case, s1_world, FakeLlmClient(responder=respond), model=OPENAI_SOL, critic_model=OPENAI_SOL)
     assert findings.verdict == "SUPPORTED_CAUSE"
     assert critic_line(journal)["verdict"] == "upheld"
 
