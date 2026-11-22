@@ -352,8 +352,7 @@ const post = (body: unknown, headers: Record<string, string> = {}): RequestInit 
 const CSRF_HEADER = "X-Argus-CSRF";
 let operator: { path: string; token: string | null } | null = null;
 
-async function operatorToken(fresh = false): Promise<string | null> {
-  const path = withRun("/agent/operator/session");
+async function operatorToken(path: string, fresh = false): Promise<string | null> {
   if (operator?.path === path && !fresh) return operator.token;
   try {
     const session = await call<{ principal: string; csrf_token: string }>(path, post({}));
@@ -365,12 +364,15 @@ async function operatorToken(fresh = false): Promise<string | null> {
   return operator.token;
 }
 
-async function decideWithSession<T>(path: string, body: unknown): Promise<T> {
-  const send = (token: string | null) => call<T>(withRun(path), post(body, token ? { [CSRF_HEADER]: token } : {}));
+async function decideWithSession<T>(path: string, body: unknown, scope: "current" | "live"): Promise<T> {
+  const session = "/agent/operator/session";
+  const sessionPath = scope === "live" ? session : withRun(session);
+  const decisionPath = scope === "live" ? path : withRun(path);
+  const send = (token: string | null) => call<T>(decisionPath, post(body, token ? { [CSRF_HEADER]: token } : {}));
   try {
-    return await send(await operatorToken());
+    return await send(await operatorToken(sessionPath));
   } catch (e) {
-    if (e instanceof ApiError && e.status === 403) return send(await operatorToken(true));
+    if (e instanceof ApiError && e.status === 403) return send(await operatorToken(sessionPath, true));
     throw e;
   }
 }
@@ -400,8 +402,8 @@ export const agentApi = {
   boards: (since = 0) => call<{ boards: Board[]; next_cursor: number }>(withRun(`/agent/boards?since=${since}`)),
   incidentBoard: (id: string) => call<Board>(withRun(`/agent/boards/incident/${encodeURIComponent(id)}`)),
   actions: () => call<ProposalView[]>(withRun("/agent/actions")),
-  decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
-    decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }),
+  decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey(), scope: "current" | "live" = "current") =>
+    decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }, scope),
   /** `signal` stops waiting for the answer (the server's run still finishes and is billed) */
   ask: (question: string, incidentId?: string | null, conversationId?: string | null, signal?: AbortSignal) =>
     call<AskAnswer>(withRun("/agent/ask"), { ...post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null }), signal }),

@@ -80,8 +80,9 @@ function ModelCost({ r }: { r: ActivityRecord }) {
 
 /** A check and its result as one row: what was suspected, what would follow, what came back. */
 export const CheckRow = memo(function CheckRow({ check, time = true }: { check: CheckStep; time?: boolean }) {
-  const avatars = useAgent().avatars;
+  const current = useAgent().avatars[check.role];
   const { call, result } = check;
+  const cue = current && (current.key === call?.seq || current.key === result?.seq) ? current : undefined;
   const o = call?.observation ?? result?.observation ?? null;
   const outcome = result?.observation?.outcome ?? null;
   const at = (call ?? result) as ActivityRecord;
@@ -94,8 +95,8 @@ export const CheckRow = memo(function CheckRow({ check, time = true }: { check: 
         role={check.role}
         size="md"
         nameplate
-        cue={avatars[check.role]?.key === at.seq ? avatars[check.role] : undefined}
-        paused={avatars[check.role]?.key !== at.seq}
+        cue={cue}
+        paused={!cue}
       />
       <div className="ag-body">
         <span className="ag-kind">

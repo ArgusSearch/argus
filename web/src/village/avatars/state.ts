@@ -20,16 +20,17 @@ const STEPS = new Set<ActivityKind | ActivityKindV2>([
   "watch", "tool_result", "gate", "critic", "report", "memory", "action_applied", "effect_checked", "chat_answer",
 ]);
 
-/** The API's role wins, except that a person's question starts the Narrator's work. */
+/** A question starts the Narrator's work and a filed case completes it. Other steps use the API role. */
 export function activityAvatarRole(record: ActivityRecord): RoleId {
   const kind = record.kind as ActivityKind | ActivityKindV2;
-  if (kind === "chat_question") return "narrator";
+  if (kind === "chat_question" || (kind === "run_finished" && record.stage === "REPORT")) return "narrator";
   if (!record.role && kind === "critic") return "skeptic";
   return roleOf(record);
 }
 
 export function activityAvatarCue(record: ActivityRecord): AvatarCue | undefined {
-  if (!STARTS.has(record.kind) && !STEPS.has(record.kind)) return;
+  const filed = record.kind === "run_finished" && record.stage === "REPORT";
+  if (!filed && !STARTS.has(record.kind) && !STEPS.has(record.kind)) return;
   return {
     status: "working",
     key: record.seq,
@@ -44,7 +45,15 @@ export function proposalAvatarCue(proposal: ProposalView, operator?: AvatarCue):
     return { status: "waiting", key: proposal.id, text: proposal.action, runId: proposal.run_id, actionId: proposal.id };
   }
   if (proposal.state === "APPLYING" || proposal.state === "APPLIED" || proposal.state === "VERIFYING") {
-    return operator?.actionId === proposal.id && operator.status === "working" ? operator : IDLE_AVATAR;
+    if (operator?.actionId === proposal.id && operator.status === "working") return operator;
+    if (proposal.state === "APPLIED") return IDLE_AVATAR;
+    return {
+      status: "working",
+      key: `${proposal.id}:${proposal.state}`,
+      text: proposal.state === "VERIFYING" ? proposal.success_rule.rule : proposal.action,
+      runId: proposal.run_id,
+      actionId: proposal.id,
+    };
   }
   return { status: "done" };
 }
@@ -86,5 +95,9 @@ export function avatarCues(
 
   const waiting = proposals.findLast((proposal) => proposal.state === "AWAIT_OPERATOR" && !decided.has(proposal.id));
   if (waiting) roles.operator = proposalAvatarCue(waiting);
+  else {
+    const working = proposals.findLast((proposal) => proposal.state === "APPLYING" || proposal.state === "VERIFYING");
+    if (working) roles.operator = proposalAvatarCue(working, roles.operator);
+  }
   return { roles, nextExpiry };
 }

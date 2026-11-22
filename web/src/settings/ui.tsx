@@ -1,14 +1,17 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import type { AgentRole } from "../lib/agent";
+import { useAgent } from "../fx/workspace/agent";
 import type { Level } from "./model";
 
 const AgentAvatar = lazy(() => import("../village/avatars").then(({ AgentAvatar }) => ({ default: AgentAvatar })));
 
 export function Portrait({ role, size }: { role: AgentRole; size: number }) {
+  const { enabled, avatars } = useAgent();
+  const cue = avatars[role];
   return (
     <span className="cs-portrait" style={{ width: size, height: size }} aria-hidden="true">
       <Suspense fallback={null}>
-        <AgentAvatar role={role} size={size} badge={false} paused />
+        <AgentAvatar role={role} size={size} status={cue?.status} motionKey={cue?.key} badge={cue?.status === "waiting"} paused={!enabled} />
       </Suspense>
     </span>
   );

@@ -30,7 +30,7 @@ export interface AgentState {
 }
 
 const EMPTY: AgentState = { scope: null, enabled: false, health: null, records: [], proposals: [], runs: [], avatars: {}, waiting: 0, refresh: () => undefined, put: () => undefined };
-const EMPTY_ACTIVITY = { records: [] as ActivityRecord[], until: new Map<number, number>() };
+const EMPTY_ACTIVITY = { records: [] as ActivityRecord[], until: new Map<number, number>(), online: false };
 const Ctx = createContext<AgentState>(EMPTY);
 
 export function useAgent(): AgentState {
@@ -103,18 +103,22 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
           const previousSeq = cursor.seq;
           const last = res.records[res.records.length - 1]?.seq;
           cursor = { stream: res.stream, seq: last ?? (fresh ? 0 : cursor.seq) };
-          if (fresh) setActivity({ records: res.records.slice(-KEEP), until: new Map() });
+          if (fresh) setActivity({ records: res.records.slice(-KEEP), until: new Map(), online: true });
           else if (res.records.length) {
             const added = res.records.filter((record) => record.seq > previousSeq);
-            const now = Date.now();
+            const now = performance.now();
             setActivity((current) => {
               const until = new Map([...current.until].filter(([, deadline]) => deadline > now));
               for (const record of added) until.set(record.seq, now + WORK_CUE_MS);
-              return { records: [...current.records, ...added].slice(-KEEP), until };
+              return { records: [...current.records, ...added].slice(-KEEP), until, online: true };
             });
+          } else {
+            setActivity((current) => current.online ? current : { ...current, online: true });
           }
         } catch {
-          /* the next pull tries again */
+          if (live && activeScope.current === scope) {
+            setActivity((current) => current.online ? { ...current, online: false, until: new Map() } : current);
+          }
         }
       }
       if (live) timer = window.setTimeout(pull, ACTIVITY_MS);
@@ -157,12 +161,12 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   const waiting = enabled ? pendingProposals(proposals).length : 0;
   useWaitingTitle(waiting);
   const { roles: avatars, nextExpiry } = useMemo(
-    () => avatarCues(activity.records, proposals, runs, activity.until, Math.max(avatarClock, Date.now())),
+    () => avatarCues(activity.records, proposals, activity.online ? runs : [], activity.until, Math.max(avatarClock, performance.now())),
     [activity, avatarClock, proposals, runs],
   );
   useEffect(() => {
     if (!Number.isFinite(nextExpiry)) return;
-    const timer = window.setTimeout(() => setAvatarClock(Date.now()), Math.max(1, nextExpiry - Date.now()));
+    const timer = window.setTimeout(() => setAvatarClock(performance.now()), Math.max(1, nextExpiry - performance.now()));
     return () => window.clearTimeout(timer);
   }, [nextExpiry, avatarClock]);
   const value = useMemo<AgentState>(

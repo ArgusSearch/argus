@@ -205,6 +205,15 @@ class LiveSource:
                 raise
             if self._stop.is_set():
                 return
+            tick = self.bus.state.last_tick
+            if self.agent.enabled and tick is not None:
+                self.agent.journal.add(
+                    "watch",
+                    "WATCH",
+                    tick.as_of,
+                    None,
+                    text=f"Scored {len(tick.scored_nodes)} metrics · {len(tick.pending_nodes)} pending",
+                )
             if self.remediation is not None:
                 self.remediation.tick(as_of)
                 if self.agent.selector is not None:

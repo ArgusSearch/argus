@@ -58,7 +58,8 @@ describe("live avatar states", () => {
     const work = avatarCues([decided, applied], [proposal], [], recent(applied), now).roles.operator;
     const applying = { ...proposal, state: "APPLYING" as const };
     expect(proposalAvatarCue(applying, work)).toMatchObject({ status: "working", key: applied.seq });
-    expect(proposalAvatarCue({ ...applying, id: "other" }, work).status).toBe("idle");
+    expect(proposalAvatarCue({ ...applying, id: "other" }, work)).toMatchObject({ status: "working", key: "other:APPLYING" });
+    expect(proposalAvatarCue({ ...proposal, state: "APPLIED" }).status).toBe("idle");
     expect(proposalAvatarCue({ ...proposal, state: "EXPIRED" }, work).status).toBe("done");
   });
 });
