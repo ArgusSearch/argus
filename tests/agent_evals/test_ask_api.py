@@ -237,3 +237,23 @@ def test_e07_ask_repairs_once_and_only_publishes_verified_figures(source: LiveSo
         assert all(invented not in item["text"] for item in visible if item["kind"] in {"chat_answer", "thought"})
     finally:
         client.close()
+
+
+def test_ask_refuses_repeated_unreceipted_small_measurement(source: LiveSource) -> None:
+    def respond(request: LlmRequest) -> LlmResponse:
+        turn = int(request.key.rsplit(":", 1)[1])
+        if turn == 2:
+            assert "digits" in last_observation(request)["error"]
+        return tool_use("answer", {"text": "Revenue was EUR 7.", "claims": []}, n=turn)
+
+    fake = FakeLlmClient(responder=respond)
+    client = client_for(source, fake)
+    try:
+        response = client.post("/agent/ask", json={"question": "What was revenue?"})
+        assert response.status_code == 200
+        result = response.json()
+        assert result["status"] == "refused" and result["reason"]
+        assert not result["answer"] and not result["claims"] and not result["receipt_links"]
+        assert len(fake.requests) == 2
+    finally:
+        client.close()

@@ -45,9 +45,9 @@ The seed graph has 27 nodes and 44 typed edges: 7 formula, 27 breakdown, 9 evide
 - One investigation runs at most 12 checks; suspects left over are named as untested in the trail.
 - Early stops: incomplete data or a broken identity is a DATA_ISSUE; a plan in force that delivery follows, an outside market index that moves the same way, or a mix shift is EXPECTED; none of them pages anyone.
 - Further checks are proposed only while less than 80% of the deviation is explained and checks remain; the trail ends with the reason, for example `stop: explained 100% >= 80%`.
-- **Supported cause (evidenced)** (`SUPPORTED_CAUSE`) needs all four: a suspect aligned with the onset that its holdout or control check validates, a root segment with |z| >= 3, at least 20% explained, and a placebo that does not recur.
-- **Hypothesis** (`HYPOTHESIS`): the change is localised and significant, but no logged change is validated.
-- **Unexplained** (`UNEXPLAINED`): nothing localises and no logged change lines up.
+- **Supported cause (evidenced)** (`SUPPORTED_CAUSE`) needs all four: a suspect aligned with the onset that its holdout or control check validates, a root segment with |z| >= 3, at least 20% explained, and a validated placebo showing no comparable recurrence in earlier weeks.
+- **Hypothesis** (`HYPOTHESIS`): the change is localised and significant, and a cause still needs confirmation. A missing or inconclusive historical comparison keeps an otherwise supported cause at this level when the localisation criteria are met.
+- **Unexplained** (`UNEXPLAINED`): a recurring placebo vetoes the cause, or the evidence is too weak to support even a localised hypothesis.
 - Every verdict states the share it does not explain; every claim in the findings is labelled evidence or hypothesis (`src/argus/investigate/claims.py`), and every report line with a number cites a receipt (the S1 bench criterion `receipts_reproducible` checks it).
 
 ## Where the language model fits
