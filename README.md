@@ -29,9 +29,9 @@ The optional model chooses additional checks. The two checked-in live captures l
 - [Live Mission Control](https://argus-eye.pages.dev/) runs on simulated shop data.
 - [Windows x64 installer](https://github.com/ArgusSearch/argus/actions/runs/45001389510/artifacts/14745519890) from the Desktop workflow. Sign in to GitHub to download the ZIP, then run the included installer. [Artifact access and expiry](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 - [Desktop installation and build guide](desktop/README.md)
-- Pitch video <!--VIDEO_URL-->
+- [Pitch video](https://drive.google.com/drive/folders/17MDoVsouwdN-rHy9ko9Mi5O-37aGyvtt)
 - Product showcase <!--SHOWCASE_URL-->
-- Presentation slides <!--SLIDES_URL-->
+- [Presentation slides](https://drive.google.com/file/d/13Ujb1Bz5oUAMygBJr2l2vZrLh9EQFeUW/view)
 
 ### Quickstart
 
