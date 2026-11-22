@@ -10,7 +10,7 @@ release gate fails and the demo uses the existing v1 presentation.
 Record with the v2 profile and the target feature set. Retain S4's approval
 and independent denial exports in separate directories. Use the same
 pre-run memory file for both branches when memory is seeded. Use the
-default models and budgets when collecting the release recording.
+default models, budgets and critic rules when collecting the release recording.
 
 Use `uv run python -m scripts.agent_eval.archive_trial prepare ARCHIVE s1 1 1`
 to generate a trial world and seal its grading truth. Repeat for S1 and S4

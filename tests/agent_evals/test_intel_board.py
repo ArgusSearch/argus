@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,15 @@ def stage2(case, *, first_incident: bool = False) -> Runtime:
         runtime.runner.close()
 
 
+@pytest.fixture(scope="module")
+def supported_stage2(world_case):
+    @cache
+    def run(scenario: str, seed: int) -> Runtime:
+        return stage2(world_case(scenario, seed))
+
+    return run
+
+
 def match_board(board, incident: Incident, scenario: str) -> None:
     cause, node, segment = CAUSES[scenario]
     root = incident.findings.root
@@ -79,7 +89,7 @@ def match_board(board, incident: Incident, scenario: str) -> None:
 @pytest.mark.e2e
 @pytest.mark.parametrize("scenario", CAUSES)
 @pytest.mark.parametrize("seed", (*SEEDS, "v1"))
-def test_e18_board_reconciles_cause_and_alternatives(world_case, scenario, seed):
+def test_e18_board_reconciles_cause_and_alternatives(supported_stage2, scenario, seed):
     from argus.agent.board import build_board
 
     if seed == "v1":
@@ -94,7 +104,7 @@ def test_e18_board_reconciles_cause_and_alternatives(world_case, scenario, seed)
             for link in check.receipts
         )
     else:
-        (incident,) = stage2(world_case(scenario, seed)).book.incidents.values()
+        (incident,) = supported_stage2(scenario, seed).book.incidents.values()
         board = build_board([], incident.findings, None)
     match_board(board, incident, scenario)
 
@@ -142,13 +152,13 @@ def test_e25_no_chain_for_nonpaging_disposition(world_case, scenario, monkeypatc
 @pytest.mark.e2e
 @pytest.mark.parametrize("scenario", CAUSES)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_e25_chain_is_receipted_from_event_to_impact(world_case, scenario, seed):
+def test_e25_chain_is_receipted_from_event_to_impact(world_case, supported_stage2, scenario, seed):
     from argus.agent.chain import build_chain
 
     from argus.semantic.runner import Runner
 
     case = world_case(scenario, seed)
-    runtime = stage2(case)
+    runtime = supported_stage2(scenario, seed)
     (incident,) = runtime.book.incidents.values()
     assert incident.findings.root is not None
     cause, node, segment = CAUSES[scenario]
