@@ -291,7 +291,7 @@ function activityBeat(rec: ActivityRecord, actions: ProposalView[], live: boolea
       };
     }
     case "action_decided":
-      return { ...base, kind: "decision", doing: short(text || "Decision recorded"), done: short(text || "Decision recorded") };
+      return { ...base, kind: "decision", doing: short(text || "Decision saved"), done: short(text || "Decision saved") };
     case "action_applied":
       return { ...base, kind: "apply", doing: short(text || "Applying the approved action"), done: short(text || "Action applied"), weight: 1.4 };
     case "effect_checked":

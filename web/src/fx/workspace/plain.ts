@@ -208,7 +208,7 @@ export const GLOSSARY: GlossaryEntry[] = [
   {
     term: "pass@1",
     plain: "Runs right",
-    meaning: "The share of sealed test runs Argus got right on its first and only try: the right page with the right cause, or rightly no page at all.",
+    meaning: "The share of pre-registered test runs Argus got right on its first and only try: the right page with the right cause, or rightly no page at all.",
   },
   {
     term: "Health score",
