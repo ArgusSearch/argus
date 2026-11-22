@@ -2,6 +2,9 @@ import { expect, type APIRequestContext, type ConsoleMessage, type Page } from "
 
 export const LIVE = process.env.ARGUS_E2E_MODE === "live";
 
+/** The classic interface (Argus Ice became the default page in f6197da). */
+export const CLASSIC = "/?classic=1";
+
 export interface Health {
   status: string;
   mode: "replay" | "live";
@@ -35,7 +38,8 @@ export function watchErrors(page: Page): () => string[] {
 
 /** Open the page and fail with a clear message when web/dist was not built. */
 export async function openMissionControl(page: Page): Promise<void> {
-  await page.goto("/");
+  // Argus Ice is the default interface since f6197da; these specs check the classic Mission Control
+  await page.goto(CLASSIC);
   const body = await page.locator("body").innerText();
   expect(body, "web/dist is missing: run `npm --prefix web run build` first").not.toContain("not built yet");
   await expect(page).toHaveTitle("Argus · Mission Control");

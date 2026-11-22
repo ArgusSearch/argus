@@ -19,14 +19,14 @@ test("clicking a number opens its receipt with SQL and as_of; re-run behaves per
   await expect(drawer.getByText("as_of (pinned)")).toBeVisible();
   await expect(drawer.locator(".facts")).toContainText(/\d\d:\d\d/);
 
-  await drawer.getByRole("button", { name: "Re-run SQL" }).click();
+  const rerun = drawer.getByRole("button", { name: "Re-run SQL" });
   if (LIVE) {
+    await rerun.click();
     await expect(drawer.locator(".verify.ok")).toContainText("✓ Same hash", { timeout: 20_000 });
     await expect(drawer.locator(".verify.bad")).toHaveCount(0);
   } else {
-    // replay has no world to query: the API answers 409 by design and the drawer says so
-    await expect(drawer.locator(".modal-foot .verify")).not.toContainText("Runs the exact SQL again", { timeout: 10_000 });
-    await expect(drawer.locator(".verify.ok")).toHaveCount(0);
+    // a replay has no world to query: the drawer offers no re-run (GET /health says rerun: false)
+    await expect(rerun).toHaveCount(0);
   }
   await page.keyboard.press("Escape");
   await expect(drawer).toBeHidden();

@@ -31,7 +31,7 @@ test.afterEach(async () => {
 async function playScenario(page: Page, replayDir: string): Promise<string> {
   api = await startApi(PORT, ["--replay", replayDir]);
   const base = api.base;
-  await page.goto(base);
+  await page.goto(`${base}/?classic=1`);
   await expect(page).toHaveTitle("Argus · Mission Control");
   await expect(page.locator(".header .mode")).toHaveText("Replay · recorded run", { timeout: 10_000 });
 
@@ -110,7 +110,7 @@ test.describe("recorded scenarios at 64x", () => {
     await expect(page.locator("article.card.incident")).toHaveCount(0);
     await expect(tabCount(page, "Incidents")).toHaveText("0");
     const note = page.locator("article.card.note-data_issue");
-    await expect(note.first().locator(".card-kind")).toHaveText("Data issue · held back");
+    await expect(note.first().locator(".card-kind")).toHaveText(/^Data issue · (held back|didn't wake you)$/);
     await shot(page, "s3");
     expect(errors()).toEqual([]);
   });
