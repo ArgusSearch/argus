@@ -3,3 +3,4 @@
 import "./fx.css";
 import "./workspace/workspace.css";
 import "./workspace/pages.css";
+import "./workspace/responsive.css";

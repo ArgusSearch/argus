@@ -3,7 +3,7 @@
 // button), the key metrics in words, the 3D preview of an incident's path and the track record.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { eur, dayLabel, hhmm } from "../../lib/format";
+import { count, eur, dayLabel, hhmm } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { views as reads } from "../../views/data";
@@ -52,6 +52,13 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
           <TileCard key={t.key} tile={t} />
         ))}
       </section>
+      {view.scoredSeries > 0 && (
+        <dl className="ws-compression" aria-label="From metric checks to incidents this run">
+          <div><dt>Metric checks</dt><dd>{count(view.scoredSeries)}</dd></div>
+          <div><dt>Signals flagged</dt><dd>{count(view.anomalies.length)}</dd></div>
+          <div><dt>Incidents filed</dt><dd>{count(Object.keys(view.incidents).length)}</dd></div>
+        </dl>
+      )}
       <div className="ws-grid">
         <div className="ws-col">
           <HealthCard h={h} />

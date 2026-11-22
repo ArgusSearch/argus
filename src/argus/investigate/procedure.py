@@ -45,6 +45,7 @@ from argus.contracts.findings import (
     RootCause,
     RuledOut,
     Segment,
+    SkepticResult,
     SuggestedAction,
     TrailStep,
     Verdict,
@@ -77,7 +78,11 @@ AGENT_SOURCE = "agent"  # ledger source of checks the agent chose (argus.agent.i
 
 class EvidenceSelector(Protocol):
     """Chooses and runs the candidate checks before the verdict (the agent seam). `select` returns what the
-    verdict rules need; `close` hears the admitted verdict. Without one, Stage 2 runs its fixed checks."""
+    verdict rules need; `close` hears the admitted verdict. Without one, Stage 2 runs its fixed checks.
+
+    A selector may also offer `challenge(inv, case, selection, supported) -> Challenge | None` (looked up with
+    `getattr`, so this protocol and its implementers stay as they are): it is asked only when the rules would
+    admit SUPPORTED_CAUSE, and its answer can only downgrade the verdict, never grant one."""
 
     def select(self, inv: StageTwoInvestigation, case: AgentCase) -> Selection: ...
 
@@ -165,6 +170,10 @@ def group_batches(events: list[EvidenceRef]) -> list[EvidenceRef]:
 
 
 BATCH_MARK = " entries at "
+
+
+def best_ref(event: EvidenceRef | None) -> str:
+    return f"{event.description} ({event.ref})" if event is not None else "-"
 
 
 def is_batch(event: EvidenceRef) -> bool:
@@ -309,13 +318,22 @@ class StageTwoInvestigation(Investigation):
             explained = max(explained, share * scope_share.ep)
         significant_root = abs(root_z) >= ROOT_Z
         recurring = placebo is not None and placebo.status == "refuted"
+        hypothesis = (localised or (significant and focus != a.node)) and significant_root and not recurring
         if supported and significant_root and explained >= SUPPORTED_MIN_EXPLAINED and not recurring:
             verdict = Verdict.SUPPORTED_CAUSE
-        elif (localised or (significant and focus != a.node)) and significant_root and not recurring:
+        elif hypothesis:
             verdict = Verdict.HYPOTHESIS
         else:
             verdict = Verdict.UNEXPLAINED
             explained = 0.0
+        challenge = None
+        if verdict is Verdict.SUPPORTED_CAUSE and selection is not None and best is not None:
+            # profile v2 `critic`: a second model tries to break the cause; its rules can only take it away
+            challenger = getattr(self.selector, "challenge", None)
+            challenge = challenger(self, case, selection, best) if callable(challenger) else None
+            if challenge is not None and challenge.downgrade:
+                verdict = Verdict.HYPOTHESIS if hypothesis else Verdict.UNEXPLAINED
+                explained = explained if hypothesis else 0.0
 
         impact, decomposition, decomposed = (
             self._impact(focus, seg, root_cell, search.final_receipt)
@@ -346,6 +364,10 @@ class StageTwoInvestigation(Investigation):
             else None
         )
         uncertain = self._uncertain_all(verdict, seg, evidence, explained, placebo, events)
+        if challenge is not None and challenge.downgrade:
+            uncertain.append(
+                f"Counter-check {challenge.verdict} the supported cause {best_ref(best)}: {challenge.reason}"
+            )
         self._cause_claims(verdict, focus, seg, evidence, placebo, impact, uncertain)
         headline = self._headline(verdict, focus_node.label, seg, root_cell.rel_change, evidence, a)
         stop_reason = (
@@ -358,7 +380,11 @@ class StageTwoInvestigation(Investigation):
             "verdict",
             verdict.value,
             f"stop: {stop_reason}",
-            why=self._why(verdict, evidence, significant_root, recurring, localised),
+            why=(
+                f"counter-check {challenge.verdict}: {challenge.reason}"
+                if challenge is not None and challenge.downgrade
+                else self._why(verdict, evidence, significant_root, recurring, localised)
+            ),
             data={
                 "claims": [c.model_dump() for c in self.claims],
                 "ledger": [e.model_dump() for e in self.ledger.entries],
@@ -384,6 +410,10 @@ class StageTwoInvestigation(Investigation):
             uncertain=uncertain,
             action=self._suggest(verdict, focus, seg, evidence, search),
         )
+        if challenge is not None and challenge.verdict != "unavailable":
+            findings = findings.model_copy(
+                update={"skeptic": SkepticResult(verdict=challenge.verdict, checks=challenge.checks)}
+            )
         if self.selector is not None and selection is not None:
             self.selector.close(self, selection, verdict.value)
         return self._with_llm_cost(findings)

@@ -3,25 +3,30 @@
 // same proposals and the same activity. While the routes are not mounted, `enabled` is false and every surface
 // falls back to what the run itself carries (the findings' suggested action, the C5 investigation).
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useApprovalCount } from "./approvals";
+import { pendingProposals } from "../../agent-ui/activity";
+import { useWaitingTitle } from "../../agent-ui/hooks";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
 import type { RunView } from "../../lib/store";
 
 export interface AgentState {
+  scope: string | null;
   enabled: boolean;
   health: AgentHealth | null;
   records: ActivityRecord[];
   proposals: ProposalView[];
   runs: RunSummary[];
+  /** proposals waiting for a person's decision (the sidebar and the tab title count them) */
+  waiting: number;
   /** re-read proposals and runs now (after a decision) */
   refresh: () => void;
   /** replace one proposal with the version a decision returned */
   put: (p: ProposalView) => void;
 }
 
-const EMPTY: AgentState = { enabled: false, health: null, records: [], proposals: [], runs: [], refresh: () => undefined, put: () => undefined };
+const EMPTY: AgentState = { scope: null, enabled: false, health: null, records: [], proposals: [], runs: [], waiting: 0, refresh: () => undefined, put: () => undefined };
 const Ctx = createContext<AgentState>(EMPTY);
 
 export function useAgent(): AgentState {
@@ -50,11 +55,22 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   const [records, setRecords] = useState<ActivityRecord[]>([]);
   const [proposals, setProposals] = useState<ProposalView[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
-  const cursor = useRef({ stream: null as string | null, seq: 0 });
   const [tick, setTick] = useState(0);
   // a replay server's own agent is off, but during the agent presentation the same routes answer for its run
-  const presenting = useAgentDemo() !== null;
-  const enabled = Boolean(health && (health.enabled || presenting));
+  const demoId = useAgentDemo()?.runId;
+  const scope = demoId ? `demo:${demoId}` : stream;
+  const activeScope = useRef(scope);
+  useLayoutEffect(() => {
+    activeScope.current = scope;
+  }, [scope]);
+  const [dataScope, setDataScope] = useState(scope);
+  if (dataScope !== scope) {
+    setDataScope(scope);
+    setRecords([]);
+    setProposals([]);
+    setRuns([]);
+  }
+  const enabled = Boolean(health && (health.enabled || demoId));
 
   // the probe: once per stream (routes only appear with a restarted API, which starts a new stream)
   useEffect(() => {
@@ -65,19 +81,22 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     };
   }, [stream]);
 
-  // activity: incremental from the last seq; a new stream starts the log over
+  // Activity is incremental within one source. A new demo gets its own cursor even if the live stream never changed.
   useEffect(() => {
     if (!enabled) return;
     let live = true;
     let timer = 0;
+    let cursor = { stream: null as string | null, seq: 0 };
     const pull = async () => {
       if (!document.hidden) {
         try {
-          const res = await agentApi.activity(cursor.current.stream === null ? 0 : cursor.current.seq);
-          if (!live) return;
-          const fresh = res.stream !== cursor.current.stream;
+          let res = await agentApi.activity(cursor.seq);
+          if (!live || activeScope.current !== scope) return;
+          const fresh = res.stream !== cursor.stream;
+          if (fresh && cursor.seq > 0) res = await agentApi.activity(0);
+          if (!live || activeScope.current !== scope) return;
           const last = res.records[res.records.length - 1]?.seq;
-          cursor.current = { stream: res.stream, seq: last ?? (fresh ? 0 : cursor.current.seq) };
+          cursor = { stream: res.stream, seq: last ?? (fresh ? 0 : cursor.seq) };
           if (fresh) setRecords(res.records.slice(-KEEP));
           else if (res.records.length) setRecords((r) => [...r, ...res.records.filter((x) => !r.some((y) => y.seq === x.seq))].slice(-KEEP));
         } catch {
@@ -91,7 +110,7 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
       live = false;
       window.clearTimeout(timer);
     };
-  }, [enabled, stream]);
+  }, [enabled, scope]);
 
   // proposals and runs
   useEffect(() => {
@@ -101,7 +120,7 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
     const pull = async () => {
       if (!document.hidden) {
         const [p, r] = await Promise.allSettled([agentApi.actions(), agentApi.runs()]);
-        if (!live) return;
+        if (!live || activeScope.current !== scope) return;
         if (p.status === "fulfilled") setProposals(p.value);
         if (r.status === "fulfilled") setRuns(r.value);
       }
@@ -112,14 +131,20 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
       live = false;
       window.clearTimeout(timer);
     };
-  }, [enabled, stream, tick]);
+  }, [enabled, scope, tick]);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
   const put = useCallback((p: ProposalView) => {
+    if (activeScope.current !== scope) return;
     setProposals((all) => (all.some((x) => x.id === p.id) ? all.map((x) => (x.id === p.id ? p : x)) : [...all, p]));
     if (settling(p.state)) setTick((t) => t + 1);
-  }, []);
+  }, [scope]);
 
-  const value = useMemo<AgentState>(() => ({ enabled, health, records, proposals, runs, refresh, put }), [enabled, health, records, proposals, runs, refresh, put]);
+  const waiting = enabled ? pendingProposals(proposals).length : 0;
+  useWaitingTitle(waiting);
+  const value = useMemo<AgentState>(
+    () => ({ scope, enabled, health, records, proposals, runs, waiting, refresh, put }),
+    [scope, enabled, health, records, proposals, runs, waiting, refresh, put],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

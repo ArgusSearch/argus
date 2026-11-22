@@ -64,7 +64,7 @@ export function ActionCard({
   return <LocalAction incidentId={incidentId} incidentState={incidentState} fallback={fallback} view={view} />;
 }
 
-function Proposal({ proposal, compact }: { proposal: ProposalView; compact: boolean }) {
+export function Proposal({ proposal, compact }: { proposal: ProposalView; compact: boolean }) {
   const agent = useAgent();
   const [busy, setBusy] = useState<"approve" | "deny" | null>(null);
   const [error, setError] = useState<string | null>(null);

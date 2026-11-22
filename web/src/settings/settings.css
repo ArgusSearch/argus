@@ -1,0 +1,752 @@
+/* Settings and calendar share the Argus Ice workspace, including its stage and palette. */
+:root[data-fx]:is([data-fx-section="settings"], [data-fx-section="calendar"]) :is(.trail, .vh-view) {
+  display: none;
+}
+
+:root[data-fx]:is([data-fx-section="settings"], [data-fx-section="calendar"]) .graph {
+  visibility: hidden;
+}
+
+:root[data-fx] .fx-dash.cs-surface {
+  padding: clamp(18px, 2vw, 32px) clamp(14px, 2.5vw, 46px) 32px;
+  animation: none;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+.cs-surface {
+  color: var(--fx-ink-0);
+  font: 14px/1.5 var(--fx-font-sans);
+}
+
+.cs-surface button:focus-visible,
+.cs-surface summary:focus-visible,
+.cs-cal-scroll:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: 2px;
+}
+
+.cs-split,
+.cs-wide {
+  width: 100%;
+  margin-inline: auto;
+}
+
+.cs-split {
+  max-width: 1392px;
+  display: grid;
+  grid-template-columns: clamp(174px, 16vw, 214px) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(24px, 3.8vw, 64px);
+}
+
+.cs-wide {
+  max-width: 1760px;
+}
+
+.cs-main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.cs-list {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 14px;
+  padding: 18px 12px 12px;
+  border: 1px solid var(--fx-glass-border);
+  border-radius: 12px;
+  background: var(--fx-glass-1);
+}
+
+.cs-side-title {
+  padding-inline: 10px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.cs-subnav {
+  display: grid;
+  gap: 14px;
+}
+
+.cs-subnav-group > span {
+  display: block;
+  margin: 0 10px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cs-subnav ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-surface .cs-subnav button {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--fx-radius-2);
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+  font: 500 14px/1.4 var(--fx-font-sans);
+}
+
+.cs-surface .cs-subnav button:hover {
+  background: var(--fx-well);
+}
+
+.cs-surface .cs-subnav button.on {
+  border-color: var(--fx-glass-border);
+  background: var(--fx-glass-2);
+  color: var(--text);
+  font-weight: 650;
+}
+
+.cs-head {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 6px;
+}
+
+.cs-head-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.cs-head h1 {
+  margin: 0;
+  font-size: clamp(30px, 2.7vw, 42px);
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.cs-head p,
+.cs-card-head p {
+  margin: 6px 0 0;
+  max-width: 72ch;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.cs-card {
+  min-width: 0;
+  padding: 0 20px;
+  border: 1px solid var(--fx-glass-border);
+  border-radius: 12px;
+  background: var(--fx-glass-2);
+}
+
+.cs-card.flush {
+  padding: 0;
+}
+
+.cs-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  flex-wrap: wrap;
+  padding: 16px 0 12px;
+  gap: 8px 16px;
+}
+
+.cs-card-head > div {
+  min-width: 0;
+}
+
+.cs-card-head h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.cs-agent-card .cs-card-head {
+  padding-block: 13px;
+}
+
+.cs-agent-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.cs-portrait {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.cs-card-head p,
+.cs-row-help {
+  font-size: 13px;
+}
+
+.cs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 51px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.cs-row-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  max-width: 72ch;
+  overflow-wrap: anywhere;
+}
+
+.cs-row-label {
+  font-weight: 600;
+}
+
+.cs-row-help,
+.cs-muted,
+.cs-empty,
+.cs-foot {
+  color: var(--muted);
+}
+
+.cs-row-control {
+  flex: 0 0 auto;
+  max-width: 56%;
+  min-width: 0;
+  margin-inline-start: auto;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.cs-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 2px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.cs-note svg,
+.cs-surface .cs-btn svg,
+.cs-cal-plan svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cs-source,
+.cs-num,
+.cs-input {
+  font-family: var(--fx-font-mono);
+  font-size: 12px;
+}
+
+.cs-num {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-source,
+.cs-input {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--fx-well);
+  color: var(--text-2);
+}
+
+.cs-input {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+}
+
+.cs-source.plain {
+  padding: 0;
+  background: none;
+}
+
+.cs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cs-chips.end {
+  justify-content: end;
+}
+
+.cs-badge,
+.cs-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--fx-radius-pill);
+  background: var(--state-bg, var(--fx-well));
+  color: var(--state-color, var(--text-2));
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.cs-preview {
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.cs-badge i,
+.cs-conn {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.cs-conn {
+  display: block;
+  width: 8px;
+  height: 8px;
+  color: var(--muted);
+}
+
+.cs-conn.ok { color: var(--ok); }
+
+.cs-surface .t-ok { --state-color: var(--ok); --state-bg: var(--ok-bg); }
+.cs-surface .t-watch { --state-color: var(--watch); --state-bg: var(--watch-bg); }
+.cs-surface .t-alarm { --state-color: var(--alarm); --state-bg: var(--alarm-bg); }
+.cs-surface .t-probe { --state-color: var(--probe); --state-bg: var(--probe-bg); }
+.cs-surface .t-calm { --state-color: var(--calm); --state-bg: var(--calm-bg); }
+
+.cs-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--fx-well);
+}
+
+.cs-seg span {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.cs-seg .on {
+  background: var(--fx-glass-2);
+  color: var(--text);
+  font-weight: 650;
+}
+
+.cs-seg .l-alone { color: var(--ok); }
+.cs-seg .l-asks { color: var(--watch); }
+
+.cs-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 34px;
+  height: 20px;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--fx-radius-pill);
+  background: var(--fx-well);
+  vertical-align: middle;
+}
+
+.cs-switch i {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: var(--fx-glass-2);
+}
+
+.cs-switch.on {
+  justify-content: end;
+  background: var(--ok-bg);
+}
+
+.cs-surface .cs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-glass-1);
+  color: var(--text);
+  font: 600 13px/1.35 var(--fx-font-sans);
+  cursor: pointer;
+}
+
+.cs-surface .cs-btn:hover {
+  background: var(--fx-glass-2);
+}
+
+.cs-list > .cs-btn {
+  border-color: var(--line);
+  background: transparent;
+}
+
+.cs-empty {
+  margin: 0;
+  padding: 12px 0 18px;
+}
+
+.cs-steps {
+  margin: 0;
+  padding: 0 0 16px 24px;
+}
+
+.cs-steps li {
+  padding: 6px 5px;
+}
+
+.cs-steps li span {
+  display: block;
+  color: var(--muted);
+}
+
+.cs-ruler {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  margin: 3px 8px 12px;
+}
+
+.cs-ruler-track,
+.cs-ruler-marks,
+.cs-ruler-words {
+  position: relative;
+  height: 14px;
+}
+
+.cs-ruler-track {
+  border-radius: var(--fx-radius-pill);
+  overflow: hidden;
+  height: 6px;
+}
+
+.cs-ruler-track i,
+.cs-ruler-marks span,
+.cs-ruler-words span {
+  position: absolute;
+}
+
+.cs-ruler-track i {
+  height: 100%;
+}
+
+.cs-ruler-track .z-calm { background: var(--fx-glow-ok); }
+.cs-ruler-track .z-wiggle { background: var(--fx-glow-probe); }
+.cs-ruler-track .z-pair { background: var(--fx-glow-watch); }
+.cs-ruler-track .z-alarm { background: var(--fx-glow-alarm); }
+
+.cs-ruler-marks span,
+.cs-ruler-words span {
+  translate: -50%;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.cs-ruler-marks span {
+  font-family: var(--fx-font-mono);
+}
+
+/* Weekly grid and its selected evidence. Keep the horizontal scroll inside the grid. */
+.cs-weeknav {
+  display: flex;
+  gap: 4px;
+}
+
+.cs-cal-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(252px, 19vw, 330px);
+  align-items: start;
+  gap: 14px;
+}
+
+.cs-cal-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+.cs-cal {
+  min-width: 720px;
+  overflow: hidden;
+}
+
+.cs-cal-row {
+  display: grid;
+  grid-template-columns: 136px repeat(7, minmax(0, 1fr));
+}
+
+.cs-cal-row + .cs-cal-row {
+  border-top: 1px solid var(--line);
+}
+
+.cs-cal-row > :not(:first-child) {
+  border-inline-start: 1px solid var(--line);
+}
+
+.cs-cal-lane {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--fx-well);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cs-cal-agent,
+.cs-cal-plan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-cal-plan svg {
+  width: 26px;
+  height: 26px;
+  color: var(--calm);
+}
+
+.cs-cal-plan small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cs-cal-day {
+  display: grid;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cs-cal-day b {
+  color: var(--text);
+  font: 600 16px/1.25 var(--fx-font-mono);
+}
+
+.cs-cal-row .today {
+  background: color-mix(in srgb, var(--calm) 7%, transparent);
+}
+
+.cs-cal-day.today b {
+  color: var(--calm);
+}
+
+.cs-cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  min-height: 53px;
+  padding: 5px;
+}
+
+.cs-surface .cs-ev {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--state-bg, var(--fx-well));
+  color: var(--state-color, var(--text-2));
+  text-align: left;
+  cursor: pointer;
+  font: 600 12px/1.25 var(--fx-font-sans);
+}
+
+.cs-ev time {
+  font: 500 10px/1.2 var(--fx-font-mono);
+}
+
+.cs-ev span {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.cs-surface .cs-ev:hover {
+  border-color: var(--line-2);
+}
+
+.cs-surface .cs-ev.on {
+  border-color: currentColor;
+}
+
+.cs-cal-more summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.cs-cal-more[open] > .cs-ev {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.cs-cal-detail .cs-card-head {
+  padding-bottom: 14px;
+}
+
+.cs-detail-body {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.cs-detail-text {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.cs-plan {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.cs-dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 9px 12px;
+  margin: 0;
+}
+
+.cs-dl div:last-child {
+  grid-column: 1 / -1;
+}
+
+.cs-dl dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cs-dl dd {
+  margin: 0;
+}
+
+.cs-dl .cs-num {
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+
+.cs-quiet {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--fx-radius-2);
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-size: 13px;
+}
+
+.cs-overline {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cs-foot {
+  margin: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .cs-cal-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cs-cal-detail {
+    order: -1;
+  }
+
+  .cs-cal-detail .cs-detail-body {
+    grid-template-columns: minmax(210px, 1fr) minmax(210px, 1fr) auto;
+    align-items: start;
+  }
+
+  .cs-cal-detail .cs-detail-body > .cs-chips:empty {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .cs-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .cs-list {
+    position: static;
+  }
+
+  .cs-subnav {
+    grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+    gap: 8px;
+  }
+
+  .cs-cal-detail .cs-detail-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .cs-card {
+    padding-inline: 14px;
+  }
+
+  .cs-row {
+    flex-wrap: wrap;
+  }
+
+  .cs-row-control {
+    max-width: 100%;
+    margin-inline-start: 0;
+    text-align: start;
+  }
+
+  .cs-ruler-words {
+    display: none;
+  }
+}

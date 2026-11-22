@@ -8,12 +8,12 @@ import { useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 export type HostView = "graph" | "tree" | "investigation" | "report" | "scorecard";
-export type Page = "dashboard" | "incidents" | "incident" | "glossary" | "agent" | "village";
+export type Page = "dashboard" | "incidents" | "incident" | "glossary" | "agent" | "village" | "calendar" | "settings";
 export type Section = Page | HostView;
 
 const HOST_KEYS: Record<HostView, string> = { graph: "1", tree: "2", investigation: "3", report: "4", scorecard: "5" };
 const HOST_VIEWS = Object.keys(HOST_KEYS) as HostView[];
-const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary", "agent", "village"];
+const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary", "agent", "village", "calendar", "settings"];
 
 export function isHostView(value: string | null | undefined): value is HostView {
   return HOST_VIEWS.includes(value as HostView);
@@ -62,7 +62,9 @@ let current: Location = typeof window === "undefined" ? HOME : initialLocation(w
 let previous: Location = HOME;
 let requested: HostView | null = null;
 
-type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+type TransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { ready: Promise<void>; finished: Promise<void> };
+};
 
 const calm = () => typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -77,7 +79,10 @@ function transition(update: () => void) {
     update();
     return;
   }
-  doc.startViewTransition(() => flushSync(update)).finished.catch(() => undefined);
+  const transition = doc.startViewTransition(() => flushSync(update));
+  // A viewport resize can cancel the animation while the route update still succeeds.
+  void transition.ready.catch(() => undefined);
+  void transition.finished.catch(() => undefined);
 }
 
 function remember(next: Location) {

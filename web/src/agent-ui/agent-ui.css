@@ -1,0 +1,471 @@
+/* The agent surfaces' work log, live line, inline approvals and jump button, in the igloo glass of the workspace.
+   Layout and behaviour follow T3 Code's timeline (pingdotgg/t3code, MIT); the look is Argus' own tokens. */
+
+/* ------------------------------------------------------------------ the scroller and its jump button */
+
+:root[data-fx] .au-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+:root[data-fx] .au-scroll {
+  height: clamp(280px, calc(100dvh - 300px), 1400px);
+  margin: 0 calc(var(--fx-space-2) * -1);
+  padding: 0 var(--fx-space-2) var(--fx-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+:root[data-fx] .au-scroll:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: -2px;
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .au-jump {
+  position: absolute;
+  z-index: 3;
+  bottom: var(--fx-space-3);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 9px;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: 999px;
+  background: var(--fx-glass-solid, var(--fx-glass-2));
+  box-shadow: var(--fx-shadow-pop);
+  color: var(--fx-ink-0);
+  cursor: pointer;
+  font: var(--fx-weight-medium) var(--fx-text-xs) / 1.2 var(--fx-font-sans);
+  transform: translateX(-50%);
+  backdrop-filter: blur(var(--fx-blur-2)) saturate(var(--fx-saturate));
+  animation: au-jump-in var(--fx-dur-fast) var(--fx-ease-out) both;
+}
+
+:root[data-fx] .au-jump:hover {
+  background: var(--fx-card-hover);
+}
+
+:root[data-fx] .au-jump:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: 2px;
+}
+
+:root[data-fx] .au-jump svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes au-jump-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+/* ------------------------------------------------------------------ run groups */
+
+:root[data-fx] .au-groups {
+  display: grid;
+  gap: var(--fx-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-fx] .au-group {
+  border: var(--fx-hair) solid var(--line);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-card);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .au-group.live {
+  border-color: color-mix(in srgb, var(--probe) 45%, var(--line));
+}
+
+:root[data-fx] .au-group.waiting {
+  border-color: color-mix(in srgb, var(--alarm) 55%, var(--line));
+}
+
+:root[data-fx] .au-head {
+  display: grid;
+  grid-template-columns: 16px auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--fx-space-2);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--fx-space-2) var(--fx-space-3);
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: var(--fx-ink-1);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+:root[data-fx] .au-head:hover {
+  background: var(--fx-card-hover);
+}
+
+:root[data-fx] .au-head:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: -2px;
+}
+
+:root[data-fx] .au-chev {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--fx-ink-3);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .au-group.open > .au-head .au-chev {
+  transform: rotate(90deg);
+}
+
+:root[data-fx] .au-faces {
+  display: inline-flex;
+  align-items: center;
+}
+
+:root[data-fx] .au-faces > * + * {
+  margin-left: -8px;
+}
+
+:root[data-fx] .au-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+:root[data-fx] .au-title b {
+  color: var(--fx-ink-0);
+  font-weight: 600;
+}
+
+:root[data-fx] .au-title .mono {
+  color: var(--fx-ink-3);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .au-sum {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-fx] .au-side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fx-space-2);
+  color: var(--fx-ink-3);
+  font-size: var(--fx-text-xs);
+  white-space: nowrap;
+}
+
+:root[data-fx] .au-elapsed {
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-fx] .au-elapsed:empty {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ the live line */
+
+:root[data-fx] .au-live {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--fx-space-2);
+  margin: 0 var(--fx-space-3) var(--fx-space-2);
+  padding: var(--fx-space-2) var(--fx-space-3);
+  border-radius: var(--fx-radius-1);
+  background: var(--probe-bg);
+}
+
+:root[data-fx] .au-live-text {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--fx-ink-1);
+  white-space: nowrap;
+}
+
+:root[data-fx] .au-live-text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-fx] .au-live-time {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-xs);
+  white-space: nowrap;
+}
+
+/* the verb shines while the run works (T3 Code's shimmer), only its own few letters repaint */
+:root[data-fx] .au-shine {
+  flex: none;
+  background: linear-gradient(90deg, var(--probe) 0 35%, var(--fx-ink-0) 50%, var(--probe) 65% 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+  animation: au-shine 2.2s linear infinite;
+}
+
+@keyframes au-shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* ------------------------------------------------------------------ steps */
+
+:root[data-fx] .au-steps {
+  display: grid;
+  margin: 0;
+  padding: 0 var(--fx-space-3) var(--fx-space-2);
+  list-style: none;
+}
+
+:root[data-fx] .au-step {
+  display: grid;
+  grid-template-columns: 44px 76px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--fx-space-2);
+  padding: var(--fx-space-2) 0;
+  border-top: var(--fx-hair) solid var(--line);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .au-step .ws-avatar {
+  margin-top: -3px;
+}
+
+:root[data-fx] .au-step.k-thought .ag-text {
+  color: var(--fx-ink-2);
+  font-style: italic;
+}
+
+:root[data-fx] .au-tool {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .au-result {
+  color: var(--fx-ink-0);
+}
+
+:root[data-fx] .au-running {
+  color: var(--probe);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+:root[data-fx] .au-approval-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--fx-well);
+}
+
+:root[data-fx] .au-approval.waiting .au-approval-mark {
+  background: var(--alarm-bg);
+}
+
+:root[data-fx] .au-approval-mark svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--fx-ink-2);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+:root[data-fx] .au-approval.waiting .au-approval-mark svg {
+  stroke: var(--alarm);
+}
+
+/* ------------------------------------------------------------------ evidence under an Ask answer */
+
+:root[data-fx] .au-evidence {
+  border-top: var(--fx-hair) solid var(--line);
+  padding-top: var(--fx-space-2);
+}
+
+:root[data-fx] .au-evidence > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fx-ink-2);
+  cursor: pointer;
+  font-size: var(--fx-text-sm);
+  list-style: none;
+}
+
+:root[data-fx] .au-evidence > summary::-webkit-details-marker {
+  display: none;
+}
+
+:root[data-fx] .au-evidence > summary:focus-visible {
+  outline: 2px solid var(--probe);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+:root[data-fx] .au-evidence[open] > summary .au-chev {
+  transform: rotate(90deg);
+}
+
+:root[data-fx] .au-evidence .au-steps {
+  padding: var(--fx-space-1) 0 0;
+}
+
+:root[data-fx] .au-evidence .au-step {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+:root[data-fx] .au-evidence .ag-pred {
+  font-size: var(--fx-text-xs);
+}
+
+/* ------------------------------------------------------------------ narrow and still */
+
+@media (max-width: 1100px) {
+  :root[data-fx] .au-head {
+    grid-template-columns: 16px auto minmax(0, 1fr);
+  }
+
+  :root[data-fx] .au-head .au-faces {
+    display: none;
+  }
+
+  :root[data-fx] .au-sum,
+  :root[data-fx] .au-side {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-fx] :is(.au-shine, .au-running, .au-jump, .au-group, .au-step) {
+    animation: none;
+  }
+
+  :root[data-fx] .au-shine {
+    color: var(--probe);
+    background: none;
+  }
+
+  :root[data-fx] .au-chev {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ Ask Argus additions */
+
+:root[data-fx] .au-ask-body {
+  position: relative;
+  display: grid;
+  min-height: 0;
+}
+
+:root[data-fx] .au-ask-body .ws-ask-turns {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+:root[data-fx] .au-thread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--fx-space-2);
+  margin-top: 6px !important;
+  color: var(--fx-ink-3) !important;
+  font-size: var(--fx-text-xs) !important;
+}
+
+:root[data-fx] .au-thread .ag-link {
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .ws-ask-wait .au-live-text {
+  flex: 1;
+}
+
+:root[data-fx] .au-wait-time {
+  color: var(--fx-ink-3);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .au-stopped {
+  justify-self: start;
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .au-unanswered {
+  background: var(--fx-well);
+}
+
+:root[data-fx] .au-reason {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .au-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-fx] .au-stop i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+:root[data-fx] .au-keys {
+  grid-column: 1 / -1;
+  color: var(--fx-ink-3);
+  font-size: var(--fx-text-2xs);
+}
+
+:root[data-fx] .au-ask-body .au-jump {
+  bottom: var(--fx-space-2);
+}
+
+/* Ask and Stop take the same room, so the box does not jump when one replaces the other */
+:root[data-fx] .ws-ask-form > .btn {
+  justify-content: center;
+  min-width: 76px;
+}

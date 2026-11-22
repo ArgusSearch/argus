@@ -89,6 +89,12 @@ export type ActivityKind =
   | "watch"
   | "run_finished";
 
+/**
+ * Kinds only profile-v2 recordings emit (`src/argus/agent/types.py`). Not part of `ActivityKind` yet, so views keyed
+ * by it stay exhaustive; a view must render any kind it does not know as a plain line before v2 plays.
+ */
+export type ActivityKindV2 = "hypothesis" | "critic" | "memory";
+
 /** The seven agent roles (lane G's village, web/src/village/roles.ts): who did a step. */
 export type AgentRole = "watcher" | "cartographer" | "detective" | "market" | "skeptic" | "narrator" | "operator";
 
@@ -144,6 +150,144 @@ export interface AgentHealth {
   models: Record<string, string> | string[];
   caps: Record<string, unknown>;
   usd: number;
+  /** agent profile ("v1" recorded behaviour, "v2" with the new techniques) and its switched-on features */
+  profile?: "v1" | "v2";
+  features?: string[];
+  /** set when the server serves `/agent/boards` */
+  board_version?: "agent-board/1";
+}
+
+/** The derived investigation board (`GET /agent/boards`, `src/argus/agent/types.py` `Board`, version agent-board/1). */
+export type HypothesisStatus = "open" | "supported" | "ruled_out" | "inconclusive" | "not_tested";
+export type HypothesisKind = "event" | "data" | "planned" | "market" | "mix" | "recurring" | "segment" | "other";
+
+export interface CheckRef {
+  seq: number | null;
+  call_id: string | null;
+  step: number | null;
+  tool: string;
+  by: "host" | "detective" | "critic";
+  status: "validated" | "refuted" | "inconclusive" | "observed" | "rejected";
+  outcome: string | null;
+  summary: string;
+  receipts: ReceiptLink[];
+}
+
+export interface HypothesisCard {
+  id: string;
+  parent: string | null;
+  statement: string;
+  kind: HypothesisKind;
+  subject: string | null;
+  source: "host" | "model" | "critic";
+  status: HypothesisStatus;
+  reason: string;
+  decisive_check: string | null;
+  checks: CheckRef[];
+}
+
+export interface StepGroup {
+  id: string;
+  title: string;
+  phase: "opening" | "hypotheses" | "checks" | "critic" | "verdict" | "report" | "action" | "effect" | "ask";
+  role: AgentRole;
+  first_seq: number;
+  last_seq: number;
+  status: "running" | "done" | "failed" | "skipped";
+  steps: number;
+  tool_calls: number;
+  usd: number;
+  summary: string;
+}
+
+export interface Discarded {
+  kind: "ruled_out" | "rejected_call" | "gate_rejection" | "backfilled" | "critic_downgrade" | "not_tested";
+  text: string;
+  seq: number | null;
+  receipts: ReceiptLink[];
+}
+
+export interface ChainLink {
+  kind: "event" | "root" | "formula" | "impact" | "symptom";
+  source: string;
+  target: string;
+  label: string;
+  share: number | null;
+  status: "tested" | "untested";
+  receipts: ReceiptLink[];
+}
+
+export interface CauseChain {
+  incident_id: string;
+  links: ChainLink[];
+  text: string;
+}
+
+export interface CostLine {
+  phase: "detective" | "critic" | "ask";
+  model: string;
+  llm_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  usd: number;
+}
+
+export interface CostView {
+  usd: number;
+  cap_usd: number;
+  llm_calls: number;
+  tool_calls: number;
+  cap_tool_calls: number;
+  /** true: a recorded run, nothing was spent now */
+  replayed: boolean;
+  lines: CostLine[];
+}
+
+export interface CriticView {
+  result: "upheld" | "weakened" | "refuted" | "unavailable" | "skipped";
+  model: string | null;
+  attempts: number;
+  reason: string;
+  checks: CheckRef[];
+}
+
+export interface Precedent {
+  case_id: string;
+  sim_ts: string;
+  cause: string;
+  playbook_id: string | null;
+  decision: "approve" | "deny" | "expired" | "none";
+  effect: string | null;
+  policy: "propose" | "propose_with_precedent" | "suppress_denied" | "suppress_no_effect";
+  note: string;
+}
+
+export interface SecondOpinion {
+  method: string;
+  z: number;
+  agrees: boolean;
+  receipts: ReceiptLink[];
+}
+
+export interface Board {
+  version: "agent-board/1";
+  /** null for a Stage-2-only incident */
+  agent_run: string | null;
+  incident_id: string | null;
+  anomaly_id: string | null;
+  through_seq: number;
+  state: "running" | "done" | "fallback" | "budget";
+  profile: "stage2" | "v1" | "v2";
+  hypotheses: HypothesisCard[];
+  /** every status, summing to hypotheses.length */
+  counts: Record<HypothesisStatus, number>;
+  groups: StepGroup[];
+  discarded: Discarded[];
+  chain: CauseChain | null;
+  critic: CriticView | null;
+  precedents: Precedent[];
+  second_opinion: SecondOpinion | null;
+  cost: CostView;
 }
 
 /**
@@ -173,6 +317,11 @@ export interface AskAnswer {
   claims: VerifiedClaim[];
   receipt_links: ReceiptLink[];
   activity_cursor: number | null;
+  /** the agent run that answered (its checks are in the activity log); null when no run was needed */
+  run_id?: string | null;
+  /** why the status is what it is, for a refused or unavailable answer */
+  reason?: string | null;
+  usd?: number | null;
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -249,11 +398,14 @@ export const agentApi = {
   // every agent route is pinned to the demo presentation while one plays (withRun appends its run_id)
   activity: (since = 0) => call<{ stream: string; mode: AgentMode; records: ActivityRecord[] }>(withRun(`/agent/activity?since=${since}`)),
   runs: () => call<RunSummary[]>(withRun("/agent/runs")),
+  boards: (since = 0) => call<{ boards: Board[]; next_cursor: number }>(withRun(`/agent/boards?since=${since}`)),
+  incidentBoard: (id: string) => call<Board>(withRun(`/agent/boards/incident/${encodeURIComponent(id)}`)),
   actions: () => call<ProposalView[]>(withRun("/agent/actions")),
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey()) =>
     decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }),
-  ask: (question: string, incidentId?: string | null, conversationId?: string | null) =>
-    call<AskAnswer>(withRun("/agent/ask"), post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null })),
+  /** `signal` stops waiting for the answer (the server's run still finishes and is billed) */
+  ask: (question: string, incidentId?: string | null, conversationId?: string | null, signal?: AbortSignal) =>
+    call<AskAnswer>(withRun("/agent/ask"), { ...post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null }), signal }),
   receipt: async (link: ReceiptLink): Promise<AgentReceipt> =>
     normalizeReceipt(
       await call<unknown>(withRun(`/agent/receipts/${encodeURIComponent(link.run_id)}/${encodeURIComponent(link.world_revision)}/${encodeURIComponent(link.receipt_id)}`)),
