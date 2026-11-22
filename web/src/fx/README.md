@@ -13,10 +13,11 @@ npm --prefix web run build                 # the API serves web/dist at /
 
 | URL | Result |
 | --- | --- |
-| `/`, `/?fx=1` (or `fx=ice`) | Argus Ice, light fog |
+| `/`, `/?fx=1` (or `fx=ice`) | Argus Ice, light fog. A fresh tab opens the demo sign-in before the overview |
 | `/?classic=1` (or `/?fx=0`) | the classic interface |
 | `/?fx=night` | the same world after dark |
 | `/?demo=1&captions=1&fx=1` | the recording URL: hands-off demo in Argus Ice |
+| `/?entry=0`, `/?entry=1` | skip the demo sign-in or show it again. Deep links skip it by default |
 | `&fxq=low\|mid\|high` | fixed quality tier for the 3D scene (default `auto`) |
 | `&fxintro=0` | no loader hold, no intro (tests, repeated takes) |
 | `&fxdebug=1` | frame rate, worst frame and the scene's quality tier in the bottom-left corner |

@@ -8,6 +8,7 @@ import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
+import { EntryGate } from "../entry/EntryGate";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
 import { AgentDemoControl } from "./AgentDemoControl";
@@ -80,6 +81,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
       <AskPanel incident={section === "incident" ? incident : null} />
+      <EntryGate />
     </>
   );
 }
