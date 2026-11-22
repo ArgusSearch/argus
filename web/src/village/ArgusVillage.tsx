@@ -7,6 +7,7 @@
 // ?vat=<seconds> (start at a time, for captures), fxq=low|mid|high (fixed quality).
 
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
+import { staticReplay } from "../lib/deployment";
 import { dayLabel, hhmm } from "../lib/format";
 import { buildBeats } from "./beats";
 import { ApprovalCard, Bubbles, Caption, FileTag, RolePanel, roleViews } from "./Overlay";
@@ -22,6 +23,7 @@ import "./village.css";
 
 const VillageScene = lazy(() => import("./scene/VillageScene"));
 const IDLE = idleBubbles(ROLES);
+const sourceOptions = staticReplay ? SOURCES.filter((source) => source.id !== "live") : SOURCES;
 
 let webgl2: boolean | null = null;
 function hasWebGL2(): boolean {
@@ -62,7 +64,10 @@ export interface ArgusVillageProps {
 export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision }: ArgusVillageProps) {
   const search = typeof window === "undefined" ? "" : window.location.search;
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const [source, setSource] = useState<SourceId>(() => initial ?? initialSource(search));
+  const [source, setSource] = useState<SourceId>(() => {
+    const requested = initial ?? initialSource(search);
+    return staticReplay && requested === "live" ? "s4-agent" : requested;
+  });
   const [tape, setTape] = useState<VillageTape | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -227,7 +232,7 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
 
       <div className="vl-hud vl-hud-tr" data-no-pick>
         <nav className="vl-seg" aria-label="source">
-          {SOURCES.map((s) => (
+          {sourceOptions.map((s) => (
             <button key={s.id} className={s.id === source ? "on" : ""} aria-pressed={s.id === source} title={s.hint} onClick={() => setSource(s.id)}>
               {s.label}
             </button>

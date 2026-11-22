@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
+import { remoteGuidedRun } from "../../lib/deployment";
 import type { RunView } from "../../lib/store";
 import type { Graph, Health } from "../../lib/types";
 import { beatFor, closedWithoutIncident, decidedIncidents, demoOptions, investigationStarted, withoutDemo, type Beat, type DemoOptions } from "./demo";
@@ -62,6 +63,13 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || synthetic.current) return;
       clearTimers();
+      if (remoteGuidedRun) {
+        const url = new URL(withoutDemo(window.location.href), window.location.href);
+        url.searchParams.set("view", "dashboard");
+        url.searchParams.delete("incident");
+        window.location.replace(url);
+        return;
+      }
       setOptions((o) => ({ ...o, demo: false }));
       window.history.replaceState(null, "", withoutDemo(window.location.href));
     };

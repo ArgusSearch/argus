@@ -9,6 +9,7 @@ import { pendingProposals } from "../../agent-ui/activity";
 import { useWaitingTitle } from "../../agent-ui/hooks";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
+import { pollEvents } from "../../lib/deployment";
 import type { RunView } from "../../lib/store";
 import { avatarCues, WORK_CUE_MS, type AvatarCues } from "../../village/avatars/state";
 
@@ -49,8 +50,8 @@ export function proposalFor(state: AgentState, incident: string): ProposalView |
   return [...state.proposals].reverse().find((p) => p.incident_ref === incident) ?? null;
 }
 
-const ACTIVITY_MS = 1500;
-const ACTIONS_MS = 2000;
+const ACTIVITY_MS = pollEvents ? 2500 : 1500;
+const ACTIONS_MS = pollEvents ? 3000 : 2000;
 const KEEP = 600;
 
 export function AgentProvider({ stream, children }: { stream: string | null; children: ReactNode }) {

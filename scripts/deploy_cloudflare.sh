@@ -110,7 +110,7 @@ build_web() {
     GIT_CEILING_DIRECTORIES="$state" git -C "$source" apply --no-index "$state/web-hook.patch"
   fi
   env -i HOME="$HOME" PATH="$PATH" npm --prefix "$source/web" ci --no-audit --no-fund
-  env -i HOME="$HOME" PATH="$PATH" VITE_ARGUS_API_URL="$api" VITE_ARGUS_STATIC_REPLAY="$offline" \
+  env -i HOME="$HOME" PATH="$PATH" VITE_ARGUS_API_URL="$api" VITE_ARGUS_STATIC_REPLAY="$offline" VITE_ARGUS_PUBLIC_API=1 \
     npm --prefix "$source/web" run build -- --outDir "$dist" --emptyOutDir
   scan "$dist"
 }

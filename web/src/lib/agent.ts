@@ -3,8 +3,7 @@
 // and every surface that uses them stays hidden (or falls back) while it answers 404.
 
 import { withRun } from "./agentDemo";
-import { ApiError } from "./api";
-import { apiUrl } from "./deployment";
+import { ApiError, apiFetch } from "./api";
 import type { Receipt } from "./types";
 
 export type AgentMode = "live" | "record" | "replay" | "off";
@@ -325,7 +324,7 @@ export interface AskAnswer {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), { credentials: "include", ...init });
+  const res = await apiFetch(path, { credentials: "include", ...init });
   if (!res.ok) {
     let detail = res.statusText;
     try {

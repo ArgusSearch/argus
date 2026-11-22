@@ -70,11 +70,11 @@ export function Badge({ tone = "muted", children, title, dot }: { tone?: Tone; c
   );
 }
 
-/** The honest label for anything the demo shows but does not wire to Argus's behaviour. */
+/** Label for settings that have no runtime effect. */
 export function Preview() {
   return (
     <span className="cs-preview" title="Shown so you can see where it goes. Changing it would not change what Argus does.">
-      Preview - not wired in the demo
+      Not configured
     </span>
   );
 }
@@ -87,7 +87,7 @@ export function Source({ children }: { children: ReactNode }) {
 /** A switch that shows a state but cannot be flipped here. */
 export function Switch({ on, label }: { on: boolean; label: string }) {
   return (
-    <span className={`cs-switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-disabled="true" aria-label={label} title="Read-only in the demo">
+    <span className={`cs-switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-disabled="true" aria-label={label} title="Read-only">
       <i aria-hidden="true" />
     </span>
   );

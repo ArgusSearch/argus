@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from bisect import bisect_right
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 
@@ -114,6 +115,13 @@ class EventHub(EventBus):
     def last_seq(self) -> int:
         with self._lock:
             return self.history[-1].seq if self.history else self.base_seq
+
+    def page(self, stream: str | None, after: int, limit: int) -> tuple[str, list[Event], bool]:
+        """Read a bounded page of the current stream, resetting cursors from older runs."""
+        with self._lock:
+            start = bisect_right(self.history, after, key=lambda event: event.seq) if stream == self.stream else 0
+            end = start + limit
+            return self.stream, self.history[start:end], end < len(self.history)
 
     async def follow(self, after: int = 0, *, include_stream: bool = False) -> AsyncIterator[StreamItem]:
         """Yield the history after seq `after`, then live events, until the client goes away.

@@ -154,7 +154,7 @@ export function OfflineBanner({ connection, apiUp }: { connection: ConnectionSta
       <Spinner size={13} label="Retrying" />
       <span className="ui-offline-title">{title}</span>
       <span className="ui-offline-detail">
-        Retrying on its own{seconds >= 2 ? ` · ${seconds} s` : ""}. Start it with <code>make api</code> or <code>make demo</code>.
+        Retrying on its own{seconds >= 2 ? ` · ${seconds} s` : ""}.
       </span>
       {notRunning && (
         <button className="btn" onClick={() => window.location.reload()}>

@@ -36,7 +36,7 @@ export function EntryGate() {
   const enter = useCallback(() => {
     if (stage !== "open") return;
     if (staticReplay) {
-      window.location.assign("?demo=1");
+      window.location.assign("?challenge=reveal");
       return;
     }
     rememberEntered();

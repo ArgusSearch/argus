@@ -118,7 +118,7 @@ export function CalendarPage({ graph, view }: { graph: Graph | null; view: RunVi
         <Detail entry={selected} graph={graph} />
       </div>
       <p className="cs-foot">
-        The run supplies agent activity and change logs that investigations consulted. Preview - not wired in the demo: upcoming plans Argus has yet to review.
+        The calendar shows agent activity and change logs Argus has consulted.
       </p>
     </div>
   );

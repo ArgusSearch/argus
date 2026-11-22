@@ -76,8 +76,8 @@ function DemoControl() {
   const state = demo?.snapshot?.state;
   const status = state ? STATUS[state.status] : null;
   return (
-    <section className="fx-demo" aria-label="agent demo">
-      <span className="fx-hud">Agent demo</span>
+    <section className="fx-demo" aria-label="Sealed agent run">
+      <span className="fx-hud">Sealed agent run</span>
       {!demo && (
         <button className="btn primary" onClick={() => act(() => startAgentDemo("s4", 1))}>
           ▶ Play the S4 agent run

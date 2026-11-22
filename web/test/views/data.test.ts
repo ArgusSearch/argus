@@ -11,7 +11,10 @@ describe("views.benchResults", () => {
     const fetch = vi.fn(async () => Response.json(result));
     vi.stubGlobal("fetch", fetch);
     await expect(views.benchResults()).resolves.toEqual(result);
-    expect(fetch).toHaveBeenCalledExactlyOnceWith("/bench/scorecard", { headers: { accept: "application/json" } });
+    expect(fetch).toHaveBeenCalledExactlyOnceWith("/bench/scorecard", {
+      headers: { accept: "application/json" },
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("preserves the API's empty result", async () => {

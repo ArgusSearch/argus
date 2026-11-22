@@ -156,6 +156,24 @@ def test_replay_serves_incidents_as_of_the_stream() -> None:
     assert seen[-1][0] == IncidentState.RESOLVED.value
 
 
+def test_event_pages_use_cursors_from_the_current_stream_only() -> None:
+    recording = load_recording(FIXTURES)
+    hub = EventHub(RunState(recording.graph))
+    for event in recording.events[:3]:
+        hub.publish(event)
+
+    first, events, more = hub.page(None, 0, 2)
+    assert events == recording.events[:2]
+    assert more
+    assert hub.page(first, events[-1].seq, 2) == (first, recording.events[2:3], False)
+
+    second = hub.reset()
+    event = recording.events[0].model_copy(update={"seq": hub.next_seq()})
+    hub.publish(event)
+    assert hub.page(first, event.seq, 2) == (second, [event], False)
+    assert hub.page(second, event.seq, 2) == (second, [], False)
+
+
 def test_live_tail_paces_investigation_steps_but_not_the_history() -> None:
     async def run() -> list[float]:
         recording = load_recording(FIXTURES)

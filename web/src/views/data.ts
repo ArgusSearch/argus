@@ -1,12 +1,11 @@
 // Reads for the views that `lib/api.ts` does not offer (yet). Same error handling as the main API client.
 
-import { ApiError } from "../lib/api";
-import { apiUrl } from "../lib/deployment";
+import { ApiError, apiFetch } from "../lib/api";
 import type { Incident, Note } from "../lib/types";
 import { isScorecard } from "./scorecard";
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(apiUrl(path), { headers: { accept: "application/json" } });
+  const res = await apiFetch(path, { headers: { accept: "application/json" } });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -36,5 +35,5 @@ export function explain(error: unknown, what: string): string {
     if (error.status === 404) return `${what} was not found.`;
     return `${what} could not be loaded (${error.status}): ${error.message}`;
   }
-  return `${what} could not be loaded: the API did not answer. Is \`make api\` running?`;
+  return `${what} could not be loaded: the API did not answer.`;
 }
