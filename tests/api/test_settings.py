@@ -291,11 +291,13 @@ def test_settings_write_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert blocked.status_code == 429 and blocked.headers["retry-after"] == "60"
 
 
-def test_cloudflare_settings_use_partitioned_cookies_and_patch(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cloudflare_settings_use_partitioned_cookies_and_patch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import os
 
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2]))
     from scripts.cloudflare_api import PAGES_ORIGIN, origin_app
 
+    monkeypatch.chdir(tmp_path)
     for key in os.environ.copy():
         if key.startswith(("ANTHROPIC_", "OPENAI_")):
             monkeypatch.delenv(key)
