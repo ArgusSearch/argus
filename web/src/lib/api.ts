@@ -72,6 +72,9 @@ export interface StreamHeader {
 
 export type ConnectionState = "connecting" | "open" | "offline";
 
+/** How long the stream may fail to reconnect before the page says the API is offline. */
+export const OFFLINE_AFTER_MS = 4000;
+
 /**
  * Follow `GET /events`. Each connection starts with a stream header and a full snapshot of the event
  * history. A fresh connection after an error avoids sending a cursor from an earlier API process.
@@ -85,7 +88,9 @@ export function follow(handlers: {
   let closed = false;
   let queue: ArgusEvent[] = [];
   let frame = 0;
-  let retry = 0;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let offline = false;
+  let offlineTimer: ReturnType<typeof setTimeout> | undefined;
 
   const flush = () => {
     frame = 0;
@@ -100,11 +105,33 @@ export function follow(handlers: {
     if (closed) return;
     const es = new EventSource("/events?include_stream=true");
     source = es;
-    es.onopen = () => handlers.onState("open");
+    es.onopen = () => {
+      if (source !== es || closed) return;
+      clearTimeout(offlineTimer);
+      offlineTimer = undefined;
+      offline = false;
+      handlers.onState("open");
+    };
     es.onerror = () => {
+      if (source !== es || closed) return;
+      const disconnected = es.readyState === EventSource.CLOSED;
       es.close();
-      handlers.onState("offline");
-      retry = window.setTimeout(open, 1500);
+      source = null;
+      retry = setTimeout(open, 1500);
+      if (offline) return;
+      if (disconnected) {
+        clearTimeout(offlineTimer);
+        offlineTimer = undefined;
+        offline = true;
+        handlers.onState("offline");
+      } else if (offlineTimer === undefined) {
+        handlers.onState("connecting");
+        offlineTimer = setTimeout(() => {
+          offlineTimer = undefined;
+          offline = true;
+          handlers.onState("offline");
+        }, OFFLINE_AFTER_MS);
+      }
     };
     es.addEventListener("stream", (msg) => {
       // events of the old stream still waiting for a frame are void
@@ -119,11 +146,13 @@ export function follow(handlers: {
     }
   };
 
+  handlers.onState("connecting");
   open();
   return () => {
     closed = true;
-    window.clearTimeout(retry);
+    clearTimeout(retry);
     if (frame) cancelAnimationFrame(frame);
+    clearTimeout(offlineTimer);
     source?.close();
   };
 }

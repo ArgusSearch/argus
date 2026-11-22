@@ -1,0 +1,144 @@
+/*
+ * Mission Control at five sizes. Imported once, after styles.css (web/src/main.tsx).
+ *   1920x1080  video and projector: the panels around the graph read from 3 m
+ *   1440x900   laptop: the base layout of styles.css
+ *   1280x720   low projector: slimmer bars so the graph keeps its height
+ *   768        tablet: one column, the page scrolls
+ *   390        phone: one column; the challenge and the morning report have their own phone layouts
+ * Demo mode can opt out of the projector tier by setting data-demo on <html> (it scales type itself).
+ */
+
+/* ---------------------------------------------------------------- projector, 1920x1080 */
+
+@media (min-width: 1800px) and (min-height: 1000px) {
+  html:not([data-demo]) .app {
+    grid-template-rows: 60px 52px minmax(0, 1fr);
+  }
+  html:not([data-demo]) .main {
+    grid-template-columns: minmax(0, 1fr) 460px;
+  }
+  html:not([data-demo]) .left {
+    grid-template-rows: minmax(0, 1fr) 274px;
+  }
+  /* zoom the text panels, never the graph: React Flow measures its own pointer coordinates */
+  html:not([data-demo]) .header,
+  html:not([data-demo]) .ticker,
+  html:not([data-demo]) .rail,
+  html:not([data-demo]) .trail {
+    zoom: 1.12;
+  }
+  html:not([data-demo]) .graph-bar .sub,
+  html:not([data-demo]) .legend {
+    font-size: 13px;
+  }
+  html:not([data-demo]) .panel-title {
+    font-size: 12px;
+  }
+}
+
+/* ---------------------------------------------------------------- low projector, 1280x720 */
+
+@media (max-height: 760px) and (min-width: 1180px) {
+  .app {
+    grid-template-rows: 50px 42px minmax(0, 1fr);
+  }
+  .graph {
+    grid-template-rows: 34px minmax(0, 1fr) 40px;
+  }
+  .graph-bar {
+    padding-top: 9px;
+  }
+}
+
+/* ---------------------------------------------------------------- tablet, one column */
+
+@media (max-width: 1179px) {
+  .app {
+    min-width: 0;
+    height: auto;
+    min-height: 100vh;
+    grid-template-rows: auto auto auto;
+  }
+  .header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    min-height: 54px;
+    padding: 9px 16px;
+  }
+  .ticker {
+    min-height: 44px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .left {
+    grid-template-rows: minmax(420px, 64vh) auto;
+    border-right: 0;
+  }
+  .trail {
+    min-height: 244px;
+  }
+  .graph {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .graph-bar {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    padding-bottom: 6px;
+  }
+  .graph-foot {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-top: 8px;
+  }
+  .legend {
+    flex-wrap: wrap;
+  }
+  .rail {
+    height: 72vh;
+    min-height: 420px;
+    border-top: 1px solid var(--line);
+  }
+  .sheet {
+    width: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------- phone */
+
+@media (max-width: 600px) {
+  .brand-sub,
+  .clock-sub,
+  .progress {
+    display: none;
+  }
+  .header {
+    gap: 10px 12px;
+  }
+  .clock {
+    order: 5;
+    flex-basis: 100%;
+  }
+  .controls {
+    flex-wrap: wrap;
+  }
+  .left {
+    grid-template-rows: minmax(360px, 56vh) auto;
+  }
+  .tstep {
+    flex-basis: 250px;
+  }
+  .modal {
+    top: 3vh;
+    width: calc(100vw - 16px);
+    max-height: 94vh;
+  }
+  .toast {
+    left: 8px;
+    right: 8px;
+    transform: none;
+    flex-wrap: wrap;
+  }
+}

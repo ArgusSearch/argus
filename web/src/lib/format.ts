@@ -83,3 +83,10 @@ export function impactNoun(nodeId: string, direction: Direction, graph: Graph | 
   const label = money.label.charAt(0).toLowerCase() + money.label.slice(1);
   return direction === "up" ? `extra ${label}` : `${label} short`;
 }
+
+const VERDICTS = new Set(["SUPPORTED_CAUSE", "HYPOTHESIS", "EXPECTED", "DATA_ISSUE", "UNEXPLAINED"]);
+
+/** One way to write a verdict everywhere on the page: SUPPORTED_CAUSE -> "SUPPORTED CAUSE". Other text passes through. */
+export function verdictLabel(text: string): string {
+  return VERDICTS.has(text) ? text.replaceAll("_", " ") : text;
+}

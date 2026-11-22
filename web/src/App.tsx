@@ -13,7 +13,7 @@ import { go } from "./fx/nav";
 import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
 import { demoGraph, useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
-import { emptyView, foldAll, recount, type RunView } from "./lib/store";
+import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
 import { ViewHost } from "./views";
 
@@ -199,7 +199,7 @@ export function App() {
     () => (demo?.snapshot ? foldAll(emptyView(`demo:${demo.runId}`, "replay", view.thresholds), demo.snapshot.events) : view),
     [demo?.runId, demo?.snapshot, view],
   );
-  const latest = shown.anomalies[shown.anomalies.length - 1];
+  const checking = checkingNode(shown);
   // the visualization's incident story lights its path on the map (style layer only; null otherwise)
   const story = useStoryFocus();
   const sceneView = useMemo(() => (story ? { ...shown, focus: story } : shown), [shown, story]);
@@ -222,9 +222,9 @@ export function App() {
               <div className="graph-bar">
                 <span className="panel-title">How your shop's numbers connect</span>
                 <span className="sub">Argus follows these lines to find the cause.</span>
-                {latest && shown.focus && (
+                {checking && (
                   <span className="checking">
-                    checking <b className="mono">{latest.node}</b>
+                    checking <b className="mono">{checking}</b>
                   </span>
                 )}
               </div>

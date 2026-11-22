@@ -139,6 +139,14 @@ export function isRuledOut(decision: string): boolean {
 
 const unique = (xs: string[]) => [...new Set(xs)];
 
+/** The metric the investigation is checking right now, or null once the latest anomaly has its verdict. */
+export function checkingNode(view: RunView): string | null {
+  const latest = view.anomalies[view.anomalies.length - 1];
+  if (!latest || !view.focus) return null;
+  const decided = view.steps.some((s) => s.anomalyId === latest.id && s.step.kind === "verdict");
+  return decided ? null : latest.node;
+}
+
 /**
  * What a step touches on the graph. A step may say so itself (`data.focus`); otherwise it is read from
  * the step's own data: the anomalous node, the logs it checks, the breakdowns it searches.
