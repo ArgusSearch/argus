@@ -2,7 +2,7 @@
 // incident, glossary) as items of the app's grid; the other sections are the views of the view host. Every
 // number on these pages is one the API sent; the pages only pick, order and label them in plain words.
 
-import { lazy, Suspense, useEffect, useLayoutEffect, type ComponentType, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Mark } from "../../components/Header";
 import { useAgentDemo } from "../../lib/agentDemo";
 import type { RunView } from "../../lib/store";
@@ -66,6 +66,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
   const demo = useAgentDemo();
   useLayoutEffect(() => {
     document.documentElement.dataset.fxSection = section;
+    if (window.matchMedia("(max-width: 1179px)").matches) window.scrollTo(0, 0);
   }, [section]);
   useEffect(() => watchHost(), []);
   return (
@@ -197,6 +198,7 @@ const NAV: NavItem[] = [
 ];
 
 function Sidebar({ section, view }: { section: Section; view: RunView }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const counts = autonomyCounts(view);
   const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
   const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
@@ -207,7 +209,17 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const humans = useHumanActions(view);
   const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
-    <nav className="fx-side" aria-label="sections">
+    <nav
+      className="fx-side"
+      aria-label="sections"
+      data-menu-open={menuOpen}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !menuOpen) return;
+        event.stopPropagation();
+        setMenuOpen(false);
+        event.currentTarget.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
+      }}
+    >
       <div className="fx-side-brand">
         <Mark />
         <div>
@@ -215,9 +227,30 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
           <span>Shop monitor</span>
         </div>
       </div>
-      <div className="fx-side-main">
+      <button
+        type="button"
+        className="fx-side-menu"
+        aria-expanded={menuOpen}
+        aria-controls="fx-side-main"
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d={menuOpen ? "M4 4l8 8M12 4l-8 8" : "M2 4h12M2 8h12M2 12h12"} />
+        </svg>
+        {menuOpen ? "Close menu" : "Menu"}
+      </button>
+      <div id="fx-side-main" className="fx-side-main">
       {agent.enabled && (
-        <button className={`fx-side-ask${asking ? " on" : ""}`} onClick={() => setAskOpen(!asking)} aria-expanded={asking} aria-label="Ask Argus" title="Ask Argus (/)">
+        <button
+          className={`fx-side-ask${asking ? " on" : ""}`}
+          onClick={() => {
+            setMenuOpen(false);
+            setAskOpen(!asking);
+          }}
+          aria-expanded={asking}
+          aria-label="Ask Argus"
+          title="Ask Argus (/)"
+        >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2zM5.5 6.5h5M5.5 8.5h3" />
           </svg>
@@ -234,7 +267,11 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
               aria-current={current === item.id ? "page" : undefined}
               aria-label={item.label}
               title={item.hint}
-              onClick={() => go(item.id)}
+              onClick={(event) => {
+                if (menuOpen) event.currentTarget.closest("nav")?.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
+                setMenuOpen(false);
+                go(item.id);
+              }}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 {item.icon}
