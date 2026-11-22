@@ -113,7 +113,12 @@ async def _metric(request: Request, *, public: bool = False) -> MetricDefinition
     except (ValueError, yaml.YAMLError, RecursionError) as exc:
         if public:
             raise HTTPException(422, "Invalid metric definition") from exc
-        detail = exc.errors(include_url=False) if isinstance(exc, ValidationError) else str(exc)
+        # YAML can decode dates, bytes and other non-JSON values. Do not echo them into the JSON error body.
+        detail = (
+            exc.errors(include_url=False, include_input=False, include_context=False)
+            if isinstance(exc, ValidationError)
+            else str(exc)
+        )
         raise HTTPException(422, detail) from exc
 
 

@@ -110,6 +110,22 @@ def test_sse_wire_format_resume_and_stream_change() -> None:
     assert [b["id"] for b in stale[1:]] == ["6"]
 
 
+@pytest.mark.parametrize("query", ["since=-1", "limit=0", "limit=-1"])
+def test_sse_rejects_invalid_cursor_and_limit(query: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, web_dist=tmp_path))
+    response = client.get(f"/events?{query}")
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+
+
+@pytest.mark.parametrize("cursor", ["not-a-sequence", "-1", "1.5", "9" * 5000])
+def test_sse_validates_last_event_id_before_starting_the_stream(cursor: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, web_dist=tmp_path))
+    response = client.get("/events", headers={"Last-Event-ID": cursor})
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+
+
 def test_scorecard_reads_the_server_results(tmp_path: Path) -> None:
     client = TestClient(create_app(ReplaySource(), start=False, bench_out=tmp_path))
     assert client.get("/bench/scorecard").json() is None
@@ -173,6 +189,27 @@ def test_event_pages_use_cursors_from_the_current_stream_only() -> None:
     hub.publish(event)
     assert hub.page(first, event.seq, 2) == (second, [event], False)
     assert hub.page(second, event.seq, 2) == (second, [], False)
+
+
+def test_sse_restart_discards_the_previous_streams_buffered_events() -> None:
+    async def run() -> None:
+        recording = load_recording(FIXTURES)
+        hub = EventHub(RunState(recording.graph))
+        for event in recording.events[:3]:
+            hub.publish(event)
+
+        following = hub.follow()
+        assert (await anext(following)).event == recording.events[0]
+        stream = hub.reset()
+        restarted = recording.events[0].model_copy(update={"seq": hub.next_seq()})
+        hub.publish(restarted)
+
+        marker = await anext(following)
+        assert marker.event is None and marker.stream == stream, "discard buffered events from the old stream"
+        assert (await anext(following)).event == restarted
+        await following.aclose()
+
+    asyncio.run(run())
 
 
 def test_live_tail_paces_investigation_steps_but_not_the_history() -> None:

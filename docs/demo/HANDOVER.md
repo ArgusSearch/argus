@@ -1,5 +1,7 @@
 # Handover: demo flow and polish (Alan's lane)
 
+> Historical handover. The branches, draft changes and screenshots in this folder describe the rehearsal at the revision below. See the [current showcase guide](../pitch/showcase.md) for the playback flow.
+
 Last update: Saturday 2026-11-21, evening. Base: `origin/main` at `f35b00a`. Nothing pushed yet: every branch below
 is local and waits for review. A fresh agent can continue from this file alone.
 

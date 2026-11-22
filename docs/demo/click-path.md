@@ -1,5 +1,7 @@
 # Click path: the 3-minute video and the live demo
 
+> Historical rehearsal draft. See the [current showcase guide](../pitch/showcase.md) for the playback flow and metric placement.
+
 Everything below runs on `main`. Times marked **measured** come from Playwright on the laptop (Windows 11, Chrome,
 1920x1080) on 2026-11-21; times marked **computed** come from the replay pacing in `src/argus/api/replay.py`
 (2 s per simulated hour, 0.9 s per investigation step, divided by the speed) over the recorded fixtures.

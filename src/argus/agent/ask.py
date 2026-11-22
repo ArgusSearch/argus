@@ -32,6 +32,7 @@ from argus.agent.types import (
     RunSummary,
     VerifiedClaim,
 )
+from argus.connectors.data import SourceData
 from argus.contracts.findings import Incident
 from argus.contracts.graph import Graph
 from argus.evidence import EvidenceStore
@@ -84,6 +85,8 @@ class AskScope:
     world: Any  # path of the world the runner opens read-only
     proposals: list[dict[str, Any]] = field(default_factory=list)  # ProposalView JSON, visible to the human
     world_revision: str = "factual"  # the branch `world` is: an applied action switches the run to its branch
+    source_data: SourceData | None = None
+    source_clocks: dict[str, tuple[datetime, datetime]] = field(default_factory=dict)
 
 
 @dataclass
@@ -196,10 +199,16 @@ class AskRunner:
             "chat_question", "ASK", scope.as_of, run_id, actor="operator", text=question[:500], incident_id=incident_id
         )
         runner = Runner(scope.world, receipt_prefix="q")
+        runner.source_data = scope.source_data
         result = AskResult(status="unavailable", run_id=run_id)
         try:
             self.store.bind(
-                ctx, graph=scope.graph, runner=runner, latest_hour=scope.latest_hour, incidents=scope.incidents
+                ctx,
+                graph=scope.graph,
+                runner=runner,
+                latest_hour=scope.latest_hour,
+                incidents=scope.incidents,
+                source_clocks=scope.source_clocks,
             )
             result = self._loop(ctx, question, scope, history or [])
         except ProviderUnavailable as exc:
@@ -248,6 +257,19 @@ class AskRunner:
             "before that hour and span 1 to 48 whole hours; times are UTC without a zone. Segments use the "
             "metric's own dimensions.\n"
         )
+        if scope.source_clocks:
+            available = [
+                f"{node.id} ({node.label}; dimensions: {', '.join(node.dims) or 'none'}; "
+                f"latest date: {scope.source_clocks[node.source][1]:%Y-%m-%d})"
+                for node in scope.graph.nodes
+                if node.source in scope.source_clocks
+            ]
+            scope_line += (
+                "Imported metrics use daily provider reporting dates at 00:00. "
+                "Use get_series, segment_search, or placebo_test with those dates. "
+                "The simulator clock above applies to shop metrics. "
+                "Plausible visitor counts are distinct per day.\n<data>\n" + "\n".join(available) + "\n</data>\n"
+            )
         if ctx.incident_id:
             scope_line += f"The question is about incident {ctx.incident_id}.\n"
         cases = [i for i in scope.incidents if i.id == ctx.incident_id] or scope.incidents[-3:]

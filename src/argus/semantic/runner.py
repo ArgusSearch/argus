@@ -15,12 +15,16 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import duckdb
 
 from argus.contracts.findings import Receipt
 from argus.contracts.world import AS_OF_VARIABLE
+
+if TYPE_CHECKING:
+    from argus.connectors.data import Snapshot, SourceData
+    from argus.connectors.provider import ProviderId
 
 
 def canonical_hash(rows: list[tuple[Any, ...]]) -> str:
@@ -53,6 +57,8 @@ class Runner:
         self._active: set[duckdb.DuckDBPyConnection] = set()
         self.receipts: dict[str, Receipt] = {}
         self.query_count = 0
+        self.source_data: SourceData | None = None
+        self.source_snapshots: dict[ProviderId, Snapshot] = {}
 
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         cur = getattr(self._local, "cur", None)
@@ -71,6 +77,8 @@ class Runner:
             cur.execute(f"SET VARIABLE {AS_OF_VARIABLE} = {sql_ts(as_of)}")
             if self._cancelled.is_set():
                 raise asyncio.CancelledError
+            if self.source_data is not None:
+                self.source_data.prepare(cur, sql, as_of)
             result = cur.execute(sql)
             columns = [d[0] for d in result.description] if result.description else []
             return result.fetchall(), columns

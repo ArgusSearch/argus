@@ -128,6 +128,51 @@ def test_yaml_body_is_a_metric_file(live: tuple[TestClient, LiveSource]) -> None
     assert res.status_code == 200 and res.json()["metric"]["name"] == "cost_per_impression"
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        "name: test_metric\ndescription: 2026-11-22\nsql: SELECT 1",
+        "name: test_metric\ndescription: !!binary /w==\nsql: SELECT 1",
+        "!!binary /w==",
+    ],
+)
+def test_yaml_validation_errors_are_json_serializable(body: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, web_dist=tmp_path))
+    response = client.post("/graph/metrics", content=body, headers={"content-type": "application/yaml"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] in {"string_type", "string_unicode", "model_type"}
+    assert client.get("/graph/metrics").json()["placements"] == []
+
+
+@pytest.mark.parametrize("literal, changed", [("DE", "de"), ("D  E", "D E")])
+def test_metric_cache_does_not_normalize_string_literals(
+    literal: str, changed: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    recorded = load_recorded()[0]
+    sql = recorded.metric.sql.replace("FROM fact_ads_hourly", f"FROM fact_ads_hourly WHERE country = '{literal}'")
+    metric = recorded.metric.model_copy(update={"sql": sql})
+    monkeypatch.setattr(
+        "argus.graph.extension.load_recorded", lambda _: [recorded.model_copy(update={"metric": metric})]
+    )
+    client = TestClient(create_app(ReplaySource(), start=False, web_dist=tmp_path))
+    assert client.post("/graph/metrics", json=metric.model_dump()).status_code == 200
+    before = client.get("/graph/metrics").json()
+
+    different = metric.model_copy(update={"sql": sql.replace(f"'{literal}'", f"'{changed}'")})
+    response = client.post("/graph/metrics", json=different.model_dump())
+    assert response.status_code == 409, "different filter values must not reuse a cached placement"
+    assert client.get("/graph/metrics").json() == before
+
+
+def test_metric_cache_still_accepts_sql_formatting_changes(tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, web_dist=tmp_path))
+    assert client.post("/graph/metrics", json=CPI).status_code == 200
+    before = client.get("/graph/metrics").json()
+    formatted = {**CPI, "sql": "\n  " + CPI["sql"].lower().strip().rstrip(";") + "; -- same query"}
+    assert client.post("/graph/metrics", json=formatted).status_code == 200
+    assert client.get("/graph/metrics").json() == before
+
+
 def test_replay_places_the_recorded_pack_in_order(tmp_path: Path) -> None:
     source = ReplaySource(FIXTURES / "s4", seconds_per_tick=0.001)
     with TestClient(create_app(source, web_dist=tmp_path)) as client:

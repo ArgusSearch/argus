@@ -8,6 +8,8 @@ import { startApi, stopApi, type OwnApi } from "./own-api";
 // A replay serves the recorded ad-metric pack (fixtures/graph_extension): POST /graph/metrics adds the recorded node
 // and edges to the replayed graph, and Mission Control polls GET /graph/metrics (every 1.5 s), shows the
 // "New metric placed" card over the graph, refetches /graph and marks the placed nodes in the graph and the tree.
+// The graph bar no longer counts the metrics (plain-English copy since the IA redesign, e0ce93b), so the specs count
+// the rendered boxes against the API's graph instead: one per metric plus one per change log (27 + 4 on the seed).
 // Runs on its own replay API (default port 8015, ARGUS_E2E_NEWMETRIC_PORT) so the placements never leak into the
 // other specs' graph. Replay-only, 1920x1080, every wait bounded. The tests share the API and run in order.
 // The fx check runs unless ARGUS_E2E_FX=0 (what `npm test` sets). ARGUS_E2E_SHOTS=1 saves new-metric-card-classic,
@@ -17,6 +19,8 @@ const SHOTS = Boolean(process.env.ARGUS_E2E_SHOTS);
 const ROOT = resolve(process.env.ARGUS_E2E_ROOT ?? "..");
 const PACK = resolve(ROOT, "fixtures/graph_extension/metrics");
 const PLACED_GREEN = "rgb(63, 191, 143)"; // --gx-placed fallback (#3fbf8f) in placedNodeStyles
+/** boxes in the seed graph: 27 metrics and 4 change logs (fixtures/graph.json) */
+const SEED_BOXES = 31;
 
 let api: OwnApi | null = null;
 let base = "";
@@ -61,11 +65,17 @@ test.describe("a new metric places itself in the graph", () => {
   }
 
   /** Open a page and wait for its first GET /graph/metrics (see the race test: a placement before it is lost). */
-  async function open(page: Page, path = "/"): Promise<void> {
+  async function open(page: Page, path = "/?classic=1"): Promise<void> {
     const firstPoll = page.waitForResponse((r) => r.url() === `${base}/graph/metrics` && r.request().method() === "GET", { timeout: 15_000 });
     await page.goto(`${base}${path}`);
     await expect(page).toHaveTitle("Argus · Mission Control");
     await firstPoll;
+  }
+
+  /** Boxes the graph should show: one per metric of GET /graph (placements included) plus one per change log. */
+  async function boxes(page: Page): Promise<number> {
+    const g = (await (await page.request.get(`${base}/graph`)).json()) as { nodes: unknown[]; logs: unknown[] };
+    return g.nodes.length + g.logs.length;
   }
 
   const card = (page: Page) => page.locator("article.gx-card");
@@ -136,9 +146,9 @@ test.describe("a new metric places itself in the graph", () => {
     await expect(c.locator(".gx-cert")).toContainText("cost_per_impression = ctr * cpc");
     await c.getByRole("button", { name: "Hide certificate" }).click();
 
-    // the node is in the graph, marked as placed, and the bar counts it
+    // the node is in the graph, marked as placed, and the graph shows every box the API's graph has
     await expect(page.locator(".react-flow__node")).toHaveCount(before + 1, { timeout: 5_000 });
-    await expect(page.locator(".graph-bar .sub")).toContainText("28 metrics");
+    expect(before + 1, "one box per metric and log of GET /graph").toBe(await boxes(page));
     const node = graphNode(page, "cost_per_impression");
     await expect(node).toBeVisible();
     await expect.poll(() => boxShadow(node.locator(".mnode")), { timeout: 5_000, message: "placed node highlight" }).toContain(PLACED_GREEN);
@@ -210,7 +220,7 @@ test.describe("a new metric places itself in the graph", () => {
     );
 
     // four new nodes (the rejected metric adds none), each marked, and the whole graph still fits
-    await expect(page.locator(".graph-bar .sub")).toContainText("31 metrics", { timeout: 5_000 });
+    await expect(page.locator(".react-flow__node")).toHaveCount(SEED_BOXES + 4, { timeout: 5_000 });
     for (const id of ["cost_per_impression", "conversions_per_impression", "revenue_per_conversion", "revenue_per_impression"]) {
       const n = graphNode(page, id);
       await expect(n, id).toBeVisible();
@@ -224,7 +234,7 @@ test.describe("a new metric places itself in the graph", () => {
     // test); for the screenshot a reload fits the grown graph from scratch
     if (SHOTS && (await offscreen(page)).length) {
       await page.reload();
-      await expect(page.locator(".react-flow__node")).toHaveCount(35);
+      await expect(page.locator(".react-flow__node")).toHaveCount(SEED_BOXES + 4);
       await expect(card(page)).toBeVisible({ timeout: 5_000 });
     }
     await card(page).getByRole("button", { name: "Hide the placement card" }).click();
@@ -245,8 +255,7 @@ test.describe("a new metric places itself in the graph", () => {
     const files = ["1_cost_per_impression.yml", "2_conversions_per_impression.yml", "3_revenue_per_conversion.yml", "4_revenue_per_impression.yml"];
     for (const [i, file] of files.entries()) {
       await place(page, file);
-      await expect(page.locator(".graph-bar .sub")).toContainText(`${28 + i} metrics`, { timeout: 5_000 });
-      await expect(page.locator(".react-flow__node")).toHaveCount(32 + i);
+      await expect(page.locator(".react-flow__node")).toHaveCount(SEED_BOXES + 1 + i, { timeout: 5_000 });
       await page.waitForTimeout(2_000); // the fit runs on the next frame; give React Flow time to measure the new node
       const off = await offscreen(page);
       if (off.length) await shot(page, "refit-bug");
@@ -277,13 +286,13 @@ test.describe("a new metric places itself in the graph", () => {
       }
       await route.continue();
     });
-    await page.goto(`${base}/`);
-    await expect(page.locator(".graph-bar .sub")).toContainText("27 metrics");
+    await page.goto(`${base}/?classic=1`);
+    await expect(page.locator(".react-flow__node")).toHaveCount(SEED_BOXES);
     await place(page, "1_cost_per_impression.yml");
     release();
     await expect(card(page)).toHaveAttribute("aria-label", "New metric placed: cost_per_impression", { timeout: 5_000 });
-    // the card says the metric is placed: the graph must show it (it stays at 27 metrics, the node never comes)
-    await expect(page.locator(".graph-bar .sub")).toContainText("28 metrics", { timeout: 5_000 });
+    // the card says the metric is placed: the graph must show it (it stays at the seed's boxes, the node never comes)
+    await expect(page.locator(".react-flow__node")).toHaveCount(SEED_BOXES + 1, { timeout: 5_000 });
     await expect(graphNode(page, "cost_per_impression")).toBeVisible();
     expect(errors()).toEqual([]);
   });
@@ -297,9 +306,10 @@ test.describe("a new metric places itself in the graph", () => {
     page.on("response", (r) => r.status() >= 500 && errors.push(`http ${r.status()}: ${r.url()}`));
     await replay(page, { action: "restart" }); // a new stream drops the earlier placements
     await replay(page, { action: "pause" });
-    await open(page, "/?fx=1&fxintro=0");
+    await open(page, "/?fx=1&fxintro=0&entry=0");
     await expect(page.locator("html")).toHaveAttribute("data-fx-phase", "ready", { timeout: 10_000 });
-    await page.getByRole("navigation", { name: "sections" }).getByRole("button", { name: /^Metric graph/ }).click();
+    // the sidebar calls the graph "Visualization" since the IA redesign
+    await page.getByRole("navigation", { name: "sections" }).getByRole("button", { name: /^Visualization/ }).click();
     const region = page.getByRole("region", { name: "metric graph" });
     await expect(region).toBeVisible();
     const sceneMount = page.locator('[data-fx-scene="full"]');
@@ -307,13 +317,17 @@ test.describe("a new metric places itself in the graph", () => {
     const scene = (await sceneMount.count()) > 0;
     test.info().annotations.push({ type: "graph", description: scene ? "3D scene" : "classic graph (no WebGL2)" });
     await expect(page.locator(".gx-pill")).toHaveCount(0, { timeout: 5_000 });
+    // the scene tags a metric "new metric" only when the graph grows under a running scene: wait until it has built the
+    // seed graph (its DOM label of a seed metric), or a placement during the slow 3D boot is simply part of its first graph
+    if (scene) await expect(page.locator('.fxs-node[data-id="ctr"]')).toHaveCount(1, { timeout: 15_000 });
 
     await place(page, "1_cost_per_impression.yml");
     const c = card(page);
     await expect(c).toBeVisible({ timeout: 10_000 }); // the 1.5 s poll runs late while SwiftShader renders
     await expect(c).toHaveAttribute("aria-label", "New metric placed: cost_per_impression");
     expect(await chips(c)).toEqual(["CTR", "CPC", "Ad spend"]);
-    await expect(region.locator(".sub")).toContainText("28 metrics", { timeout: 5_000 });
+    // the API's graph has the new metric (the scene reads it on the refetch)
+    await expect.poll(async () => ((await (await page.request.get(`${base}/graph`)).json()) as { nodes: { id: string }[] }).nodes.some((n) => n.id === "cost_per_impression"), { timeout: 5_000 }).toBe(true);
     if (scene) {
       // the scene's DOM label of the new block, tagged "new metric" while it freezes in (slow under SwiftShader)
       const label = page.locator('.fxs-node[data-id="cost_per_impression"]');
