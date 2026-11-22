@@ -185,11 +185,29 @@ The verdict:
 
 The unexplained share is always stated, and every claim is labelled evidence or hypothesis.
 
-**Where the language model fits.**
-The deterministic path needs none: the S1 investigation makes 0 LLM calls.
-A model may only propose the next check: the `Planner` interface (`src/argus/investigate/planner.py`) accepts typed checks from the C6 tool menu with a prediction, the investigator runs them, and the ledger judges them, so a model never produces a number or a verdict.
-Prose with numbers must pass the number check against the run's receipts.
-Every suggested action needs human approval (`needs_approval`, `GET /autonomy`); Argus files and closes incidents on its own but does not act on the business.
+**Where the agent thinks, and where it cannot.**
+
+The model chooses what to check. Argus decides what the evidence supports.
+
+| Technique | What it does | What keeps it honest | Release eval |
+| --- | --- | --- | --- |
+| Competing hypotheses | Puts rival causes and their cheapest decisive checks on a board | Judged checks determine each card's status | E18 checks 8 positive board reconstructions and 3 negative scenarios |
+| Self-written checks | Writes a SELECT for a cut outside the fixed tool menu | A parser limits queries to as-of views. A receipt pins the result. Stage 2 alone can grant a supported cause | E19 requires 28 SQL rejections, 10 accepted cuts and visibility at `as_of`. E20 checks both directions of a PayCo comparison |
+| Counter-check | A second model in a fresh context tries to falsify a supported cause | Code judges the receipts and can downgrade the verdict | E21 requires 3 of 3 planted false causes removed and 0 of 6 true causes vetoed. E22 checks verdict safety across 18 cases |
+| Case memory | Uses past denials and verified outcomes when considering another proposal | The deterministic proposal policy reads memory as advice. Evidence comes from checks | E23 checks denial and approval precedents. E24 requires identical verdicts, roots and proposals in 3 poisoned-memory trials |
+| Cause chain | Links the event, root segment, formula hops and EUR impact | Every link carries a receipt that can be re-run | E25 checks 6 supported cases and 3 negative scenarios |
+| Budget | Stops the detective and critic at fixed caps | Stage 2 completes in the same tick | E26 checks caps of 12 detective calls and 3 critic calls, exact recorded cost and zero replay spend |
+
+Only the host renders numbers verified against receipts.
+Only deterministic investigation rules can grant a supported cause.
+Only the operator can approve an action, and the playbook derives its parameters.
+
+The Stage 2 bench passes 18 of 18 cases with zero false alarms, with the agent off.
+The default v1 profile has 17 offline agent evals. The v2 release requires the
+intelligence evals and six retained live trials, with three passes each on S1
+and S4. Live v2 qualification is pending. Sealed v1 investigation cassettes
+replay the provider exchange and activity offline byte for byte.
+See the [v2 capture and qualification guide](fixtures/agent/v2/README.md).
 
 **Underneath.**
 
@@ -213,9 +231,42 @@ Extensions (contracts in `docs/ext/`): S5 with a market control group, the recei
 
 Next (see `docs/lanes.md`): metric onboarding through the runtime and the API, the attention budget in the runtime, an LLM planner behind the `Planner` interface, cause-edge tests, scenario S6.
 
-## Source attributions
+## Built on
 
-Algorithms and methods (implemented from the published descriptions; no third-party code was copied):
+Everything in this repository was written during the hackathon. Third-party code
+enters only as the dependencies listed here, installed from PyPI and npm.
+Nothing was vendored or copied.
+
+| Library | Locked version | License | Use |
+| --- | --- | --- | --- |
+| Anthropic SDK | 2.12.0 | Apache-2.0 | Live model transport and typed responses |
+| DuckDB | 2.0.1 | MIT | Simulator worlds, as-of queries and receipts |
+| sqlglot | 30.33.0 | MIT | SQL lineage and SELECT validation |
+| FastAPI | 0.165.0 | MIT | API and request handling |
+| Starlette | 1.10.0 | BSD-3-Clause | ASGI routing and streaming |
+| Pydantic | 2.14.4 | MIT | Typed contracts and schema export |
+| NumPy | 2.5.5 | BSD-3-Clause (core) | Statistical operations and simulation |
+| pandas | 3.1.1 | BSD-3-Clause | Simulation and tabular processing |
+| PyYAML | 6.0.4 | MIT | Metric and playbook definition parsing |
+| Uvicorn | 0.54.0 | BSD-3-Clause | ASGI server |
+| pytest | 9.2.0 | MIT | Offline verification |
+| Ruff | 0.17.6 | MIT | Lint and formatting |
+| mypy | 2.4.1 | MIT | Python type checking |
+| httpx2 | 2.16.2 | BSD-3-Clause | API tests |
+| types-PyYAML | 6.0.12.20261113 | Apache-2.0 | Type stubs for YAML |
+| React and React DOM | 19.3.1 | MIT | Mission Control interface |
+| React Flow (`@xyflow/react`) | 13.0.2 | MIT | Metric graph interactions |
+| Bot Avatars | 0.2.2 | MIT | Agent avatars |
+| Three.js | 0.187.0 | MIT | Three-dimensional scene rendering |
+| IBM Plex Mono via Fontsource | 5.3.0 | OFL-1.1 | Interface typography |
+| TypeScript | 7.0.2 | Apache-2.0 | Web type checking |
+| Vite and React plugin | 8.3.8 / 6.3.0 | MIT | Web development and build |
+| Vitest | 5.1.1 | MIT | Web tests |
+| React, React DOM and Three.js type stubs | 19.3.0 / 19.3.0 / 0.187.0 | MIT | Web library typings |
+
+### Methods
+
+Argus implements these methods from their published descriptions.
 
 - Additive LMDI decomposition: B. W. Ang, "The LMDI approach to decomposition analysis: a practical guide", Energy Policy 33(7), 2005.
 - Explanatory power and surprise for segment localisation: R. Bhagwan et al., "Adtributor: Revenue Debugging in Advertising Systems", NSDI 2014.
@@ -224,9 +275,17 @@ Algorithms and methods (implemented from the published descriptions; no third-pa
 - Mix vs rate split with midpoint weights: E. M. Kitagawa, "Components of a Difference Between Two Rates", JASA 50(272), 1955.
 - Benjamini-Hochberg false discovery rate control (planned for cause edges): Y. Benjamini and Y. Hochberg, JRSS B 57(1), 1995.
 
-Product research that shaped the design (ideas only, from public documentation): Datadog Bits AI SRE, Resolve.ai, Causely, Traversal, Anodot, Outlier, Sisu, ThoughtSpot SpotIQ, Power BI key influencers, Amplitude, Mixpanel, Tableau Pulse, Monte Carlo, Anomalo, Uber uVitals, LinkedIn ThirdEye, Airbnb Minerva, Netflix Kayenta, Meta's fast dimensional analysis, and the Flow-of-Action and ORCA-bench papers on root-cause agents.
+- ReAct (Yao et al.) inspired the loop that alternates between choosing a check and observing its result. [Paper](https://arxiv.org/abs/2210.03629)
+- Reflexion (Shinn et al.) inspired the separate counter-check and the lessons retained in case memory. [Paper](https://arxiv.org/abs/2303.11366)
+- Tree of Thoughts (Yao et al.) inspired competing hypotheses and choosing checks under a budget. [Paper](https://arxiv.org/abs/2305.10601)
 
-Libraries (see each project's license): DuckDB (MIT), sqlglot (MIT), FastAPI (MIT), Starlette (BSD-3-Clause), pydantic (MIT), NumPy (BSD-3-Clause), pandas (BSD-3-Clause), PyYAML (MIT), uvicorn (BSD-3-Clause); for development pytest, ruff, mypy and httpx2.
+### Evaluated and not used
+
+- Merlion's evaluated release required NumPy below 2 and brought in a forecasting stack.
+- PyRCA's evaluated release required scikit-learn below 1.2 and a Java bridge.
+- DoWhy resolved to 45 packages in the evaluation. MockMart's untreated twin provides the comparison for action effects.
+
+Product research that shaped the design (ideas only, from public documentation): Datadog Bits AI SRE, Resolve.ai, Causely, Traversal, Anodot, Outlier, Sisu, ThoughtSpot SpotIQ, Power BI key influencers, Amplitude, Mixpanel, Tableau Pulse, Monte Carlo, Anomalo, Uber uVitals, LinkedIn ThirdEye, Airbnb Minerva, Netflix Kayenta, Meta's fast dimensional analysis, and the Flow-of-Action and ORCA-bench papers on root-cause agents.
 
 All company, advertiser and provider names in MockMart (PayCo, CardHub, WalletGo, Nimbus Games and the others) are fictional.
 

@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,6 +30,7 @@ CASSETTE_FILES = {"turns.jsonl", "events.jsonl", "activity.jsonl", "receipts.jso
 BRANCH_REQUIRED = {"events.jsonl", "activity.jsonl", "actions.json"}
 BRANCH_OPTIONAL = {"receipts.json", "ask.jsonl"} | OPTIONAL
 BRANCHES = ("approve", "deny")
+FEATURES = frozenset({"critic", "sql", "hypotheses", "memory", "second_opinion"})
 FORBIDDEN_KEYS = {
     "api_key",
     "authorization",
@@ -93,6 +94,9 @@ class Manifest(BaseModel):
     graph_sha: str
     artifacts: dict[str, str]
     bundle_sha: str
+    profile: Literal["v2"] | None = None
+    features: list[str] | None = None
+    memory_sha: str | None = None
 
 
 class ReceiptProof(BaseModel):
@@ -124,8 +128,10 @@ def _scan(value: Any, path: str, secrets: tuple[str, ...]) -> None:
         raise ValueError(f"{path}: contains credential-like data")
 
 
-def _files(directory: Path, scenario: str, presentation: bool) -> dict[str, bytes]:
+def _files(directory: Path, scenario: str, presentation: bool, *, seeded: bool = False) -> dict[str, bytes]:
     required = set(REQUIRED if presentation else CASSETTE_FILES)
+    if seeded:
+        required.add("memory.jsonl")
     allowed = required | OPTIONAL
     branches = presentation and scenario == "s4"
     if branches:
@@ -149,11 +155,14 @@ def _files(directory: Path, scenario: str, presentation: bool) -> dict[str, byte
     return found
 
 
-def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
+def _turns(turns: list[dict[str, Any]], manifest: Manifest) -> None:
     seen: set[str] = set()
     returned_models: set[str] = set()
     if not turns:
         raise ValueError("turns.jsonl: empty provider exchange")
+    turn_kinds = "investigate|ask|morning|verify_effect"
+    if manifest.profile == "v2" and "critic" in (manifest.features or []):
+        turn_kinds += "|critic"
     for index, turn in enumerate(turns, 1):
         try:
             key = turn["key"]
@@ -161,7 +170,7 @@ def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
             usage = response.usage
             if (
                 not isinstance(key, str)
-                or not re.fullmatch(r"(?:investigate|ask|morning|verify_effect):.+:[1-9]\d*", key)
+                or not re.fullmatch(rf"(?:{turn_kinds}):.+:[1-9]\d*", key)
                 or key in seen
                 or not re.fullmatch(r"sha256:[a-f0-9]{64}", turn["request_sha"])
                 or not response.stop_reason
@@ -175,7 +184,7 @@ def _turns(turns: list[dict[str, Any]], models: list[str]) -> None:
             returned_models.add(response.model)
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"turns.jsonl: invalid exchange at turn {index}") from None
-    if len(models) != len(returned_models) or set(models) != returned_models:
+    if len(manifest.models) != len(returned_models) or set(manifest.models) != returned_models:
         raise ValueError("turns.jsonl: returned models do not match manifest")
 
 
@@ -281,7 +290,7 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest, presentat
     if sha256(canonical_json(documents["graph.json"])) != manifest.graph_sha:
         raise ValueError("graph identity does not match manifest")
     Graph.model_validate(documents["graph.json"])
-    _turns(documents["turns.jsonl"], manifest.models)
+    _turns(documents["turns.jsonl"], manifest)
     latest_event = _ordered(documents["events.jsonl"], "events.jsonl", 0)
     latest_activity = _ordered(documents["activity.jsonl"], "activity.jsonl", 0)
     if not latest_event or not latest_activity:
@@ -325,7 +334,7 @@ def _validate_documents(documents: dict[str, Any], manifest: Manifest, presentat
 
 def _validate_bundle(directory: Path, raw: Any, expected_digest: str, require_live: bool, presentation: bool) -> Bundle:
     manifest = Manifest.model_validate(raw)
-    body = manifest.model_dump(exclude={"bundle_sha"})
+    body = manifest.model_dump(exclude={"bundle_sha"}, exclude_unset=True)
     if not SHA256.fullmatch(expected_digest) or manifest.bundle_sha != expected_digest:
         raise ValueError("bundle digest does not match the expected pin")
     if sha256(canonical_json(body)) != expected_digest:
@@ -340,9 +349,25 @@ def _validate_bundle(directory: Path, raw: Any, expected_digest: str, require_li
         or any(not SHA256.fullmatch(value) for value in (manifest.prompt_sha, manifest.tools_sha, manifest.graph_sha))
     ):
         raise ValueError("unsupported recording manifest metadata or provenance")
-    artifacts = _files(directory, manifest.scenario, presentation)
+    if manifest.profile == "v2":
+        features = manifest.features
+        if (
+            features is None
+            or features != sorted(set(features))
+            or set(features) - {"critic", "sql", "hypotheses", "memory", "second_opinion"}
+        ):
+            raise ValueError("unsupported or noncanonical v2 feature list")
+        if "memory_sha" in body and (
+            "memory" not in features or manifest.memory_sha is None or not SHA256.fullmatch(manifest.memory_sha)
+        ):
+            raise ValueError("invalid v2 memory pin")
+    elif {"profile", "features", "memory_sha"} & body.keys():
+        raise ValueError("v2 recording metadata requires profile v2")
+    artifacts = _files(directory, manifest.scenario, presentation, seeded=manifest.memory_sha is not None)
     if {key: sha256(content) for key, content in artifacts.items()} != manifest.artifacts:
         raise ValueError("recording artifacts do not match the pinned manifest")
+    if manifest.memory_sha is not None and manifest.artifacts["memory.jsonl"] != manifest.memory_sha:
+        raise ValueError("memory seed does not match its pin")
     secrets = tuple(
         value for key, value in os.environ.items() if key.endswith(("_API_KEY", "_AUTH_TOKEN")) and len(value) >= 8
     )
@@ -370,7 +395,7 @@ def seal(directory: Path, *, presentation: bool = True) -> Bundle:
     if path.is_symlink():
         raise ValueError("manifest.json: symlink in recording directory")
     metadata = _json(path.read_bytes())
-    artifacts = _files(directory, metadata["scenario"], presentation)
+    artifacts = _files(directory, metadata["scenario"], presentation, seeded=metadata.get("memory_sha") is not None)
     metadata.update(
         graph_sha=sha256(canonical_json(_decode("graph.json", artifacts["graph.json"]))),
         artifacts={name: sha256(content) for name, content in artifacts.items()},
@@ -395,9 +420,13 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--seal", action="store_true", help="seal a staged capture")
     group.add_argument("--digest", help="check a live capture against an external pin")
+    parser.add_argument("--cassette", action="store_true", help="verify an investigation cassette")
     args = parser.parse_args()
     try:
-        bundle = seal(args.capture) if args.seal else read_bundle(args.capture, expected_digest=args.digest)
+        if args.seal:
+            bundle = seal(args.capture, presentation=not args.cassette)
+        else:
+            bundle = read_bundle(args.capture, expected_digest=args.digest, presentation=not args.cassette)
     except (KeyError, OSError, TypeError, ValueError):
         parser.exit(1, "Recording verification failed. Inspect the staged capture for invalid or forbidden data.\n")
     print(f"{bundle.manifest.scenario}: {bundle.manifest.bundle_sha} ({bundle.manifest.provenance})")

@@ -10,13 +10,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from scripts.agent_eval.bundle import Bundle, canonical_json, receipt_keys, seal, sha256
+from scripts.agent_eval.bundle import Bundle, canonical_json, read_bundle, receipt_keys, seal
 from scripts.agent_eval.capture_cassette import CaptureMismatch, _compare, _OrderedReplay, _read_lines
+from scripts.agent_eval.replay_config import V1_REPLAY, ReplayConfig, add_profile_options, profile_options
 
 from argus.agent.actions import Proposer, supporting_receipts
-from argus.agent.investigate import AgentSelector, tool_specs
 from argus.agent.journal import Journal
-from argus.agent.prompts import SELECT
 from argus.agent.provider import Cassette
 from argus.agent.session import OPERATOR, Decide
 from argus.agent.types import INTERFACE_VERSION, Decision, ReceiptLink, RunSummary
@@ -55,6 +54,7 @@ class Trace:
     graph: dict[str, Any]
     prefix: Segment
     continuation: Segment | None
+    pins: tuple[str, str]
 
 
 def _check_shared_prefix(approved: Segment, denied: Segment) -> None:
@@ -171,17 +171,25 @@ def _trace(
     state: Path,
     *,
     fork_deny: bool = False,
+    config: ReplayConfig = V1_REPLAY,
+    sealed: bool = False,
 ) -> Trace:
     cassette = Cassette.load(source / "turns.jsonl")
     client = _OrderedReplay(cassette)
-    decide: Decide = "deny" if fork_deny else json.loads((source / "session.json").read_bytes())["decide"]
+    decide: Decide
+    if fork_deny:
+        decide = "deny"
+    elif sealed:
+        decide = "approve" if scenario == "s4" else "none"
+    else:
+        decide = json.loads((source / "session.json").read_bytes())["decide"]
     recorded_seconds = {
         incident["findings"]["anomaly_id"]: incident["findings"]["cost"]["seconds"]
         for incident in json.loads((source / "incidents.json").read_bytes())
     }
     journal = Journal()
     runtime: Runtime
-    selector = AgentSelector(client, journal, mode="replay", through_seq=lambda: runtime.bus.history[-1].seq)
+    selector, memory = config.selector(client, journal, lambda: runtime.bus.history[-1].seq, state / "memory")
     runtime = Runtime(world, selector=selector)
     graph = runtime.graph.model_dump(mode="json")
     factual = Runner(world)
@@ -189,7 +197,10 @@ def _trace(
     service = RemediationService.for_runtime(
         runtime, publish=lambda event: proposer.publish(event), state_dir=state, background=False
     )
-    proposer = Proposer(journal, service)
+    proposer_options: dict[str, Any] = {}
+    if memory is not None:
+        proposer_options["memory"] = memory
+    proposer = Proposer(journal, service, **proposer_options)
     runtime.on_incident = proposer.on_incident
     cut: Segment | None = None
     prefix_ids: set[str] = set()
@@ -213,42 +224,60 @@ def _trace(
         if any(run.status != "done" for run in journal.runs.values()):
             raise CaptureMismatch("a replayed investigation fell back")
         last = _snapshot(runtime, journal, service, recorded_seconds)
-        if not fork_deny:
+        if not fork_deny and not sealed:
             _compare("activity", last.activity, _read_lines(source / "activity.jsonl"))
             _compare("C5 events", last.events, _read_lines(source / "events.jsonl"))
         cut.receipts = _proofs(cut.bindings() | set(receipt_keys(graph)), runtime, service, factual, prefix_ids)
         if scenario == "s1":
-            return Trace(graph, cut, None)
+            return Trace(graph, cut, None, client.pins(config))
         tail = Segment(last.events[len(cut.events) :], last.activity[len(cut.activity) :], last.incidents, last.actions)
         tail.receipts = _proofs(tail.bindings() - cut.receipts.keys(), runtime, service, factual, prefix_ids)
-        return Trace(graph, cut, tail)
+        return Trace(graph, cut, tail, client.pins(config))
     finally:
         service.close()
         runtime.runner.close()
         factual.close()
 
 
+def _recording_world(scenario: str, seed: int, root: Path, config: ReplayConfig) -> tuple[Path, dict[str, Any]]:
+    world = generate(scenario, WorldConfig(seed=seed), root)
+    public = json.loads(world.manifest.read_bytes())
+    public.pop("seconds", None)
+    if config.profile == "v2":
+        # Proposal digests bind the manifest bytes. Generation timing is independent of the simulated world.
+        world.manifest.write_bytes(canonical_json(public) + b"\n")
+    return world.world, public
+
+
 def stage(
-    source: Path, output: Path, scenario: Literal["s1", "s4"], seed: int, source_commit: str, denial: Path | None
+    source: Path,
+    output: Path,
+    scenario: Literal["s1", "s4"],
+    seed: int,
+    source_commit: str,
+    denial: Path | None,
+    *,
+    config: ReplayConfig = V1_REPLAY,
 ) -> Bundle:
     if scenario == "s4" and denial is None:
         raise ValueError("S4 needs an independently recorded denial")
+    config.check_session(source)
+    if denial is not None:
+        config.check_session(denial)
     summaries = [RunSummary.model_validate(row) for row in json.loads((source / "runs.json").read_bytes())]
     if not summaries or any(run.mode != "record" or run.status != "done" or run.llm_calls < 2 for run in summaries):
         raise CaptureMismatch("the genuine capture must contain a complete model investigation")
     with tempfile.TemporaryDirectory(prefix="argus-presentation-") as work:
         root = Path(work)
-        world = generate(scenario, WorldConfig(seed=seed), root / "world")
-        live = _trace(world.world, source, scenario, root / "approved")
+        world, public_world = _recording_world(scenario, seed, root / "world", config)
+        live = _trace(world, source, scenario, root / "approved", config=config)
         alternate = None
         if denial is not None:
-            _trace(world.world, denial, scenario, root / "independent-denial")
-            alternate = _trace(world.world, source, scenario, root / "common-prefix-denial", fork_deny=True)
+            _trace(world, denial, scenario, root / "independent-denial", config=config)
+            alternate = _trace(world, source, scenario, root / "common-prefix-denial", fork_deny=True, config=config)
             _check_shared_prefix(live.prefix, alternate.prefix)
             if alternate.continuation is None:
                 raise CaptureMismatch("the denial did not continue past the shared proposal")
-        public_world = json.loads(world.manifest.read_bytes())
-        public_world.pop("seconds", None)
     output.mkdir(parents=True, exist_ok=False)
     live.prefix.write(output)
     if live.continuation is not None and alternate is not None and alternate.continuation is not None:
@@ -263,14 +292,59 @@ def stage(
         "scenario": scenario,
         "seed": seed,
         "interface_version": INTERFACE_VERSION,
-        "prompt_sha": sha256(SELECT.encode()),
-        "tools_sha": sha256(canonical_json(tool_specs())),
+        "prompt_sha": live.pins[0],
+        "tools_sha": live.pins[1],
         "models": sorted({turn["response"]["model"] for turn in turns.lines}),
         "world": public_world,
+        **config.metadata(output),
     }
     (output / "graph.json").write_bytes(canonical_json(live.graph) + b"\n")
     (output / "manifest.json").write_bytes(canonical_json(manifest) + b"\n")
     return seal(output)
+
+
+def _verify_segment(segment: Segment, bundle: Bundle, prefix: str = "") -> None:
+    exported = bundle.documents
+    for filename, rows in (
+        ("activity.jsonl", segment.activity),
+        ("events.jsonl", segment.events),
+        ("incidents.json", segment.incidents),
+        ("actions.json", segment.actions),
+        ("ask.jsonl", segment.asks),
+    ):
+        _compare(prefix + filename, rows, exported.get(prefix + filename, []))
+    sealed_receipts = exported.get(prefix + "receipts.json", {})
+    if {k: v["receipt"] for k, v in segment.receipts.items()} != {k: v["receipt"] for k, v in sealed_receipts.items()}:
+        raise CaptureMismatch(f"{prefix} receipt proofs differ from the seal")
+
+
+def verify_presentation(directory: Path, digest: str) -> Bundle:
+    """Cold strict replay of a pinned v2 stage bundle, including both operator continuations."""
+    bundle = read_bundle(directory, expected_digest=digest)
+    manifest = bundle.manifest
+    if manifest.profile != "v2":
+        raise CaptureMismatch("cold presentation reconstruction requires a v2 seal")
+    config = ReplayConfig.from_manifest(manifest, directory)
+    scenario: Literal["s1", "s4"] = "s4" if manifest.scenario == "s4" else "s1"
+    with tempfile.TemporaryDirectory(prefix="argus-presentation-replay-") as work:
+        root = Path(work)
+        world, public_world = _recording_world(scenario, manifest.seed, root / "world", config)
+        if public_world != manifest.world:
+            raise CaptureMismatch("generated world settings differ from the seal")
+        replay = _trace(world, directory, scenario, root / "approve", config=config, sealed=True)
+        if replay.pins != (manifest.prompt_sha, manifest.tools_sha):
+            raise CaptureMismatch("detective prompt or tools do not match the seal")
+        if canonical_json(replay.graph) != canonical_json(bundle.documents["graph.json"]):
+            raise CaptureMismatch("graph differs from the seal")
+        _verify_segment(replay.prefix, bundle)
+        if scenario == "s4":
+            denied = _trace(world, directory, scenario, root / "deny", config=config, sealed=True, fork_deny=True)
+            _check_shared_prefix(replay.prefix, denied.prefix)
+            if replay.continuation is None or denied.continuation is None:
+                raise CaptureMismatch("an S4 continuation did not complete")
+            _verify_segment(replay.continuation, bundle, "approve/")
+            _verify_segment(denied.continuation, bundle, "deny/")
+    return bundle
 
 
 def main() -> None:
@@ -281,9 +355,18 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--denial", type=Path)
+    add_profile_options(parser)
     args = parser.parse_args()
     try:
-        bundle = stage(args.source, args.output, args.scenario, args.seed, args.source_commit, args.denial)
+        bundle = stage(
+            args.source,
+            args.output,
+            args.scenario,
+            args.seed,
+            args.source_commit,
+            args.denial,
+            config=profile_options(args),
+        )
     except CaptureMismatch as exc:
         parser.exit(1, f"Presentation replay failed: {exc}\n")
     except (AssertionError, KeyError, OSError, StopIteration, TypeError, ValueError):
