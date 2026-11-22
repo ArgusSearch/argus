@@ -189,7 +189,7 @@ def _trace(
     }
     journal = Journal()
     runtime: Runtime
-    selector = config.selector(client, journal, lambda: runtime.bus.history[-1].seq, state / "memory")
+    selector, memory = config.selector(client, journal, lambda: runtime.bus.history[-1].seq, state / "memory")
     runtime = Runtime(world, selector=selector)
     graph = runtime.graph.model_dump(mode="json")
     factual = Runner(world)
@@ -198,8 +198,8 @@ def _trace(
         runtime, publish=lambda event: proposer.publish(event), state_dir=state, background=False
     )
     proposer_options: dict[str, Any] = {}
-    if "memory" in config.features:
-        proposer_options["memory"] = selector.memory
+    if memory is not None:
+        proposer_options["memory"] = memory
     proposer = Proposer(journal, service, **proposer_options)
     runtime.on_incident = proposer.on_incident
     cut: Segment | None = None

@@ -73,7 +73,7 @@ def _replay_cassette(
     replayer = _OrderedReplay(Cassette.load(source / "turns.jsonl"))
     journal = Journal()
     runtime: Runtime
-    selector = config.selector(replayer, journal, lambda: runtime.bus.history[-1].seq, state)
+    selector, _ = config.selector(replayer, journal, lambda: runtime.bus.history[-1].seq, state)
     runtime = Runtime(world, selector=selector)
     try:
         runtime.run()

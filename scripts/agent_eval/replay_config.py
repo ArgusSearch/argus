@@ -60,9 +60,9 @@ class ReplayConfig:
 
     def selector(
         self, client: LlmClient, journal: Journal, through_seq: Callable[[], int], state: Path
-    ) -> AgentSelector:
+    ) -> tuple[AgentSelector, Any]:
         if self.profile == "v1":
-            return AgentSelector(client, journal, mode="replay", through_seq=through_seq)
+            return AgentSelector(client, journal, mode="replay", through_seq=through_seq), None
         profile = import_module("argus.agent.profile").Profile
 
         options: dict[str, Any] = {}
@@ -74,7 +74,8 @@ class ReplayConfig:
             path.write_bytes(self.memory)
             options["memory"] = case_memory(path)
         options["profile"] = profile(name="v2", features=self.features)
-        return AgentSelector(client, journal, mode="replay", through_seq=through_seq, **options)
+        selector = AgentSelector(client, journal, mode="replay", through_seq=through_seq, **options)
+        return selector, options.get("memory")
 
 
 V1_REPLAY = ReplayConfig()

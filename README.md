@@ -207,6 +207,7 @@ The default v1 profile has 17 offline agent evals. The v2 release requires the
 intelligence evals and six retained live trials, with three passes each on S1
 and S4. Live v2 qualification is pending. Sealed v1 investigation cassettes
 replay the provider exchange and activity offline byte for byte.
+See the [v2 capture and qualification guide](fixtures/agent/v2/README.md).
 
 **Underneath.**
 

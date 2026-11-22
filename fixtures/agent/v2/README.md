@@ -25,7 +25,7 @@ For S4, record with `--decide approve` and make a separate recording with
 `--decide deny`. Each memory-enabled recording starts with its own copy of
 the same seed. Use the detective-to-verdict elapsed time for qualification.
 
-From a raw live export, stage and seal a presentation outside the repository:
+Stage and seal the raw live export outside the repository.
 
 ```sh
 uv run python -m scripts.agent_eval.capture_presentation RAW_EXPORT STAGING \
