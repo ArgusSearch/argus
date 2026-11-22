@@ -25,6 +25,7 @@ import {
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { Post } from "../../fx/scene/post";
 import { AdaptiveQuality, pixelRatio, TIERS, type QualityMode, type TierSpec } from "../../fx/scene/quality";
+import { IDLE_AVATAR, type AvatarCues } from "../avatars/state";
 import { measureKeepout, placePin, type Keepout } from "../Overlay";
 import type { Player } from "../player";
 import { APPROVAL_POST, ROLE, ROLES, ROLE_IDS, type RoleId } from "../roles";
@@ -115,6 +116,7 @@ export class VillageEngine {
   private readonly look = new Vector3(0, 0.4, -0.4);
   private tier: TierSpec;
   private state: VillageState | null = null;
+  private avatars: AvatarCues = {};
   private frame = 0;
   private last = 0;
   private time = 0;
@@ -271,6 +273,10 @@ export class VillageEngine {
 
   setState(state: VillageState): void {
     this.state = state;
+  }
+
+  setAvatars(avatars: AvatarCues): void {
+    this.avatars = avatars;
   }
 
   setTelemetry(telemetry: RoomTelemetry): void {
@@ -448,34 +454,33 @@ export class VillageEngine {
     for (const [id, bot] of this.bots) {
       const walk = walking.get(id);
       const home = seatPoint(id);
-      const st = state?.roles[id];
-      const busy = Boolean(walk) || st?.status === "working" || st?.status === "waiting";
+      const cue = this.avatars[id] ?? IDLE_AVATAR;
       if (walk) {
         bot.sprite.position.copy(walk.pos);
         // calm in the canvas, the gait does the moving: a bounce per step, a lean and a look where it goes
-        if (bot.status !== "idle") bot.setStatus("idle");
+        bot.setCue(IDLE_AVATAR);
         bot.sprite.position.y += motion ? bot.stride(walk.phase, walk.lean, walk.gait) : 0;
         bot.look(walk.lean * 1.5, walk.away * 0.5, 0.95);
       } else {
         bot.sprite.position.lerp(home, 1 - Math.exp(-10 * dt));
         bot.stride(0, 0, 0);
-        const want = st?.status === "working" ? "working" : st?.status === "waiting" ? "waiting" : "idle";
-        if (bot.status !== want) bot.setStatus(want);
+        bot.setCue(cue);
+        if (motion && cue.status === "idle") bot.breathe(this.time);
         // the others turn their heads to follow what happens; the one at work keeps its eyes on its desk
-        if (watched && id !== focusId && motion) {
+        if (watched && id !== focusId && cue.status !== "working" && motion) {
           const dx = watched.x - home.x;
           const dz = watched.z - home.z;
           bot.look(Math.max(-1.4, Math.min(1.4, dx / 5)), Math.max(-0.5, Math.min(0.6, -dz / 9)), 0.6);
         } else bot.look(0, 0, 0);
       }
-      bot.update(dt, busy);
-      levels.set(id, st?.status === "working" ? 1 : st?.status === "waiting" ? 0.85 : 0.3);
+      bot.update(dt, Boolean(walk));
+      levels.set(id, cue.status === "working" ? 1 : cue.status === "waiting" ? 0.85 : 0.3);
     }
     this.igloos.update(dt, levels, this.time);
     const growth = growthAt(tl, index, t);
     this.rooms.get("cartographer")?.grow(growth && !motion ? { ...growth, age: 2.6 } : growth);
     this.showHolo(growth);
-    for (const [id, room] of this.rooms) room.tick(this.time, state?.roles[id].status === "working");
+    for (const [id, room] of this.rooms) room.tick(this.time, this.avatars[id]?.status === "working");
 
     // the case file
     const slot = tl.slots[index];

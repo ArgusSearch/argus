@@ -18,6 +18,7 @@ import { marketVerdict, watchSeries } from "./telemetry";
 import { idleBubbles, timeline, villageAt, type VillageState } from "./timeline";
 import type { Decision, VillageTape } from "./types";
 import { Village2D } from "./Village2D";
+import type { AvatarCues } from "./avatars/state";
 import "./village.css";
 
 const VillageScene = lazy(() => import("./scene/VillageScene"));
@@ -56,9 +57,11 @@ export interface ArgusVillageProps {
   onMetricMap?: () => void;
   /** the source to start on; default from ?village=, else Live */
   initial?: SourceId;
+  liveAvatars?: AvatarCues;
+  onLiveDecision?: () => void;
 }
 
-export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
+export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision }: ArgusVillageProps) {
   const search = typeof window === "undefined" ? "" : window.location.search;
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const [source, setSource] = useState<SourceId>(() => {
@@ -129,7 +132,16 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
     };
   }, [player]);
 
-  const views = useMemo(() => roleViews(state, player), [state, player]);
+  const liveCues = source === "live" ? liveAvatars : undefined;
+  const avatars = useMemo<AvatarCues>(() => {
+    if (liveCues) return liveCues;
+    if (!state.beat || player.timeline.slots[state.index]?.beat !== state.beat) return {};
+    return Object.fromEntries(ROLES.map(({ id }) => [
+      id,
+      { status: state.roles[id].status, key: state.beat?.role === id ? state.beat.key : undefined },
+    ]));
+  }, [state, player, liveCues]);
+  const views = useMemo(() => roleViews(state, player, liveCues), [state, player, liveCues]);
   const simTs = state.simTs;
   const hasMarket = state.roles.market.beats > 0;
   const telemetry = useMemo(() => ({
@@ -146,6 +158,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
         setDeciding({ busy: true, error: null });
         try {
           await decideLive(gate.proposal, d);
+          onLiveDecision?.();
           setDeciding({ busy: false, error: null });
           setApproval(false);
         } catch (e) {
@@ -156,7 +169,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
       setDecision(d);
       setApproval(false);
     },
-    [state.gate, source],
+    [state.gate, source, onLiveDecision],
   );
 
   const onFail = useCallback((e: Error) => {
@@ -194,11 +207,11 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
         {stage === "3d" ? (
           <SceneBoundary onFail={onFail}>
             <Suspense fallback={<div className="vl-loading">Building the village…</div>}>
-              <VillageScene player={player} state={state} telemetry={telemetry} anchors={anchors} onSelect={setSelected} onHover={() => undefined} onFail={onFail} />
+              <VillageScene player={player} state={state} avatars={avatars} telemetry={telemetry} anchors={anchors} onSelect={setSelected} onHover={() => undefined} onFail={onFail} />
             </Suspense>
           </SceneBoundary>
         ) : (
-          <Village2D player={player} state={state} anchors={anchors} onSelect={setSelected} />
+          <Village2D player={player} state={state} avatars={avatars} anchors={anchors} onSelect={setSelected} />
         )}
         <Bubbles views={views} anchors={anchors} player={player} onNeed={() => setApproval(true)} onSelect={setSelected} selected={selected} />
         <FileTag anchors={anchors} caseId={caseId} waiting={Boolean(state.gate)} />
@@ -274,10 +287,10 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
       </div>
 
       <div className="vl-hud vl-hud-bc" data-no-pick>
-        <Caption state={state} />
+        <Caption state={state} avatars={avatars} />
       </div>
 
-      {selected && <RolePanel role={selected} state={state} onClose={() => setSelected(null)} />}
+      {selected && <RolePanel role={selected} state={state} cue={avatars[selected]} onClose={() => setSelected(null)} />}
       {approval && state.gate && (
         <ApprovalCard gate={state.gate} live={source === "live"} busy={deciding.busy} error={deciding.error} onDecide={decide} onClose={() => setApproval(false)} />
       )}

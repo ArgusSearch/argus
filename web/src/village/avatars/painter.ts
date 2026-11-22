@@ -14,15 +14,16 @@ import {
 } from "bot-avatars";
 import { defaultLook, type CostumeKit, type Look } from "./costumes";
 import type { Persona } from "./personas";
+import { WORK_CUE_MS, type AvatarCue, type AvatarStatus } from "./state";
+
+export type { AvatarStatus } from "./state";
 
 /** The canvas is this many times the body box, as bot-avatars draws it (room for hops and fur). */
 export const OVERSCAN = 1.5;
 /** bot-avatars lifts the body this share of the box above the canvas center. */
 const RISE = 0.1;
 
-export type AvatarStatus = "idle" | "working" | "waiting" | "done" | "sleeping";
-
-const STATE: Record<AvatarStatus, BotAvatarState> = { idle: "default", working: "working", waiting: "default", done: "default", sleeping: "sleeping" };
+const STATE: Record<AvatarStatus, BotAvatarState> = { idle: "default", working: "default", waiting: "default", done: "default", sleeping: "sleeping" };
 
 const FUR = { length: 1, density: 1.6, fuzz: 0.9, clumps: 0.4, curl: 0.7, gravity: 0.9 };
 
@@ -60,6 +61,8 @@ export class AvatarPainter {
   private readonly fy: number;
   private readonly fs: number;
   private status: AvatarStatus = "idle";
+  private cueKey: AvatarCue["key"];
+  private cueAge = 0;
   private time = 0;
   /** the role costume, or null for the plain armored bot */
   readonly look: Look | null;
@@ -111,15 +114,22 @@ export class AvatarPainter {
     this.body = document.createElement("canvas");
   }
 
-  setStatus(status: AvatarStatus): void {
-    if (status === this.status) return;
+  setStatus(status: AvatarStatus, key?: AvatarCue["key"]): void {
+    if (status === this.status && key === this.cueKey) return;
     this.status = status;
+    this.cueKey = key;
+    this.cueAge = 0;
     this.sim.setState(STATE[status]);
   }
 
+  get moving(): boolean {
+    return this.status === "working" && this.cueAge < WORK_CUE_MS / 1000;
+  }
+
   /** Advances the body's motion by dt seconds (0 keeps the pose) and paints the whole avatar. */
-  paint(ctx: CanvasRenderingContext2D, box: number, dpr: number, dt: number): void {
+  paint(ctx: CanvasRenderingContext2D, box: number, dpr: number, dt: number, approval = false): void {
     this.time += dt;
+    this.cueAge = Math.min(WORK_CUE_MS / 1000, this.cueAge + dt);
     if (dt > 0) this.sim.update(dt);
     const a = box * OVERSCAN;
     const size = Math.max(1, Math.round(a * dpr));
@@ -169,6 +179,18 @@ export class AvatarPainter {
     }
     ctx.restore();
     if (this.look) this.costume(ctx, this.look, a, size, dpr, [F * C, W * C, -W * S, F * S, ox, oy], pose.yaw, pose.pitch, small);
+    if (approval) {
+      const x = a * 0.76;
+      const y = a * 0.28;
+      const radius = box * (0.1 + 0.014 * Math.sin(this.time * 4.5));
+      ctx.fillStyle = "#e5534b";
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x - box * 0.009, y - radius * 0.55, box * 0.018, radius * 0.7);
+      ctx.fillRect(x - box * 0.009, y + radius * 0.31, box * 0.018, box * 0.018);
+    }
   }
 
   /**
@@ -225,8 +247,9 @@ export class AvatarPainter {
       fs: this.fs,
       fur: this.persona.fur,
       glow: this.persona.glow,
-      time: this.time,
+      time: this.moving ? this.cueAge : 0,
       busy: this.status === "working",
+      workTime: this.moving ? this.cueAge : 0,
       face: (x: number, y: number) => this.project(x, y, yaw, pitch),
       yaw,
       small,
@@ -406,7 +429,7 @@ export class AvatarPainter {
       ctx.stroke();
     }
     // the light that runs along the visor: a slow glint, a fast sweep for the watcher's scan
-    const scan = p.detail === "scan";
+    const scan = p.detail === "scan" && this.moving;
     const sx = Math.sin(this.time * (scan ? 2.1 : 0.7)) * w * 0.9;
     const s = this.project(sx, y0, yaw, pitch);
     if (s) {
@@ -452,7 +475,7 @@ export class AvatarPainter {
     const ry = rx * 0.2;
     const cy = 30;
     const busy = this.status === "working";
-    const t = this.time * (busy ? 1.4 : 0.45);
+    const t = busy ? this.cueAge * 1.4 : 0;
     ctx.save();
     ctx.strokeStyle = rgba(p.glow, far ? 0.45 : 0.85);
     ctx.shadowColor = p.glow;

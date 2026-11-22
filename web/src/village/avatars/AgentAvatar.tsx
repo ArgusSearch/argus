@@ -4,19 +4,24 @@
 //   import { AgentAvatar } from "../village/avatars";
 //   <AgentAvatar role="operator" status="waiting" size={64} nameplate />
 //
-// status: idle (looks around), working (busy hop), waiting (needs you: coral badge), done (green check),
+// status: idle (breathing), working (role prop), waiting (needs you: coral badge), done (green check),
 // sleeping. With prefers-reduced-motion the still pose is painted once per change.
 
 import { useEffect, useRef } from "react";
 import type { RoleId } from "../roles";
 import { AvatarPainter, OVERSCAN, type AvatarStatus } from "./painter";
 import { agentName, PERSONAS } from "./personas";
+import type { AvatarCue } from "./state";
 import "./avatars.css";
 
 export interface AgentAvatarProps {
   role: RoleId;
   /** what the agent is doing; default idle */
   status?: AvatarStatus;
+  /** A different activity step retriggers the brief working motion. */
+  motionKey?: AvatarCue["key"];
+  /** Current step text for the Detective's thought bubble. */
+  thought?: string;
   /** body size in CSS px (the canvas is 1.5 times this, for hops and the HUD ring); default 64 */
   size?: number;
   /** show the acronym and the job title under the avatar */
@@ -51,7 +56,7 @@ function tick(now: number) {
   let live = false;
   for (const e of entries) {
     if (!e.visible) continue;
-    const moving = !e.paused && !still;
+    const moving = !e.paused && !still && e.painter.moving;
     if (!moving && !e.dirty) continue;
     const ctx = e.canvas.getContext("2d");
     if (!ctx) continue;
@@ -62,7 +67,7 @@ function tick(now: number) {
     }
     e.painter.paint(ctx, e.box, dpr, moving ? dt : 0);
     e.dirty = false;
-    if (moving) live = true;
+    if (moving && e.painter.moving) live = true;
   }
   if (live || [...entries].some((e) => e.dirty && e.visible)) schedule();
   else last = 0;
@@ -92,7 +97,7 @@ function watch(e: Entry) {
 
 let seedCounter = 0;
 
-export function AgentAvatar({ role, status = "idle", size = 64, nameplate = false, badge = true, paused = false, className }: AgentAvatarProps) {
+export function AgentAvatar({ role, status = "idle", motionKey, thought, size = 64, nameplate = false, badge = true, paused = false, className }: AgentAvatarProps) {
   const ref = useRef<HTMLCanvasElement>(null);
   const entry = useRef<Entry | null>(null);
   const persona = PERSONAS[role];
@@ -126,24 +131,27 @@ export function AgentAvatar({ role, status = "idle", size = 64, nameplate = fals
     if (!e) return;
     e.box = size;
     e.paused = paused;
-    e.painter.setStatus(status);
+    e.painter.setStatus(status, motionKey);
     e.dirty = true;
     schedule();
-  }, [size, status, paused]);
+  }, [size, status, motionKey, paused]);
 
   const name = agentName(role);
-  const label = `${name}, the ${persona.title}${status === "idle" ? "" : `, ${status === "waiting" ? "needs you" : status}`}`;
+  const step = role === "detective" && status === "working" ? thought : undefined;
+  const label = `${name}, the ${persona.title}${status === "idle" ? "" : `, ${status === "waiting" ? "needs you" : status}`}${step ? `. ${step}` : ""}`;
   return (
     <span
       className={`agent-avatar ${className ?? ""}`}
       data-role={role}
       data-status={status}
+      data-paused={paused || undefined}
       style={{ ["--av-size" as string]: `${size}px`, ["--av-glow" as string]: persona.glow }}
       role="img"
       aria-label={label}
     >
       <span className="agent-avatar-stage">
         <canvas ref={ref} aria-hidden="true" />
+        {step && <span className="agent-avatar-thought" aria-hidden="true" title={step}>{step}</span>}
         {badge && status === "waiting" && <span className="agent-avatar-badge need">!</span>}
         {badge && status === "done" && <span className="agent-avatar-badge done">✓</span>}
       </span>

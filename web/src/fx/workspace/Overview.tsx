@@ -13,8 +13,8 @@ import { GraphStage, sceneAvailable } from "../GraphStage";
 import { go, openIncidentPage } from "../nav";
 import { ActionCard } from "./ActionCard";
 import { proposalFor, useAgent, useHumanActions } from "./agent";
-import { AvatarSlot } from "./AvatarSlot";
-import { roleOf } from "../../lib/agent";
+import { AgentTeam, AvatarSlot } from "./AvatarSlot";
+import { activityAvatarRole } from "../../village/avatars/state";
 import { health, keyMetrics, tasks, tiles, type Check, type Health, type Task, type Tile } from "./health";
 import { CountUp, useCountUp, usePointerLight } from "./motion";
 import { affectedPath, type PathSubject } from "./path";
@@ -278,15 +278,21 @@ function AgentCard() {
         <i className={running ? "on" : undefined} aria-hidden="true" />
         {running ? `Working: ${running.kind === "ask" ? "answering a question" : running.kind === "verify_effect" ? "checking an action's effect" : "investigating"}` : "Watching. Quiet hours need no model call."}
       </p>
+      <AgentTeam />
       {lines.length > 0 && (
         <ol className="ws-agent-lines">
-          {lines.map((r) => (
-            <li key={r.seq}>
-              <AvatarSlot role={roleOf(r)} />
-              <span className="mono">{hhmm(r.sim_ts)}</span>
-              <span>{r.text || r.observation?.summary || r.kind.replace(/_/g, " ")}</span>
-            </li>
-          ))}
+          {lines.map((r) => {
+            const role = activityAvatarRole(r);
+            const current = agent.avatars[role];
+            const cue = current?.key === r.seq ? current : undefined;
+            return (
+              <li key={r.seq}>
+                <AvatarSlot role={role} cue={cue} paused={!cue} />
+                <span className="mono">{hhmm(r.sim_ts)}</span>
+                <span>{r.text || r.observation?.summary || r.kind.replace(/_/g, " ")}</span>
+              </li>
+            );
+          })}
         </ol>
       )}
     </Card>

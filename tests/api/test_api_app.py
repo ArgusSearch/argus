@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from argus.agent.fake import FakeLlmClient
 from argus.api.app import create_app, end_streams_on_exit
 from argus.api.hub import EventHub
 from argus.api.recording import FIXTURES, load_recording
@@ -217,6 +218,7 @@ def test_replay_reruns_recorded_receipts_on_the_same_world(s1_world: WorldPaths)
 @pytest.mark.e2e
 def test_live_run_control(s1_world: WorldPaths) -> None:
     source = LiveSource(s1_world.world, seconds_per_tick=30)
+    source.agent.client = FakeLlmClient()
     with TestClient(create_app(source)) as client:
         deadline = time.time() + 60
         while time.time() < deadline and client.get("/health").json()["run"]["position"] < 1:
@@ -227,6 +229,10 @@ def test_live_run_control(s1_world: WorldPaths) -> None:
         assert client.get("/health").json()["mode"] == "live"
         events = _blocks(client.get("/events?limit=2").text)
         assert [b["id"] for b in events] == ["1", "2"]
+        record = client.get("/agent/activity").json()["records"][0]
+        assert record["kind"] == "watch" and record["role"] == "watcher"
+        tick = source.bus.state.last_tick
+        assert tick is not None and f"Scored {len(tick.scored_nodes)} metrics" in record["text"]
 
 
 def test_exit_signal_ends_every_stream_then_reaches_the_server() -> None:

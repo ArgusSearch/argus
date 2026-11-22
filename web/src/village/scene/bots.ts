@@ -16,7 +16,8 @@ import {
   SpriteMaterial,
   Vector3,
 } from "three";
-import { AvatarPainter, OVERSCAN, type AvatarStatus } from "../avatars/painter";
+import { AvatarPainter, OVERSCAN } from "../avatars/painter";
+import { IDLE_AVATAR, type AvatarCue } from "../avatars/state";
 import { PERSONAS } from "../avatars/personas";
 import type { RoleId } from "../roles";
 import { glowTexture } from "./util";
@@ -37,11 +38,13 @@ export class Bot {
   /** seconds since the last paint; idle bots paint at a lower rate */
   private since = 1;
   private dirty = true;
-  status: AvatarStatus = "idle";
+  private cue = IDLE_AVATAR;
+  private readonly breathOffset: number;
 
   constructor(role: RoleId, seed: number, dpr: number, private readonly reduced: boolean) {
     this.role = role;
     this.dpr = dpr;
+    this.breathOffset = seed * Math.PI * 2;
     this.painter = new AvatarPainter(PERSONAS[role], seed, reduced);
     this.canvas = document.createElement("canvas");
     const px = Math.round(PAINT_BOX * OVERSCAN * dpr);
@@ -61,10 +64,15 @@ export class Bot {
     this.sprite.renderOrder = 3;
   }
 
-  setStatus(status: AvatarStatus): void {
-    this.status = status;
-    this.painter.setStatus(status);
+  setCue(cue: AvatarCue): void {
+    if (cue.status === this.cue.status && cue.key === this.cue.key) return;
+    this.cue = cue;
+    this.painter.setStatus(cue.status, cue.key);
     this.dirty = true;
+  }
+
+  breathe(time: number): void {
+    this.sprite.scale.y *= 0.99 + 0.01 * Math.cos(time * Math.PI / 2 + this.breathOffset);
   }
 
   /** Turns the head toward a direction on screen (x right, y up, about -1.5..1.5); strength 0 lets go. */
@@ -89,12 +97,12 @@ export class Bot {
     return bounce * 0.2 * amount;
   }
 
-  /** Paints when due: busy or walking bots every frame, the others about 20 times a second. */
-  update(dt: number, busy: boolean): boolean {
+  /** Paint the working prop or a walking bot every frame, with slower updates for idle poses. */
+  update(dt: number, walking: boolean): boolean {
     this.since += dt;
-    const due = busy ? 0 : 1 / 20;
+    const due = walking || this.painter.moving ? 0 : 1 / 20;
     if (!this.dirty && (this.reduced || this.since < due)) return false;
-    this.painter.paint(this.ctx, PAINT_BOX, this.dpr, this.reduced ? 0 : this.since);
+    this.painter.paint(this.ctx, PAINT_BOX, this.dpr, this.reduced ? 0 : this.since, this.cue.status === "waiting");
     this.since = 0;
     this.dirty = false;
     this.texture.needsUpdate = true;

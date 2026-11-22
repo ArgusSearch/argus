@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AgentAvatar } from "./avatars/AgentAvatar";
+import { IDLE_AVATAR, type AvatarCues } from "./avatars/state";
 import { measureKeepout, placePin } from "./Overlay";
 import type { Player } from "./player";
 import { APPROVAL_POST, ROLE, ROLES, type RoleId } from "./roles";
@@ -22,7 +23,7 @@ function at(box: Box, x: number, z: number, y = 0): [number, number] {
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-export function Village2D({ player, state, anchors, onSelect }: { player: Player; state: VillageState; anchors: Map<string, HTMLElement>; onSelect: (r: RoleId) => void }) {
+export function Village2D({ player, state, avatars, anchors, onSelect }: { player: Player; state: VillageState; avatars: AvatarCues; anchors: Map<string, HTMLElement>; onSelect: (r: RoleId) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const walker = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<Box>({ w: 1200, h: 700 });
@@ -100,7 +101,7 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
         .map((r) => {
           const [x, y] = at(box, r.x, r.z);
           const w = r.size * s * 2.2;
-          const rs = state.roles[r.id];
+          const rs = avatars[r.id] ?? IDLE_AVATAR;
           const busy = rs.status === "working";
           return (
             <button
@@ -113,7 +114,7 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
               <span className="vl-dome" />
               <span className="vl-room" />
               <span className="vl-bot2d" style={{ opacity: mover === r.id ? 0.25 : 1 }}>
-                <AgentAvatar role={r.id} size={Math.round(s * 1.55)} status={rs.status === "working" ? "working" : rs.status === "waiting" ? "waiting" : "idle"} badge={false} />
+                <AgentAvatar role={r.id} size={Math.round(s * 1.55)} status={rs.status} motionKey={rs.key} badge={rs.status === "waiting"} />
               </span>
             </button>
           );

@@ -15,6 +15,7 @@ import { agentApi, type ActivityRecord, type AskAnswer, type ReceiptLink } from 
 import { ApiError } from "../../lib/api";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { AvatarSlot } from "./AvatarSlot";
+import { activityAvatarRole } from "../../village/avatars/state";
 import { useAgent, type AgentState } from "./agent";
 
 type Listener = () => void;
@@ -144,14 +145,18 @@ function Evidence({ checks }: { checks: CheckStep[] }) {
 
 /** While an answer is on its way: what the answering run is doing now, else that Argus is checking, with the time. */
 function Waiting({ turn, records, streaming }: { turn: Turn; records: ActivityRecord[]; streaming: boolean }) {
+  const { avatars } = useAgent();
   const run = useMemo(() => {
     const groups = groupRuns(records.filter((r) => r.seq > turn.after)).filter((g) => g.kind === "ask" && isLive(g, streaming));
     return groups[groups.length - 1] ?? null;
   }, [records, turn.after, streaming]);
   const now = run ? liveLine(run) : null;
+  const last = run?.records[run.records.length - 1];
+  const role = last ? activityAvatarRole(last) : "narrator";
+  const current = avatars[role];
   return (
     <p className="ws-ask-wait" aria-live="polite">
-      <AvatarSlot role={now?.role ?? "detective"} status="working" />
+      <AvatarSlot role={role} cue={run && current?.runId === run.runId ? current : undefined} />
       <span className="au-live-text">
         <b className="au-shine">{now ? now.verb : "Checking"}</b>
         {now?.text && <span>{now.text}</span>}
@@ -329,10 +334,12 @@ function AskConversation({ agent, incident }: { agent: AgentState; incident: str
                 (() => {
                   const links = linksOf(t.answer);
                   const answered = t.answer.status === "answered" || t.answer.status === "ok";
+                  const narrator = agent.avatars.narrator;
+                  const cue = narrator?.runId && narrator.runId === t.answer.run_id ? narrator : undefined;
                   return (
                     <div className={`ws-ask-a${answered ? "" : " au-unanswered"}`}>
                       <span className="ws-ask-who">
-                        <AvatarSlot role="narrator" nameplate /> {answered ? "answers" : "could not answer"}
+                        <AvatarSlot role="narrator" nameplate cue={cue} paused={!cue} /> {answered ? "answers" : "could not answer"}
                       </span>
                       <AnswerText text={t.answer.answer} links={links} />
                       {!answered && t.answer.reason && t.answer.reason !== t.answer.answer && <p className="au-reason">{t.answer.reason}</p>}

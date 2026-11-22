@@ -14,6 +14,7 @@ import type { IncidentState } from "../../lib/types";
 import { proposalFor, useAgent } from "./agent";
 import { approve, useApproval } from "./approvals";
 import { AvatarSlot } from "./AvatarSlot";
+import { proposalAvatarCue } from "../../village/avatars/state";
 import { Pill } from "./ui";
 import type { Tone } from "./plain";
 
@@ -86,7 +87,7 @@ export function Proposal({ proposal, compact }: { proposal: ProposalView; compac
     <div className={`ws-act${compact ? " compact" : ""}`}>
       <p className="ws-act-text">
         <span className="ws-act-by">
-          <AvatarSlot role="operator" nameplate status={proposal.state === "AWAIT_OPERATOR" ? "waiting" : stage.reached === 3 ? "done" : "working"} />
+          <AvatarSlot role="operator" nameplate cue={proposalAvatarCue(proposal, agent.avatars.operator)} />
           applies it once you approve · {proposal.id}
         </span>
         {proposal.action}

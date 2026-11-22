@@ -5,6 +5,7 @@
 //     enabled (GET /agent/health), its activity log (GET /agent/activity) and proposals (GET /agent/actions).
 
 import { api, follow, type ConnectionState } from "../lib/api";
+import { agentApi } from "../lib/agent";
 import { apiUrl } from "../lib/deployment";
 import type { ArgusEvent, Incident } from "../lib/types";
 import type { ActivityRecord, ProposalView, TapeIncident, TapePlacement, VillageTape } from "./types";
@@ -106,12 +107,16 @@ export function followLive(onTape: (tape: VillageTape) => void, onState: (state:
     const page = await getJson<{ records: ActivityRecord[] }>(`/agent/activity?since=${activitySince}`);
     if (page?.records.length) {
       activitySince = page.records[page.records.length - 1].seq;
-      tape = { ...tape, activity: [...tape.activity, ...page.records] };
-      if (page.records.some((r) => r.kind.startsWith("action_"))) {
-        const actions = await getJson<ProposalView[]>("/agent/actions");
-        if (actions) tape = { ...tape, actions };
+      // The C5 tick already supplies this Watcher beat. Journal watch records drive the shared live avatars.
+      const records = page.records.filter((record) => record.kind !== "watch");
+      if (records.length) {
+        tape = { ...tape, activity: [...tape.activity, ...records] };
+        if (records.some((r) => r.kind.startsWith("action_"))) {
+          const actions = await getJson<ProposalView[]>("/agent/actions");
+          if (actions) tape = { ...tape, actions };
+        }
+        publish();
       }
-      publish();
     }
     if (!stopped) timer = window.setTimeout(pollAgent, 1500);
   };
@@ -187,21 +192,6 @@ export function followLive(onTape: (tape: VillageTape) => void, onState: (state:
 }
 
 /** Sends your decision on a real agent proposal. Resolves to the proposal's new state, or throws the API's reason. */
-export async function decideLive(proposal: ProposalView, decision: "approve" | "deny"): Promise<ProposalView> {
-  const key = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-  const res = await fetch(apiUrl(`/agent/actions/${encodeURIComponent(proposal.id)}/${decision}`), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ digest: proposal.digest, idempotency_key: key }),
-  });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* not JSON */
-    }
-    throw new Error(detail);
-  }
-  return (await res.json()) as ProposalView;
+export function decideLive(proposal: ProposalView, decision: "approve" | "deny"): Promise<ProposalView> {
+  return agentApi.decide(proposal.id, decision, proposal.digest, undefined, "live");
 }
