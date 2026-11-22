@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; form-action 'none'; base-uri 'none'">
+  <title>Argus Settings</title>
+  <link rel="stylesheet" href="settings.css">
+  <script src="settings.js" defer></script>
+</head>
+<body>
+  <form>
+    <label for="key">Anthropic API key</label>
+    <input id="key" type="password" required maxlength="512" autocomplete="off" spellcheck="false">
+    <p>Argus stores your key in the system credential store. Live runs can incur API charges.</p>
+    <div>
+      <button type="submit" disabled>Save key</button>
+      <button id="remove" type="button" disabled>Remove key</button>
+    </div>
+    <p id="status" role="status"></p>
+  </form>
+</body>
+</html>

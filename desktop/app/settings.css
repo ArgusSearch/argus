@@ -1,0 +1,27 @@
+:root {
+  color-scheme: light dark;
+  font: 15px/1.5 system-ui, sans-serif;
+}
+
+body {
+  margin: 24px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+}
+
+input {
+  box-sizing: border-box;
+  display: block;
+  font: inherit;
+  margin-top: 6px;
+  padding: 5px 8px;
+  width: 100%;
+}
+
+button {
+  font: inherit;
+  padding: 4px 10px;
+}

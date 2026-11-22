@@ -1,0 +1,17 @@
+{
+  "name": "argus-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Argus Mission Control and its local MockMart API",
+  "author": "Argus contributors",
+  "license": "MIT",
+  "main": "app/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  }
+}
