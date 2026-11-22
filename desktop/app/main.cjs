@@ -107,8 +107,22 @@ async function startWorkspace() {
     if (quitting) return;
     workspace ??= await createWorkspace();
     workspace.setTitle(windowTitle());
-    const query = info.mode === 'replay' ? '?agentdemo=s4' : '?view=overview';
-    await workspace.loadURL(`${info.origin}/${query}`);
+    const page = new URL(info.origin);
+    if (info.mode === 'replay') {
+      const replay = await next.request('/demo/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ scenario: 's4', variant: 'agent', speed: 1 }),
+      });
+      if (!replay.ok) throw new Error(`The sealed S4 replay did not start (${replay.status})`);
+      const { run_id: runId } = await replay.json();
+      if (!runId) throw new Error('The sealed S4 replay returned no run ID');
+      page.searchParams.set('agentrun', runId);
+    } else {
+      page.searchParams.set('view', 'overview');
+    }
+    if (quitting) return;
+    await workspace.loadURL(page.href);
     if (!smokeFile || smokeVisible) workspace.show();
   } catch (error) {
     await next.stop();

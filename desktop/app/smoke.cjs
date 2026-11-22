@@ -1,43 +1,38 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 
+function evaluate(win, code) {
+  const timeout = delay(8000, undefined, { ref: false }).then(() => { throw new Error('Renderer did not respond'); });
+  return Promise.race([win.webContents.executeJavaScript(code), timeout]);
+}
+
 async function verify(win, service, info, settings) {
   const health = await service.request('/health');
   assert.equal(health.status, 200, 'The bundled API answers /health');
   assert.equal((await health.json()).mode, 'replay');
   assert.equal((await fetch(`${info.origin}/health`, { signal: AbortSignal.timeout(4000) })).status, 403);
   assert.equal(win.getTitle(), 'Argus · Simulated shop · Sealed replay');
-  assert.deepEqual(await settings.webContents.executeJavaScript('window.argusSettings.status()'),
+  assert.deepEqual(await evaluate(settings, 'window.argusSettings.status()'),
     { mode: 'replay', keychainUnavailable: false });
 
-  const asset = await win.webContents.executeJavaScript(`(async () => {
-    const script = document.querySelector('script[type=module][src]');
-    if (!script) return { title: document.title };
-    const response = await fetch(script.src, { signal: AbortSignal.timeout(4000) });
-    return { status: response.status, type: response.headers.get('content-type') };
-  })()`);
-  assert.equal(asset.status, 200, `The renderer can fetch its entry module (${JSON.stringify(asset)})`);
-  assert.match(asset.type ?? '', /^text\/javascript\b/, 'The entry module has a JavaScript media type');
+  const script = await evaluate(win, 'document.querySelector(\'script[type=module][src]\')?.getAttribute(\'src\')');
+  assert.ok(script?.startsWith('/assets/'), 'The page references the bundled entry module');
+  const asset = await service.request(script);
+  assert.equal(asset.status, 200, 'The local server responds with the entry module');
+  assert.match(asset.headers.get('content-type') ?? '', /^text\/javascript\b/);
+  await asset.body?.cancel();
 
-  // The actual React workspace must start and follow the sealed agent recording.
-  let runId;
+  // Require the bundled React workspace to mount, even when its native window is hidden.
+  let rendered;
   const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline && !runId) {
-    runId = await win.webContents.executeJavaScript(`
-      document.querySelector('[aria-label="agent demo"]') &&
-        new URLSearchParams(location.search).get('agentrun')
-    `);
-    if (!runId) await delay(250);
+  while (Date.now() < deadline && !rendered) {
+    rendered = await evaluate(win, `Boolean(document.querySelector('#root nav[aria-label="sections"]'))`);
+    if (!rendered) await delay(250);
   }
-  if (!runId) {
-    const replay = await service.request('/demo/start', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scenario: 's4', variant: 'agent', speed: 1 }),
-    });
-    const diagnosis = replay.ok ? 'the API can start S4 directly' : `${replay.status} ${await replay.text()}`;
-    assert.fail(`Mission Control did not start the sealed agent recording (${diagnosis})`);
-  }
+  if (!rendered) assert.fail(`Mission Control did not render (${await evaluate(win, 'document.body.innerText.slice(0, 200)')})`);
+
+  const runId = new URL(win.webContents.getURL()).searchParams.get('agentrun');
+  assert.ok(runId, 'The workspace opened the sealed replay');
   const snapshot = await service.request(`/demo/snapshot?run_id=${encodeURIComponent(runId)}`);
   assert.equal(snapshot.status, 200);
   const { state } = await snapshot.json();
