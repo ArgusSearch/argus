@@ -86,10 +86,10 @@ export function ScorecardView() {
                     </th>
                     {card.agents.map((a) => {
                       const cell = line.cells[a];
-                      if (!cell) return <td key={a} className="muted">not run</td>;
+                      if (!cell) return <td key={a} className="muted" data-label={AGENT_TEXT[a] ?? a}>not run</td>;
                       const r = cell.row;
                       return (
-                        <td key={a} className={`sc-cell t-${cell.tone}`}>
+                        <td key={a} className={`sc-cell t-${cell.tone}`} data-label={AGENT_TEXT[a] ?? a}>
                           <div className="sc-pass">
                             <b>{cell.passLabel}</b> passed
                             <span className="muted" title="chance that k runs of this scenario all pass (pass^k)">
