@@ -232,7 +232,7 @@ class LiveSource:
         self._wake.set()
 
     async def closed(self) -> None:
-        # Stopping ticks leaves published receipts available until the server shuts down.
+        # A stopped monitor can still serve receipt SQL until the API closes.
         self.runtime.runner.cancel()
         if self._thread is not None:
             await asyncio.to_thread(self._thread.join, 30)
