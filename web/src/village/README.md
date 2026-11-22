@@ -7,7 +7,7 @@ Click an igloo or a name plate for that agent's tool log.
 
 ## Where it shows
 
-- In the workspace (`?fx=1`): lane E's `web/src/fx/workspace/Workspace.tsx` loads `Village.tsx` for the `village` section.
+- In the workspace (the default Argus Ice interface): lane E's `web/src/fx/workspace/Workspace.tsx` loads `Village.tsx` for the `village` section.
   "Metric map" in the village's header opens the existing visualization page.
 - Standalone, for development and captures: `npm run dev`, then `/src/village/lab/index.html`.
 - The avatar sheet and the brand-kit exporter: `/src/village/avatars/sheet/index.html`.

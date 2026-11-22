@@ -8,6 +8,7 @@ import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
+import { EntryGate } from "../entry/EntryGate";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
 import { AgentDemoControl } from "./AgentDemoControl";
@@ -80,6 +81,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
       <AskPanel incident={section === "incident" ? incident : null} />
+      <EntryGate />
     </>
   );
 }
@@ -192,7 +194,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
       </div>
       <div className="fx-side-main">
       {agent.enabled && (
-        <button className={`fx-side-ask${asking ? " on" : ""}`} onClick={() => setAskOpen(!asking)} aria-expanded={asking} title="Ask Argus (/)">
+        <button className={`fx-side-ask${asking ? " on" : ""}`} onClick={() => setAskOpen(!asking)} aria-expanded={asking} aria-label="Ask Argus" title="Ask Argus (/)">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2zM5.5 6.5h5M5.5 8.5h3" />
           </svg>
@@ -207,6 +209,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
             <button
               className={`fx-side-item${current === item.id ? " on" : ""}`}
               aria-current={current === item.id ? "page" : undefined}
+              aria-label={item.label}
               title={item.hint}
               onClick={() => go(item.id)}
             >
