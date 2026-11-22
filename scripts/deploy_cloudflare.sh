@@ -93,13 +93,14 @@ scan() {
 }
 
 build_web() {
-  local offline=$1 source=$release hook
+  local offline=$1 source=$release base
   if [ ! -f "$release/web/src/lib/deployment.ts" ]; then
-    if [ ! -s "$state/web-hook.patch" ]; then
-      hook=$(git -C "$bin/.." log -1 --format=%H -- web/src/lib/deployment.ts)
-      [ -n "$hook" ] || fail "The web deployment hook is missing."
-      git -C "$bin/.." show --format= "$hook" -- web > "$state/web-hook.patch"
+    if [ "$bin" != "$state/runner" ]; then
+      base=$(git -C "$bin/.." merge-base HEAD origin/main)
+      git -C "$bin/.." diff --binary "$base" HEAD -- web > "$state/web-hook.patch.new"
+      mv "$state/web-hook.patch.new" "$state/web-hook.patch"
     fi
+    [ -s "$state/web-hook.patch" ] || fail "The web deployment hook is missing."
     # The first main release may predate the hook. Patch a build copy and leave the API clone clean.
     source=$(mktemp -d "$state/web-source.XXXXXXXX")
     git -C "$release" archive HEAD | tar -x -C "$source"

@@ -163,7 +163,6 @@ export function back() {
 /** Follows the view host's tab bar: a switch the layer did not ask for (demo mode, the 1 to 5 keys) wins. */
 export function watchHost(): () => void {
   const bar = document.querySelector(".vh-tabs");
-  if (!bar) return () => undefined;
   const sync = () => {
     const tab = hostTab();
     if (!tab) return;
@@ -179,7 +178,7 @@ export function watchHost(): () => void {
     const { section, incident } = initialLocation(window.location.search);
     show(section, incident, true);
   };
-  observer.observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
+  if (bar) observer.observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
   window.addEventListener("popstate", restore);
   return () => {
     observer.disconnect();

@@ -1,6 +1,6 @@
 # Argus on Cloudflare
 
-Cloudflare Pages project `argus-eye` serves [the Argus Ice web app](https://argus.caniberk.dev). The Studio runs the API on `127.0.0.1:18080`. The locally managed named tunnel `argus-api` serves [the public API](https://argus-api.caniberk.dev/health). The temporary Pages-only build at [argus-eye.pages.dev](https://argus-eye.pages.dev) opens the sealed challenge result, including the browser's commitment check.
+Cloudflare Pages project `argus-eye` serves [the Argus Ice web app](https://argus.caniberk.dev). The Studio runs the API on `127.0.0.1:18080`. The locally managed named tunnel `argus-api` serves [the public API](https://argus-api.caniberk.dev/health). The temporary Pages-only build at [argus-eye.pages.dev](https://argus-eye.pages.dev) opens the sealed challenge result with its commitment check and links to Settings. Live settings report their availability without contacting the API.
 
 ## Activate on the Studio
 

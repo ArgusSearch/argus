@@ -1,11 +1,12 @@
-// Reads for the views that `lib/api.ts` does not offer (yet). Same rules: relative paths, errors as ApiError.
+// Reads for the views that `lib/api.ts` does not offer (yet). Same error handling as the main API client.
 
 import { ApiError } from "../lib/api";
+import { apiUrl } from "../lib/deployment";
 import type { Incident, Note } from "../lib/types";
 import { isScorecard } from "./scorecard";
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
+  const res = await fetch(apiUrl(path), { headers: { accept: "application/json" } });
   if (!res.ok) {
     let detail = res.statusText;
     try {

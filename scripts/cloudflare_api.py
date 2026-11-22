@@ -96,8 +96,10 @@ def origin_app(world: Path | None):
             receive = receive_body
 
         query = parse_qs(scope["query_string"].decode("ascii", errors="replace"))
-        recorded = path in {"/demo", "/openapi.json"} or path.startswith("/demo/") or (
-            path.startswith("/agent/") and "run_id" in query
+        recorded = (
+            path in {"/demo", "/openapi.json"}
+            or path.startswith("/demo/")
+            or (path.startswith("/agent/") and "run_id" in query)
         )
         if path.startswith("/agent/") and headers.get("origin") == WEB_ORIGIN:
             # The outer middleware has verified the public demo origin. OperatorGate still requires its
@@ -121,8 +123,11 @@ def origin_app(world: Path | None):
         await send({"type": "lifespan.shutdown.complete"})
 
     return CORSMiddleware(
-        dispatch, allow_origins=[WEB_ORIGIN], allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "X-Argus-CSRF"], allow_credentials=True,
+        dispatch,
+        allow_origins=[WEB_ORIGIN],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "X-Argus-CSRF"],
+        allow_credentials=True,
     )
 
 
@@ -131,6 +136,4 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--world", type=Path)
     args = parser.parse_args()
-    uvicorn.run(
-        origin_app(args.world), host="127.0.0.1", port=args.port, proxy_headers=False, ws="none", lifespan="on"
-    )
+    uvicorn.run(origin_app(args.world), host="127.0.0.1", port=args.port, proxy_headers=False, ws="none", lifespan="on")

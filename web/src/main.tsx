@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ChallengeGate } from "./challenge";
 import { StyleProvider } from "./fx";
-import { EntryGate } from "./fx/entry/EntryGate";
+import { StaticWorkspace } from "./fx/workspace/Workspace";
 import { staticReplay } from "./lib/deployment";
 import "./styles.css";
 
@@ -15,7 +15,7 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <StyleProvider>
       <ChallengeGate>
-        {staticReplay ? <EntryGate /> : <App />}
+        {staticReplay ? <StaticWorkspace /> : <App />}
       </ChallengeGate>
     </StyleProvider>
   </StrictMode>,

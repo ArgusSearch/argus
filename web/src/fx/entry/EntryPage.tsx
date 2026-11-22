@@ -139,7 +139,9 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
               <path d="M3 8h9.5M8.5 4l4 4-4 4" />
             </svg>
           </button>
-          {!staticReplay && (
+          {staticReplay ? (
+            <a className="fx-entry-alt" href="/?view=settings&tab=quiet-hours">Settings</a>
+          ) : (
             <>
               <a className="fx-entry-alt" href="/?demo=1&captions=1&fx=1">
                 Or watch the guided demo: one incident, start to finish
