@@ -1,0 +1,32 @@
+appId: dev.argussearch.argus
+productName: Argus
+icon: build/web/favicon.svg
+artifactName: Argus-${version}-${os}-${arch}.${ext}
+directories:
+  output: dist
+files:
+  - app/**
+  - package.json
+extraResources:
+  - from: build/sidecar/argus-sidecar
+    to: sidecar
+  - from: build/web
+    to: sidecar/web/dist
+  - from: ../fixtures
+    to: sidecar/fixtures
+  - from: ../graph
+    to: sidecar/graph
+  - from: ../metrics
+    to: sidecar/metrics
+mac:
+  target: dmg
+  identity: null
+  hardenedRuntime: false
+  category: public.app-category.business
+win:
+  target: nsis
+  signExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  runAfterFinish: false

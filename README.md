@@ -49,6 +49,12 @@ Open [Mission Control](http://127.0.0.1:8000/). The recorded S1 world starts on 
 
 For a fresh simulation with live SQL re-runs, use `make demo` in place of `make api`. To run and grade the PayCo investigation in the terminal, use `make s1`.
 
+## Desktop app
+
+Argus Desktop opens Mission Control with the bundled local API and the sealed MockMart replay. Open **Settings** from the app menu to save your own Anthropic API key and run the live agent over the simulated shop.
+
+On macOS, drag `Argus.app` from the unsigned DMG to Applications. For a trusted build, use **right-click Open**, **System Settings → Privacy & Security → Open Anyway**, or `xattr -cr /Applications/Argus.app` if macOS blocks the launch. On Windows, download **Argus-Windows-x64** from a successful Desktop workflow run, extract the ZIP and run the included installer. [Build and installation instructions](desktop/README.md)
+
 ## How the app works
 
 ### 1. Start with Overview

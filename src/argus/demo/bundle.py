@@ -165,7 +165,7 @@ def read_bundle(
         if (
             not artifact.resolve().is_relative_to(root)
             or ".." in relative.parts
-            or str(relative) != name
+            or relative.as_posix() != name
             or relative.is_absolute()
             or artifact.is_symlink()
         ):
