@@ -39,11 +39,13 @@ def apply_s5(params: WorldParams, rng: np.random.Generator) -> Callable[[Path], 
     demand = rng.lognormal(0, 0.015, cfg.hours)
     demand[onset : onset + market_hours] *= 1 - market_drop
     params.mu_sessions *= demand[:, None]
+    # The index is published at four decimals, like a real feed. Unrounded, its last bits would come from the
+    # platform's exp() and differ between macOS and Linux, and so would the world.
     feed = pd.DataFrame(
         {
             "ts": params.hours,
             "ingested_at": params.hours + pd.Timedelta(hours=DELIVERY_LAG_HOURS),
-            "demand_index": 100 * demand * rng.lognormal(0, 0.012, cfg.hours),
+            "demand_index": np.round(100 * demand * rng.lognormal(0, 0.012, cfg.hours), 4),
         }
     )
 

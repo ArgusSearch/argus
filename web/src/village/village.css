@@ -1,0 +1,848 @@
+/* Argus Village. Reads the Argus Ice tokens when the style layer is on, with the same values as fallbacks so
+   the page also stands alone (the lab page, the 2D capture). */
+
+.vl-root {
+  --vl-ink: var(--fx-ink-0, #0b1320);
+  --vl-ink-2: var(--fx-ink-2, #3a4560);
+  --vl-ink-3: var(--fx-ink-3, #4f5973);
+  --vl-glass: var(--fx-glass-2, rgba(244, 247, 251, 0.82));
+  --vl-edge: var(--fx-edge, clamp(16px, 2.6vw, 40px));
+  --vl-mono: var(--fx-font-mono, "IBM Plex Mono", ui-monospace, Menlo, monospace);
+  --vl-sans: var(--fx-font-sans, Inter, ui-sans-serif, system-ui, sans-serif);
+  --vl-ok: #2f9e6e;
+  --vl-need: #e5534b;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 520px;
+  overflow: hidden;
+  border-radius: var(--vl-radius, 0);
+  background: linear-gradient(180deg, #c3c9d6, #a2a8b5 60%);
+  color: var(--vl-ink);
+  font: 14px/1.4 var(--vl-sans);
+  isolation: isolate;
+}
+
+.vl-stage,
+.vl-stage3d,
+.vl-stage2d {
+  position: absolute;
+  inset: 0;
+}
+
+.vl-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.vl-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 500 13px var(--vl-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* ------------------------------------------------------------- pins over the igloos */
+
+.vl-pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vl-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  will-change: transform;
+}
+
+.vl-pin-role .vl-pin-inner {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 280px;
+}
+
+.vl-pin-role.on {
+  z-index: 2;
+}
+
+.vl-bubble {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 13px;
+  border: 0;
+  border-radius: 15px;
+  color: #fff;
+  font: 800 15px/1 var(--vl-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 12px 26px -12px rgba(11, 19, 32, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: auto;
+  animation: vl-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vl-bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 9px);
+  bottom: -8px;
+  border: 9px solid transparent;
+  border-bottom: 0;
+  border-top-color: var(--bubble);
+}
+
+.vl-bubble.working,
+.vl-bubble.finished {
+  --bubble: var(--vl-ok);
+  background: var(--vl-ok);
+}
+
+.vl-bubble.need {
+  --bubble: var(--vl-need);
+  background: var(--vl-need);
+  cursor: pointer;
+  animation:
+    vl-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    vl-need 1.6s ease-in-out 400ms infinite;
+}
+
+.vl-bubble.need:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.vl-bang {
+  position: absolute;
+  top: -13px;
+  right: -11px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--vl-need);
+  font: 900 16px/25px var(--vl-sans);
+  text-align: center;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+}
+
+.vl-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--vl-ink);
+  font: 600 11.5px/1 var(--vl-mono);
+  letter-spacing: 0;
+}
+
+.vl-clock::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border: 1.6px solid currentColor;
+  border-radius: 50%;
+  background: linear-gradient(currentColor, currentColor) 50% 30% / 1.4px 3.4px no-repeat;
+}
+
+.vl-line {
+  max-width: 280px;
+  text-align: center;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(244, 247, 251, 0.9);
+  box-shadow: inset 3px 0 0 var(--role), 0 8px 20px -12px rgba(11, 19, 32, 0.5);
+  color: var(--vl-ink);
+  font: 500 12px/1.3 var(--vl-mono);
+  animation: vl-pop 300ms ease-out;
+}
+
+@keyframes vl-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+}
+
+@keyframes vl-need {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.vl-plate {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 9px 5px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(11, 19, 32, 0.74);
+  box-shadow: inset 0 -2px 0 var(--role);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 150ms ease;
+}
+
+.vl-plate b {
+  font: 600 11.5px/1.1 var(--vl-mono);
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+.vl-plate span {
+  font: 500 9.5px/1.1 var(--vl-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--role);
+}
+
+.vl-plate:hover,
+.vl-pin-role.selected .vl-plate {
+  background: rgba(11, 19, 32, 0.92);
+}
+
+.vl-pin-file {
+  transition: opacity 200ms ease;
+}
+
+.vl-file {
+  position: absolute;
+  transform: translate(-100%, -100%);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(21, 86, 179, 0.88);
+  color: #fff;
+  font: 600 10.5px/1.3 var(--vl-mono);
+  white-space: nowrap;
+}
+
+.vl-pin-file.waiting .vl-file {
+  background: rgba(229, 83, 75, 0.92);
+}
+
+/* ------------------------------------------------------------- HUD */
+
+.vl-hud {
+  position: absolute;
+  z-index: 5;
+}
+
+.vl-hud-tl {
+  top: var(--vl-edge);
+  left: var(--vl-edge);
+}
+
+.vl-hud-tr {
+  top: var(--vl-edge);
+  right: var(--vl-edge);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.vl-hud-bl {
+  left: var(--vl-edge);
+  bottom: var(--vl-edge);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vl-hud-bc {
+  left: 50%;
+  bottom: var(--vl-edge);
+  transform: translateX(-50%);
+  max-width: min(640px, 46vw);
+}
+
+.vl-kicker {
+  font: 500 12px var(--vl-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.vl-hud-tl h1 {
+  margin: 4px 0 10px;
+  font: 700 26px/1.1 var(--vl-sans);
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 1px 16px rgba(11, 19, 32, 0.18);
+}
+
+.vl-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(11, 19, 32, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.vl-seg button,
+.vl-controls button {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.86);
+  font: 600 12px var(--vl-mono);
+  letter-spacing: 0.04em;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.vl-seg button:hover,
+.vl-controls button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.vl-seg button.on {
+  background: #fff;
+  color: var(--vl-ink);
+}
+
+.vl-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: #fff;
+  font: 500 12px var(--vl-mono);
+  text-align: right;
+  text-shadow: 0 1px 10px rgba(11, 19, 32, 0.25);
+}
+
+.vl-meta b {
+  font: 600 18px var(--vl-mono);
+}
+
+.vl-live {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(11, 19, 32, 0.45);
+}
+
+.vl-live.open::before {
+  content: "● ";
+  color: #3fdf8f;
+}
+
+.vl-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(11, 19, 32, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.vl-speeds {
+  display: inline-flex;
+  margin-left: 4px;
+  padding-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.vl-speeds button.on {
+  background: #fff;
+  color: var(--vl-ink);
+}
+
+.vl-progress {
+  position: relative;
+  width: 260px;
+  height: 22px;
+  border-radius: 8px;
+  background: rgba(11, 19, 32, 0.32);
+  overflow: hidden;
+}
+
+.vl-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.vl-progress span {
+  position: relative;
+  display: block;
+  padding: 0 9px;
+  font: 500 11px/22px var(--vl-mono);
+  color: #fff;
+}
+
+.vl-caption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px 7px 8px;
+  border-radius: 14px;
+  background: var(--vl-glass);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -2px 0 var(--role), 0 20px 50px -26px rgba(11, 19, 32, 0.5);
+  backdrop-filter: blur(18px) saturate(1.15);
+  font: 500 13px/1.3 var(--vl-sans);
+}
+
+.vl-caption b {
+  font: 600 12px var(--vl-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.vl-caption span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- the role panel */
+
+.vl-panel {
+  position: absolute;
+  z-index: 8;
+  top: var(--vl-edge);
+  right: var(--vl-edge);
+  bottom: var(--vl-edge);
+  width: min(400px, calc(100% - 2 * var(--vl-edge)));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 12px;
+  border-radius: 16px;
+  background: var(--vl-glass);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 3px 0 var(--role), 0 30px 70px -30px rgba(11, 19, 32, 0.55);
+  backdrop-filter: blur(22px) saturate(1.15);
+  animation: vl-slide 320ms cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+@keyframes vl-slide {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.vl-panel header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vl-panel-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.vl-panel .vl-kicker {
+  color: var(--vl-ink-3);
+}
+
+.vl-panel h2 {
+  margin: 2px 0 0;
+  font: 600 22px/1.1 var(--vl-mono);
+  letter-spacing: 0.03em;
+}
+
+.vl-meaning {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--vl-ink-3);
+}
+
+.vl-x {
+  align-self: flex-start;
+  border: 0;
+  background: rgba(11, 19, 32, 0.07);
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  color: var(--vl-ink-2);
+}
+
+.vl-job {
+  margin: 0;
+  font-size: 13px;
+  color: var(--vl-ink-2);
+}
+
+.vl-now {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 3px 0 0 var(--role);
+}
+
+.vl-now span {
+  font: 600 10.5px var(--vl-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-ink-3);
+}
+
+.vl-now.working span {
+  color: var(--vl-ok);
+}
+
+.vl-now.waiting span {
+  color: var(--vl-need);
+}
+
+.vl-now b {
+  font: 500 13px/1.35 var(--vl-mono);
+}
+
+.vl-panel h3 {
+  margin: 4px 0 0;
+  font: 600 12px var(--vl-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vl-ink-2);
+}
+
+.vl-panel h3::before {
+  content: "// ";
+  color: var(--vl-ink-3);
+}
+
+.vl-panel h3 small {
+  margin-left: 6px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--vl-ink-3);
+}
+
+.vl-empty {
+  font-size: 13px;
+  color: var(--vl-ink-3);
+}
+
+.vl-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vl-entry {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.66);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.vl-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.vl-time {
+  font: 500 11px var(--vl-mono);
+  color: var(--vl-ink-3);
+}
+
+.vl-entry code {
+  font: 600 11px var(--vl-mono);
+  color: var(--vl-ink-2);
+}
+
+.vl-chip {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: 600 10.5px var(--vl-mono);
+  background: rgba(11, 19, 32, 0.08);
+  color: var(--vl-ink-2);
+}
+
+.vl-chip.ok {
+  background: rgba(12, 107, 74, 0.12);
+  color: #0c6b4a;
+}
+
+.vl-chip.out {
+  background: rgba(79, 89, 115, 0.14);
+  color: #3a4560;
+}
+
+.vl-chip.alarm,
+.vl-chip.wait {
+  background: rgba(179, 25, 42, 0.12);
+  color: #b3192a;
+}
+
+.vl-entry b {
+  font-weight: 600;
+}
+
+.vl-entry p {
+  margin: 3px 0 0;
+  color: var(--vl-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.vl-entry .vl-hyp {
+  font-style: italic;
+}
+
+.vl-receipts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.vl-receipts span {
+  font: 500 10.5px var(--vl-mono);
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(21, 86, 179, 0.1);
+  color: #1556b3;
+}
+
+/* ------------------------------------------------------------- approval */
+
+.vl-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(162, 168, 181, 0.45);
+  backdrop-filter: blur(6px);
+  animation: vl-fade 200ms ease-out;
+}
+
+@keyframes vl-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.vl-approval {
+  width: min(480px, calc(100% - 32px));
+  padding: 20px 22px 18px;
+  border-radius: 18px;
+  background: var(--vl-glass);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 3px 0 var(--vl-need), 0 40px 90px -30px rgba(11, 19, 32, 0.6);
+  backdrop-filter: blur(22px) saturate(1.15);
+  animation: vl-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vl-approval header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vl-approval .vl-kicker {
+  color: var(--vl-need);
+}
+
+.vl-approval h2 {
+  margin: 2px 0 0;
+  font: 700 22px/1.15 var(--vl-sans);
+}
+
+.vl-action {
+  margin: 14px 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  font: 500 14px/1.4 var(--vl-mono);
+}
+
+.vl-terms {
+  margin: 0 0 10px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.vl-terms div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+}
+
+.vl-terms dt {
+  color: var(--vl-ink-3);
+}
+
+.vl-terms dd {
+  margin: 0;
+}
+
+.vl-note {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--vl-ink-3);
+}
+
+.vl-error {
+  margin: 0 0 10px;
+  color: #b3192a;
+  font-size: 13px;
+}
+
+.vl-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.vl-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font: 700 14px var(--vl-sans);
+  cursor: pointer;
+}
+
+.vl-btn.approve {
+  background: var(--vl-ok);
+  color: #fff;
+}
+
+.vl-btn.deny {
+  background: rgba(11, 19, 32, 0.08);
+  color: var(--vl-ink);
+}
+
+.vl-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+/* ------------------------------------------------------------- the 2D stage */
+
+.vl-stage2d {
+  background: radial-gradient(ellipse 70% 55% at 50% 52%, #f6f8fc 0%, #e8edf5 58%, rgba(232, 237, 245, 0) 72%), linear-gradient(180deg, #c3c9d6, #a2a8b5);
+}
+
+.vl-paths {
+  position: absolute;
+  inset: 0;
+}
+
+.vl-paths line {
+  stroke: #dbe4f0;
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+
+.vl-paths ellipse {
+  fill: #dbe4f0;
+}
+
+.vl-igloo2d {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.vl-dome {
+  position: absolute;
+  inset: 0;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(120, 150, 190, 0.28) 0 1.5px, transparent 1.5px 16%),
+    linear-gradient(160deg, #ffffff, #d6e4f6 55%, #b8cce6);
+  box-shadow: inset 0 -6px 16px rgba(120, 150, 190, 0.35), 0 10px 22px -12px rgba(11, 19, 32, 0.35);
+}
+
+.vl-room {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 78%;
+  border-radius: 50% 50% 0 0 / 90% 90% 0 0;
+  background: radial-gradient(ellipse 80% 70% at 50% 75%, #ffd8a0, #e9b678 45%, #b98350 100%);
+  box-shadow: inset 0 6px 14px rgba(90, 50, 20, 0.35);
+}
+
+.vl-igloo2d.busy .vl-room {
+  background: radial-gradient(ellipse 80% 70% at 50% 75%, #ffe7c0, #f2c487 45%, #c4905a 100%);
+}
+
+.vl-bot2d {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+  transition: opacity 200ms ease;
+}
+
+.vl-walker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vl-bubble,
+  .vl-bubble.need,
+  .vl-line,
+  .vl-panel,
+  .vl-approval {
+    animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .vl-hud-tl h1 {
+    font-size: 20px;
+  }
+  .vl-hud-bc {
+    display: none;
+  }
+}
+
+/* inside the workspace: a framed panel like the other pages */
+.ws-village .vl-root {
+  --vl-radius: 14px;
+  box-shadow: 0 24px 60px -30px rgba(11, 19, 32, 0.35);
+}
