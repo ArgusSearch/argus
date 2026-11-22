@@ -91,7 +91,8 @@ health() {
   curl -fsS --max-time 5 -H "Origin: $web" "$1/health" | jq -e '.status == "ok" and .mode == "live"' >/dev/null
 }
 
-for ((attempt=0; attempt<30; attempt++)); do
+# Allow the local API to finish importing dependencies under load.
+for ((attempt=0; attempt<120; attempt++)); do
   kill -0 "$api_pid" || fail "Argus API exited. See $state/api.log."
   if health "$loopback"; then break; fi
   sleep 1
