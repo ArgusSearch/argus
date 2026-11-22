@@ -250,6 +250,27 @@
   flex: 1;
 }
 
+/* phones: the search gets its own line and the two buttons share the next one, instead of a lone "Collapse" */
+@media (max-width: 700px) {
+  .tv .vw-bar {
+    flex-wrap: wrap;
+  }
+
+  .tv .vw-bar > div:first-child,
+  .tv .vw-search {
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  .tv .vw-bar .btn {
+    flex: 1;
+  }
+
+  .tv .tv-fill {
+    display: none;
+  }
+}
+
 .tv-link {
   border: 0;
   background: none;
