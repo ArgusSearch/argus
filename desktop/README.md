@@ -13,7 +13,7 @@ Open **Argus → Settings** on macOS or **File → Settings** on Windows. The sh
 
 ## Build and smoke-test
 
-Use Python 3.13 with `uv` and Node.js 24 or newer. Build on the host OS and architecture you want to ship. Run these from the repository root, one at a time.
+Use Python 3.13 with `uv` and Node.js 24 or newer. Build on the host OS and architecture you want to ship. On Windows, pass `--config core.autocrlf=false` to `git clone` to preserve the bytes verified by the sealed replay manifest. The Windows workflow applies the same setting at checkout. Run these from the repository root, one at a time.
 
 ```sh
 npm --prefix web ci
@@ -37,4 +37,4 @@ The Desktop workflow builds the **Argus-Windows-x64** artifact for relevant pull
 
 Both `node` and `cargo` were available on the Apple Silicon build host. Electron provides the same Chromium runtime on macOS and Windows and manages the bundled Python child process through standard pipes. PyInstaller builds that child alongside the locked FastAPI and DuckDB dependencies. The OS allocates an ephemeral `127.0.0.1` port, and each launch uses a private session token. The app waits for `/health` before opening Mission Control, retries a crashed sidecar once and closes the sidecar's control pipe on quit.
 
-The build reuses FastAPI's existing static mount and health route. The frozen Python layout preserves the existing resource lookup, and the Vite build uses same-origin requests. This integration requires zero source changes under `web/` or `src/argus/`.
+The build reuses FastAPI's existing static mount and health route. The frozen Python layout preserves the existing resource lookup, and the Vite build uses same-origin requests. The replay loader compares artifact names in the manifest's forward-slash format so that nested artifacts verify on Windows. The desktop app builds directly from `web/`.

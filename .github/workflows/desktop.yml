@@ -32,6 +32,11 @@ jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      # The replay manifest verifies the exact bytes of the recordings.
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
     steps:

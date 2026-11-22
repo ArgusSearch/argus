@@ -20,7 +20,15 @@ async function verify(win, service, info, settings) {
     `);
     if (!runId) await delay(250);
   }
-  assert.ok(runId, 'Mission Control rendered and started the sealed agent recording');
+  if (!runId) {
+    const replay = await service.request('/demo/start', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: 's4', variant: 'agent', speed: 1 }),
+    });
+    const diagnosis = replay.ok ? 'the API can start S4 directly' : `${replay.status} ${await replay.text()}`;
+    assert.fail(`Mission Control did not start the sealed agent recording (${diagnosis})`);
+  }
   const snapshot = await service.request(`/demo/snapshot?run_id=${encodeURIComponent(runId)}`);
   assert.equal(snapshot.status, 200);
   const { state } = await snapshot.json();
