@@ -5,6 +5,7 @@
 
 @media (max-width: 1179px) {
   :root[data-fx][data-fx-section] .app {
+    --fx-mobile-menu-row: 44px;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto;
     grid-template-areas: "side" "head" "body" "band";
@@ -21,7 +22,7 @@
     z-index: 10;
     top: 0;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: minmax(44px, auto);
+    grid-template-rows: minmax(var(--fx-mobile-menu-row), auto);
     grid-auto-rows: max-content;
     align-content: start;
     align-items: center;
@@ -47,7 +48,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--fx-space-2);
-    min-height: 44px;
+    min-height: var(--fx-mobile-menu-row);
     padding: 0 var(--fx-space-3);
     border: var(--fx-hair) solid var(--line-2);
     border-radius: var(--fx-radius-1);
@@ -104,6 +105,10 @@
 
   :root[data-fx][data-fx-section] :is(.fx-dash, .vh-view, .graph) {
     grid-area: body;
+  }
+
+  :root[data-fx] .cs-settings .cs-main {
+    scroll-margin-block-start: calc(var(--fx-mobile-menu-row) + 2 * var(--fx-space-2) + 2 * var(--fx-hair) + var(--fx-space-3));
   }
 
   :root[data-fx] :is(.fx-dash, .vw, .ws-story) {
