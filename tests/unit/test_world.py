@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import math
 from datetime import datetime, timedelta
+from fractions import Fraction
 from pathlib import Path
 
 import duckdb
+import numpy as np
 
 from argus.contracts.world import ALL_TABLES
 from mockmart.truth import read_truth
@@ -106,3 +110,54 @@ def test_same_seed_same_world(tmp_path: Path) -> None:
     manifest_a, manifest_b = (json.loads(p.manifest.read_text()) for p in (a, b))
     manifest_a.pop("seconds"), manifest_b.pop("seconds")
     assert manifest_a == manifest_b
+
+
+def test_binomial_draws_do_not_depend_on_fused_multiply_add() -> None:
+    """The same seed draws the same world on every platform, not only twice on one machine.
+
+    numpy's binomial sampler puts its mode at floor(n * p + p). The macOS arm64 numpy wheels fuse that
+    multiply-add (one rounding of the exact value), the Linux wheels round the product first. For the
+    cart rate 0.24 and n = 374 that is mode 90 on a Mac and 89 on CI, so CI generated a different world
+    and every recorded hash and event count disagreed. MockMart puts p on a 2**-30 grid, where
+    n * p + p is exact, so fused and unfused arithmetic agree.
+    """
+    from mockmart.sim import MAX_BINOMIAL_N, on_p_grid
+
+    def fused(n: int, p: float) -> float:
+        return float((n + 1) * Fraction(p))
+
+    assert math.floor(374 * 0.24 + 0.24) == 89 and math.floor(fused(374, 0.24)) == 90
+
+    rng = np.random.default_rng(0)
+    rates = [0.24, 0.264, 0.252, 0.132, 0.62, 0.52, 0.9, 0.95, 0.94, 0.5, 0.6, 0.55, 0.25 / 0.45, 0.15 / 0.2]
+    rates += [0.021, 0.025, 0.015, 0.017, 0.023, 0.014, 0.035, 0.03, 0.045, 0.04, 0.032, 0.05]
+    rates += rng.uniform(0, 1, 50).tolist()
+    counts = [*range(3000), *range(MAX_BINOMIAL_N - 100, MAX_BINOMIAL_N)]
+    for rate in rates:
+        grid = float(on_p_grid(rate))
+        assert abs(grid - rate) < 1e-9
+        for r in (grid, 1.0 - grid):  # numpy samples with min(p, 1 - p)
+            bad = [n for n in counts if n * r + r != fused(n, r)]
+            assert not bad, f"p={rate}: n * p + p is inexact for n in {bad[:5]}"
+
+
+def test_mockmart_draws_every_binomial_through_the_platform_safe_helper() -> None:
+    src = Path(__file__).resolve().parents[2] / "src" / "mockmart"
+    direct = []
+    for path in src.rglob("*.py"):
+        tree = ast.parse(path.read_text())
+        helper = {
+            id(node)
+            for fn in ast.walk(tree)
+            if isinstance(fn, ast.FunctionDef) and fn.name == "binomial" and path.name == "sim.py"
+            for node in ast.walk(fn)
+        }
+        direct += [
+            f"{path.relative_to(src)}:{node.lineno}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "binomial"
+            and id(node) not in helper
+        ]
+    assert not direct, f"use mockmart.sim.binomial, not rng.binomial: {direct}"

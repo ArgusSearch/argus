@@ -127,6 +127,28 @@ def _lognormal(rng: np.random.Generator, sigma: float, size: Any) -> np.ndarray:
     return np.exp(rng.normal(-0.5 * sigma**2, sigma, size))
 
 
+# numpy's binomial sampler (BTPE) puts its mode at floor(n * p + p). For round rates such as 0.24 or 0.55,
+# (n + 1) * p is often a whole number, and whether the float result lands on it or just below depends on whether
+# the numpy build fuses that multiply-add: the macOS arm64 wheels do, the Linux wheels do not. The draw then moves
+# by one and the same seed builds a different world on CI than on a laptop. With p on a grid of 2**-30, n * p + p
+# is exact for every n below 2**23, so every platform computes the same mode. p moves by less than 1e-9.
+P_GRID_BITS = 30
+MAX_BINOMIAL_N = 2 ** (53 - P_GRID_BITS)
+
+
+def on_p_grid(p: float | np.ndarray) -> np.ndarray:
+    """p rounded to the nearest multiple of 2**-P_GRID_BITS (exact float arithmetic, identical everywhere)."""
+    return np.ldexp(np.rint(np.ldexp(np.asarray(p, dtype=float), P_GRID_BITS)), -P_GRID_BITS)
+
+
+def binomial(rng: np.random.Generator, n: np.ndarray, p: float | np.ndarray) -> np.ndarray:
+    """`rng.binomial` that draws the same counts for the same seed on every platform. Use it for every binomial."""
+    n = np.asarray(n)
+    if n.size and int(n.max()) >= MAX_BINOMIAL_N:
+        raise ValueError(f"binomial n must stay below {MAX_BINOMIAL_N} for platform-independent draws")
+    return rng.binomial(n, on_p_grid(p))
+
+
 def base_params(cfg: WorldConfig, rng: np.random.Generator) -> WorldParams:
     hours = pd.date_range(cfg.start, periods=cfg.hours, freq="h")
     seg = pd.DataFrame(
@@ -226,15 +248,15 @@ def _frame(keys: pd.DataFrame, hours: pd.DatetimeIndex, values: dict[str, np.nda
 def sample(params: WorldParams, rng: np.random.Generator) -> dict[str, pd.DataFrame]:
     """Draw every fact table at full delivery (before micro-batching)."""
     sessions = rng.poisson(params.mu_sessions)
-    views = rng.binomial(sessions, params.view_rate)
-    carts = rng.binomial(views, params.cart_rate)
-    checkouts = rng.binomial(carts, params.checkout_rate)
-    attempts = rng.binomial(checkouts, params.attempt_rate)
-    a_payco = rng.binomial(attempts, PROVIDER_SPLIT["PayCo"])
-    a_card = rng.binomial(attempts - a_payco, PROVIDER_SPLIT["CardHub"])
+    views = binomial(rng, sessions, params.view_rate)
+    carts = binomial(rng, views, params.cart_rate)
+    checkouts = binomial(rng, carts, params.checkout_rate)
+    attempts = binomial(rng, checkouts, params.attempt_rate)
+    a_payco = binomial(rng, attempts, PROVIDER_SPLIT["PayCo"])
+    a_card = binomial(rng, attempts - a_payco, PROVIDER_SPLIT["CardHub"])
     a_wallet = attempts - a_payco - a_card
     by_provider = {"PayCo": a_payco, "CardHub": a_card, "WalletGo": a_wallet}
-    successes = {p: rng.binomial(a, params.success_p[p]) for p, a in by_provider.items()}
+    successes = {p: binomial(rng, a, params.success_p[p]) for p, a in by_provider.items()}
     orders = successes["PayCo"] + successes["CardHub"] + successes["WalletGo"]
     gmv = np.round(orders * params.aov[None, :] * _lognormal(rng, 0.03, orders.shape), 2)
 
@@ -285,9 +307,9 @@ def _sample_ads(params: WorldParams, rng: np.random.Generator) -> tuple[pd.DataF
     for platform in PLATFORMS:
         target = delivered * ADS_PLATFORM_SHARE[platform]
         impressions = rng.poisson(target / (cpc * ctr))
-        clicks = rng.binomial(impressions, np.broadcast_to(ctr, impressions.shape))
+        clicks = binomial(rng, impressions, np.broadcast_to(ctr, impressions.shape))
         spend = np.round(clicks * cpc * _lognormal(rng, 0.02, clicks.shape), 2)
-        conversions = rng.binomial(clicks, np.broadcast_to(conv, clicks.shape))
+        conversions = binomial(rng, clicks, np.broadcast_to(conv, clicks.shape))
         attributed = np.round(conversions * aov * _lognormal(rng, 0.05, clicks.shape), 2)
         part = _frame(
             lines[["advertiser_id", "country"]],

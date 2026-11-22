@@ -1,0 +1,24 @@
+# Mission Control showcase
+
+Keep the four chapters in one Mission Control page. The first three advance automatically. S4 stops for the operator to approve or deny the rollback.
+
+| Chapter | On-screen moment | Source |
+| --- | --- | --- |
+| Real fault | Argus catches the payment failure, tests the app release, and finds the PayCo cause. | S1 recording. Play at 8× for roughly 11 seconds. |
+| Planned change | The FR advertiser’s planned budget raise increases ad spend. Argus logs it as expected and opens zero incidents. Open the note’s budget-log receipt for the evidence. | S2 recording. Play for 12 seconds. |
+| New metric | Submit cost per impression, the rate CPM scales by 1,000, and show its exact formula and check. Then show the competing formulas in the revenue-per-impression certificate. | The graph extension’s recorded ad-metric pack. |
+| Agent and rollback | Argus investigates S4, answers a question about spend, waits for approval, then shows the measured effect against the untouched twin. | Sealed S4 agent presentation. See [the agent scene](agent-scene.md). |
+
+## Integration
+
+`GET /demo/showcase` delivers the ordered chapters. For a `playback` chapter, send its `start` body to `POST /demo/start`. Follow `GET /demo/snapshot?run_id=…` to update the current page with the visible events and incidents. The SSE `complete` event or a completed snapshot advances S1 and S2. The S2 `expected_change` cue carries the recorded note and its C4 receipt IDs. Starting a new playback chapter assigns a fresh run ID.
+
+For `metric_placement`, release the completed S2 playback view so Mission Control can show the running graph. Fetch the `recorded` definitions from the chapter’s catalog, then look up and submit each named case in order. Check the returned `placed_as` and show `certificate` for the cases with `show: true`. Refetch `GET /graph` when the placement catalog’s `version` moves. The intermediate placements add the inputs the recorded ambiguous formula depends on. Once both certificates have been shown, start S4.
+
+## Evidence rehearsal
+
+Run against the dedicated local replay server from [the agent scene setup](agent-scene.md). The rehearsal starts a fresh graph stream per pass and compares the fault receipt, the expected-change note and its receipts, both graph certificates, and the full S4 approval and Ask evidence.
+
+```sh
+uv run --no-sync python scripts/demo_capture/rehearse.py http://127.0.0.1:8014 --showcase
+```

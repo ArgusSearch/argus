@@ -1,0 +1,133 @@
+/* The scene lab's own page chrome. Not part of Mission Control. */
+
+:root {
+  --lab-stage: #a2a8b5;
+  --lab-ink: #0b1320;
+  --lab-panel: rgba(244, 247, 251, 0.82);
+  --lab-line: rgba(11, 19, 32, 0.14);
+  --lab-on: #1556b3;
+  color-scheme: light;
+}
+
+:root[data-fx="night"] {
+  --lab-stage: #080d16;
+  --lab-ink: #e9eef8;
+  --lab-panel: rgba(26, 39, 64, 0.82);
+  --lab-line: rgba(214, 230, 255, 0.16);
+  --lab-on: #7cb8ff;
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--lab-stage);
+  color: var(--lab-ink);
+  font: 12px/1.4 "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow: hidden;
+}
+
+.lab-stage {
+  position: fixed;
+  inset: 0;
+}
+
+.lab-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 330px;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--lab-line);
+  border-radius: 6px;
+  background: var(--lab-panel);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 20px 50px -30px rgba(11, 19, 32, 0.6);
+  z-index: 2;
+}
+
+.lab-title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lab-k {
+  width: 56px;
+  opacity: 0.65;
+}
+
+.lab-panel button,
+.lab-panel a {
+  padding: 3px 8px;
+  border: 1px solid var(--lab-line);
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lab-panel button:hover,
+.lab-panel a:hover {
+  border-color: var(--lab-on);
+}
+
+.lab-panel .on {
+  border-color: var(--lab-on);
+  color: var(--lab-on);
+}
+
+.lab-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-stats {
+  white-space: pre;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgba(11, 19, 32, 0.06);
+  font-size: 11px;
+}
+
+.lab-hint {
+  opacity: 0.65;
+}
+
+/* the dashboard's small "affected path" card, to check the preview size of the scene */
+.lab-preview {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  width: 440px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--lab-line);
+  border-radius: 6px;
+  background: var(--lab-panel);
+  backdrop-filter: blur(14px);
+  z-index: 2;
+}
+
+.lab-preview-title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.lab-preview-scene {
+  position: relative;
+  height: 250px;
+  border-radius: 4px;
+  overflow: hidden;
+}

@@ -43,6 +43,7 @@ from argus.detect import Watcher, WatcherConfig
 from argus.graph.edge_tests import EdgeStatusChange, EdgeTester
 from argus.graph.store import Changelog, load_seed_graph, write_graph
 from argus.incidents.lifecycle import IncidentBook
+from argus.investigate.procedure import EvidenceSelector
 from argus.investigator.procedure import investigate as investigate_stage_one
 from argus.market.investigator import investigate
 from argus.narrator.report import render
@@ -65,12 +66,19 @@ def read_manifest(world: Path) -> dict[str, str | int]:
 
 class Runtime:
     def __init__(
-        self, world: str | Path, graph: Graph | None = None, bus: EventBus | None = None, stage: int = 2
+        self,
+        world: str | Path,
+        graph: Graph | None = None,
+        bus: EventBus | None = None,
+        stage: int = 2,
+        selector: EvidenceSelector | None = None,
     ) -> None:
         if stage not in STAGES:
             raise ValueError(f"investigator stage must be one of {STAGES}, got {stage}")
         self.world = Path(world)
         self.stage = stage
+        self.selector = selector  # the agent's pre-verdict loop (argus.agent); None: Stage 2 alone
+        self.on_incident: Callable[[Incident, str], None] | None = None  # the agent proposes actions here
         self.manifest = read_manifest(self.world)
         self.lag = timedelta(hours=int(self.manifest.get("delivery_lag_hours", 2)))
         self.runner = Runner(self.world)
@@ -204,12 +212,14 @@ class Runtime:
             self.emit(self.book.notes[-1], as_of)
         else:
             self._emit_incident(incident, change, as_of, findings.verdict.value)
+            if self.on_incident is not None:
+                self.on_incident(incident, change)
 
     def _investigate(self, anomaly: Anomaly, as_of: datetime, on_step: Callable[[TrailStep], None]) -> Findings:
         if self.stage == 1:
             return investigate_stage_one(self.graph, self.runner, anomaly, as_of, on_step)
         try:
-            return investigate(self.graph, self.runner, anomaly, as_of, on_step)
+            return investigate(self.graph, self.runner, anomaly, as_of, on_step, selector=self.selector)
         except Exception as exc:
             # One failing investigation must not stop the watch: Stage 1 still files findings for it.
             log.exception("Stage-2 investigation of %s failed; falling back to Stage 1", anomaly.id)
