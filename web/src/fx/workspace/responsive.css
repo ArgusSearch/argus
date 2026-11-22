@@ -26,7 +26,7 @@
     align-content: start;
     align-items: center;
     gap: var(--fx-space-2);
-    max-height: 75dvh;
+    max-height: calc(100dvh - 2 * var(--fx-space-3));
     overflow-y: auto;
     padding: var(--fx-space-2) var(--fx-space-3);
     border: var(--fx-hair) solid var(--fx-glass-border);
@@ -182,6 +182,13 @@
   :root[data-fx] .sheet {
     width: min(100%, 620px);
   }
+
+  :root[data-fx] .ws-tip {
+    position: fixed;
+    inset: auto auto var(--fx-space-3) var(--fx-space-3);
+    width: min(360px, calc(100dvw - 2 * var(--fx-space-3)));
+    max-width: none;
+  }
 }
 
 @media (max-width: 700px) {
@@ -263,13 +270,6 @@
 
   :root[data-fx] .ws-table td:not(:last-child) {
     border-bottom: 0;
-  }
-
-  :root[data-fx] .ws-tip {
-    position: fixed;
-    inset: auto var(--fx-space-3) var(--fx-space-3);
-    width: auto;
-    max-width: none;
   }
 
   :root[data-fx] .modal {

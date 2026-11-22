@@ -864,6 +864,14 @@
   line-height: 1.55;
 }
 
+:root[data-fx] :is(.ip-lead, .ip-ruled li > div) {
+  position: relative;
+}
+
+:root[data-fx] :is(.ip-lead, .ip-ruled li > div) .ws-term {
+  position: static;
+}
+
 :root[data-fx] .ip-chart {
   display: grid;
   gap: 4px;
