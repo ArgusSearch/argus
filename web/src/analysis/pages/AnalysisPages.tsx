@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Num, ReceiptChips } from "../../components/Receipts";
+import { Num, ReceiptChips, useOpenReceipt } from "../../components/Receipts";
 import { dayLabel, eur, hhmm, humanize, pct, segmentLabel } from "../../lib/format";
 import type { IncidentView, RunView } from "../../lib/store";
 import type { Anomaly, Graph, GraphNode, Incident } from "../../lib/types";
@@ -9,6 +9,7 @@ import { Card, Pill, useIncidents } from "../../fx/workspace/ui";
 import { calendarEntries } from "../../settings/model";
 import { metricStatus } from "../../views/model";
 import { AnalyticsPanels, ShopMetrics, type AnalyticsPanelsProps } from "../analytics";
+import { EvidenceCards } from "../cards/EvidenceCards";
 import { analysisHref, followLink, navigateWorkspaceURL } from "../shell/location";
 import { segmentKey, type AnalysisQuery } from "../shell/query";
 import { AD_METRICS, FUNNEL_METRICS, inWindow, matchesSegment, observedSegments, visibleFindings, type AnalysisWindow } from "./model";
@@ -74,10 +75,14 @@ function IncidentList({ graph, query, incidents, navigate, openIncident, window 
 
 function Overview(props: PageProps) {
   const { graph, view, query, incidents, signals, window, navigate } = props;
+  const openReceipt = useOpenReceipt();
   const status = health(view, graph);
   const ready = window.end !== null;
   const resolved = incidents.filter((incident) => incident.state === "resolved").length;
   const impact = incidents.reduce((sum, incident) => sum + Math.abs(incident.severity_eur), 0);
+  const metricId = query.metric || "payment_success_rate";
+  const scope = segmentKey(query.segment);
+  const observations = signals.filter((signal) => signal.node === metricId && segmentKey(signal.segment) === scope);
   const stats = [
     ["Open incidents", ready ? incidents.length - resolved : null],
     ["Resolved incidents", ready ? resolved : null],
@@ -101,6 +106,8 @@ function Overview(props: PageProps) {
         <IncidentList {...props} />
       </Card>
       {Object.keys(query.segment).length === 0 && <CurrentMetrics {...props} />}
+      <EvidenceCards key={view.stream} view={view} graph={graph} metricId={metricId} observations={observations} statuses={incidents}
+        renderReceipt={(id, label) => id && <button type="button" className="rcpt" onClick={() => openReceipt(id)}>{label}</button>} />
     </>
   );
 }

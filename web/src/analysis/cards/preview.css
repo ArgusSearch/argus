@@ -47,17 +47,6 @@ body {
   outline-offset: 2px;
 }
 
-.ac-preview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(0, .86fr) minmax(0, 1.18fr) minmax(0, .88fr);
-  gap: 16px;
-}
-
-@media (max-width: 1120px) {
-  .ac-preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 @media (max-width: 680px) {
   .ac-preview { padding: 16px; }
-  .ac-preview-grid { grid-template-columns: minmax(0, 1fr); }
 }
