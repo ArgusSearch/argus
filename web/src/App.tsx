@@ -14,6 +14,7 @@ import { useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
+import { OfflineBanner, Skeleton } from "./ui";
 import { ViewHost } from "./views";
 
 /** The graph's legend in plain words: what a line is, and what a block's color says. */
@@ -73,6 +74,16 @@ export function App() {
       onState: setConnection,
     });
   }, []);
+
+  // A page opened while the API was down can fetch the graph once the stream opens.
+  useEffect(() => {
+    if (connection !== "open" || graph) return;
+    let live = true;
+    api.graph().then((next) => live && setGraph(next), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [connection, graph]);
 
   // the watcher's lines come from the API; counters folded before they arrived are recounted
   const thresholds = health?.thresholds;
@@ -168,7 +179,8 @@ export function App() {
                 )}
               </div>
               <div className="graph-canvas">
-                {connection === "offline" && <div className="banner">The API is offline. Start it with make api or make demo.</div>}
+                <OfflineBanner connection={connection} />
+                {!graph && <Skeleton variant="graph" label="Loading the metric graph" />}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />

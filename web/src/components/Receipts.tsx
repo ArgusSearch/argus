@@ -6,6 +6,7 @@ import { demoRunId } from "../lib/agentDemo";
 import { api } from "../lib/api";
 import { hhmm, dayLabel, quantity } from "../lib/format";
 import type { Quantity, RerunResult } from "../lib/types";
+import { ErrorState, explainError, Skeleton } from "../ui";
 
 /** A C4 receipt id of the run on screen, or an agent receipt qualified by its run and world revision. */
 export type ReceiptTarget = string | ReceiptLink;
@@ -134,10 +135,13 @@ function highlight(sql: string): ReactNode[] {
 function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: () => void }) {
   const agent = typeof target === "string" ? null : target;
   const id = typeof target === "string" ? target : target.receipt_id;
+  const receiptPath = `/receipts/${encodeURIComponent(id)}`;
   const [receipt, setReceipt] = useState<AgentReceipt | null>(null);
   // during the agent presentation a plain receipt id is one the presentation revealed: its own route
   const demo = typeof target === "string" && demoRunId() !== null;
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [runError, setRunError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
   const [rerun, setRerun] = useState<RerunResult | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -145,15 +149,16 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
     let live = true;
     setReceipt(null);
     setRerun(null);
-    setError(null);
+    setLoadError(null);
+    setRunError(null);
     (agent ? agentApi.receipt(agent) : demo ? agentApi.demoReceipt(id) : (api.receipt(id) as Promise<AgentReceipt>)).then(
       (r) => live && setReceipt(r),
-      (e: Error) => live && setError(e.message),
+      (error: unknown) => live && setLoadError(error),
     );
     return () => {
       live = false;
     };
-  }, [id, agent, demo]);
+  }, [id, agent, demo, attempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -163,15 +168,17 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
 
   const run = async () => {
     setRunning(true);
-    setError(null);
+    setRerun(null);
+    setRunError(null);
     try {
       setRerun(await api.rerun(id));
-    } catch (e) {
-      setError((e as Error).message);
+    } catch (error) {
+      setRunError(error);
     } finally {
       setRunning(false);
     }
   };
+  const runWhy = runError === null ? null : explainError(runError, `${receiptPath}/rerun`);
 
   return (
     <>
@@ -242,8 +249,10 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
                 </table>
               )}
             </>
+          ) : loadError !== null ? (
+            <ErrorState error={loadError} route={agent || demo ? undefined : receiptPath} onRetry={() => setAttempt((count) => count + 1)} />
           ) : (
-            <div className="muted">{error ?? "Loading…"}</div>
+            <Skeleton lines={5} label="Loading the receipt" />
           )}
         </div>
         <div className="modal-foot">
@@ -267,8 +276,8 @@ function ReceiptDrawer({ target, onClose }: { target: ReceiptTarget; onClose: ()
             </span>
           ) : receipt?.verified_at_capture !== undefined ? null : (
             <span className="verify">
-              {error && receipt
-                ? error
+              {runWhy
+                ? `${runWhy.title}. ${runWhy.detail}`
                 : agent || demo
                   ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
                   : "Runs the exact SQL again at the pinned as_of and compares the hash."}
