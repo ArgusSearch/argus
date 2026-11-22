@@ -462,7 +462,11 @@ class _Derivation:
                     "" if card.kind != "event" else ": not aligned with the onset or no check left"
                 )
         chosen = self.book.find(f"event:{cause}") if cause is not None else None
-        if chosen is not None and chosen.status == "supported":
+        if chosen is not None and any(
+            c.tool == "holdout_check" and c.outcome == "consistent" and c.receipts for c in chosen.checks
+        ):
+            chosen.status = "supported"
+            chosen.decisive_check = "holdout_check"
             chosen.reason = "supported: the holdout puts the change where this event applies; the verdict names it"
 
     def cards(self) -> list[HypothesisCard]:

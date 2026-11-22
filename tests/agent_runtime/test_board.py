@@ -186,6 +186,25 @@ def test_a_hypothesis_verdict_has_no_supported_event_and_no_chain() -> None:
     assert by_subject(board)["ps_payco_degraded"] == "inconclusive" and board.chain is None
 
 
+def test_admitted_cause_takes_precedence_over_a_refuted_holdout_on_another_cut() -> None:
+    [incident] = incidents(V1 / "s1" / "incidents.json")
+    [*activity, last] = records(V1 / "s1" / "activity.jsonl")
+    root = incident.findings.root
+    assert root is not None and root.evidence is not None
+    off_scope = result(
+        last.seq + 1,
+        "run_0001:c1",
+        "holdout_check",
+        "refuted",
+        "r999",
+        event=root.evidence.model_dump(mode="json"),
+        segment={"country": "FR"},
+    )
+    [board] = build_boards([*activity, last, off_scope], [incident])
+    invariants(board, incident)
+    assert by_subject(board)[root.evidence.ref] == "supported"
+
+
 def test_an_agent_run_without_findings_finishes_without_open_cards() -> None:
     activity = records(V1 / "s1" / "activity.jsonl")
     [board] = build_boards(activity, [])
