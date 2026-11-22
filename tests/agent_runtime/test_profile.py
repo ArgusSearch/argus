@@ -43,6 +43,8 @@ def test_profiles_from_names_and_environment(monkeypatch: pytest.MonkeyPatch) ->
     assert Profile.from_env() == V2 and V2.on("critic") and V2.on("hypotheses")
     monkeypatch.setenv("ARGUS_AGENT_FEATURES", "critic")
     assert Profile.from_env().features == {"critic"}
+    assert Profile.from_env("v2", "hypotheses").features == {"hypotheses"}
+    assert Profile.from_env("v2").features == {"critic"}
     monkeypatch.setenv("ARGUS_AGENT_FEATURES", "")
     assert Profile.from_env().features == frozenset()
     assert Profile.of("v1", "critic") == V1  # v1 never takes features

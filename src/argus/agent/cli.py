@@ -42,7 +42,7 @@ def run(args: argparse.Namespace) -> int:
                 raise SystemExit("--ask takes 'YYYY-MM-DDTHH:MM|question'")
             plans.setdefault(datetime.fromisoformat(when), []).append(question.strip())
         asks = [AskPlan(at, tuple(qs), args.incident) for at, qs in sorted(plans.items())]
-        profile = Profile.of(args.profile, args.features) if args.profile else Profile.from_env()
+        profile = Profile.from_env(args.profile, args.features)
         result = record(args.world, args.out, decide=args.decide, asks=asks, profile=profile)
         for answer in result.asks:
             print(f"Q: {answer['question']}\nA: {answer['response']['answer'] or answer['response']['reason']}\n")

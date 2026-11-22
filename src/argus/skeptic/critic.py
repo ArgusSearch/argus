@@ -86,10 +86,10 @@ def _env_int(name: str, default: int) -> int:
 class CriticBudget:
     """Caps of one counter-check (environment overrides: ARGUS_AGENT_CRITIC_MAX_*)."""
 
-    requests: int = _env_int("ARGUS_AGENT_CRITIC_MAX_REQUESTS", 3)
-    tool_calls: int = _env_int("ARGUS_AGENT_CRITIC_MAX_TOOL_CALLS", 3)
-    usd: float = float(os.environ.get("ARGUS_AGENT_CRITIC_MAX_USD", 0.20))
-    wall_seconds: float = float(os.environ.get("ARGUS_AGENT_CRITIC_MAX_SECONDS", 45))
+    requests: int = field(default_factory=lambda: _env_int("ARGUS_AGENT_CRITIC_MAX_REQUESTS", 3))
+    tool_calls: int = field(default_factory=lambda: _env_int("ARGUS_AGENT_CRITIC_MAX_TOOL_CALLS", 3))
+    usd: float = field(default_factory=lambda: float(os.environ.get("ARGUS_AGENT_CRITIC_MAX_USD", 0.20)))
+    wall_seconds: float = field(default_factory=lambda: float(os.environ.get("ARGUS_AGENT_CRITIC_MAX_SECONDS", 45)))
     tokens_per_call: int = 3000
 
 
@@ -254,12 +254,14 @@ class LlmCritic:
         world_revision: str = "factual",
         sql_runner: SqlCheckRunner | None = None,
         rules: frozenset[str] | None = None,
+        detective_model: str | None = None,
     ) -> None:
         self.client = client
         self.journal = journal
         self.profile = profile
         self.budget = budget or CriticBudget()
         self.model = model
+        self.detective_model = detective_model
         self.world_revision = world_revision
         self.sql_runner = sql_runner if sql_runner is not None else (load_sql_check() if profile.on("sql") else None)
         self.rules = rules if rules is not None else configured_rules()
@@ -271,6 +273,8 @@ class LlmCritic:
         run = _CriticRun(self, inv, case, selection, supported)
         error = ""
         try:
+            if self.model == self.detective_model:
+                raise ProviderUnavailable("the critic needs a different model from the detective")
             run.loop()
         except CriticStop as exc:
             run.stop = f"budget: {exc}"

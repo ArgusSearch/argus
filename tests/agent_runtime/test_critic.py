@@ -262,6 +262,15 @@ def test_a_failing_critic_leaves_the_verdict_in_the_same_tick(case: Any, s1_worl
 
 
 @pytest.mark.e2e
+def test_critic_skips_a_model_shared_with_the_detective(case: Any, s1_world: WorldPaths) -> None:
+    client = routed(critic_script("falsify"))
+    findings, journal = run(case, s1_world, client, model="claude-opus-5-5")
+    assert findings.verdict is Verdict.SUPPORTED_CAUSE and findings.skeptic is None
+    assert not any(request.key.startswith("critic:") for request in client.requests)
+    assert "different model" in critic_line(journal)["reason"]
+
+
+@pytest.mark.e2e
 def test_a_looping_critic_stops_at_its_caps(case: Any, s1_world: WorldPaths) -> None:
     budget = CriticBudget(requests=10, tool_calls=3, usd=0.20, wall_seconds=45)
     graph, anomaly, as_of = case

@@ -57,7 +57,7 @@ from argus.contracts.findings import Anomaly, EvidenceRef, RuledOut, Segment, Wi
 from argus.contracts.tools import TOOL_MODELS, ToolOutput
 from argus.investigate.ledger import OUTCOMES, TRAIL_KIND, Hypothesis, LedgerEntry, judge
 from argus.market import check_control_group
-from argus.skeptic.critic import SQL, load_sql_check, sql_check_spec
+from argus.skeptic.critic import SQL, LlmCritic, load_sql_check, sql_check_spec
 
 if TYPE_CHECKING:
     from argus.investigate.procedure import StageTwoInvestigation
@@ -222,9 +222,7 @@ class AgentSelector:
         self.through_seq = through_seq  # callable returning the last C5 seq, or None
         self.profile = profile
         if critic is None and profile.on("critic"):
-            from argus.skeptic.critic import LlmCritic
-
-            critic = LlmCritic(client, journal, profile=profile, world_revision=world_revision)
+            critic = LlmCritic(client, journal, profile=profile, world_revision=world_revision, detective_model=model)
         self.critic = critic if profile.on("critic") else None
         self.memory = memory if profile.on("memory") else None
         self.sql_check = load_sql_check() if profile.on("sql") else None

@@ -54,9 +54,10 @@ class Profile:
         return cls("v2", frozenset(chosen))  # type: ignore[arg-type]
 
     @classmethod
-    def from_env(cls) -> Profile:
+    def from_env(cls, name: str | None = None, features: str | None = None) -> Profile:
         return cls.of(
-            (os.environ.get("ARGUS_AGENT_PROFILE") or "v1").strip().lower(), os.environ.get("ARGUS_AGENT_FEATURES")
+            name if name is not None else (os.environ.get("ARGUS_AGENT_PROFILE") or "v1").strip().lower(),
+            features if features is not None else os.environ.get("ARGUS_AGENT_FEATURES"),
         )
 
 
