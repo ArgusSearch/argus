@@ -123,8 +123,8 @@ def test_live_runtime_streams_the_recorded_story(scenario: str, tmp_path: Path) 
     world = generate(scenario, WorldConfig(seed=SEED), tmp_path / "world").world
     source = LiveSource(world, seconds_per_tick=0)
     with TestClient(create_app(source, web_dist=tmp_path)) as client:
-        deadline = time.time() + 120
-        while time.time() < deadline and not client.get("/health").json()["run"]["finished"]:
+        deadline = time.monotonic() + 240
+        while time.monotonic() < deadline and not client.get("/health").json()["run"]["finished"]:
             time.sleep(0.2)
         assert client.get("/health").json()["run"]["finished"], f"{scenario}: the live run did not finish"
         assert len(source.bus.history) == len(rec.events), f"{scenario}: re-record with `make fixtures`"

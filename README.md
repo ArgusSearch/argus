@@ -143,10 +143,10 @@ MockMart provides business facts, logs and delayed batches in DuckDB. Every inve
 
 ## How Argus decides
 
-1. **What to watch.** Argus checks freshness before scoring the north-star metrics against their usual hour-of-week behaviour. A planned change adds a check on the exact segment it affects.
-2. **Which edge to follow.** Formula edges split the change into contributions using additive LMDI. Breakdown edges show which dimensions to examine. Evidence edges point to the logs that can explain what changed.
-3. **Which group to check.** Argus seeks the smallest set of groups that explains the deviation, then descends while the next split concentrates it. It checks a suspect’s unaffected scope or neighbouring groups and tests the same window in earlier weeks as a placebo.
-4. **When to stop.** Freshness, localisation, a validated holdout or control, and the placebo govern which causes can be supported. Argus records the unexplained share and can return a hypothesis or an unexplained verdict when evidence falls short.
+1. **What to watch.** Argus checks freshness before scoring the 7 north-star metrics against their usual hour-of-week behaviour. It opens an anomaly at `|z| > 5`, or `|z| > 3.5 in 2 of the last 3 hours` in the same direction. A planned change adds a check on its segment for 24 hours. The optional attention budget of 6 more looks per tick is implemented and tested separately from the runtime.
+2. **Which edge to follow.** Formula edges split the change using additive LMDI. Argus follows the factor whose movement exceeds its usual spread (|z| >= 3). Breakdown edges show which dimensions to examine, and evidence edges point to the logs that can explain what changed.
+3. **Which group to check.** Argus seeks the smallest set of at most 3 values of one dimension that explains at least 67% of the deviation. It descends when a single group’s share of the deviation exceeds its share of volume by 25 points and `|z| >= 3`. It checks suspects from 3 hours before to 1 hour after the segment’s onset using the unaffected scope or neighbouring groups, then looks for the same deviation in up to 8 earlier weeks as a placebo.
+4. **When to stop.** Argus judges at most 12 checks and asks the optional planner for more only while the explained share is below 80%. A supported cause needs an aligned event validated by a holdout or control, a root with `|z| >= 3`, at least 20% explained, and a placebo that does not recur. If evidence falls short, Argus reports a hypothesis or an unexplained verdict and records the unexplained share.
 
 The optional agent writes a prediction and picks a typed check. The engine runs and judges it, verifies the numbers and admits the verdict. Provider failures and exhausted budgets fall back to the deterministic investigation in the same tick. The same engine files and resolves incidents automatically. Applying a playbook requires human approval. [Thresholds and rules](docs/ALGORITHM.md) · [Agent contract](docs/ext/agent.md)
 
@@ -165,7 +165,8 @@ The model chooses what to check. Argus decides what the evidence supports.
 
 The host verifies numbers against receipts. The deterministic investigation rules govern supported causes. Operator approval is required, and the playbook derives the action parameters.
 
-The default v1 profile has 17 offline agent evals. The v2 release requires the
+Self-written SQL checks and case memory are pending integration. The default
+v1 profile has 17 offline agent evals. The v2 release requires the
 intelligence evals and six retained live trials, with three passes each on S1
 and S4. Live v2 qualification is pending. Sealed v1 investigation cassettes
 replay the provider exchange and activity offline byte for byte.
