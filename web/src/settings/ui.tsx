@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useId, type ReactNode } from "react";
 import type { AgentRole } from "../lib/agent";
 import { useAgent } from "../fx/workspace/agent";
 import type { Level } from "./model";
@@ -114,7 +114,8 @@ export function NumberInput({ label, value, step = 1, min = 0, max, onChange }: 
   label: string; value: number | null; step?: number; min?: number; max?: number; onChange: (value: number | null) => void;
 }) {
   const tr = useText();
-  return <input className="cs-input cs-number-input" type="number" aria-label={tr(label)} value={value ?? ""}
+  const id = useId();
+  return <input id={id} className="cs-input cs-number-input" type="number" aria-label={tr(label)} value={value ?? ""}
     min={min} max={max} step={step} onChange={(event) => onChange(event.target.value === "" ? null : event.target.valueAsNumber)} />;
 }
 
