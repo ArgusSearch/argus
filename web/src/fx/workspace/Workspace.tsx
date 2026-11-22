@@ -59,6 +59,8 @@ const Village = importVillage
     )
   : null;
 
+const SettingsSurface = lazy(() => import("../../settings"));
+
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
   const demo = useAgentDemo();
@@ -82,6 +84,11 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
         </main>
       )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
+      {(section === "settings" || section === "calendar") && (
+        <Suspense fallback={null}>
+          <SettingsSurface key={section} section={section} graph={graph} view={view} />
+        </Suspense>
+      )}
       <AskPanel key={demo?.runId} incident={section === "incident" ? incident : null} />
       <EntryGate />
     </>
@@ -158,6 +165,20 @@ const NAV: NavItem[] = [
     label: "Metric tree",
     hint: "Every metric as a searchable tree with its formula",
     icon: <path d="M3 3h4M5 3v10M5 7.5h3.5M5 12.5h3.5M10 6h3.5v3h-3.5zM10 11h3.5v3h-3.5z" />,
+  },
+  {
+    id: "calendar",
+    group: "Plan",
+    label: "Calendar",
+    hint: "Planned changes Argus expected, and when each agent checked",
+    icon: <path d="M2.5 4h11v9.5h-11zM2.5 7h11M5.5 2.5v3M10.5 2.5v3M5 9.5h2M9 9.5h2M5 11.5h2" />,
+  },
+  {
+    id: "settings",
+    group: "Plan",
+    label: "Settings",
+    hint: "What each agent may do alone, thresholds, budgets and data sources",
+    icon: <path d="M8 5.6a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8zM8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3" />,
   },
   {
     id: "scorecard",
