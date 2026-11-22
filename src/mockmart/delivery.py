@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from argus.contracts.world import ALL_TABLES, FACT_TABLES, LOG_TABLES, raw_columns, render_schema_sql, table
-from mockmart.sim import ADVERTISER_BOOK, WorldParams
+from mockmart.sim import ADVERTISER_BOOK, WorldParams, binomial
 
 BATCH_SHARES = (0.55, 0.25, 0.15, 0.05)
 BATCH_LAG_MIN = (5, 20, 40, 55)
@@ -64,7 +64,7 @@ def split_batches(
         for m in spec.measures:
             if m in AMOUNT_DRIVER:
                 continue
-            take = remaining[m] if last else rng.binomial(remaining[m], share / left)
+            take = remaining[m] if last else binomial(rng, remaining[m], share / left)
             taken[m] = take
         for m, total_driver in drivers_total.items():
             if last:

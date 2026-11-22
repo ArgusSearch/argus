@@ -1,0 +1,9 @@
+# Demo pack, metric 4 of 5. Expected: AMBIGUOUS. Two equally simple parents fit exactly: the price path
+# (cost_per_impression * roas) and the conversion path (conversions_per_impression * revenue_per_conversion).
+name: revenue_per_impression
+description: Attributed GMV per ad impression in EUR, the ad yield of one impression, per advertiser, country and platform
+sql: |
+  SELECT ts, advertiser_id, country, platform,
+         SUM(attributed_gmv)::DOUBLE / NULLIF(SUM(ad_impressions), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL

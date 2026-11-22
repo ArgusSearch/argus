@@ -2,19 +2,19 @@
 
 import threading
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
-from itertools import pairwise, takewhile
-from typing import Any
+from itertools import accumulate, pairwise, takewhile
+from typing import Any, ClassVar
 
 from argus.api.digest import Digest, build_digest
 from argus.api.recording import FIXTURES, Recording, load_recording
 from argus.api.state import RunState
 from argus.contracts.events import Event, EventType, InvestigationStepPayload, TickPayload
-from argus.contracts.findings import Anomaly, Findings, Incident, Receipt
+from argus.contracts.findings import Anomaly, Findings, Incident, Note, Receipt
 from argus.contracts.graph import Graph
 from argus.counterfactual.models import CounterfactualResult
-from argus.counterfactual.replay import counterfactual
+from argus.counterfactual.replay import ReplayUnavailable, counterfactual
 from argus.demo.contracts import (
     AnomalyAppears,
     AttentionShifts,
@@ -22,14 +22,15 @@ from argus.demo.contracts import (
     BeatKind,
     Cue,
     Evidence,
+    ExpectedChange,
     InvestigationSteps,
     MorningReport,
     QuietWorld,
     Scenario,
     VerdictBeat,
 )
+from argus.narrator.morning import MorningProjection, build_morning_report
 from argus.narrator.morning import MorningReport as NarratorReport
-from argus.narrator.morning import build_morning_report
 from argus.narrator.run_queries import RunWindow
 
 DURATION_MS = 90_000
@@ -61,17 +62,36 @@ class DemoReport:
 
 @dataclass(frozen=True)
 class Timeline:
+    approval_index: ClassVar[None] = None
+
     scenario: Scenario
     cues: tuple[Cue, ...]
     graph: Graph
     receipts: dict[str, Receipt]
     receipt_beats: dict[str, int]
-    incident: Incident
-    report: DemoReport
+    incident: Incident | None
+    report: DemoReport | None
+    recording: Recording
+    cursors: tuple[int, ...]
+    offsets: tuple[int, ...] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "offsets", tuple(cue.at_ms for cue in self.cues))
 
     def beat(self, kind: BeatKind) -> int:
         """The index of the first cue of `kind`, from which its evidence is released."""
         return next(cue.index for cue in self.cues if cue.kind == kind)
+
+    @property
+    def duration_ms(self) -> int:
+        last = self.cues[-1]
+        return last.at_ms + last.duration_ms
+
+    def visible(self, index: int) -> tuple[tuple[Event, ...], list[Incident]]:
+        through = self.cursors[index]
+        events = tuple(takewhile(lambda event: event.seq <= through, self.recording.events))
+        incidents = {snap.incident.id: snap.incident for snap in self.recording.incidents if snap.seq <= through}
+        return events, list(incidents.values())
 
 
 def _receipt_ids(data: Any) -> Iterator[str]:
@@ -111,13 +131,17 @@ def _morning_digest(recording: Recording, incident: Incident, anomaly: Anomaly) 
     return morning, build_digest(state, [snapshot], state.current_graph())
 
 
-def _narrator_report(scenario: Scenario, recording: Recording, morning: Event) -> DemoReport:
+def build_report(
+    stream: str, recording: Recording, morning: Event, agent_projection: MorningProjection | None = None
+) -> DemoReport:
     """Fold the recording through the same morning hour as the digest, as the narrator would have served it."""
     events = tuple(takewhile(lambda event: event.sim_ts <= morning.sim_ts, recording.events))
-    window = RunWindow(f"demo-{scenario}", events[-1].seq, events, prefix=PREFIX)
+    window = RunWindow(stream, events[-1].seq, events, prefix=PREFIX)
     incidents = {snap.incident.id: snap.incident for snap in recording.incidents if snap.seq <= window.through_seq}
     receipts = {receipt.id for receipt in recording.receipts}
-    report, evidence = build_morning_report(window, list(incidents.values()), recording.graph, receipts.__contains__)
+    report, evidence = build_morning_report(
+        window, list(incidents.values()), recording.graph, receipts.__contains__, agent_projection
+    )
     return DemoReport(window, report, {f"findings-{seq}": (seq, findings) for seq, findings in evidence.items()})
 
 
@@ -196,7 +220,17 @@ def _build_timeline(scenario: Scenario, recording: Recording) -> Timeline:
             zip(_BEATS, pairwise((*OFFSETS, DURATION_MS)), content, strict=True)
         )
     )
-    report = _narrator_report(scenario, recording, morning)
+    report = build_report(f"demo-{scenario}", recording, morning)
+    cursors = []
+    for event, data in content:
+        if isinstance(data, InvestigationSteps | Evidence):
+            cursors.append(max(step.seq for step in data.steps))
+        elif isinstance(data, VerdictBeat):
+            cursors.append(recording.incidents[0].seq)
+        elif isinstance(data, MorningReport):
+            cursors.append(report.window.through_seq)
+        else:
+            cursors.append(event.seq)
     receipt_beats = dict.fromkeys(_receipt_ids(recording.graph.model_dump()), 0)
     for cue in cues:
         for receipt in _receipt_ids(cue.data.model_dump()):
@@ -214,6 +248,54 @@ def _build_timeline(scenario: Scenario, recording: Recording) -> Timeline:
         receipt_beats,
         incident,
         report,
+        recording,
+        tuple(accumulate(cursors, max)),
+    )
+
+
+def _harmless_timeline(recording: Recording) -> Timeline:
+    if recording.incidents or any(event.type is EventType.INCIDENT_UPDATED for event in recording.events):
+        raise ValueError("expected-change recording contains an incident")
+    note = next(
+        event
+        for event in recording.events
+        if event.type is EventType.NOTE_LOGGED
+        and (record := Note.model_validate(event.payload)).kind == "expected"
+        and record.node == "ad_spend"
+        and record.segment.get("country") == "FR"
+    )
+    preceding = [event for event in recording.events if event.type is EventType.TICK and event.sim_ts < note.sim_ts]
+    quiet = preceding[-1]
+    cues = (
+        Cue(
+            index=0,
+            kind="quiet_world",
+            title="Watching ad spend",
+            at_ms=0,
+            duration_ms=4_000,
+            sim_ts=quiet.sim_ts,
+            data=QuietWorld(tick=quiet, quiet_hours=len(preceding)),
+        ),
+        Cue(
+            index=1,
+            kind="expected_change",
+            title="Planned budget change · No incident",
+            at_ms=4_000,
+            duration_ms=8_000,
+            sim_ts=note.sim_ts,
+            data=ExpectedChange(note=note),
+        ),
+    )
+    return Timeline(
+        "s2",
+        cues,
+        recording.graph,
+        {receipt.id: receipt for receipt in recording.receipts},
+        dict.fromkeys(_receipt_ids(note.payload), 1),
+        None,
+        None,
+        recording,
+        (quiet.seq, note.seq),
     )
 
 
@@ -222,7 +304,8 @@ def load_timeline(scenario: Scenario) -> Timeline:
     """Use the built-in seed 1 recordings regardless of the server's regular live/replay source."""
     path = FIXTURES if scenario == "s1" else FIXTURES / scenario
     try:
-        return _build_timeline(scenario, load_recording(path))
+        recording = load_recording(path)
+        return _harmless_timeline(recording) if scenario == "s2" else _build_timeline(scenario, recording)
     except (IndexError, KeyError, StopIteration) as exc:
         raise ValueError(f"{scenario} recording is missing a required demo cue") from exc
 
@@ -233,6 +316,8 @@ _counterfactual_lock = threading.Lock()
 @cache
 def _counterfactual(scenario: Scenario) -> CounterfactualResult:
     timeline = load_timeline(scenario)
+    if timeline.incident is None:
+        raise ReplayUnavailable("the expected change did not open an incident")
     root = timeline.incident.findings.root
     reference = timeline.receipts.get(root.change_pct.receipt or "") if root else None
     return counterfactual(timeline.incident, reference=reference)
