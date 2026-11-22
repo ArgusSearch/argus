@@ -19,6 +19,7 @@ const settingsPath = join(__dirname, 'settings.html');
 const settingsUrl = pathToFileURL(settingsPath).href;
 const binary = process.platform === 'win32' ? 'argus-sidecar.exe' : 'argus-sidecar';
 const executable = join(process.resourcesPath, 'sidecar', binary);
+const smokeErrors = [];
 
 let workspace;
 let settings;
@@ -62,7 +63,8 @@ async function createWorkspace() {
   await partition.setProxy({ mode: 'direct' });
   partition.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !isWorkspaceUrl(details.url) }));
   partition.webRequest.onBeforeSendHeaders((details, callback) => {
-    const requestHeaders = details.webContentsId === workspace?.webContents.id && isWorkspaceUrl(details.url)
+    // Chromium can omit the window ID on requests such as module preloads.
+    const requestHeaders = isWorkspaceUrl(details.url)
       ? { ...details.requestHeaders, ...service.headers }
       : details.requestHeaders;
     callback({ requestHeaders });
@@ -81,6 +83,9 @@ async function createWorkspace() {
     },
   });
   lockNavigation(win, isWorkspaceUrl);
+  if (smokeFile) win.webContents.on('console-message', (event) => {
+    if (event.level === 'error' && smokeErrors.length < 8) smokeErrors.push(event.message.slice(0, 500));
+  });
   win.on('page-title-updated', (event) => event.preventDefault());
   win.on('closed', () => { workspace = undefined; });
   return win;
@@ -233,7 +238,7 @@ if (!smokeFile && !app.requestSingleInstanceLock()) {
         const { verify } = require('./smoke.cjs');
         report = await verify(workspace, service, info, await openSettings(false));
       } catch (error) {
-        report = { ok: false, error: error.message };
+        report = { ok: false, error: error.message, rendererErrors: smokeErrors };
       } finally {
         await service?.stop();
       }

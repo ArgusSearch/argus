@@ -10,6 +10,15 @@ async function verify(win, service, info, settings) {
   assert.deepEqual(await settings.webContents.executeJavaScript('window.argusSettings.status()'),
     { mode: 'replay', keychainUnavailable: false });
 
+  const asset = await win.webContents.executeJavaScript(`(async () => {
+    const script = document.querySelector('script[type=module][src]');
+    if (!script) return { title: document.title };
+    const response = await fetch(script.src, { signal: AbortSignal.timeout(4000) });
+    return { status: response.status, type: response.headers.get('content-type') };
+  })()`);
+  assert.equal(asset.status, 200, `The renderer can fetch its entry module (${JSON.stringify(asset)})`);
+  assert.match(asset.type ?? '', /^text\/javascript\b/, 'The entry module has a JavaScript media type');
+
   // The actual React workspace must start and follow the sealed agent recording.
   let runId;
   const deadline = Date.now() + 30_000;

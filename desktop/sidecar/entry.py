@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import mimetypes
 import os
 import socket
 import sys
@@ -94,6 +95,11 @@ async def serve(command: dict) -> None:
     source, unavailable = make_source(data, command["replayOnly"])
     if not (WEB_DIST / "index.html").is_file():
         raise RuntimeError("The Mission Control build is missing")
+    # Serve the bundled web entry point and modules independently of the Windows MIME registry.
+    mimetypes.add_type("text/html", ".html")
+    mimetypes.add_type("text/javascript", ".js")
+    mimetypes.add_type("text/javascript", ".mjs")
+    mimetypes.add_type("text/css", ".css")
     app = create_app(source, bench_out=data / "runs" / "bench")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
