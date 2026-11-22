@@ -239,6 +239,16 @@ def _trace(
         factual.close()
 
 
+def _recording_world(scenario: str, seed: int, root: Path, config: ReplayConfig) -> tuple[Path, dict[str, Any]]:
+    world = generate(scenario, WorldConfig(seed=seed), root)
+    public = json.loads(world.manifest.read_bytes())
+    public.pop("seconds", None)
+    if config.profile == "v2":
+        # Proposal digests bind the manifest bytes. Generation timing is independent of the simulated world.
+        world.manifest.write_bytes(canonical_json(public) + b"\n")
+    return world.world, public
+
+
 def stage(
     source: Path,
     output: Path,
@@ -256,19 +266,15 @@ def stage(
         raise CaptureMismatch("the genuine capture must contain a complete model investigation")
     with tempfile.TemporaryDirectory(prefix="argus-presentation-") as work:
         root = Path(work)
-        world = generate(scenario, WorldConfig(seed=seed), root / "world")
-        live = _trace(world.world, source, scenario, root / "approved", config=config)
+        world, public_world = _recording_world(scenario, seed, root / "world", config)
+        live = _trace(world, source, scenario, root / "approved", config=config)
         alternate = None
         if denial is not None:
-            _trace(world.world, denial, scenario, root / "independent-denial", config=config)
-            alternate = _trace(
-                world.world, source, scenario, root / "common-prefix-denial", fork_deny=True, config=config
-            )
+            _trace(world, denial, scenario, root / "independent-denial", config=config)
+            alternate = _trace(world, source, scenario, root / "common-prefix-denial", fork_deny=True, config=config)
             _check_shared_prefix(live.prefix, alternate.prefix)
             if alternate.continuation is None:
                 raise CaptureMismatch("the denial did not continue past the shared proposal")
-        public_world = json.loads(world.manifest.read_bytes())
-        public_world.pop("seconds", None)
     output.mkdir(parents=True, exist_ok=False)
     live.prefix.write(output)
     if live.continuation is not None and alternate is not None and alternate.continuation is not None:
@@ -310,22 +316,26 @@ def _verify_segment(segment: Segment, bundle: Bundle, prefix: str = "") -> None:
 
 
 def verify_presentation(directory: Path, digest: str) -> Bundle:
-    """Cold strict replay of a pinned stage bundle, including both operator continuations."""
+    """Cold strict replay of a pinned v2 stage bundle, including both operator continuations."""
     bundle = read_bundle(directory, expected_digest=digest)
     manifest = bundle.manifest
+    if manifest.profile != "v2":
+        raise CaptureMismatch("cold presentation reconstruction requires a v2 seal")
     config = ReplayConfig.from_manifest(manifest, directory)
     scenario: Literal["s1", "s4"] = "s4" if manifest.scenario == "s4" else "s1"
     with tempfile.TemporaryDirectory(prefix="argus-presentation-replay-") as work:
         root = Path(work)
-        world = generate(scenario, WorldConfig(seed=manifest.seed), root / "world")
-        replay = _trace(world.world, directory, scenario, root / "approve", config=config, sealed=True)
+        world, public_world = _recording_world(scenario, manifest.seed, root / "world", config)
+        if public_world != manifest.world:
+            raise CaptureMismatch("generated world settings differ from the seal")
+        replay = _trace(world, directory, scenario, root / "approve", config=config, sealed=True)
         if replay.pins != (manifest.prompt_sha, manifest.tools_sha):
             raise CaptureMismatch("detective prompt or tools do not match the seal")
         if canonical_json(replay.graph) != canonical_json(bundle.documents["graph.json"]):
             raise CaptureMismatch("graph differs from the seal")
         _verify_segment(replay.prefix, bundle)
         if scenario == "s4":
-            denied = _trace(world.world, directory, scenario, root / "deny", config=config, sealed=True, fork_deny=True)
+            denied = _trace(world, directory, scenario, root / "deny", config=config, sealed=True, fork_deny=True)
             _check_shared_prefix(replay.prefix, denied.prefix)
             if replay.continuation is None or denied.continuation is None:
                 raise CaptureMismatch("an S4 continuation did not complete")

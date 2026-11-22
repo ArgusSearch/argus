@@ -40,6 +40,28 @@ def test_v2_seal_binds_memory_and_critic_turns(staging: Path):
         seal(staging)
 
 
+def test_v2_stage_world_identity_excludes_generation_timing(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from scripts.agent_eval import capture_presentation
+    from scripts.agent_eval.replay_config import ReplayConfig
+
+    from argus.remediation.service import world_identity
+
+    def generate(scenario, config, root):
+        root.mkdir()
+        manifest = root / "manifest.json"
+        manifest.write_bytes(canonical_json({"world_end": "2026-11-30T00:00:00", "seconds": float(root.name)}))
+        return SimpleNamespace(world=root / "world.duckdb", manifest=manifest)
+
+    monkeypatch.setattr(capture_presentation, "generate", generate)
+    config = ReplayConfig("v2")
+    first, first_metadata = capture_presentation._recording_world("s4", 1, tmp_path / "1.4", config)
+    second, second_metadata = capture_presentation._recording_world("s4", 1, tmp_path / "9.1", config)
+    assert first_metadata == second_metadata == {"world_end": "2026-11-30T00:00:00"}
+    assert world_identity(first) == world_identity(second)
+
+
 def test_v2_qualification_fails_a_missing_retained_cohort(tmp_path):
     from scripts.agent_eval.qualify_intel import score_intelligence
 

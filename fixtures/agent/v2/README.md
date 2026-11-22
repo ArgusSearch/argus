@@ -61,4 +61,6 @@ from two fresh replays of each presentation, including the S4 approval and
 denial paths. Retain three paid trials per scenario and score the archive
 with `make agent-eval-live TRIALS=ARCHIVE PROFILE=v2`. If acceptance pins land
 in a separate commit, add `SOURCE_COMMIT=SHA` with the commit that ran the
-trials. The demo may use v2 only after both scorecards pass.
+trials. The demo may use v2 only after both scorecards pass. For the scenario
+being shown, set `ARGUS_DEMO_BUNDLE` to its presentation directory and
+`ARGUS_DEMO_BUNDLE_SHA` to its accepted digest when starting the demo server.
