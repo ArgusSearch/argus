@@ -17,9 +17,9 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -57,6 +57,14 @@ class RunControl(BaseModel):
 
     action: Literal["play", "pause", "restart", "end"] | None = None
     speed: float | None = Field(default=None, gt=0)
+
+
+def _event_cursor(
+    since: Annotated[int, Query(ge=0)] = 0,
+    last_event_id: Annotated[str | None, Header(pattern=r"^[0-9]+$", max_length=20)] = None,
+) -> int:
+    """Validate reconnect inputs before the streaming response sends its HTTP headers."""
+    return int(last_event_id) if last_event_id is not None else since
 
 
 def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
@@ -193,13 +201,11 @@ def create_app(
 
     @app.get("/events", response_class=EventSourceResponse)
     async def events(
-        since: int = 0,
-        limit: int | None = None,
-        last_event_id: str | None = Header(None),
+        after: Annotated[int, Depends(_event_cursor)],
+        limit: Annotated[int | None, Query(gt=0)] = None,
         include_stream: bool = False,
     ) -> AsyncIterator[ServerSentEvent]:
         """The history after `since` (or Last-Event-ID), then live events."""
-        after = int(last_event_id) if last_event_id and last_event_id.isdigit() else since
         sent = 0
         async for item in hub.follow(after, include_stream=include_stream):
             if item.event is None:

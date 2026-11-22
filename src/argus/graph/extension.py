@@ -34,6 +34,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
+import sqlglot
 from pydantic import BaseModel, ConfigDict, Field
 
 from argus.contracts.events import Event
@@ -133,8 +134,16 @@ class ExtensionState(_Strict):
 
 
 def _same_metric(a: MetricDefinition, b: MetricDefinition) -> bool:
-    def norm(sql: str) -> str:
-        return re.sub(r"\s+", " ", sql).strip().rstrip(";").lower()
+    def norm(sql: str) -> tuple[str, ...]:
+        # Normalize SQL syntax, not literal values: 'DE' and 'de' can select different data.
+        try:
+            return tuple(
+                statement.sql(dialect="duckdb", normalize=True, comments=False)
+                for statement in sqlglot.parse(sql, read="duckdb")
+                if statement is not None and not isinstance(statement, sqlglot.exp.Semicolon)
+            )
+        except sqlglot.errors.SqlglotError:
+            return (sql.strip(),)  # malformed SQL still reaches the classifier's rejection path
 
     return a.name == b.name and norm(a.sql) == norm(b.sql)
 
