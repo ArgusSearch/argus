@@ -53,7 +53,7 @@ export function AiTab() {
       </Row>
       <SecretField label="API key" configured={api_key_configured && !("provider" in editor.changes)}
         disabled={editor.simulator || !provider} value={editor.changes.api_key} onChange={(value) => editor.change("api_key", value)} />
-      {editor.simulator && <Empty>Provider credentials are available on the local API.</Empty>}
+      {editor.simulator && <Empty>{tr("Provider credentials are available on the local API.")}</Empty>}
     </Card>;
   }}</EditorSection>;
 }
@@ -119,7 +119,7 @@ export function NotificationsTab() {
     <Card title="Outside channels" desc="Save each destination before testing it. A webhook test contacts the exact URL you provide.">
       {DESTINATIONS.map(([id, label, field, configured]) => <Destination key={id}
         channel={id} label={label} field={field} configured={editor.value[configured]} editor={editor} />)}
-      {editor.simulator && <Empty>External delivery is available on the local API.</Empty>}
+      {editor.simulator && <Empty>{tr("External delivery is available on the local API.")}</Empty>}
     </Card>
   </>}</EditorSection>;
 }
@@ -159,7 +159,7 @@ function ShopConnections({ editor }: { editor: Editor<Settings["sources"]> }) {
       action={<Btn disabled={editor.simulator || editor.value.sources.length >= 20} onClick={() => editor.set("sources", [
         ...editor.value.sources, { id: crypto.randomUUID(), name: "", connector: "shopify", url: "" },
       ])}>{tr("Add source")}</Btn>}>
-      {editor.value.sources.length === 0 && <Empty>{editor.simulator ? "External connections are available on the local API." : "No external sources configured."}</Empty>}
+      {editor.value.sources.length === 0 && <Empty>{tr(editor.simulator ? "External connections are available on the local API." : "No external sources configured.")}</Empty>}
     </Card>
     {editor.value.sources.map(({ id, connector, name, url }) => <Card key={id} title={name || CONNECTORS[connector]}
       action={<Badge>{CONNECTORS[connector]}</Badge>}>

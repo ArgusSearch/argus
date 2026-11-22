@@ -68,7 +68,7 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
       </aside>
       <div className="cs-main" ref={content}>
         <PageHead title={tr(t.title)} lead={tr(t.lead)} />
-        {!snapshot && <Card><Empty>{error || tr("Loading settings…")}</Empty>
+        {!snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
           {error && !staticReplay && <Btn onClick={() => void loadSettings()}>{tr("Try again")}</Btn>}
         </Card>}
         {snapshot && <>
@@ -95,6 +95,7 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
 /* ------------------------------------------------------------------ autonomy */
 
 function AutonomyTab({ view, editor }: { view: RunView; editor: Editor<Settings["autonomy"]> }) {
+  const tr = useText();
   const autonomy = useAutonomy(view.stream);
   const ruled = useMemo(() => (autonomy.data ? rulesByAgent(autonomy.data, AGENT_ROLES) : null), [autonomy.data]);
   if (!ruled) return <Card>{autonomy.error ? <Empty>Could not read GET /autonomy: {autonomy.error}</Empty> : <Empty>Reading the limits…</Empty>}</Card>;
@@ -115,14 +116,14 @@ function AutonomyTab({ view, editor }: { view: RunView; editor: Editor<Settings[
           >
             {rules.length === 0 && <Row label="No rule of its own" help="Runs inside the Detective's investigation and follows its limits." />}
             {rules.map((r) => (
-              <Row key={r.id} label={r.name} help={`${r.when} ${r.behavior}`}>
+              <Row key={r.id} label={r.name} help={`${tr(r.when)} ${tr(r.behavior)}`}>
                 <LevelPicker level={editor.value[r.id] ?? r.level} allowed={r.level} onChange={(level) => editor.set(r.id, level)} label={`${ROLE_TEXT[role].name}: ${r.name}`} />
               </Row>
             ))}
             {role === "cartographer" && (
               <Row label="On probation now" help="Graph placements waiting for stronger evidence or your decision before promotion.">
                 <span className="cs-chips end">
-                  {probation.length === 0 ? <Badge tone="ok">none</Badge> : probation.map((p) => <Badge key={p.id} tone="watch">{p.id}</Badge>)}
+                  {probation.length === 0 ? <Badge tone="ok">{tr("none")}</Badge> : probation.map((p) => <Badge key={p.id} tone="watch">{p.id}</Badge>)}
                 </span>
               </Row>
             )}
@@ -132,7 +133,7 @@ function AutonomyTab({ view, editor }: { view: RunView; editor: Editor<Settings[
       {ruled.other.length > 0 && (
         <Card title="Other rules">
           {ruled.other.map((r) => (
-            <Row key={r.id} label={r.name} help={`${r.when} ${r.behavior}`}>
+            <Row key={r.id} label={r.name} help={`${tr(r.when)} ${tr(r.behavior)}`}>
               <LevelPicker level={editor.value[r.id] ?? r.level} allowed={r.level} onChange={(level) => editor.set(r.id, level)} label={r.name} />
             </Row>
           ))}
@@ -361,6 +362,7 @@ const OUTSIDE: { id: Exclude<keyof Settings["channels"], "in_app">; name: string
 ];
 
 function ChannelsTab({ editor }: { editor: Editor<Settings["channels"]> }) {
+  const tr = useText();
   return (
     <>
       <Card title="In the app" desc="Notifications delivered inside the workspace.">
@@ -368,7 +370,7 @@ function ChannelsTab({ editor }: { editor: Editor<Settings["channels"]> }) {
           <Switch on={editor.value.in_app} label="Live notices" onChange={(on) => editor.set("in_app", on)} />
         </Row>
         <Row label="Morning report" help="The night in a few lines, each with its receipts.">
-          <Btn onClick={() => go("report")}>Open</Btn>
+          <Btn onClick={() => go("report")}>{tr("Open")}</Btn>
         </Row>
         <Row label="Event stream" help={<>Every event as it happens, for your own tools: <Source>GET /events</Source> (server-sent events).</>}>
           <Badge tone="ok" dot>

@@ -19,6 +19,9 @@ state/
 .env
 .env.*
 !.env.example
+.argus-settings.json
+.argus-settings-*
+.argus-monthly-spend.json
 
 # Editors and OS
 .DS_Store

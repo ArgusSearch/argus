@@ -339,22 +339,22 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
       </div>
       {!recorded && (
       <div className="fx-side-foot">
-        <span className="fx-hud">On its own</span>
+        <span className="fx-hud">{tr("On its own")}</span>
         <dl>
           <div>
-            <dt>hours watched</dt>
+            <dt>{tr("hours watched")}</dt>
             <dd>{value("hours")}</dd>
           </div>
           <div>
-            <dt title={tip("Edge test")}>formula checks</dt>
+            <dt title={tip("Edge test")}>{tr("formula checks")}</dt>
             <dd>{value("edges")}</dd>
           </div>
           <div>
-            <dt>investigations</dt>
+            <dt>{tr("investigations")}</dt>
             <dd>{value("investigations")}</dd>
           </div>
           <div className="human">
-            <dt title="Decisions people made: approvals and denials. Everything else Argus did on its own.">human actions</dt>
+            <dt title="Decisions people made: approvals and denials. Everything else Argus did on its own.">{tr("human actions")}</dt>
             <dd>{humans}</dd>
           </div>
         </dl>

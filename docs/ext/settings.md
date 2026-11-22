@@ -1,6 +1,6 @@
 # Operator settings
 
-In Mission Control, open **Settings**, choose a section, and save the edits. **Undo** restores the values from before your latest save. Detection and autonomy settings are read at the next live tick. Model and budget settings are read when the next investigation starts. Quiet hours hold external notices until the next eligible tick in the configured timezone. The emergency threshold uses estimated EUR impact per hour.
+In Mission Control, open **Settings**, choose a section, and save the edits. **Undo** restores the previous values for that section during the API process's lifetime. Detection and autonomy settings are read at the next live tick. Model and budget settings are read when the next investigation starts. Quiet hours hold external notices until the next eligible tick in the configured timezone. The emergency threshold uses estimated EUR impact per hour.
 
 On the local API, a live world's settings are stored in `.argus-settings.json` beside its DuckDB file. A local replay uses `~/.local/state/argus/settings.json`. The settings file has mode `0600`. Provider keys and webhook URLs stay on the server. The API returns only whether each secret is configured. The monthly model spend counter uses a private file beside the settings and rolls over at midnight UTC on the first of each month.
 
