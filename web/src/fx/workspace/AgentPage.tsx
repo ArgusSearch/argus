@@ -5,7 +5,7 @@
 // the model.
 
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { groupRuns, isLive, pendingProposals } from "../../agent-ui/activity";
+import { groupRuns, isLive } from "../../agent-ui/activity";
 import { runClock } from "../../agent-ui/clock";
 import { JumpToLatest, useFollowTail } from "../../agent-ui/hooks";
 import { RunGroupView, usd } from "../../agent-ui/RunLog";
@@ -13,7 +13,7 @@ import { type RunSummary } from "../../lib/agent";
 import { dayLabel, hhmm, humanize } from "../../lib/format";
 import { openIncidentPage } from "../nav";
 import { useAgentDemo } from "../../lib/agentDemo";
-import { useAgent } from "./agent";
+import { useAgent, type AgentState } from "./agent";
 import { VERDICT, type Tone } from "./plain";
 import { Card, Pill } from "./ui";
 
@@ -66,10 +66,14 @@ function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => vo
 
 export function AgentPage() {
   const agent = useAgent();
+  return <AgentActivity key={agent.scope} agent={agent} />;
+}
+
+function AgentActivity({ agent }: { agent: AgentState }) {
   // the sealed presentation is a recorded model run, whatever mode the server's own agent is in
   const presenting = useAgentDemo() !== null;
   const [quiet, setQuiet] = useState(false);
-  // runs the reader opened or folded; the rest follow the default (the live run and the newest are open)
+  // Explicit choices take precedence over the default, which expands live runs.
   const [folds, setFolds] = useState<ReadonlyMap<string, boolean>>(new Map());
   const records = useMemo(() => agent.records.filter((r) => quiet || r.kind !== "watch"), [agent.records, quiet]);
   const groups = useMemo(() => groupRuns(records, agent.runs), [records, agent.runs]);
@@ -77,22 +81,22 @@ export function AgentPage() {
   const tail = useFollowTail(records.length);
   const spent = agent.runs.reduce((s, r) => s + r.usd, 0);
   const running = agent.runs.find((r) => r.status === "running");
-  const waiting = pendingProposals(agent.proposals).length;
+  const waiting = agent.waiting;
   const newest = groups[groups.length - 1]?.key;
 
   // every run is timed from when this page first saw it live, open or folded
   useLayoutEffect(() => {
     const now = Date.now();
-    for (const g of groups) runClock.observe(g.key, live.has(g.key), now);
-  }, [groups, live]);
+    for (const g of groups) runClock.observe(`${agent.scope}:${g.key}`, live.has(g.key), now);
+  }, [agent.scope, groups, live]);
 
-  const isOpen = (key: string) => folds.get(key) ?? (live.has(key) || key === newest);
+  const isOpen = (key: string) => folds.get(key) ?? live.has(key);
   const { release } = tail;
   const toggle = useCallback(
     (key: string) => {
       // opening a run above the newest is reading history: stop following the end
       if (key !== newest) release();
-      setFolds((f) => new Map(f).set(key, !(f.get(key) ?? (live.has(key) || key === newest))));
+      setFolds((f) => new Map(f).set(key, !(f.get(key) ?? live.has(key))));
     },
     [newest, live, release],
   );
@@ -134,7 +138,7 @@ export function AgentPage() {
               ) : (
                 <ol className="au-groups">
                   {groups.map((g) => (
-                    <RunGroupView key={g.key} group={g} live={live.has(g.key)} open={isOpen(g.key)} proposals={agent.proposals} onToggle={toggle} />
+                    <RunGroupView key={g.key} clockId={`${agent.scope}:${g.key}`} group={g} live={live.has(g.key)} open={isOpen(g.key)} proposals={agent.proposals} onToggle={toggle} />
                   ))}
                 </ol>
               )}

@@ -29,7 +29,7 @@ export function transition(state: Follow, event: FollowEvent): Follow {
 export type Navigation =
   | { readonly source: "wheel"; readonly up: boolean }
   | { readonly source: "key"; readonly up: boolean }
-  | { readonly source: "touch" }
+  | { readonly source: "touch"; readonly up: boolean }
   | { readonly source: "pointer"; readonly onScrollbar: boolean };
 
 /**
@@ -39,13 +39,12 @@ export type Navigation =
 export function releases(nav: Navigation, view: { canScrollUp: boolean; awayFromEnd: boolean }): boolean {
   switch (nav.source) {
     case "wheel":
+    case "touch":
       return nav.up && view.canScrollUp;
     case "key":
       return nav.up ? view.canScrollUp : view.awayFromEnd;
     case "pointer":
       return nav.onScrollbar ? view.canScrollUp : view.awayFromEnd;
-    case "touch":
-      return view.awayFromEnd;
   }
 }
 

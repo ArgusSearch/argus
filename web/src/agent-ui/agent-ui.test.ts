@@ -269,7 +269,9 @@ describe("follow-tail", () => {
     expect(releases({ source: "key", up: false }, end)).toBe(false);
     expect(releases({ source: "pointer", onScrollbar: false }, end)).toBe(false);
     expect(releases({ source: "pointer", onScrollbar: true }, end)).toBe(true);
-    expect(releases({ source: "touch" }, top)).toBe(true);
+    expect(releases({ source: "touch", up: true }, end)).toBe(true);
+    expect(releases({ source: "touch", up: false }, end)).toBe(false);
+    expect(releases({ source: "touch", up: true }, top)).toBe(false);
   });
 
   it("counts the last 40 px as the end", () => {

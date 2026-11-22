@@ -15,7 +15,7 @@ import { agentApi, type ActivityRecord, type AskAnswer, type ReceiptLink } from 
 import { ApiError } from "../../lib/api";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { AvatarSlot } from "./AvatarSlot";
-import { useAgent } from "./agent";
+import { useAgent, type AgentState } from "./agent";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -166,6 +166,10 @@ let turnIds = Date.now();
 
 export function AskPanel({ incident }: { incident: string | null }) {
   const agent = useAgent();
+  return <AskConversation key={agent.scope} agent={agent} incident={incident} />;
+}
+
+function AskConversation({ agent, incident }: { agent: AgentState; incident: string | null }) {
   const streaming = useAgentDemo() !== null;
   const shown = useAskOpen();
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -294,7 +298,7 @@ export function AskPanel({ incident }: { incident: string | null }) {
         </button>
       </header>
       <div className="au-ask-body">
-        <ol className="ws-ask-turns" ref={tail.ref}>
+        <ol className="ws-ask-turns" ref={tail.ref} tabIndex={0} aria-label="Ask transcript">
           {turns.length === 0 && (
             <li className="ws-ask-empty">
               <span>Try</span>
@@ -361,6 +365,7 @@ export function AskPanel({ incident }: { incident: string | null }) {
           rows={2}
           value={text}
           placeholder="Ask about the shop, an incident or a number…"
+          aria-label="Question for Argus"
           aria-describedby="ws-ask-keys"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

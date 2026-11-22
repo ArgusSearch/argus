@@ -42,8 +42,8 @@ export function useFollowTail(count: number): FollowTail {
   // new items while following: stay on the end
   useLayoutEffect(() => {
     const el = node.current;
-    if (el && following) el.scrollTop = el.scrollHeight;
-  }, [count, following]);
+    if (el && followingRef.current) el.scrollTop = el.scrollHeight;
+  }, [count]);
 
   const ref = useCallback((el: HTMLElement | null) => {
     node.current = el;
@@ -55,7 +55,13 @@ export function useFollowTail(count: number): FollowTail {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && e.deltaY !== 0) heard({ source: "wheel", up: e.deltaY < 0 });
     };
-    const onTouch = () => heard({ source: "touch" });
+    let touchY: number | undefined;
+    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY; };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (touchY !== undefined && y !== undefined) heard({ source: "touch", up: y > touchY });
+      touchY = y;
+    };
     const onPointer = (e: PointerEvent) =>
       heard({ source: "pointer", onScrollbar: e.target === el && el.getBoundingClientRect().right - e.clientX <= Math.max(SCROLLBAR_HIT_PX, el.offsetWidth - el.clientWidth) });
     const onKey = (e: KeyboardEvent) => {
@@ -82,7 +88,8 @@ export function useFollowTail(count: number): FollowTail {
     children.observe(el, { childList: true });
     watchChildren();
     el.addEventListener("wheel", onWheel, { passive: true });
-    el.addEventListener("touchmove", onTouch, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
     el.addEventListener("pointerdown", onPointer, { passive: true });
     el.addEventListener("keydown", onKey);
     el.addEventListener("scroll", onScroll, { passive: true });
@@ -91,7 +98,8 @@ export function useFollowTail(count: number): FollowTail {
       resize.disconnect();
       children.disconnect();
       el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchmove", onTouch);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("pointerdown", onPointer);
       el.removeEventListener("keydown", onKey);
       el.removeEventListener("scroll", onScroll);

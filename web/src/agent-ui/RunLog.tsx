@@ -192,7 +192,7 @@ function Faces({ group, live }: { group: RunGroup; live: boolean }) {
 }
 
 /** What the live run is doing now, shimmering, with how long it has worked. */
-function LiveRow({ group }: { group: RunGroup }) {
+function LiveRow({ group, clockId }: { group: RunGroup; clockId: string }) {
   const now = liveLine(group);
   return (
     <div className="au-live" aria-live="polite">
@@ -202,7 +202,7 @@ function LiveRow({ group }: { group: RunGroup }) {
         {now.text && <span>{now.text}</span>}
       </span>
       <span className="au-live-time">
-        Working for <Elapsed id={group.key} live />
+        Working for <Elapsed id={clockId} live />
       </span>
     </div>
   );
@@ -210,6 +210,7 @@ function LiveRow({ group }: { group: RunGroup }) {
 
 export interface RunGroupProps {
   group: RunGroup;
+  clockId: string;
   live: boolean;
   open: boolean;
   proposals: ProposalView[];
@@ -217,7 +218,7 @@ export interface RunGroupProps {
 }
 
 /** One run: a header that folds it, the live line while it works, its steps when open, and its waiting decisions. */
-export const RunGroupView = memo(function RunGroupView({ group, live, open, proposals, onToggle }: RunGroupProps) {
+export const RunGroupView = memo(function RunGroupView({ group, clockId, live, open, proposals, onToggle }: RunGroupProps) {
   const own = proposalsOf(group, proposals);
   const waiting = own.filter((p) => p.state === "AWAIT_OPERATOR");
   // folded, a run still shows what it proposed: waiting for you, or on its way through applied to verified
@@ -248,11 +249,11 @@ export const RunGroupView = memo(function RunGroupView({ group, live, open, prop
           {status && <Pill tone={status.tone}>{status.word}</Pill>}
           {waiting.length > 0 && <Pill tone="alarm">{waiting.length} waiting</Pill>}
           {cost > 0 && <span className="mono">{usd(cost)}</span>}
-          {!live && <Elapsed id={group.key} live={false} className="mono" />}
+          {!live && <Elapsed id={clockId} live={false} className="mono" />}
           <span className="mono">{hhmm(last.sim_ts)}</span>
         </span>
       </button>
-      {live && <LiveRow group={group} />}
+      {live && <LiveRow group={group} clockId={clockId} />}
       {open ? (
         <ol className="au-steps" id={panel}>
           {group.steps.map((s) => (
