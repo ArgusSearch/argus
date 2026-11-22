@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { buildBeats } from "../beats";
-import { placePin } from "../Overlay";
-import { growthAt, slotAt, timeline, type Timeline } from "../timeline";
+import { placePin, roleViews } from "../Overlay";
+import { Player } from "../player";
+import { ROLES } from "../roles";
+import { growthAt, idleBubbles, slotAt, timeline, villageAt, type Timeline } from "../timeline";
 import type { VillageTape } from "../types";
 import metricTape from "../tapes/metric.json";
 import s4Tape from "../tapes/s4.json";
 
 const metric = timeline(buildBeats(metricTape as unknown as VillageTape, { decision: null }));
+
+it("clears old bubbles while the new source catches up to the player", () => {
+  const player = new Player();
+  player.load(metric);
+  player.seek(metric.total);
+  const previous = villageAt(metric, player.time, idleBubbles(ROLES));
+  expect(roleViews(previous, player).some((role) => role.kind)).toBe(true);
+  player.load(timeline([]));
+  expect(roleViews(previous, player).every((role) => role.kind === null)).toBe(true);
+});
 
 function verdicts(tl: Timeline) {
   return tl.slots.filter((s) => s.beat.role === "cartographer" && s.beat.kind === "verdict");

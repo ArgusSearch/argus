@@ -75,13 +75,16 @@ export interface RoleView {
 export function roleViews(state: VillageState, player: Player): RoleView[] {
   const tl = player.timeline;
   const t = player.time;
+  const current = tl.slots[state.index];
   return ROLES.map(({ id }) => {
+    // The player can load a new source before React commits the state folded from that source.
+    if (!current || current.beat !== state.beat) return { role: id, kind: null, line: null, since: 0 };
     const r = state.roles[id];
     if (r.status === "waiting") return { role: id, kind: "need", line: r.bubble, since: 0 };
     if (r.status === "working") {
       // the clock runs from the first of the role's beats in a row on this case
       let i = state.index;
-      while (i > 0 && tl.slots[i - 1].beat.role === id && tl.slots[i - 1].beat.caseId === tl.slots[state.index].beat.caseId) i--;
+      while (i > 0 && tl.slots[i - 1].beat.role === id && tl.slots[i - 1].beat.caseId === current.beat.caseId) i--;
       return { role: id, kind: "working", line: r.bubble, since: tl.slots[i]?.start ?? t };
     }
     if (r.status === "done" && r.beats > 0) {
