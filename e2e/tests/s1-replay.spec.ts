@@ -27,7 +27,7 @@ test("S1: INC-0001 is a supported cause in DE / android / PayCo with the release
   const ruled = sheet.locator(".ruled");
   await expect(ruled).toContainText(/android-app 8\.3\.0/);
 
-  await sheet.getByRole("button", { name: "Copy report (Markdown)" }).click();
+  await sheet.getByRole("button", { name: /^Copy (report \(Markdown\)|as Markdown)$/ }).click();
   await expect(sheet.getByRole("button", { name: "Copied" })).toBeVisible();
   const md = await page.evaluate(() => navigator.clipboard.readText());
   expect(md).toContain("SUPPORTED CAUSE");
