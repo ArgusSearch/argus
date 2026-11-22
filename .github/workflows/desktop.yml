@@ -1,0 +1,116 @@
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'web/**'
+      - 'src/**'
+      - 'fixtures/**'
+      - 'graph/**'
+      - 'metrics/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/desktop.yml'
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Desktop tag for the draft release (for example, desktop-v0.1.0)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record the source commit
+        id: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            web/package-lock.json
+      - run: uv python install 3.13
+      - run: npm --prefix web ci
+      - run: npm --prefix desktop ci
+      - run: npm --prefix desktop run build
+      - name: Install and smoke-test Argus
+        shell: pwsh
+        run: |
+          $installer = Get-Item 'desktop/dist/Argus-*-win-x64.exe' -ErrorAction Stop
+          $installation = Join-Path $env:RUNNER_TEMP 'Argus Smoke'
+          $process = Start-Process -PassThru -Wait -FilePath $installer.FullName -ArgumentList "/S /D=$installation"
+          if ($process.ExitCode -ne 0) { throw "Installer exited with $($process.ExitCode)" }
+          npm --prefix desktop run smoke -- (Join-Path $installation 'Argus.exe')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Argus-Windows-x64
+          path: desktop/dist/Argus-*-win-x64.exe
+          if-no-files-found: error
+
+  draft-release:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: desktop-release-${{ inputs.release_tag || github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Argus-Windows-x64
+          path: installers
+      - name: Attach the installer to a draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          TARGET_SHA: ${{ needs.windows.outputs.source_sha }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^desktop-v[0-9][0-9A-Za-z._-]*$ ]]; then
+            echo 'Use a desktop-v version tag.' >&2
+            exit 1
+          fi
+          if tag_sha=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha 2>/dev/null); then
+            if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
+              echo 'The tag points at a different source commit.' >&2
+              exit 1
+            fi
+          fi
+          if release=$(gh release view "$RELEASE_TAG" --json isDraft,targetCommitish); then
+            if [[ $(jq -r .isDraft <<< "$release") != true ]]; then
+              echo 'This tag already has a published release.' >&2
+              exit 1
+            fi
+            if [[ -z "$tag_sha" && $(jq -r .targetCommitish <<< "$release") != "$TARGET_SHA" ]]; then
+              echo 'The draft targets a different source commit.' >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" installers/*.exe --clobber
+          else
+            gh release create "$RELEASE_TAG" installers/*.exe --draft --target "$TARGET_SHA" \
+              --title "Argus Desktop ${RELEASE_TAG#desktop-v}" --notes 'Windows x64 installer.'
+          fi
