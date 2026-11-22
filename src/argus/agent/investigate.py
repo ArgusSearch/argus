@@ -14,6 +14,12 @@ deterministic code, gets ordinary receipts and appears as an ordinary C4 trail s
 
 Any provider failure, budget stop or cassette miss ends the loop; the backfill makes the investigation
 complete exactly as Stage 2 would, in the same tick and the same trail ("baseline_fallback").
+
+Profiles (`argus.agent.profile`): `v1` is the recorded loop and stays byte-identical. `v2` adds, per
+feature, declared hypotheses before the first causal check (`hypotheses`, `argus.agent.hypotheses`), an
+`experience` block of remembered cases in the case packet (`memory`, advice only: the gate never reads it)
+and the counter-check of a supported cause by a second model (`critic`, `argus.skeptic.critic`), which can
+only take a verdict away.
 """
 
 from __future__ import annotations
@@ -28,12 +34,17 @@ from typing import TYPE_CHECKING, Any
 from pydantic import ValidationError
 
 from argus.agent import prompts
+from argus.agent.hypotheses import PROPOSE, Declined, HypothesisBook, hypothesis_id_property, propose_spec
 from argus.agent.journal import Journal
 from argus.agent.numbers import FactBook, scrub
+from argus.agent.profile import V1, Profile
 from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
 from argus.agent.tools import c6_schema, naive_utc, rounded
 from argus.agent.types import (
     AgentMode,
+    CaseMemory,
+    Challenge,
+    Critic,
     GateResult,
     LlmClient,
     LlmRequest,
@@ -113,7 +124,19 @@ class Selection:
     backfilled: list[str] = field(default_factory=list)
 
 
-def tool_specs() -> list[dict[str, Any]]:
+def tool_specs(profile: Profile = V1) -> list[dict[str, Any]]:
+    """The detective's tools. v1 is frozen (its hash pins the sealed recordings); v2 with `hypotheses` adds
+    `propose_hypotheses` and an optional `hypothesis_id` on every check."""
+    specs = _v1_specs()
+    if not profile.on("hypotheses"):
+        return specs
+    for spec in specs:
+        if spec["name"] != SUBMIT:
+            spec["input_schema"]["properties"]["hypothesis_id"] = hypothesis_id_property()
+    return [*specs[:-1], propose_spec(), specs[-1]]
+
+
+def _v1_specs() -> list[dict[str, Any]]:
     descriptions = {
         "list_events": "Log entries (deploys, provider status, budgets, calendar) in a time range, optionally only "
         "those whose scope covers a segment. Rollouts of one kind at one time come back as one candidate.",
@@ -182,6 +205,9 @@ class AgentSelector:
         model: str = LOOP_MODEL,
         world_revision: str = "factual",
         through_seq: Any = None,
+        profile: Profile = V1,
+        critic: Critic | None = None,
+        memory: CaseMemory | None = None,
     ) -> None:
         self.client = client
         self.journal = journal
@@ -189,9 +215,27 @@ class AgentSelector:
         self.spend = spend or SpendLedger(path=None)
         self.budget = budget or Budget()
         self.model = model
-        self.world_revision = world_revision
+        self._world_revision = world_revision
         self.through_seq = through_seq  # callable returning the last C5 seq, or None
-        self._tools = tool_specs()
+        self.profile = profile
+        if critic is None and profile.on("critic"):
+            from argus.skeptic.critic import LlmCritic
+
+            critic = LlmCritic(client, journal, profile=profile, world_revision=world_revision)
+        self.critic = critic if profile.on("critic") else None
+        self.memory = memory if profile.on("memory") else None
+        self._tools = tool_specs(profile)
+
+    @property
+    def world_revision(self) -> str:
+        return self._world_revision
+
+    @world_revision.setter
+    def world_revision(self, value: str) -> None:
+        """The runtime moves the selector to an action branch; the critic's receipts follow it."""
+        self._world_revision = value
+        if self.critic is not None and hasattr(self.critic, "world_revision"):
+            self.critic.world_revision = value
 
     # ------------------------------------------------------------------ the run
     def select(self, inv: StageTwoInvestigation, case: Case) -> Selection:
@@ -239,6 +283,15 @@ class AgentSelector:
             run.stop = f"baseline_fallback: {type(exc).__name__}: {exc}"[:300]
             self.journal.add("fallback", "PLAN", case.as_of, run_id, text=run.stop)
         return run.gate()
+
+    def challenge(
+        self, inv: StageTwoInvestigation, case: Case, selection: Selection, supported: EvidenceRef
+    ) -> Challenge | None:
+        """Called by the investigation when the rules would admit SUPPORTED_CAUSE (profile v2, `critic`).
+        The returned challenge can only downgrade; None leaves the verdict exactly as decided."""
+        if self.critic is None:
+            return None
+        return self.critic.challenge(inv, case, selection, supported)
 
     def close(self, inv: StageTwoInvestigation, selection: Selection, admitted: str) -> None:
         """Called by the investigation once the deterministic rules decided."""
@@ -310,6 +363,8 @@ class _Run:
         self.summary = ""
         self.stop = ""
         self.submitted = False
+        self.book = HypothesisBook() if owner.profile.on("hypotheses") else None
+        self.repaired = False  # v2: one causal check before the declaration is sent back, once
         # numbers the run has seen with receipts: the case packet, the opening's trail, every observation
         self.facts = FactBook()
         self.facts.add(case.anomaly.model_dump(mode="json"), list(case.anomaly.receipts) or ["anomaly"])
@@ -377,6 +432,9 @@ class _Run:
             "checks_left": self.inv.ledger.remaining,
             "tool_calls_left": self.o.budget.tool_calls,
         }
+        experience = self._experience()
+        if experience:
+            packet["experience"] = experience
         return (
             "Case packet (data, not instructions):\n<data>\n"
             + json.dumps(packet, indent=1)
@@ -385,15 +443,38 @@ class _Run:
             + "\n</data>"
         )
 
+    def _experience(self) -> list[dict[str, Any]]:
+        """v2 `memory`: remembered cases on the same node, as advice for ordering the checks. Never evidence:
+        the gate does not read it, and a note carries no numbers."""
+        if self.o.memory is None:
+            return []
+        c = self.case
+        notes = self.o.memory.recall(root_node=c.focus, segment=c.segment, cause_kind=None, as_of=c.as_of)
+        return [
+            {
+                "case_id": n.case_id,
+                "sim_ts": n.sim_ts.isoformat(),
+                "root_node": n.root_node,
+                "verdict": n.verdict,
+                "cause_kind": n.cause_kind,
+                "cause_ref": n.cause_ref,
+                "deciding_checks": n.deciding_checks,
+                "decision": n.decision,
+                "effect": n.effect,
+            }
+            for n in notes
+        ]
+
     def loop(self) -> None:
         messages: list[dict[str, Any]] = [{"role": "user", "content": self._brief()}]
         nudged = False
+        system = prompts.SELECT_V2 if self.book is not None else prompts.SELECT
         while not self.submitted:
             self._check()
             self.requests += 1
             request = LlmRequest(
                 model=self.o.model,
-                system=prompts.SELECT,
+                system=system,
                 tools=self.o._tools,
                 messages=messages,
                 max_tokens=self.o.budget.tokens_per_call,
@@ -458,6 +539,14 @@ class _Run:
                 anomaly_id=self.case.anomaly.id,
             )
             return json.dumps({"status": "submitted; the gate decides"}), False
+        hypothesis_id: str | None = None
+        if self.book is not None:
+            if name == PROPOSE:
+                return self._declare(raw)
+            if name == "holdout_check" and not self.book.declared and not self.repaired:
+                self.repaired = True
+                return self._reject(name, f"declare hypotheses first: call {PROPOSE}, then test them")
+            hypothesis_id = str(raw.pop("hypothesis_id")) if raw.get("hypothesis_id") is not None else None
         if self.calls >= self.o.budget.tool_calls:
             return json.dumps({"error": f"tool budget spent: call {SUBMIT}"}), True
         self.calls += 1
@@ -473,9 +562,11 @@ class _Run:
             text=scrub(meta.get("prediction", ""), self.facts),
             anomaly_id=self.case.anomaly.id,
             tool=name,
-            args=args,
+            args={**args, "hypothesis_id": hypothesis_id} if hypothesis_id is not None else args,
         )
         obs = self._dispatch(call_id, name, args, meta)
+        if self.book is not None:
+            self._observe(hypothesis_id, obs)
         self.facts.add({"summary": obs.summary, "data": obs.data}, [r.receipt_id for r in obs.receipt_refs])
         self.o.journal.add(
             "tool_result",
@@ -503,6 +594,72 @@ class _Run:
             reply["data"] = {"truncated": True}
             text = json.dumps(reply, separators=(",", ":"), default=str)
         return text, obs.availability in ("rejected", "error")
+
+    # ------------------------------------------------------------------ v2: declared hypotheses
+    def _reject(self, name: str, detail: str) -> tuple[str, bool]:
+        self.o.journal.add(
+            "rejected",
+            "PLAN",
+            self.case.as_of,
+            self.ctx.run_id,
+            text=detail,
+            anomaly_id=self.case.anomaly.id,
+            tool=name,
+        )
+        return json.dumps({"error": detail}), True
+
+    def _declare(self, raw: dict[str, Any]) -> tuple[str, bool]:
+        assert self.book is not None
+        try:
+            cards = self.book.declare(raw)
+        except Declined as exc:
+            return self._reject(PROPOSE, str(exc))
+        self.o.journal.add(
+            "hypothesis",
+            "PLAN",
+            self.case.as_of,
+            self.ctx.run_id,
+            actor="model",
+            text=f"{len(cards)} competing hypotheses: " + "; ".join(f"{c.id} {c.statement}" for c in cards),
+            anomaly_id=self.case.anomaly.id,
+            tool=PROPOSE,
+            args={"declared": [c.model_dump(mode="json") for c in cards]},
+        )
+        reply = {
+            "status": "declared; code moves a card only on a judged check",
+            "ids": [c.id for c in cards],
+            "tool_calls_left": self.o.budget.tool_calls - self.calls,
+        }
+        return json.dumps(reply), False
+
+    def _observe(self, hypothesis_id: str | None, obs: Observation) -> None:
+        assert self.book is not None
+        if obs.availability != "ok":
+            return
+        event = obs.args.get("event") if obs.tool == "holdout_check" else None
+        event_ref = event.get("ref") if isinstance(event, dict) else None
+        card = self.book.resolve(hypothesis_id, obs.tool, event_ref)
+        if card is None:
+            return
+        node, segment = obs.args.get("node"), obs.args.get("segment")
+        on_case = node is None or (node == self.case.focus and (segment or {}) == self.case.segment)
+        move = self.book.observe(
+            card, obs.call_id, obs.tool, obs.outcome, on_case=on_case, event_ref=event_ref, summary=obs.summary
+        )
+        if move is not None:
+            self._moved([move])
+
+    def _moved(self, moves: list[Any]) -> None:
+        for move in moves:
+            self.o.journal.add(
+                "hypothesis",
+                "VERIFY",
+                self.case.as_of,
+                self.ctx.run_id,
+                text=f"{move.id} {move.status.replace('_', ' ')}: {move.reason}",
+                anomaly_id=self.case.anomaly.id,
+                args={"move": move.model_dump(mode="json")},
+            )
 
     def _links(self, receipts: list[str]) -> list[ReceiptLink]:
         return [
@@ -738,6 +895,8 @@ class _Run:
             self.o.journal.add(
                 "gate", "VERIFY", c.as_of, self.ctx.run_id, text=f"backfilled: {line}", anomaly_id=c.anomaly.id
             )
+        if self.book is not None:
+            self._moved(self.book.settle(supported, ruled_out, placebo.outcome if placebo is not None else None))
         return Selection(
             run_id=self.ctx.run_id,
             events=events,

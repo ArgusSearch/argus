@@ -22,6 +22,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         help="'YYYY-MM-DDTHH:MM|question' (repeatable; questions at the same hour form one conversation)",
     )
     rec.add_argument("--incident", help="incident the asked questions are about")
+    rec.add_argument("--profile", choices=("v1", "v2"), help="agent profile (default: ARGUS_AGENT_PROFILE, else v1)")
+    rec.add_argument("--features", help="v2 only: comma-separated features (default: ARGUS_AGENT_FEATURES)")
     rep = sub.add_parser("replay", help="re-run a recording strictly from its turns, no provider, and compare")
     rep.add_argument("--world", type=Path, required=True)
     rep.add_argument("--recording", type=Path, required=True)
@@ -29,6 +31,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
+    from argus.agent.profile import Profile
     from argus.agent.session import AskPlan, record, replay
 
     if args.agent_cmd == "record":
@@ -39,7 +42,8 @@ def run(args: argparse.Namespace) -> int:
                 raise SystemExit("--ask takes 'YYYY-MM-DDTHH:MM|question'")
             plans.setdefault(datetime.fromisoformat(when), []).append(question.strip())
         asks = [AskPlan(at, tuple(qs), args.incident) for at, qs in sorted(plans.items())]
-        result = record(args.world, args.out, decide=args.decide, asks=asks)
+        profile = Profile.of(args.profile, args.features) if args.profile else Profile.from_env()
+        result = record(args.world, args.out, decide=args.decide, asks=asks, profile=profile)
         for answer in result.asks:
             print(f"Q: {answer['question']}\nA: {answer['response']['answer'] or answer['response']['reason']}\n")
         runs = list(result.journal.runs.values())

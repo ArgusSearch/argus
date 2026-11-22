@@ -13,6 +13,9 @@
 `replay` runs the same world again with a strict `ReplayClient` (no provider is constructed) and returns the
 first difference from the recording, so a recording is a regression gate for the loop, the prompt and the
 tools. Wall-clock fields (`UsageRecord.wall_ms`) are ignored in the comparison.
+
+A `v2` recording names its profile and features in `session.json`; a replay runs the same profile (a
+recording without them is `v1`).
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from typing import Any, Literal
 from argus.agent.ask import AskRunner, AskScope
 from argus.agent.investigate import AgentSelector
 from argus.agent.journal import Journal
+from argus.agent.profile import V1, Profile
 from argus.agent.provider import AnthropicClient, Cassette, RecordingClient, ReplayClient, SpendLedger
 from argus.agent.service import AgentService
 from argus.agent.types import AgentMode, Decision, LlmClient
@@ -76,6 +80,7 @@ def run_world(
     spend: SpendLedger | None = None,
     decide: Decide = "none",
     asks: Sequence[AskPlan] = (),
+    profile: Profile = V1,
 ) -> SessionResult:
     """Run the live window with the agent. `decide`: what the scripted operator does with each proposal, in
     the hour it appears (the clock holds for a decision, so that is the hour a human would decide in)."""
@@ -86,7 +91,12 @@ def run_world(
     journal = Journal()
     runtime_ref: list[Any] = []
     selector = AgentSelector(
-        client, journal, mode=mode, spend=spend, through_seq=lambda: runtime_ref[0].bus.history[-1].seq
+        client,
+        journal,
+        mode=mode,
+        spend=spend,
+        through_seq=lambda: runtime_ref[0].bus.history[-1].seq,
+        profile=profile,
     )
     runtime = Runtime(world, selector=selector)
     runtime_ref.append(runtime)
@@ -160,11 +170,14 @@ def record(
     client: LlmClient | None = None,
     decide: Decide = "none",
     asks: Sequence[AskPlan] = (),
+    profile: Profile = V1,
 ) -> SessionResult:
     recorder = RecordingClient(client or AnthropicClient())
-    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide, asks=asks)
+    result = run_world(world, recorder, "record", spend=SpendLedger(), decide=decide, asks=asks, profile=profile)
     out.mkdir(parents=True, exist_ok=True)
-    session = {"decide": decide, "asks": [a.to_json() for a in asks]}
+    session: dict[str, Any] = {"decide": decide, "asks": [a.to_json() for a in asks]}
+    if profile != V1:
+        session.update(profile.to_json())
     (out / "session.json").write_text(json.dumps(session) + "\n")
     if asks:
         _jsonl(out / ASK, result.asks)
@@ -189,7 +202,8 @@ def replay(world: Path, recording: Path, strict: bool = True) -> list[str]:
     session = json.loads(meta.read_text()) if meta.exists() else {}
     decide: Decide = session.get("decide", "none")
     asks = [AskPlan.from_json(a) for a in session.get("asks", [])]
-    result = run_world(world, client, "replay", decide=decide, asks=asks)
+    profile = Profile.of(session.get("profile", "v1"), session.get("features"))
+    result = run_world(world, client, "replay", decide=decide, asks=asks, profile=profile)
     problems: list[str] = []
     recorded_activity = [json.loads(line) for line in (recording / ACTIVITY).read_text().splitlines() if line]
     produced = [r.model_dump(mode="json") for r in result.journal.records]
