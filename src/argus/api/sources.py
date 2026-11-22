@@ -197,7 +197,14 @@ class LiveSource:
                 self._wake.clear()
             if self._stop.is_set():
                 return
-            self.runtime.tick(as_of)
+            try:
+                self.runtime.tick(as_of)
+            except asyncio.CancelledError:
+                if self._stop.is_set():
+                    return
+                raise
+            if self._stop.is_set():
+                return
             if self.remediation is not None:
                 self.remediation.tick(as_of)
                 if self.agent.selector is not None:
@@ -222,6 +229,7 @@ class LiveSource:
 
     def stop(self) -> None:
         self._stop.set()
+        self.runtime.runner.cancel()
         self._wake.set()
 
     async def closed(self) -> None:
