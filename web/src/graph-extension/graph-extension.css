@@ -18,11 +18,6 @@
   pointer-events: auto;
 }
 
-/* Outside Visualization, Ice keeps the graph behind the current page as a backdrop. */
-:root[data-fx-section]:not([data-fx-section="graph"]) .gx-layer {
-  visibility: hidden;
-}
-
 .gx-card {
   --gx-tone: var(--ok, #3fbf8f);
   --gx-tone-bg: var(--ok-bg, rgba(63, 191, 143, 0.12));
