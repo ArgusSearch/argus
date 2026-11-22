@@ -136,11 +136,20 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
   const latestAgentSeq = records.at(-1)?.seq;
   const end = useRef<HTMLDivElement>(null);
   const following = picked === null;
+  const anomalyId = anomaly?.id;
+  const seen = useRef<{ anomalyId: string; seq?: number; agentSeq?: number } | null>(null);
 
-  // a running investigation keeps its newest step in view
+  // a running investigation keeps its newest step in view; one that is already decided when its steps first
+  // arrive opens at its first chapter, so the story reads from the start
   useEffect(() => {
+    if (!anomalyId || (latestSeq === undefined && latestAgentSeq === undefined)) return;
+    const previous = seen.current;
+    const sameCase = previous?.anomalyId === anomalyId;
+    if (sameCase && previous.seq === latestSeq && previous.agentSeq === latestAgentSeq) return;
+    seen.current = { anomalyId, seq: latestSeq, agentSeq: latestAgentSeq };
+    if (verdict && (!sameCase || (!working && previous.seq === latestSeq))) return;
     if (following) end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [latestSeq, latestAgentSeq, following]);
+  }, [anomalyId, latestSeq, latestAgentSeq, following, verdict, working]);
 
   if (!current || !anomaly) {
     return (
