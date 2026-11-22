@@ -29,6 +29,7 @@
     gap: var(--fx-space-2);
     max-height: calc(100dvh - 2 * var(--fx-space-3));
     overflow-y: auto;
+    margin-bottom: 0;
     padding: var(--fx-space-2) var(--fx-space-3);
     border: var(--fx-hair) solid var(--fx-glass-border);
     border-radius: 0 0 var(--fx-radius-2) var(--fx-radius-2);
@@ -222,6 +223,11 @@
     height: auto;
     padding-block: var(--fx-space-2);
     white-space: normal;
+  }
+
+  /* replay controls: same 44 px touch row as the buttons beside them (2 px padding + 1 px border each side) */
+  :root[data-fx] .header .ctl {
+    height: 38px;
   }
 
   :root[data-fx] :is(.ws-health-body, .mr-line, .mr-notes, .ip-cost) {
