@@ -418,7 +418,7 @@
   }
 
   :root[data-fx] .fx-entry-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     height: auto;
     min-height: 0;
   }
@@ -429,6 +429,35 @@
 
   :root[data-fx] .fx-entry .fx-corners {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  :root[data-fx] .fx-entry-crew {
+    width: 100%;
+  }
+
+  :root[data-fx] .fx-entry-crew li {
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    margin-inline: 0;
+  }
+
+  :root[data-fx] .fx-entry-who > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 10px 12px;
+  }
+
+  :root[data-fx] .fx-entry-who dd {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  :root[data-fx] :is(.fx-entry-monogram, .fx-entry-dot) {
+    flex: none;
   }
 }
 
