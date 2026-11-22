@@ -39,6 +39,12 @@ if [ "$mode" = --serve ]; then
   if [ ! -f "$origin" ]; then origin="$bin/cloudflare_api.py"; fi
   mkdir -p "$state/api-home"
   builtin cd "$release"
+  if grep -q -- '--state-dir' "$origin"; then
+    args+=(--state-dir "$state/live-investigations" --openai-key-file "$state/openai.key")
+    exec env -i HOME="$state/api-home" PATH=/usr/bin:/bin:/opt/homebrew/bin \
+      ARGUS_PROVIDER=openai ARGUS_PUBLIC_DAILY_USD="${ARGUS_PUBLIC_DAILY_USD:-5.00}" \
+      "$release/.venv/bin/python" "$origin" "${args[@]}"
+  fi
   exec env -i HOME="$state/api-home" PATH=/usr/bin:/bin:/opt/homebrew/bin \
     ARGUS_DISABLE_PROVIDER=1 "$release/.venv/bin/python" "$origin" "${args[@]}"
 fi

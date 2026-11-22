@@ -54,7 +54,9 @@ def segment_label(segment: dict[str, str]) -> str:
     return " · ".join(segment[k] for k in keys) or "all traffic"
 
 
-def build_digest(state: RunState, incidents: list[Incident], graph: Graph) -> Digest:
+def build_digest(
+    state: RunState, incidents: list[Incident], graph: Graph, *, heading: str = "While you slept"
+) -> Digest:
     """Counts from the folded stream; incidents and the graph from the source (live or replay)."""
     with state.lock:  # one consistent read of the folded state
         first, last = state.first_tick, state.last_tick
@@ -172,7 +174,7 @@ def build_digest(state: RunState, incidents: list[Incident], graph: Graph) -> Di
         )
     )
     window = f"{since:%a %d %b %H:%M} to {until:%a %d %b %H:%M}" if since and until else "no data yet"
-    title = f"While you slept ({window})"
+    title = f"{heading} ({window})"
     md = [f"## {title}", ""]
     md += [
         f"- **{line.label}: {line.value}**: {line.detail}" + "".join(f" [{r}]" for r in line.receipts[:4])

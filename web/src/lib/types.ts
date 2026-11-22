@@ -24,6 +24,7 @@ export interface GraphNode {
   expr: string | null;
   sql: string | null;
   state: string;
+  source?: string | null;
 }
 
 export interface EdgeTestResult {

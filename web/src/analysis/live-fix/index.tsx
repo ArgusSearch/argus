@@ -54,7 +54,7 @@ function LiveFixWorkspace({ view, graph = null, incidentId, runId, onSelectRun, 
     : incidentId ? threadForIncident(threads, incidentId)
     : threads.find((entry) => entry.id === (initialRun ?? first));
   const subject = requested ? thread?.incidentId ?? null : incidentId ?? thread?.incidentId ?? null;
-  const source = replay ? "Replay" : view.mode === "live" ? "Live" : view.mode === "replay" ? "Replay" : null;
+  const source = replay ? "History" : view.mode === "live" ? "Live" : view.mode === "replay" ? "History" : null;
   const choose = (id: string) => {
     setSelected(id);
     setMobileView("work");
@@ -226,11 +226,11 @@ function RunWork({ thread, roles, clockId }: { thread: LiveFixThread; roles: Ret
   const origin = (id: string) => group?.records.find((record) => record.kind === "action_proposed" && record.action_id === id);
   const featured = proposals.filter((proposal) => proposal.state === "AWAIT_OPERATOR" && (!workOpen || !origin(proposal.id)));
   const orphaned = proposals.filter((proposal) => proposal.state !== "AWAIT_OPERATOR" && !origin(proposal.id));
-  const summary = group ? groupSummary(group, thread.state === "working") : run ? `${run.tool_calls} recorded checks` : "Run details";
+  const summary = group ? groupSummary(group, thread.state === "working") : run ? `${run.tool_calls} checks` : "Run details";
   return (
     <article className="lf-work">
       <details className="lf-disclosure" onToggle={(event) => setWorkOpen(event.currentTarget.open)}>
-        <summary>{span && thread.state === "settled" ? <>Worked for {formatElapsed(span)} <small>recorded span</small></> : "Agent work"} <small>{summary}</small></summary>
+        <summary>{span && thread.state === "settled" ? <>Worked for {formatElapsed(span)} <small>elapsed time</small></> : "Agent work"} <small>{summary}</small></summary>
         {group?.steps.length ? <ol className="au-steps">
           {group.steps.map((step) => {
             if (step.kind === "check") return <CheckRow key={step.key} check={step} />;
@@ -286,7 +286,7 @@ function Lineage({ roles, clockId }: { roles: ReturnType<typeof lineageOf>; cloc
             <AgentReceiptChips links={uniqueReceipts([...last.receipt_links, ...(last.observation?.receipt_refs ?? [])])} />
           </div>
           {working && clockId ? <span title="Time observed in this browser"><Elapsed id={clockId} live className="mono" /></span>
-            : seconds && <span className="mono" title="Recorded span between role events">{formatElapsed(seconds)}</span>}
+            : seconds && <span className="mono" title="Time between role events">{formatElapsed(seconds)}</span>}
         </li>
       ))}
     </ul>

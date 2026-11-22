@@ -6,14 +6,14 @@ describe("explainError", () => {
   it("names the replay 409 on a re-run in plain English", () => {
     const e = explainError(new ApiError(409, "re-runs need a world"), "/receipts/r12/rerun");
     expect(e.title).toBe("Receipt re-runs need live mode");
-    expect(e.detail).toContain("make demo");
+    expect(e.detail).toContain("live source");
     expect(e.retry).toBe(false);
   });
 
   it("explains a network failure without the browser's wording", () => {
     const e = explainError(new TypeError("Failed to fetch"), "/graph");
     expect(e.title).toBe("Can't reach the Argus API");
-    expect(e.detail).toContain("make api");
+    expect(e.detail).toContain("Start the API");
     expect(e.retry).toBe(true);
   });
 

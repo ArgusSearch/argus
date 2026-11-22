@@ -4,12 +4,11 @@ import { Feed } from "./components/Feed";
 import { Header } from "./components/Header";
 import { IncidentSheet } from "./components/IncidentSheet";
 import { NodeSheet } from "./components/NodeSheet";
-import { AutonomyLegend, DigestModal } from "./components/Overlays";
+import { AutonomyLegend } from "./components/Overlays";
 import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
-import { go } from "./fx/nav";
 import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
 import { demoGraph, useAgentDemo } from "./lib/agentDemo";
 import { pollEvents } from "./lib/deployment";
@@ -75,8 +74,7 @@ export function App() {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [incidentId, setIncidentId] = useState(linkedIncident);
   const [nodeId, setNodeId] = useState<string | null>(null);
-  const [digestOpen, setDigestOpen] = useState(false);
-  const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
+  const [toast, setToast] = useState<{ text: string; incident: string } | null>(null);
   const announced = useRef(new Set<string>());
   const graphRequest = useRef(0);
   const { snapshot: operator } = useOperatorSettings();
@@ -158,7 +156,7 @@ export function App() {
     };
   }, []);
 
-  // announce verdicts and the end of the run once per stream
+  // Announce verdicts once per stream.
   useEffect(() => {
     if (demoRun || !liveNotices) {
       setToast(null);
@@ -171,11 +169,7 @@ export function App() {
         setToast({ text: `${inc.id} explained: ${inc.title}`, incident: inc.id });
       }
     }
-    if (health?.run.finished && view.lastSeq >= health.last_seq && !announced.current.has("end")) {
-      announced.current.add("end");
-      setToast({ text: "Run complete. Argus handled it alone.", digest: true });
-    }
-  }, [demoRun, liveNotices, reviewAmbiguous, view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
+  }, [demoRun, liveNotices, reviewAmbiguous, view.incidents]);
 
   useEffect(() => {
     if (!toast) return;
@@ -202,12 +196,6 @@ export function App() {
     }
     setToast(null);
   }, []);
-  const closeDigest = useCallback(() => setDigestOpen(false), []);
-  const openDigest = useCallback(() => {
-    if (fxOn()) go("report");
-    else setDigestOpen(true);
-    setToast(null);
-  }, []);
   const closeNode = useCallback(() => setNodeId(null), []);
   // during the agent presentation (lane F) the page shows the presentation's snapshot, not the live stream
   const shown = useMemo(
@@ -226,7 +214,6 @@ export function App() {
           view={shown}
           health={health}
           connection={connection}
-          onDigest={openDigest}
           presenting={demo !== null}
         />
         <Ticker view={shown} />
@@ -270,26 +257,10 @@ export function App() {
         <IncidentSheet key={incidentId} id={incidentId} summary={shown.incidents[incidentId]} graph={graph} onClose={closeIncident} />
       )}
       {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={shown} onClose={closeNode} />}
-      {digestOpen && <DigestModal version={view.lastSeq} onClose={closeDigest} />}
       {toast && (
         <div className="toast" role="status">
           <span>{toast.text}</span>
-          {toast.incident && (
-            <button
-              className="btn primary"
-              onClick={() => toast.incident && openIncident(toast.incident)}
-            >
-              Open report
-            </button>
-          )}
-          {toast.digest && (
-            <button
-              className="btn primary"
-              onClick={openDigest}
-            >
-              While you slept
-            </button>
-          )}
+          <button className="btn primary" onClick={() => openIncident(toast.incident)}>Open report</button>
           <button className="icon-btn" onClick={() => setToast(null)} aria-label="Dismiss">
             ✕
           </button>

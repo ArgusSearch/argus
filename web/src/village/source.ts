@@ -14,12 +14,12 @@ export type SourceId = "s1" | "s2" | "metric" | "s4" | "s4-agent" | "s5" | "live
 export type TapeId = Exclude<SourceId, "live">;
 
 export const SOURCES: readonly { id: SourceId; label: string; hint: string }[] = [
-  { id: "s1", label: "S1", hint: "Fault: PayCo payments fail on Android in Germany (recorded run)" },
-  { id: "s2", label: "S2", hint: "Harmless change: a planned ad push, checked and logged, nobody woken (recorded run)" },
-  { id: "metric", label: "New metric", hint: "New metrics place themselves in the map: placed, held when two formulas fit, rejected when the SQL is wrong (recorded)" },
-  { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (recorded run)" },
-  { id: "s4-agent", label: "S4 agent", hint: "Recorded agent run: investigate the ad pacer, approve or deny the rollback, and inspect the effect" },
-  { id: "s5", label: "S5", hint: "The whole market dips (expected), and a routing fault hides inside it (recorded run)" },
+  { id: "s1", label: "S1", hint: "Fault: PayCo payments fail on Android in Germany (historical investigation)" },
+  { id: "s2", label: "S2", hint: "Harmless change: a planned ad push, checked and logged, nobody woken (historical investigation)" },
+  { id: "metric", label: "New metric", hint: "New metrics place themselves in the map: placed, held when two formulas fit, rejected when the SQL is wrong" },
+  { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (historical investigation)" },
+  { id: "s4-agent", label: "S4 agent", hint: "Follow the ad pacer investigation, the rollback decision and its effect" },
+  { id: "s5", label: "S5", hint: "The whole market dips (expected), and a routing fault hides inside it (historical investigation)" },
   { id: "live", label: "Live", hint: "Follow the API's event stream and the agent's activity log" },
 ];
 

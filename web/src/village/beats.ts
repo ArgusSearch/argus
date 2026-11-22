@@ -808,7 +808,7 @@ function decisionBeat(gate: Beat, decision: Decision, recorded: boolean): Beat {
   const done = approved
     ? recorded
       ? "Approved: applying in the simulator"
-      : "Approved. This replay holds no recorded action, so nothing runs"
+      : "Approved. This historical investigation has no action to apply, so nothing runs"
     : "Denied: nothing is changed";
   return {
     key: `${gate.key}:${decision}`,
@@ -827,7 +827,7 @@ function decisionBeat(gate: Beat, decision: Decision, recorded: boolean): Beat {
         simTs: gate.simTs,
         tool: "operator_decision",
         title: approved ? "approved by operator" : "denied by operator",
-        detail: approved && !recorded ? `${action} (replay: no recorded execution to play)` : action,
+        detail: approved && !recorded ? `${action} (historical result has no execution evidence)` : action,
         hypothesis: null,
         outcome: approved ? "ok" : "denied",
         receipts: [],

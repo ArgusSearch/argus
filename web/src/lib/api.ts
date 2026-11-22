@@ -1,6 +1,6 @@
 // REST and SSE client for the C5 API, served directly, proxied by Vite, or hosted on its own origin.
 
-import { apiUrl, pollEvents, publicApi } from "./deployment";
+import { apiUrl, pollEvents, publicApi, remoteGuidedRun } from "./deployment";
 import { EVENT_TYPES, type ArgusEvent, type Graph, type Health, type Incident, type Receipt, type ReplayStatus, type RerunResult } from "./types";
 
 /** A non-2xx answer; the message is the API's own `detail`. */
@@ -32,9 +32,11 @@ export async function json<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const graphSession: RequestInit | undefined = publicApi ? { credentials: "include" } : undefined;
+const recordingPrefix = publicApi && !remoteGuidedRun ? "/sealed-run" : "";
 
 export const api = {
   health: () => json<Health>("/health"),
+  recordingHealth: () => json<Health>(`${recordingPrefix}/health`),
   graph: () => json<Graph>("/graph", graphSession),
   incident: (id: string) => json<Incident>(`/incidents/${encodeURIComponent(id)}`),
   report: async (id: string, demoRun?: string) => {
@@ -46,7 +48,7 @@ export const api = {
   receipt: (id: string) => json<Receipt>(`/receipts/${encodeURIComponent(id)}`, graphSession),
   rerun: (id: string) => json<RerunResult>(`/receipts/${encodeURIComponent(id)}/rerun`, { ...graphSession, method: "POST" }),
   replay: (body: { action?: "play" | "pause" | "restart" | "end"; speed?: number }) =>
-    json<ReplayStatus>("/replay", {
+    json<ReplayStatus>(`${recordingPrefix}/replay`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

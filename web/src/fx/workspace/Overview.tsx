@@ -4,8 +4,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { count, eur, dayLabel, hhmm } from "../../lib/format";
+import { publicApi } from "../../lib/deployment";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
+import { useText } from "../../settings/language";
 import { views as reads } from "../../views/data";
 import { metricStatus } from "../../views/model";
 import type { Scorecard } from "../../views/scorecard";
@@ -21,6 +23,16 @@ import { affectedPath, type PathSubject } from "./path";
 import { metricName, STATE, unusualness, VERDICT, wherePhrase } from "./plain";
 import { Card, Pill, Spark, Term, useIncidents } from "./ui";
 import type { WorkspaceProps } from "./Workspace";
+
+interface ConnectionStatus {
+  id: string;
+  status: string;
+  target: string | null;
+}
+
+const connections = Object.values(import.meta.glob<{ listConnections: () => Promise<ConnectionStatus[]> }>(
+  "../../settings/connections/api.ts",
+)).at(0);
 
 function headline(view: RunView, h: Health): string {
   const open = Object.values(view.incidents).filter((i) => i.state !== "resolved");
@@ -38,15 +50,64 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const proposed = useMemo(() => new Set(agent.proposals.map((p) => p.incident_ref)), [agent.proposals]);
   const todo = useMemo(() => tasks(incidents, graph, proposed), [incidents, graph, proposed]);
   const page = useRef<HTMLElement>(null);
+  const [selectedSource, setSelectedSource] = useState("");
+  const [connected, setConnected] = useState<ConnectionStatus[] | null>(null);
+  const tr = useText();
   usePointerLight(page);
   const humans = useHumanActions(view);
+  const sources = new Map<string, string[]>();
+  for (const node of graph?.nodes ?? []) {
+    if (!node.source?.startsWith("connector:")) continue;
+    const id = node.source.slice("connector:".length);
+    if (connections && !connected?.some((connection) => connection.id === id && connection.status === "connected")) continue;
+    const metrics = sources.get(id) ?? [];
+    metrics.push(node.id);
+    sources.set(id, metrics);
+  }
+  useEffect(() => {
+    if (publicApi || !connections || !graph?.nodes.some((node) => node.source?.startsWith("connector:"))) return;
+    let current = true;
+    void connections().then((api) => api.listConnections()).then(
+      (list) => { if (current) setConnected(list); },
+      () => { if (current) setConnected([]); },
+    );
+    return () => { current = false; };
+  }, [graph]);
+  const sourceMetrics = sources.get(selectedSource);
+  const limits = agent.health?.public_limits;
+  const stored = limits?.stored_investigation;
   return (
     <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Overview{view.simTs ? ` · ${dayLabel(view.simTs)} ${hhmm(view.simTs)}` : ""}</span>
+        <div>
+          {sources.size > 0 ? <select className="btn" aria-label={tr("Dashboard source")}
+            value={sourceMetrics ? selectedSource : ""} onChange={(event) => setSelectedSource(event.target.value)}>
+            <option value="">{tr("Example shop")}</option>
+            {[...sources.keys()].sort().map((id) => {
+              const name = id.charAt(0).toUpperCase() + id.slice(1);
+              const target = connected?.find((connection) => connection.id === id)?.target;
+              return <option key={id} value={id}>{target ? `${name} · ${target}` : name}</option>;
+            })}
+          </select> : <p>{tr("Example shop")}</p>}
+        </div>
+        {!sourceMetrics && <>
         <h1>{headline(view, h)}</h1>
         <p>Argus checks the shop's key numbers every hour, investigates anomalies, and asks for approval before acting.</p>
+        {limits?.daily_usd !== undefined && <p className="fx-card-note">
+          {limits.session_hour} live investigations per session per hour · {limits.ip_hour} per IP per hour · ${limits.spent_today_usd?.toFixed(2)} of ${limits.daily_usd.toFixed(2)} today (UTC)
+        </p>}
+        {limits?.message && <p className="fx-card-note" role="status">{limits.message}</p>}
+        </>}
       </header>
+      {sourceMetrics ? <MetricsCard graph={graph} view={view} onSelectNode={onSelectNode} ids={sourceMetrics} /> : <>
+      {stored && <Card light title={`Stored investigation from ${new Date(stored.stored_at).toLocaleDateString(undefined, { timeZone: "UTC", dateStyle: "medium" })}`}>
+        <p>{stored.title}</p>
+        {stored.report && <details>
+          <summary>Read investigation</summary>
+          <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{stored.report}</pre>
+        </details>}
+      </Card>}
       <section className="ws-tiles" aria-label="key figures">
         {tiles(view, graph, humans).map((t) => (
           <TileCard key={t.key} tile={t} />
@@ -71,6 +132,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
           <TrackRecordCard />
         </div>
       </div>
+      </>}
     </main>
   );
 }
@@ -301,8 +363,7 @@ function AgentCard() {
 
 /* ------------------------------------------------------------------ key metrics */
 
-function MetricsCard({ graph, view, onSelectNode }: { graph: Graph | null; view: RunView; onSelectNode: (id: string) => void }) {
-  const ids = keyMetrics(graph);
+function MetricsCard({ graph, view, onSelectNode, ids = keyMetrics(graph) }: { graph: Graph | null; view: RunView; onSelectNode: (id: string) => void; ids?: string[] }) {
   const { wiggle_z: wiggle, alarm_z: alarm } = view.thresholds;
   return (
     <Card title="Key metrics, this hour" term="|z|" className="ws-metrics" light>
@@ -418,7 +479,7 @@ function TrackRecordCard() {
             </div>
           </div>
           <p className="ws-record-what">
-            {card.scenarios.length} scenarios, {card.seeds.length} sealed worlds each. The answers were locked away before Argus ran.
+            {card.scenarios.length} scenarios, {card.seeds.length} worlds each. The answers were locked away before Argus ran.
           </p>
           <span className="ws-record-cap">For comparison, on the same worlds</span>
           <ul className="ws-record-refs" aria-label="for comparison">

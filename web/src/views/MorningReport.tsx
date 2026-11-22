@@ -1,4 +1,4 @@
-// Y4 · "While you slept" as a full, printable page: the digest, every incident with its report, and every
+// The printable report contains the digest, every incident with its report, and every
 // change Argus deliberately did not wake anyone for. Every number keeps its receipt.
 
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -297,7 +297,7 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
           <header className="mr-head">
             <div>
               <div className="mr-kicker">Argus · morning report</div>
-              <h1>{digest?.title.replace(/\s*\(.*\)\s*$/, "") || "While you slept"}</h1>
+              <h1>{"Since you were away"}</h1>
               <p className="muted">
                 {digest?.since && digest.until
                   ? `${dayLabel(digest.since)} ${hhmm(digest.since)} to ${dayLabel(digest.until)} ${hhmm(digest.until)} (simulated time)`
@@ -319,7 +319,7 @@ export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | 
             <div className="vw-empty">
               {demo?.snapshot && !reportReady
                 ? demo.snapshot.state.status === "completed"
-                  ? "This recorded outcome has no morning report."
+                  ? "A report is unavailable for this investigation."
                   : "The morning report appears when this recording reaches its report."
                 : "Loading the morning report…"}
             </div>

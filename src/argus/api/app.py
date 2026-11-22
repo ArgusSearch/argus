@@ -17,7 +17,7 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +47,9 @@ from argus.graph.store import REPO
 from argus.narrator.routes import router as narrator_router
 from argus.remediation.api import OperatorGate
 from argus.settings import SettingsStore
+
+if TYPE_CHECKING:
+    from argus.api.public_limits import PublicLimits
 
 WEB_DIST = REPO / "web" / "dist"
 BENCH_OUT = REPO / "runs" / "bench"
@@ -99,6 +102,7 @@ def create_app(
     public_gate: OperatorGate | None = None,
     settings_path: Path | None = None,
     public_settings: bool = False,
+    public_limits: PublicLimits | None = None,
 ) -> FastAPI:
     from argus.agent.settings_runtime import default_settings
 
@@ -133,12 +137,12 @@ def create_app(
     app.include_router(counterfactual_router(source))
     # a replay server plays the sealed agent presentation; the demo and agent routes share its one clock
     playback = Playback() if source.mode == "replay" else None
-    app.include_router(agent_router(source, playback, operator_gate=public_gate))
+    app.include_router(agent_router(source, playback, operator_gate=public_gate, public_limits=public_limits))
     remediation = getattr(source, "remediation", None)
     if remediation is not None:
         from argus.remediation import create_router as remediation_router
 
-        app.include_router(remediation_router(remediation))
+        app.include_router(remediation_router(remediation, public_gate))
     public_extensions = PublicGraphExtensions(source, public_gate) if public_gate else None
     extension = public_extensions.base if public_extensions else extension_for(source)
     app.include_router(graph_extension_router(extension, public_extensions))
@@ -216,6 +220,8 @@ def create_app(
     @app.post("/replay")
     async def control(body: RunControl) -> dict[str, Any]:
         """Pace, pause, finish or restart the run. Async: it runs on the loop that runs the replayer."""
+        if public_limits is not None:
+            raise HTTPException(403, "The public monitor runs continuously.")
         try:
             return source.control(body.action, body.speed)
         except ControlError as exc:
@@ -253,6 +259,8 @@ def create_app(
     @app.get("/digest")
     def digest() -> Digest:
         """'While you slept': the run so far in a few lines, each with its receipts (narrator)."""
+        if public_settings:
+            return build_digest(hub.state, source.incidents(), source.graph(), heading="Since you were away")
         return build_digest(hub.state, source.incidents(), source.graph())
 
     @app.get("/notes")
@@ -272,15 +280,18 @@ def create_app(
             if placement_receipt(request, receipt_id) is None:
                 raise HTTPException(404, f"no receipt {receipt_id}")
             if public_extensions:
-                raise HTTPException(409, "Public metric placement receipts were captured in the recorded demo")
+                raise HTTPException(409, "Public metric placement receipts are available as stored evidence.")
         try:
             result = source.rerun(receipt_id)
         except RerunUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
         if result is None:
-            raise HTTPException(
-                409, "replay mode has no world to re-run against: `make demo` runs Argus live over the S1 world"
+            detail = (
+                "Rechecking a receipt requires the original data source."
+                if public_settings
+                else "replay mode has no world to re-run against: `make demo` runs Argus live over the S1 world"
             )
+            raise HTTPException(409, detail)
         return result
 
     # ------------------------------------------------------------------ routes owned by other lanes

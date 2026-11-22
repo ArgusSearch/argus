@@ -26,8 +26,13 @@ from argus.runtime.loop import Runtime
 from argus.settings import SettingsStore
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from argus.agent.profile import Profile
+    from argus.agent.provider import AgentModels, SpendLedger
     from argus.agent.service import AgentService
     from argus.agent.settings_runtime import SettingsAgent
+    from argus.agent.types import LlmClient
     from argus.investigate.procedure import EvidenceSelector
 
 __all__ = ["FIXTURES", "ControlError", "LiveSource", "ReplaySource", "RerunUnavailable", "Source"]
@@ -158,13 +163,26 @@ class LiveSource:
         stage: int = 2,
         agent: str | None = None,
         agent_recording: Path | None = None,
+        *,
+        agent_provider: Callable[[], tuple[LlmClient, AgentModels]] | None = None,
+        agent_spend: SpendLedger | None = None,
+        agent_profile: Profile | None = None,
+        hold_for_approval: bool = True,
+        wall_clock: bool = False,
     ) -> None:
         from argus.agent.service import build, configured_mode
 
         self.bus = EventHub(RunState(load_seed_graph()))
         # the agent (argus.agent): off unless --agent live/record or ARGUS_AGENT, and then only with a key
         self._agent_mode = configured_mode(agent)
-        self._initial_agent = build(self._agent_mode, stream=self.bus.stream, recording=agent_recording)
+        self._initial_agent = build(
+            self._agent_mode,
+            stream=self.bus.stream,
+            recording=agent_recording,
+            profile=agent_profile,
+            provider=agent_provider,
+            spend=agent_spend,
+        )
         self._settings_agent: SettingsAgent | None = None
         self._notices: IncidentNotices | None = None
         if self._initial_agent.selector is not None:
@@ -181,6 +199,8 @@ class LiveSource:
             proposer.append(Proposer(self._initial_agent.journal, self.remediation))
             self.runtime.on_incident = proposer[0].on_incident
         self.seconds_per_tick = seconds_per_tick
+        self.hold_for_approval = hold_for_approval
+        self.wall_clock = wall_clock
         self.speed = 1.0
         self.playing = True
         self.position = 0
@@ -188,7 +208,8 @@ class LiveSource:
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._to_end = False
-        self.bus.pace_steps = lambda: 0.0 if self._to_end else 0.45 * self.seconds_per_tick / self.speed
+        if not wall_clock:
+            self.bus.pace_steps = lambda: 0.0 if self._to_end else 0.45 * self.seconds_per_tick / self.speed
         self._thread: threading.Thread | None = None
 
     @property
@@ -233,6 +254,7 @@ class LiveSource:
                 self._wake.clear()
             if self._stop.is_set():
                 return
+            started = time.monotonic()
             try:
                 self.runtime.tick(as_of)
             except asyncio.CancelledError:
@@ -258,7 +280,7 @@ class LiveSource:
                 if agent.selector is not None:
                     agent.selector.world_revision = self.world_revision()
             self.position += 1
-            deadline = time.monotonic() + self.seconds_per_tick / self.speed
+            deadline = (started if self.wall_clock else time.monotonic()) + self.seconds_per_tick / self.speed
             while not self._to_end and not self._stop.is_set() and (left := deadline - time.monotonic()) > 0:
                 self._wake.wait(left)  # a speed change or pause re-evaluates the wait
                 self._wake.clear()
@@ -273,7 +295,12 @@ class LiveSource:
 
     def _held(self) -> bool:
         """The simulated clock waits while an action waits for the operator or the simulator."""
-        return self.remediation is not None and bool(self.remediation.holds_clock()) and not self._stop.is_set()
+        return (
+            self.hold_for_approval
+            and self.remediation is not None
+            and bool(self.remediation.holds_clock())
+            and not self._stop.is_set()
+        )
 
     def stop(self) -> None:
         self._stop.set()

@@ -113,7 +113,7 @@ function AgentActivity({ agent }: { agent: AgentState }) {
   return (
     <main className="fx-dash ws-page ws-agent" aria-label="agent activity">
       <header className="ws-head">
-        <span className="fx-hud ws-kicker">Agent activity{presenting ? " · recorded model run" : agent.health ? ` · ${agent.health.mode}` : ""}</span>
+        <span className="fx-hud ws-kicker">Agent activity{presenting ? " · history" : agent.health?.mode === "live" ? " · live" : ""}</span>
         <h1>{running ? `Argus is on it: ${RUN_KIND[running.kind].toLowerCase()} ${running.run_id}` : "What the Argus agent did on its own"}</h1>
         <p>
           Each run folds to one line once it is done; open it for every step: what the AI said before a check, the check and its prediction, what came back,

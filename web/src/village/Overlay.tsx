@@ -336,7 +336,7 @@ export function ApprovalCard({
         ) : null}
         {!live && (
           <p className="vl-note">
-            Replay only. Your decision applies to this playback.
+            Your decision applies to this historical investigation.
           </p>
         )}
         {error && <p className="vl-error">{error}</p>}

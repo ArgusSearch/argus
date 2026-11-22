@@ -12,19 +12,20 @@ const STATUS: Record<AgentDemoStatus, string> = {
 
 let autostarted = false;
 
-export function AgentRunControls() {
+export function AgentRecordingLink() {
   const demo = useAgentDemo();
   const [available, setAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has("agentrun") && !q.has("agentdemo")) return;
     let live = true;
     void agentDemoAvailable().then((ok) => {
       if (!live) return;
       setAvailable(ok);
       if (!ok || autostarted) return;
       autostarted = true;
-      const q = new URLSearchParams(window.location.search);
       const run = q.get("agentrun");
       const scenario = q.get("agentdemo");
       const speed = Number(q.get("agentspeed"));
@@ -48,15 +49,21 @@ export function AgentRunControls() {
     return () => window.removeEventListener("popstate", restore);
   }, [available, demo?.runId]);
 
+  return error ? <span role="alert">{error}</span> : null;
+}
+
+export function AgentRunControls() {
+  const demo = useAgentDemo();
+  const [error, setError] = useState<string | null>(null);
   const act = (fn: () => Promise<void>) => {
     setError(null);
     fn().catch((e: Error) => setError(e.message));
   };
 
-  if (!available || !demo) return error ? <span role="alert">{error}</span> : null;
+  if (!demo) return null;
   const state = demo.snapshot?.state;
   return (
-    <div className="controls" aria-label="Sealed agent run">
+    <div className="controls" aria-label="Investigation recording controls">
       <span role="status">{state ? STATUS[state.status] : "Starting…"}</span>
       {state?.status === "awaiting_approval" && <button className="ctl" onClick={() => navigateWorkspaceURL(analysisHref(null))}>Decide now</button>}
       {state?.status === "playing" && <button className="ctl" onClick={() => act(() => controlAgentDemo("pause"))}>Pause</button>}

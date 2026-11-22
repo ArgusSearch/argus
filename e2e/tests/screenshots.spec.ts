@@ -61,15 +61,15 @@ for (const viewport of VIEWPORTS) {
       await page.keyboard.press("Escape");
       await expect(sheet).toBeHidden();
 
-      // 5. "While you slept" once the run is over: the morning read-out
+      // 5. The report once the run is over.
       await replay(request, { speed: 64 });
       await expect.poll(async () => (await health(request)).run.finished, { timeout: 90_000 }).toBe(true);
       await page.waitForTimeout(1000);
-      await page.locator(".header").getByRole("button", { name: "While you slept" }).click();
-      const modal = page.getByRole("dialog", { name: "While you slept" });
-      await expect(modal.locator(".dline").first()).toBeVisible({ timeout: 10_000 });
+      await page.goto("/?view=report&fxintro=0");
+      const report = page.getByRole("region", { name: "morning report" });
+      await expect(report.locator(".mr-line").first()).toBeVisible({ timeout: 10_000 });
       await page.waitForTimeout(500);
-      await shot(5, "while-you-slept");
+      await shot(5, "since-you-were-away");
     });
   });
 }

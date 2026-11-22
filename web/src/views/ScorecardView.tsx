@@ -4,11 +4,13 @@
 import { useEffect, useState } from "react";
 import { dayLabel, hhmm } from "../lib/format";
 import { views } from "./data";
+import { useText } from "../settings/language";
 import { AGENT_TEXT, foldLabels, misses, SCENARIO_TEXT, scenarioLines, summaryMetrics, type Scorecard } from "./scorecard";
 
 export function ScorecardView() {
   const [card, setCard] = useState<Scorecard | null>();
   const [error, setError] = useState<string | null>(null);
+  const tr = useText();
 
   useEffect(() => {
     let live = true;
@@ -21,9 +23,21 @@ export function ScorecardView() {
     };
   }, []);
 
-  if (error) return <div className="vw-error">{error}</div>;
-  if (card === undefined) return <div className="vw-empty">Loading the scorecard…</div>;
-  if (card === null) return <div className="vw-empty">The server has no benchmark results yet. Run make bench to generate a scorecard.</div>;
+  const evidence = <section className="sc-agent" aria-label={tr("Pre-registered result")}>
+    <div className="sc-agent-head">
+      <h3>{tr("Pre-registered result")}</h3>
+      <a href="/?challenge=reveal" className="btn">{tr("Hash check")}</a>
+    </div>
+    <p className="vw-sub">{tr("Compare the revealed answer key with the hash published before the investigation.")}</p>
+  </section>;
+  if (error || !card) return (
+    <section className="vw sc" aria-label="Track record">
+      <div className="vw-scroll"><div className="sc-page">
+        {evidence}
+        <p className={error ? "vw-error" : "vw-sub"}>{error ?? (card === undefined ? "Loading the scorecard…" : "Benchmark results are unavailable.")}</p>
+      </div></div>
+    </section>
+  );
   const lines = scenarioLines(card);
   const argusMisses = misses(card, "argus");
 
@@ -33,9 +47,9 @@ export function ScorecardView() {
         <div className="sc-page">
           <header className="sc-head">
             <div>
-              <h2 className="vw-title">Bench scorecard</h2>
+              <h2 className="vw-title">Track record</h2>
               <p className="vw-sub">
-                Every scenario on {card.seeds.length} sealed seeds. The hidden truth of each world was hashed before any agent ran and
+                Every scenario on {card.seeds.length} seeds. The hidden truth of each world was hashed before any agent ran and
                 revealed after; the bench grades against it.
               </p>
             </div>
@@ -44,6 +58,7 @@ export function ScorecardView() {
               Latest bench run · {dayLabel(card.created_at)} {hhmm(card.created_at)} · commit {card.git_commit.slice(0, 7)}
             </span>
           </header>
+          {evidence}
 
           <div className="sc-agents">
             {card.summaries.map((s) => (

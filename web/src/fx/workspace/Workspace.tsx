@@ -130,7 +130,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
             query={analysis}
             openIncident={onOpenIncident}
             secondaryLinks={<>
-              <AnalysisWorkspaceLink section="report">Morning report</AnalysisWorkspaceLink>
+              <AnalysisWorkspaceLink section="report">Since you were away</AnalysisWorkspaceLink>
               <AnalysisWorkspaceLink section="calendar">Calendar</AnalysisWorkspaceLink>
               <AnalysisWorkspaceLink section="settings" tab="sources">Data sources</AnalysisWorkspaceLink>
             </>}
@@ -220,8 +220,8 @@ const NAV: NavItem[] = [
   {
     id: "report",
     group: "Monitor",
-    label: "While you slept",
-    hint: "The night in a few lines, each with its evidence",
+    label: "Since you were away",
+    hint: "Recent incidents and decisions, with their evidence",
     icon: <path d="M3.5 2.5h9v11h-9zM5.5 5.5h5M5.5 8h5M5.5 10.5h3" />,
   },
   {
@@ -264,7 +264,7 @@ const NAV: NavItem[] = [
     id: "scorecard",
     group: "Proof",
     label: "Track record",
-    hint: "Sealed test runs: how often Argus was right, next to a plain threshold alarm",
+    hint: "Benchmark results and the pre-registered answer key",
     icon: <path d="M2.5 13.5h11M4 13.5v-4M7 13.5v-7M10 13.5v-5M13 13.5v-9" />,
   },
   {
@@ -404,14 +404,6 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
           </li>
           );
         })}
-        <li>
-          <button className="fx-side-item" aria-label="Sealed result" onClick={() => window.location.assign("/?challenge=reveal")}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M3.5 2.5h9v11h-9zM5.5 8l1.5 1.5 3.5-3.5" />
-            </svg>
-            <span>{tr("Sealed result")}</span>
-          </button>
-        </li>
       </ul>
       </div>
       {!recorded && <AgentTeam compact />}

@@ -81,7 +81,7 @@ export function StoryPanel({ graph, view }: { graph: Graph | null; view: RunView
           <h2>Follow an incident</h2>
           {story && (
             <button className="btn" onClick={() => setRun((r) => r + 1)} disabled={busy}>
-              Replay
+              Review investigation
             </button>
           )}
         </header>

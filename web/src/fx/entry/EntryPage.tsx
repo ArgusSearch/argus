@@ -1,5 +1,6 @@
 // The Mission Control entry card identifies the operator and shows the latest check from GET /health.
 
+import { translate } from "../../settings/language";
 import { useOperatorSettings } from "../../settings/operator";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
@@ -100,7 +101,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
           <h1 id="fx-entry-title">Welcome to Mission Control</h1>
           <p id="fx-entry-lede" className="fx-entry-lede">
             {staticReplay
-              ? "See what Argus found in a sealed investigation of a simulated shop."
+              ? "See what Argus found while investigating the example shop."
               : "Argus checks your shop's key numbers every hour, explains every change it finds, and asks you before it acts."}
           </p>
 
@@ -117,21 +118,21 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
             <div>
               <dt>Shop</dt>
               <dd>
-                <span>Shop</span>
+                <span>{translate(snapshot?.settings.appearance.language ?? "en", "Example shop")}</span>
               </dd>
             </div>
             <div>
               <dt>{staticReplay ? "Mode" : "Last check"}</dt>
               <dd>
                 <i className={`fx-entry-dot${health ? " on" : ""}`} aria-hidden="true" />
-                <span>{staticReplay ? "Sealed result" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
+                <span>{staticReplay ? "Pre-registered result" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
                 {health?.mode === "live" && <em>live</em>}
               </dd>
             </div>
           </dl>
 
           <button type="button" className="fx-entry-go" onClick={onEnter} disabled={leaving}>
-            <span>{staticReplay ? "Open the sealed result" : `Sign in as ${name}`}</span>
+            <span>{staticReplay ? "Open the pre-registered result" : `Sign in as ${name}`}</span>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h9.5M8.5 4l4 4-4 4" />
             </svg>
@@ -143,7 +144,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
             </>
           ) : (
             <>
-              <a className="fx-entry-alt" href="/?challenge=reveal">Verify the sealed result</a>
+              <a className="fx-entry-alt" href="/?view=scorecard">Track record</a>
             </>
           )}
         </section>

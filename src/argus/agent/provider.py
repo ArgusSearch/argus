@@ -336,10 +336,11 @@ class SpendLedger:
     """Appends one line per model and run to the JSONL ledger named by `ARGUS_SPEND_LEDGER`:
     Includes the provider, model, cost, token counts and run. Replays write nothing."""
 
-    def __init__(self, path: Path | None = None) -> None:
-        env = os.environ.get("ARGUS_SPEND_LEDGER")
+    def __init__(self, path: Path | None = None, *, persist: bool = True, durable: bool = False) -> None:
+        env = os.environ.get("ARGUS_SPEND_LEDGER") if persist else None
         self.path = path if path is not None else (Path(env).expanduser() if env else None)
         self._lock = threading.Lock()
+        self._durable = durable
 
     def append_run(self, run_id: str, purpose: str, usage: list[UsageRecord]) -> list[dict[str, Any]]:
         lines: dict[str, dict[str, Any]] = {}
@@ -368,4 +369,7 @@ class SpendLedger:
             with self._lock, self.path.open("a") as f:
                 for line in lines.values():
                     f.write(json.dumps(line) + "\n")
+                if self._durable:
+                    f.flush()
+                    os.fsync(f.fileno())
         return list(lines.values())

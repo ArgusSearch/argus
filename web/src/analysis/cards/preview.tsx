@@ -52,7 +52,7 @@ function Preview() {
   const status = connection === "connecting" ? "Connecting to Argus…"
     : connection === "offline" ? (asOf ? "Connection lost. Showing the last received data." : "Argus API unavailable.")
     : graphFailed ? "Could not load metric definitions."
-    : view.mode && (view.mode === "replay" ? "Recorded replay" : "Live stream");
+    : view.mode && (view.mode === "replay" ? "Example shop history" : "Live stream");
 
   return (
     <main className="ac-preview">

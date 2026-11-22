@@ -9,7 +9,7 @@ import { pendingProposals } from "../../agent-ui/activity";
 import { useWaitingTitle } from "../../agent-ui/hooks";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
-import { pollEvents } from "../../lib/deployment";
+import { pollEvents, publicApi, remoteGuidedRun } from "../../lib/deployment";
 import type { RunView } from "../../lib/store";
 import { avatarCues, WORK_CUE_MS, type AvatarCues } from "../../village/avatars/state";
 
@@ -77,12 +77,20 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   }
   const enabled = Boolean(health && (health.enabled || demoId));
 
-  // the probe: once per stream (routes only appear with a restarted API, which starts a new stream)
+  // Public budget availability changes independently of the shop clock.
   useEffect(() => {
     let live = true;
-    void agentApi.health().then((h) => live && setHealth(h));
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      const next = await agentApi.health();
+      if (!live) return;
+      setHealth(next);
+      if (publicApi && !remoteGuidedRun) timer = setTimeout(poll, 15_000);
+    };
+    void poll();
     return () => {
       live = false;
+      clearTimeout(timer);
     };
   }, [stream]);
 

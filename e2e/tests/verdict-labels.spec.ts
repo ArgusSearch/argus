@@ -20,8 +20,8 @@ test("the S1 verdict is written the same way everywhere", async ({ page, request
   expect(main, "raw enum on the page").not.toContain("SUPPORTED_CAUSE");
   expect(main.toLowerCase(), "a second name for the same verdict").not.toContain("root cause");
 
-  await page.locator(".header").getByRole("button", { name: "While you slept" }).click();
-  const digest = page.getByRole("dialog", { name: "While you slept" });
-  await expect(digest.locator(".dline").first()).toBeVisible();
+  await page.goto("/?view=report&fxintro=0");
+  const digest = page.getByRole("region", { name: "morning report" });
+  await expect(digest.locator(".mr-line").first()).toBeVisible();
   expect(await digest.innerText(), "raw enum in the digest").not.toContain("SUPPORTED_CAUSE");
 });

@@ -29,8 +29,8 @@ const TABS: { id: DemoTab; label: string; key: string }[] = [
   { id: "graph", label: "Graph", key: "1" },
   { id: "tree", label: "Tree", key: "2" },
   { id: "investigation", label: "Investigation", key: "3" },
-  { id: "report", label: "Morning report", key: "4" },
-  { id: "scorecard", label: "Scorecard", key: "5" },
+  { id: "report", label: "Since you were away", key: "4" },
+  { id: "scorecard", label: "Track record", key: "5" },
 ];
 
 function initialTab(): DemoTab {
