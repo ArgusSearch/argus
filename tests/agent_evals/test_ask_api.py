@@ -257,3 +257,26 @@ def test_ask_refuses_repeated_unreceipted_small_measurement(source: LiveSource) 
         assert len(fake.requests) == 2
     finally:
         client.close()
+
+
+def test_ask_tells_a_model_that_keeps_checking_to_answer_before_the_budget_ends(source: LiveSource) -> None:
+    from argus.agent.ask import MAX_REQUESTS, WRAP_UP, WRAP_UP_ROUNDS
+
+    def respond(request: LlmRequest) -> LlmResponse:
+        turn = int(request.key.rsplit(":", 1)[1])
+        last = request.messages[-1]["content"]
+        told = isinstance(last, list) and any(
+            block.get("type") == "text" and block.get("text") == WRAP_UP for block in last
+        )
+        if told:
+            return tool_use("answer", {"text": "The checks so far show no clear cause.", "claims": []}, n=turn)
+        return read_series(source)
+
+    fake = FakeLlmClient(responder=respond)
+    client = client_for(source, fake)
+    try:
+        result = client.post("/agent/ask", json={"question": "What did you rule out?"}).json()
+        assert result["status"] == "answered"
+        assert len(fake.requests) == MAX_REQUESTS - WRAP_UP_ROUNDS + 1
+    finally:
+        client.close()

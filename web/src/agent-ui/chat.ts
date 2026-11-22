@@ -158,7 +158,7 @@ export function agentQuestion(voice: AgentVoice, steps: string[], question: stri
     .map((s) => s.replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .map((s) => `- ${s.length > STEP_CHARS ? `${s.slice(0, STEP_CHARS - 1)}…` : s}`);
-  const head = `Answer as ${voice.acronym}, Argus' ${voice.title} (${voice.ability.replace(/[.\s]+$/, "")}), in that role's own words.`;
+  const head = `Answer as ${voice.acronym}, Argus' ${voice.title} (${voice.ability.replace(/[.\s]+$/, "")}), in that role's own words. Answer from your latest steps where they suffice and keep any new checks to a few.`;
   const tail = `Question: ${q}`;
   for (let n = lines.length; n >= 0; n--) {
     const context = n ? `\nYour latest steps:\n${lines.slice(lines.length - n).join("\n")}` : "";

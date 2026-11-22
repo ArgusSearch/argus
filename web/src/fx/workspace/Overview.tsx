@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
+import { useShopClock } from "../../lib/wallClock";
 import { exampleShopName, publicApi } from "../../lib/deployment";
 import { count, dayLabel, eur, hhmm, monitoringText } from "../../lib/format";
 import type { MonitorState } from "../../lib/monitor";
@@ -49,6 +50,7 @@ function headline(monitor: MonitorState, h: Health): string {
 
 export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   const { monitor } = useAppState();
+  const clock = useShopClock();
   const h = health(view, graph);
   const subject = affectedPath(view);
   const { incidents } = useIncidents(view);
@@ -85,7 +87,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   return (
     <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
-        <span className="fx-hud ws-kicker">Overview{monitor.timeLabel ? ` · ${monitor.timeLabel}` : ""}</span>
+        <span className="fx-hud ws-kicker">Overview{clock.label ? ` · ${clock.label}` : ""}</span>
         <div>
           {sources.size > 0 ? <select className="btn" aria-label={tr("Dashboard source")}
             value={sourceMetrics ? selectedSource : ""} onChange={(event) => setSelectedSource(event.target.value)}>

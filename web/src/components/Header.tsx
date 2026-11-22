@@ -1,11 +1,11 @@
 import type { ConnectionState } from "../lib/api";
-import { useAppState } from "../lib/AppState";
 import { exampleShopName } from "../lib/deployment";
 import type { RunView } from "../lib/store";
 import type { Health } from "../lib/types";
 import { AgentRecordingLink } from "../fx/workspace/AgentRunControls";
 import { FacetMark } from "../fx/entry/brand";
 import { useText } from "../settings/language";
+import { useShopClock } from "../lib/wallClock";
 
 /** The Argus mark (C - Facet) in the current text color, with its lilac core. */
 export function Mark() {
@@ -23,7 +23,7 @@ export function Header({
   connection: ConnectionState;
   presenting: boolean;
 }) {
-  const { monitor } = useAppState();
+  const clock = useShopClock();
   const mode = connection === "open" ? (view.mode ?? health?.mode ?? "connecting") : connection;
   const tr = useText();
   return (
@@ -33,8 +33,8 @@ export function Header({
         <span className="brand-name">ARGUS</span>
         <span className="brand-sub">Mission Control</span>
       </div>
-      <div className="clock" title="Shop time in UTC">
-        <span className="clock-time">{monitor.timeLabel ?? "Waiting for shop data"}</span>
+      <div className="clock" title={clock.title}>
+        <span className="clock-time">{clock.label ?? "Waiting for shop data"}</span>
       </div>
       <span className="spacer" />
       <span className={`mode ${mode}`}>

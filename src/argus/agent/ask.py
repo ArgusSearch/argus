@@ -40,10 +40,16 @@ from argus.evidence import EvidenceStore
 from argus.semantic.runner import Runner
 
 ANSWER = "answer"
-MAX_REQUESTS = int(os.environ.get("ARGUS_ASK_MAX_REQUESTS", 6))
-MAX_TOOL_CALLS = int(os.environ.get("ARGUS_ASK_MAX_TOOL_CALLS", 8))
+MAX_REQUESTS = int(os.environ.get("ARGUS_ASK_MAX_REQUESTS", 10))
+MAX_TOOL_CALLS = int(os.environ.get("ARGUS_ASK_MAX_TOOL_CALLS", 10))
+# the rounds left when the model is told to stop checking and answer with what it has
+WRAP_UP_ROUNDS = 2
 MAX_USD = float(os.environ.get("ARGUS_ASK_MAX_USD", 0.25))
 MAX_RESULT_CHARS = 5000
+WRAP_UP = (
+    f"The check budget for this question is nearly spent. Do not run more checks: call {ANSWER} now with what the "
+    "checks so far showed, and say plainly what stays unverified."
+)
 
 ANSWER_TOOL = {
     "name": ANSWER,
@@ -406,6 +412,9 @@ class AskRunner:
                     }
                 )
                 continue
+            if round_ >= MAX_REQUESTS - WRAP_UP_ROUNDS or calls >= MAX_TOOL_CALLS:
+                # near the end of the budget: an answer from what is already known beats no answer at all
+                results.append({"type": "text", "text": WRAP_UP})
             messages.append({"role": "user", "content": results})
         return AskResult(status="unavailable", run_id=ctx.run_id, reason="no answer within the budget")
 
