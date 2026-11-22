@@ -2,17 +2,13 @@ import { api, type ConnectionState } from "../lib/api";
 import { dayLabel, hhmm } from "../lib/format";
 import { scoringHour, type RunView } from "../lib/store";
 import type { Health } from "../lib/types";
+import { FacetMark } from "../fx/entry/brand";
 
 const SPEEDS = [1, 2, 4, 8];
 
+/** The Argus mark (C - Facet) in the current text color, with its lilac core. */
 export function Mark() {
-  return (
-    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden>
-      <path d="M3 16c3.6-6 8-9 13-9s9.4 3 13 9c-3.6 6-8 9-13 9s-9.4-3-13-9Z" fill="none" stroke="#e7ebf3" strokeWidth="1.8" />
-      <circle cx="16" cy="16" r="5.2" fill="none" stroke="#5aa7ff" strokeWidth="1.8" />
-      <circle cx="16" cy="16" r="1.9" fill="#e7ebf3" />
-    </svg>
-  );
+  return <FacetMark className="brand-mark" />;
 }
 
 export function Header({
@@ -20,14 +16,16 @@ export function Header({
   health,
   connection,
   onDigest,
+  presenting,
 }: {
   view: RunView;
   health: Health | null;
   connection: ConnectionState;
   onDigest: () => void;
+  presenting: boolean;
 }) {
-  const replay = health?.run ?? null;
-  const mode = connection === "offline" ? "offline" : (health?.mode ?? view.mode ?? "replay");
+  const replay = connection === "open" && !presenting ? health?.run ?? null : null;
+  const mode = connection === "open" ? (view.mode ?? health?.mode ?? "connecting") : connection;
   const world = health?.source.split("/").slice(-2, -1)[0];
   const control = (body: Parameters<typeof api.replay>[0]) => void api.replay(body).catch(() => undefined);
   return (
@@ -44,9 +42,10 @@ export function Header({
         {view.tick && <span className="clock-sub">checking data up to {hhmm(scoringHour(view))}</span>}
       </div>
       <span className="spacer" />
-      <span className={`mode ${mode}`} title={health?.source}>
+      <span className={`mode ${mode}`} title={presenting ? undefined : health?.source}>
         <span className="dot" />
-        {mode === "offline" ? "API offline" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
+        {mode === "offline" ? "API offline" : mode === "connecting" ? "Connecting to API" : presenting
+          ? "Agent replay · recorded run" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
       </span>
       {replay && (
         <>

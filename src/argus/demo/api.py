@@ -24,6 +24,7 @@ from argus.demo.playback import ControlError, Playback, PlaybackRun
 from argus.demo.showcase import SHOWCASE, Chapter
 from argus.demo.timeline import DemoReport, Timeline, load_counterfactual, load_timeline
 from argus.narrator.morning import MorningReport as NarratorReport
+from argus.narrator.report import render as render_incident_report
 from argus.narrator.run_queries import RunQueryResult, run_query
 
 
@@ -31,6 +32,8 @@ class DemoSnapshot(BaseModel):
     state: AgentDemoState | DemoState
     events: tuple[Event, ...]
     incidents: list[Incident]
+    questions: tuple[str, ...] = ()
+    report_ready: bool = False
 
 
 def create_router(
@@ -83,16 +86,36 @@ def create_router(
             raise HTTPException(409, "agent demo requires its run_id")
         return run
 
-    @router.get("/snapshot", include_in_schema=allow_agent)
-    async def demo_snapshot(run_id: str) -> DemoSnapshot:
-        run = active_run(run_id)
+    def report_ready(run: PlaybackRun, state: DemoState) -> bool:
+        index = state.beat_index
+        return index is not None and any(cue.kind == "morning_report" for cue in run.timeline.cues[: index + 1])
+
+    def snapshot(run: PlaybackRun) -> DemoSnapshot:
         state = run.state(playback.clock())
         if isinstance(run.timeline, AgentTimeline):
-            view = playback.agent_view(run_id)
-            return DemoSnapshot(state=view.state, events=view.events, incidents=view.incidents)
+            view = playback.agent_view(run.id)
+            return DemoSnapshot(
+                state=view.state,
+                events=view.events,
+                incidents=view.incidents,
+                questions=tuple(dict.fromkeys(q.question for q in view.questions)),
+                report_ready=report_ready(run, view.state),
+            )
         assert state.beat_index is not None
         events, incidents = run.timeline.visible(state.beat_index)
-        return DemoSnapshot(state=state, events=events, incidents=incidents)
+        return DemoSnapshot(state=state, events=events, incidents=incidents, report_ready=report_ready(run, state))
+
+    @router.get("/snapshot", include_in_schema=allow_agent)
+    async def demo_snapshot(run_id: str) -> DemoSnapshot:
+        return snapshot(active_run(run_id))
+
+    @router.get("/incidents/{incident_id}/report")
+    async def demo_incident_report(incident_id: str, run_id: str) -> Response:
+        run = active_run(run_id)
+        incident = next((i for i in snapshot(run).incidents if i.id == incident_id), None)
+        if incident is None:
+            raise HTTPException(404, f"no released demo incident {incident_id}")
+        return Response(render_incident_report(incident, run.timeline.graph), media_type="text/markdown")
 
     @router.get("/showcase", include_in_schema=allow_agent)
     async def showcase() -> tuple[Chapter, ...]:
@@ -140,8 +163,7 @@ def create_router(
 
     def released_report(run_id: str | None) -> DemoReport:
         run = active_run(run_id)
-        index = run.state(playback.clock()).beat_index
-        if index is None or not any(cue.kind == "morning_report" for cue in run.timeline.cues[: index + 1]):
+        if not report_ready(run, run.state(playback.clock())):
             raise HTTPException(404, "the demo has not reached its morning_report beat")
         report = run.timeline.report
         assert report is not None

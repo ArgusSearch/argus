@@ -97,12 +97,32 @@ def test_sse_wire_format_resume_and_stream_change() -> None:
     resumed = _blocks(client.get("/events", headers={"Last-Event-ID": "3"}).text)
     assert [b["id"] for b in resumed] == ["4", "5"]
     assert [b["id"] for b in _blocks(client.get("/events?since=1&limit=2").text)] == ["2", "3"]
+    identified = _blocks(client.get("/events?include_stream=true&limit=1").text)
+    assert identified[0]["event"] == "stream"
+    assert json.loads(identified[0]["data"]) == {"stream": source.bus.stream, "mode": "replay"}
+    assert identified[1]["id"] == "1"
 
     source.bus.reset()
     source.bus.publish(events[0].model_copy(update={"seq": 6}))
     stale = _blocks(client.get("/events", headers={"Last-Event-ID": "5"}).text)
     assert stale[0]["event"] == "stream" and json.loads(stale[0]["data"])["stream"] == source.bus.stream
     assert [b["id"] for b in stale[1:]] == ["6"]
+
+
+def test_scorecard_reads_the_server_results(tmp_path: Path) -> None:
+    client = TestClient(create_app(ReplaySource(), start=False, bench_out=tmp_path))
+    assert client.get("/bench/scorecard").json() is None
+
+    path = tmp_path / "scorecard.json"
+    recorded = FIXTURES.parent / "web/src/views/fixtures/scorecard.sample.json"
+    path.write_bytes(recorded.read_bytes())
+    response = client.get("/bench/scorecard")
+    assert response.status_code == 200
+    assert response.json()["bench_commitment"] == json.loads(recorded.read_text())["bench_commitment"]
+    assert client.get("/bench/results").status_code == 501
+
+    path.write_text("{}")
+    assert client.get("/bench/scorecard").status_code == 503
 
 
 def test_index_without_build_explains_how_to_build(tmp_path: Path) -> None:

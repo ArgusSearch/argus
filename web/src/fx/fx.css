@@ -166,16 +166,13 @@
   text-transform: uppercase;
 }
 
-:root[data-fx] .brand-mark [stroke="#e7ebf3"] {
-  stroke: var(--text);
+:root[data-fx] .brand-mark {
+  color: var(--text);
 }
 
-:root[data-fx] .brand-mark [fill="#e7ebf3"] {
-  fill: var(--text);
-}
-
-:root[data-fx] .brand-mark [stroke="#5aa7ff"] {
-  stroke: var(--probe);
+/* on the light ice glass the finding core takes the brand accent (the kit's black variant), lilac stays for night */
+:root[data-fx="ice"] .brand-mark circle {
+  fill: #885de6;
 }
 
 :root[data-fx] .clock-time {

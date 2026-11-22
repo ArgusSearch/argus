@@ -64,7 +64,7 @@ export function ActionCard({
   return <LocalAction incidentId={incidentId} incidentState={incidentState} fallback={fallback} view={view} />;
 }
 
-function Proposal({ proposal, compact }: { proposal: ProposalView; compact: boolean }) {
+export function Proposal({ proposal, compact }: { proposal: ProposalView; compact: boolean }) {
   const agent = useAgent();
   const [busy, setBusy] = useState<"approve" | "deny" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -173,17 +173,19 @@ function LocalAction({
         {fallback.text.replace(/\.?$/, ".")}
       </p>
       <div className="ws-act-foot">
-        {approvedAt ? (
-          <span className="ws-approved">✓ Approved at {hhmm(approvedAt)}, handed to your team</span>
-        ) : incidentState === "resolved" ? (
+        {incidentState === "resolved" ? (
           <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
+        ) : view.mode !== "replay" ? (
+          <span className="ws-task-note">For manual review. A live approval appears when Argus files an operator proposal.</span>
+        ) : approvedAt ? (
+          <span className="ws-approved">✓ Approval recorded in this browser at {hhmm(approvedAt)}</span>
         ) : (
           <button
             className="btn primary"
             onClick={() => approve(view.stream, incidentId, view.simTs ?? "")}
-            title="Argus never changes the business itself: approving hands the action to your team"
+            title="Save this decision in this browser for this run"
           >
-            Approve action
+            Record local approval
           </button>
         )}
       </div>

@@ -22,6 +22,7 @@ from mockmart.world import generate
 from .api_harness import RECORDING_SEED, SCENARIOS, TIMEOUT, frames, recording, serve
 
 EXPECTATIONS = json.loads((Path(__file__).parent / "fixtures" / "scenario_expectations.json").read_text())
+LIVE_STREAM_TIMEOUT = 240  # DuckDB computes every live tick, which can take several minutes on a busy host.
 
 
 @pytest.fixture
@@ -83,6 +84,7 @@ def assert_story(client: httpx2.Client, events: list[Event], scenario: str, mode
 @pytest.mark.parametrize("mode", ["replay", "live"])
 @pytest.mark.parametrize("scenario", SCENARIOS)
 def test_demo_stream_over_http(demo_source: tuple[str, str], mode: str, scenario: str) -> None:
+    stream_timeout = LIVE_STREAM_TIMEOUT if mode == "live" else TIMEOUT
     fixture = recording(scenario)
     recorded = [Event.model_validate_json(line) for line in (fixture / "events.jsonl").read_text().splitlines()]
     expected_graph = Graph.model_validate_json((fixture / "graph.json").read_bytes())
@@ -90,10 +92,10 @@ def test_demo_stream_over_http(demo_source: tuple[str, str], mode: str, scenario
     with (
         serve(*demo_source) as server,
         server.client() as control,
-        server.client() as subscriber,
+        server.client(read_timeout=stream_timeout) as subscriber,
         subscriber.stream("GET", "/events", params={"limit": len(recorded)}) as response,
     ):
-        stream = frames(response)
+        stream = frames(response, timeout=stream_timeout)
         first = next(stream).event()
         initial = control.get("/health").raise_for_status().json()
         assert initial["mode"] == mode and not initial["run"]["finished"]
@@ -104,7 +106,7 @@ def test_demo_stream_over_http(demo_source: tuple[str, str], mode: str, scenario
             control.post("/replay", json={"action": "pause"}).raise_for_status()
         events = [first, *(frame.event() for frame in stream)]
 
-        deadline = time.monotonic() + TIMEOUT
+        deadline = time.monotonic() + stream_timeout
         while not (health := control.get("/health").raise_for_status().json())["run"]["finished"]:
             assert time.monotonic() < deadline, health
             time.sleep(0.01)

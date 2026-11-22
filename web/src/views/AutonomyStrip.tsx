@@ -4,7 +4,7 @@
 import type { RunView } from "../lib/store";
 import { autonomyCounts } from "./autonomy";
 
-const SHOWN = new Set(["hours", "edges", "investigations", "human"]);
+const SHOWN = new Set(["hours", "edges", "investigations"]);
 
 export function AutonomyStrip({ view }: { view: RunView }) {
   return (

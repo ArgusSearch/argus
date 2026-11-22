@@ -348,10 +348,18 @@ def test_http_deny_and_reconnect_stop_at_cut(recording_dir: tuple) -> None:
         params = {"run_id": run_id}
         assert client.post("/demo/control", json={"action": "pause"}).status_code == 409
         assert client.get("/demo/report/morning", params=params).status_code == 404
+        incident_path = f"/demo/incidents/{proposal.incident_ref}/report"
+        assert client.get(incident_path, params=params).status_code == 404
+        assert client.get("/demo/snapshot", params=params).json()["questions"] == []
         now += 50
         held = client.get("/demo/snapshot", params=params).json()
         assert held["state"]["status"] == "awaiting_approval"
         assert held["events"][-1]["seq"] == held["state"]["through_seq"]
+        assert held["questions"] == [question.question for question in playback.agent_view(run_id).questions]
+        assert held["report_ready"] is False
+        incident_report = client.get(incident_path, params=params)
+        assert incident_report.status_code == 200 and "## Impact" in incident_report.text
+        assert held["incidents"][0]["findings"]["headline"] in incident_report.text
         receipt_id = proposal.evidence_refs[0].receipt_id
         proof = client.get(f"/demo/receipts/{receipt_id}", params=params).json()
         assert proof["receipt"]["id"] == receipt_id and proof["verified_at_capture"] is False
@@ -374,6 +382,7 @@ def test_http_deny_and_reconnect_stop_at_cut(recording_dir: tuple) -> None:
         now += 40
         report = client.get("/demo/report/morning", params={"run_id": new_id})
         assert report.status_code == 200
+        assert client.get("/demo/snapshot", params={"run_id": new_id}).json()["report_ready"] is True
         action_line = next(line for line in report.json()["lines"] if line["id"] == f"agent:action:{proposal.id}")
         assert all(ref["href"].endswith(f"?run_id={new_id}") for ref in action_line["receipts"])
 

@@ -1,0 +1,474 @@
+/* The entry screen (EntryPage.tsx): a split card over the ice scene. The night panel on the left keeps the brand's
+   rule (the mark lives on black); the sign-in panel on the right is the workspace's frosted glass. */
+
+:root[data-fx] .fx-entry {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--fx-z-loader) - 10);
+  display: grid;
+  place-items: center;
+  padding: var(--fx-edge);
+  overflow: auto;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(195, 201, 214, 0.1), rgba(138, 145, 160, 0.38));
+  color: var(--fx-ink-0);
+  outline: none;
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx] .fx-entry.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-fx] .fx-entry .fx-corners {
+  opacity: 0;
+  transition: opacity var(--fx-dur-reveal) var(--fx-ease-linear);
+}
+
+:root[data-fx] .fx-entry.shown .fx-corners {
+  opacity: 1;
+}
+
+:root[data-fx] .fx-entry.leaving .fx-corners {
+  opacity: 0;
+  transition-duration: var(--fx-dur-hide);
+}
+
+/* ----------------------------------------------------------------------------------------------- card */
+
+:root[data-fx] .fx-entry-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr);
+  width: min(1120px, 100%);
+  height: min(660px, calc(100vh - 2 * var(--fx-edge)));
+  min-height: 560px;
+  /* no clip on the card itself: a rounded clip around the glass's backdrop blur costs the frame rate, so each half
+     rounds its own corners */
+  border-radius: 20px;
+  box-shadow: var(--fx-shadow-pop);
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  filter: blur(var(--fx-blur-reveal));
+  transition:
+    opacity var(--fx-dur-reveal) var(--fx-ease-settle),
+    transform var(--fx-dur-slow) var(--fx-ease-settle),
+    filter var(--fx-dur-reveal) var(--fx-ease-settle);
+}
+
+:root[data-fx] .fx-entry.shown .fx-entry-card {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+:root[data-fx] .fx-entry.leaving .fx-entry-card {
+  opacity: 0;
+  transform: scale(1.025);
+  filter: blur(var(--fx-blur-reveal));
+  transition-duration: var(--fx-dur-move);
+}
+
+/* ------------------------------------------------------------------------------------------ night art */
+
+:root[data-fx] .fx-entry-art {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 28px 28px clamp(18px, 3vh, 26px);
+  overflow: hidden;
+  border-radius: 20px 0 0 20px;
+  background:
+    radial-gradient(90% 55% at 50% 108%, rgba(137, 62, 238, 0.32), rgba(52, 36, 91, 0.18) 45%, transparent 75%),
+    radial-gradient(140% 90% at 50% 0%, #120c24 0%, #05040a 60%, #000 100%);
+  color: #fff;
+}
+
+/* the snowfield under the camp */
+:root[data-fx] .fx-entry-art::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 30%;
+  background: linear-gradient(180deg, rgba(201, 205, 224, 0), rgba(201, 205, 224, 0.12));
+}
+
+:root[data-fx] .fx-entry-sky {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  width: 100%;
+  height: 64%;
+}
+
+:root[data-fx] .fx-entry-wordmark {
+  position: absolute;
+  top: 30px;
+  left: 32px;
+  width: auto;
+  height: 13px;
+  color: #fff;
+}
+
+:root[data-fx] .fx-entry-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(76px, 12.5vh, 116px);
+  aspect-ratio: 1;
+  margin-bottom: clamp(18px, 6vh, 56px);
+}
+
+:root[data-fx] .fx-entry-disc {
+  position: absolute;
+  inset: -70%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(137, 62, 238, 0.5) 0%, rgba(52, 36, 91, 0.5) 45%, rgba(0, 0, 0, 0) 100%);
+  animation: fx-entry-breathe 5.5s var(--fx-ease-inout) infinite alternate;
+}
+
+:root[data-fx] .fx-entry-facet {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 10px rgba(201, 160, 255, 0.9)) drop-shadow(0 0 34px rgba(137, 62, 238, 0.7));
+}
+
+:root[data-fx] .fx-entry-igloo {
+  width: min(76%, 390px);
+  height: auto;
+  overflow: visible;
+}
+
+@keyframes fx-entry-breathe {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root[data-fx] .fx-entry-crew {
+  display: flex;
+  justify-content: center;
+  margin: -38px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-fx] .fx-entry-crew li {
+  margin: 0 4px;
+  animation: fx-entry-bob 3.2s var(--fx-ease-inout) infinite alternate;
+}
+
+/* each agent breathes on its own beat */
+:root[data-fx] .fx-entry-crew li:nth-child(1) { animation-delay: -1.9s; animation-duration: 3s; }
+:root[data-fx] .fx-entry-crew li:nth-child(2) { animation-delay: -0.4s; animation-duration: 2.9s; }
+:root[data-fx] .fx-entry-crew li:nth-child(3) { animation-delay: -1.6s; animation-duration: 3.4s; }
+:root[data-fx] .fx-entry-crew li:nth-child(4) { animation-delay: -0.9s; animation-duration: 3.1s; }
+:root[data-fx] .fx-entry-crew li:nth-child(5) { animation-delay: -2.2s; animation-duration: 3.6s; }
+:root[data-fx] .fx-entry-crew li:nth-child(6) { animation-delay: -1.2s; animation-duration: 2.8s; }
+:root[data-fx] .fx-entry-crew li:nth-child(7) { animation-delay: -2.7s; animation-duration: 3.3s; }
+
+@keyframes fx-entry-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+:root[data-fx] .fx-entry-caption {
+  max-width: 34ch;
+  margin: 18px 0 0;
+  text-wrap: pretty;
+  color: #b9b4c9;
+  font: var(--fx-weight-regular) var(--fx-text-md) / var(--fx-leading-body) var(--fx-font-sans);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------------------------------ sign-in */
+
+:root[data-fx] .fx-entry-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: clamp(28px, 5vh, 52px) clamp(28px, 3.6vw, 60px);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-left: 0;
+  border-radius: 0 20px 20px 0;
+  background: var(--fx-glass-2);
+  backdrop-filter: blur(var(--fx-blur-2)) saturate(var(--fx-saturate));
+}
+
+:root[data-fx] .fx-entry-form > * {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--fx-dur-reveal) var(--fx-ease-settle),
+    transform var(--fx-dur-reveal) var(--fx-ease-settle);
+}
+
+:root[data-fx] .fx-entry.shown .fx-entry-form > * {
+  opacity: 1;
+  transform: none;
+}
+
+:root[data-fx] .fx-entry.shown .fx-entry-form > :nth-child(2) { transition-delay: calc(1 * var(--fx-stagger)); }
+:root[data-fx] .fx-entry.shown .fx-entry-form > :nth-child(3) { transition-delay: calc(2 * var(--fx-stagger)); }
+:root[data-fx] .fx-entry.shown .fx-entry-form > :nth-child(4) { transition-delay: calc(3 * var(--fx-stagger)); }
+:root[data-fx] .fx-entry.shown .fx-entry-form > :nth-child(5) { transition-delay: calc(4 * var(--fx-stagger)); }
+:root[data-fx] .fx-entry.shown .fx-entry-form > :nth-child(n + 6) { transition-delay: calc(5 * var(--fx-stagger)); }
+
+:root[data-fx] .fx-entry-form h1 {
+  margin: 0;
+  color: var(--fx-ink-0);
+  font: var(--fx-weight-medium) clamp(28px, 4.4vh, 36px) / 1.08 var(--fx-font-sans);
+  letter-spacing: var(--fx-tracking-display);
+}
+
+:root[data-fx] .fx-entry-lede {
+  max-width: 44ch;
+  margin: 10px 0 0;
+  text-wrap: pretty;
+  color: var(--fx-ink-2);
+  font: var(--fx-weight-regular) 14px / var(--fx-leading-body) var(--fx-font-sans);
+}
+
+:root[data-fx] .fx-entry-who {
+  display: grid;
+  margin: clamp(18px, 3.4vh, 30px) 0 0;
+  border: var(--fx-hair) solid var(--line);
+  border-radius: 12px;
+  background: var(--fx-card);
+}
+
+:root[data-fx] .fx-entry-who > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+}
+
+:root[data-fx] .fx-entry-who > div + div {
+  border-top: var(--fx-hair) solid var(--line);
+}
+
+:root[data-fx] .fx-entry-who dt {
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-entry-who dd {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  color: var(--fx-ink-0);
+  font: var(--fx-weight-medium) var(--fx-text-md) / 1.3 var(--fx-font-sans);
+  white-space: nowrap;
+}
+
+:root[data-fx] .fx-entry-who em {
+  margin-left: auto;
+  padding: 3px 7px;
+  border-radius: var(--fx-radius-pill);
+  background: var(--fx-well);
+  color: var(--fx-ink-2);
+  font: var(--fx-weight-medium) var(--fx-text-2xs) / 1 var(--fx-font-mono);
+  font-style: normal;
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .fx-entry-monogram {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--fx-ink-1);
+  color: #fff;
+  font: var(--fx-weight-medium) 9.5px / 1 var(--fx-font-mono);
+  letter-spacing: 0.04em;
+}
+
+:root[data-fx] .fx-entry-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fx-ink-4);
+}
+
+:root[data-fx] .fx-entry-dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-bg);
+}
+
+:root[data-fx] .fx-entry-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 50px;
+  margin: clamp(18px, 3.4vh, 28px) 0 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fx-ink-0);
+  color: #fff;
+  font: var(--fx-weight-medium) 15px / 1 var(--fx-font-sans);
+  cursor: pointer;
+  box-shadow: 0 14px 30px -16px rgba(11, 19, 32, 0.6);
+}
+
+:root[data-fx] .fx-entry.shown .fx-entry-go {
+  transition:
+    opacity var(--fx-dur-reveal) var(--fx-ease-settle) calc(4 * var(--fx-stagger)),
+    transform var(--fx-dur-fast) var(--fx-ease-out),
+    background-color var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .fx-entry-go svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .fx-entry-go:hover {
+  background: var(--fx-ink-1);
+  transform: translateY(-1px);
+}
+
+:root[data-fx] .fx-entry-go:hover svg {
+  transform: translateX(3px);
+}
+
+:root[data-fx] .fx-entry-go:focus-visible {
+  outline: 2px solid var(--calm);
+  outline-offset: 3px;
+}
+
+:root[data-fx] .fx-entry-go:disabled {
+  cursor: default;
+}
+
+:root[data-fx] .fx-entry-alt {
+  align-self: center;
+  margin: 14px 0 0;
+  color: var(--fx-ink-2);
+  font: var(--fx-weight-regular) var(--fx-text-sm) / 1.3 var(--fx-font-sans);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+
+:root[data-fx] .fx-entry-alt:hover {
+  color: var(--fx-ink-0);
+  text-decoration-color: currentColor;
+}
+
+:root[data-fx] .fx-entry-alt:focus-visible {
+  outline: 2px solid var(--calm);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+:root[data-fx] .fx-entry-foot {
+  margin: clamp(16px, 3vh, 26px) 0 0;
+  padding-top: 14px;
+  border-top: var(--fx-hair) solid var(--line);
+  color: var(--fx-ink-3);
+  font: var(--fx-weight-regular) var(--fx-text-xs) / var(--fx-leading-body) var(--fx-font-sans);
+}
+
+/* ------------------------------------------------------------------------------------------- narrow */
+
+@media (max-width: 860px) {
+  :root[data-fx] .fx-entry {
+    place-items: start center;
+    padding: 16px;
+  }
+
+  :root[data-fx] .fx-entry-art {
+    border-radius: 20px 20px 0 0;
+  }
+
+  :root[data-fx] .fx-entry-form {
+    border-left: var(--fx-hair) solid var(--fx-glass-border);
+    border-top: 0;
+    border-radius: 0 0 20px 20px;
+  }
+
+  :root[data-fx] .fx-entry-card {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+  }
+
+  :root[data-fx] .fx-entry-art {
+    min-height: 300px;
+  }
+
+  :root[data-fx] .fx-entry .fx-corners {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  :root[data-fx] .fx-entry-crew {
+    width: 100%;
+  }
+
+  :root[data-fx] .fx-entry-crew li {
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    margin-inline: 0;
+  }
+
+  :root[data-fx] .fx-entry-who > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 10px 12px;
+  }
+
+  :root[data-fx] .fx-entry-who dd {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  :root[data-fx] :is(.fx-entry-monogram, .fx-entry-dot) {
+    flex: none;
+  }
+}
+
+/* every moving or filtered piece of the art on a layer of its own: the avatars repaint each frame, and the
+   mark's glow and the arc's blur must not be re-rasterized with them */
+:root[data-fx] :is(.fx-entry-sky, .fx-entry-facet, .fx-entry-disc, .fx-entry-crew li, .fx-entry-igloo) {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-fx] :is(.fx-entry-disc, .fx-entry-crew li) {
+    animation: none;
+  }
+}

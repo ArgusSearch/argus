@@ -46,8 +46,7 @@ describe("scorecard", () => {
     expect(card.agents.some((a) => misses(card, a).length > 0)).toBe(true);
   });
 
-  // The dashboard and the scorecard view fall back to this sample while GET /bench/results is a stub, so it must be
-  // the current bench (`uv run argus-bench run --agents argus,argus-stage1,threshold`), not an older recording.
+  // Check the view helpers against a completed benchmark with all three agents.
   it("is a recording of the current bench: every scenario, full Argus, its Stage-1 fallback and the baseline", () => {
     expect(card.scenarios).toEqual(["quiet", "s1", "s2", "s3", "s4", "s5"]);
     expect(card.agents).toEqual(["argus", "argus-stage1", "threshold"]);

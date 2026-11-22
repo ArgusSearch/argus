@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore } from "react";
 import { ApiError } from "./api";
-import type { ArgusEvent, Incident } from "./types";
+import type { ArgusEvent, Graph, Incident } from "./types";
 
 export type AgentDemoStatus = "idle" | "playing" | "paused" | "awaiting_approval" | "completed";
 
@@ -30,6 +30,8 @@ export interface AgentSnapshot {
   state: AgentDemoState;
   events: ArgusEvent[];
   incidents: Incident[];
+  questions: string[];
+  report_ready: boolean;
 }
 
 export interface AgentDemo {
@@ -124,6 +126,10 @@ export async function demoMorningReport(): Promise<NarratorReport> {
   return call<NarratorReport>(withRun("/demo/report/morning"));
 }
 
+export function demoGraph(runId: string): Promise<Graph> {
+  return call<Graph>(`/demo/graph?run_id=${encodeURIComponent(runId)}`);
+}
+
 /** The incidents the presentation shows right now (null outside a presentation). */
 export function demoIncidents(): Incident[] | null {
   return current?.snapshot?.incidents ?? null;
@@ -138,20 +144,37 @@ async function poll() {
     if (current?.runId !== run.runId) return;
     // the snapshot only grows: keep the object when nothing moved, so the page does not re-render for nothing
     const prev = current.snapshot;
-    const same = prev && prev.events.length === snapshot.events.length && prev.state.status === snapshot.state.status && prev.incidents.length === snapshot.incidents.length && JSON.stringify(prev.incidents.map((i) => i.state)) === JSON.stringify(snapshot.incidents.map((i) => i.state));
+    const same = prev &&
+      prev.events.length === snapshot.events.length &&
+      prev.state.status === snapshot.state.status &&
+      prev.report_ready === snapshot.report_ready &&
+      JSON.stringify(prev.questions) === JSON.stringify(snapshot.questions) &&
+      JSON.stringify(prev.incidents.map((i) => [i.id, i.updated_at, i.state])) ===
+        JSON.stringify(snapshot.incidents.map((i) => [i.id, i.updated_at, i.state]));
     if (!same || current.error) set({ runId: run.runId, snapshot: same ? prev : snapshot, error: null });
   } catch (e) {
     if (current?.runId !== run.runId) return;
-    // 204/409: the presentation was replaced or finished elsewhere
     set({ ...current, error: (e as Error).message });
+    // The presentation no longer exists on the server. Keep the error visible until the operator leaves or starts another.
+    if (e instanceof ApiError && e.status === 409) return;
   }
   if (current?.runId === run.runId) timer = window.setTimeout(() => void poll(), POLL_MS);
+}
+
+function rememberRun(runId: string | null) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("agentdemo");
+  url.searchParams.delete("agentspeed");
+  if (runId) url.searchParams.set("agentrun", runId);
+  else url.searchParams.delete("agentrun");
+  if (url.href !== window.location.href) window.history.replaceState(null, "", url);
 }
 
 /** Starts a new agent presentation (replaces any running one on the server) and follows it. */
 export async function startAgentDemo(scenario: "s1" | "s4" = "s4", speed = 1): Promise<void> {
   const state = await call<AgentDemoState>("/demo/start", post({ scenario, variant: "agent", speed }));
   if (!state.run_id) throw new Error("the server did not start an agent presentation");
+  rememberRun(state.run_id);
   set({ runId: state.run_id, snapshot: null, error: null });
   await poll();
 }
@@ -166,12 +189,16 @@ export async function controlAgentDemo(action: "pause" | "resume" | "skip" | "re
   const run = current;
   if (!run) return;
   const state = await call<AgentDemoState>(`/demo/control?run_id=${encodeURIComponent(run.runId)}`, post({ action }));
-  if (action === "restart" && state.run_id && state.run_id !== run.runId) set({ runId: state.run_id, snapshot: null, error: null });
+  if (action === "restart" && state.run_id && state.run_id !== run.runId) {
+    rememberRun(state.run_id);
+    set({ runId: state.run_id, snapshot: null, error: null });
+  }
   await poll();
 }
 
 /** Leaves the presentation in this page (the server keeps it); the page goes back to the live stream. */
 export function leaveAgentDemo() {
   window.clearTimeout(timer);
+  rememberRun(null);
   set(null);
 }

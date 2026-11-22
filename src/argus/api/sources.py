@@ -197,7 +197,14 @@ class LiveSource:
                 self._wake.clear()
             if self._stop.is_set():
                 return
-            self.runtime.tick(as_of)
+            try:
+                self.runtime.tick(as_of)
+            except asyncio.CancelledError:
+                if self._stop.is_set():
+                    return
+                raise
+            if self._stop.is_set():
+                return
             if self.remediation is not None:
                 self.remediation.tick(as_of)
                 if self.agent.selector is not None:
@@ -225,6 +232,8 @@ class LiveSource:
         self._wake.set()
 
     async def closed(self) -> None:
+        # A stopped monitor can still serve receipt SQL until the API closes.
+        self.runtime.runner.cancel()
         if self._thread is not None:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()

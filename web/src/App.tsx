@@ -9,8 +9,9 @@ import { ReceiptProvider } from "./components/Receipts";
 import { Ticker } from "./components/Ticker";
 import { Trail } from "./components/Trail";
 import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "./fx";
+import { go } from "./fx/nav";
 import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
-import { useAgentDemo } from "./lib/agentDemo";
+import { demoGraph, useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -48,42 +49,75 @@ function Legend() {
   );
 }
 
+function linkedIncident(): string | null {
+  return fxOn() ? null : new URLSearchParams(window.location.search).get("incident");
+}
+
+function rememberIncident(id: string | null) {
+  if (document.documentElement.classList.contains("argus-demo")) return;
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set("incident", id);
+  else {
+    url.searchParams.delete("incident");
+    if (url.searchParams.get("view") === "incident") url.searchParams.delete("view");
+  }
+  if (url.href !== window.location.href) window.history.pushState(null, "", url);
+}
+
 export function App() {
-  const [graph, setGraph] = useState<Graph | null>(null);
+  const [baseGraph, setGraph] = useState<Graph | null>(null);
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const [presentationGraph, setPresentationGraph] = useState<{ runId: string; graph?: Graph; error?: string } | null>(null);
   const [view, setView] = useState<RunView>(() => emptyView());
   const [health, setHealth] = useState<Health | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
-  const [incidentId, setIncidentId] = useState<string | null>(null);
+  const [incidentId, setIncidentId] = useState(linkedIncident);
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [digestOpen, setDigestOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
+  const demo = useAgentDemo();
+  const demoRun = demo?.runId;
+  const scopedGraph = presentationGraph?.runId === demoRun ? presentationGraph : null;
+  const graph = demoRun ? scopedGraph?.graph ?? null : baseGraph;
+  const mapError = demoRun ? scopedGraph?.error : graphError;
   // a new metric placed itself (POST /graph/metrics): refetch the graph so the node appears everywhere
-  const extension = useGraphExtension(useCallback(() => void api.graph().then(setGraph, () => undefined), []));
+  const loadGraph = useCallback(() => {
+    void api.graph().then(
+      (next) => {
+        setGraph(next);
+        setGraphError(null);
+      },
+      (error: Error) => setGraphError(error.message),
+    );
+  }, []);
+  const extension = useGraphExtension(loadGraph);
 
   useEffect(() => {
-    api.graph().then(setGraph, () => undefined);
+    if (!demoRun) return;
+    let active = true;
+    void demoGraph(demoRun).then(
+      (graph) => active && setPresentationGraph({ runId: demoRun, graph }),
+      (error: Error) => active && setPresentationGraph({ runId: demoRun, error: error.message }),
+    );
+    return () => {
+      active = false;
+    };
+  }, [demoRun]);
+
+  useEffect(() => {
     return follow({
       onReset: (header) => {
         setView((v) => emptyView(header.stream, header.mode, v.thresholds));
         announced.current = new Set();
         setToast(null);
-        api.graph().then(setGraph, () => undefined);
+        // Fresh connections send a stream header, including when the API comes back online.
+        loadGraph();
       },
       onEvents: (events) => setView((v) => foldAll(v, events)),
       onState: setConnection,
     });
-  }, []);
-
-  // A page opened while the API was down can fetch the graph once the stream opens.
-  useEffect(() => {
-    if (connection !== "open" || graph) return;
-    let live = true;
-    api.graph().then((next) => live && setGraph(next), () => undefined);
-    return () => {
-      live = false;
-    };
-  }, [connection, graph]);
+  }, [loadGraph]);
 
   // the watcher's lines come from the API; counters folded before they arrived are recounted
   const thresholds = health?.thresholds;
@@ -113,6 +147,10 @@ export function App() {
 
   // announce verdicts and the end of the run once per stream
   useEffect(() => {
+    if (demoRun) {
+      setToast(null);
+      return;
+    }
     for (const inc of Object.values(view.incidents)) {
       const key = `${inc.id}:explained`;
       if (inc.verdict !== "UNEXPLAINED" && !announced.current.has(key)) {
@@ -124,7 +162,7 @@ export function App() {
       announced.current.add("end");
       setToast({ text: "Run complete. Argus handled it alone.", digest: true });
     }
-  }, [view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
+  }, [demoRun, view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
 
   useEffect(() => {
     if (!toast) return;
@@ -132,17 +170,33 @@ export function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const closeIncident = useCallback(() => setIncidentId(null), []);
+  useEffect(() => {
+    if (fxOn()) return;
+    const restore = () => setIncidentId(linkedIncident());
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  const closeIncident = useCallback(() => {
+    setIncidentId(null);
+    rememberIncident(null);
+  }, []);
   // with the style layer an incident opens as its own page; without it, as the sheet over the graph
   const openIncident = useCallback((id: string) => {
     if (fxOn()) openIncidentPage(id);
-    else setIncidentId(id);
+    else {
+      setIncidentId(id);
+      rememberIncident(id);
+    }
     setToast(null);
   }, []);
   const closeDigest = useCallback(() => setDigestOpen(false), []);
+  const openDigest = useCallback(() => {
+    if (fxOn()) go("report");
+    else setDigestOpen(true);
+    setToast(null);
+  }, []);
   const closeNode = useCallback(() => setNodeId(null), []);
   // during the agent presentation (lane F) the page shows the presentation's snapshot, not the live stream
-  const demo = useAgentDemo();
   const shown = useMemo(
     () => (demo?.snapshot ? foldAll(emptyView(`demo:${demo.runId}`, "replay", view.thresholds), demo.snapshot.events) : view),
     [demo?.runId, demo?.snapshot, view],
@@ -153,16 +207,14 @@ export function App() {
   const sceneView = useMemo(() => (story ? { ...shown, focus: story } : shown), [shown, story]);
 
   return (
-    <ReceiptProvider>
+    <ReceiptProvider rerunAvailable={health?.rerun === true}>
       <div className="app">
         <Header
           view={shown}
           health={health}
           connection={connection}
-          onDigest={() => {
-            setDigestOpen(true);
-            setToast(null);
-          }}
+          onDigest={openDigest}
+          presenting={demo !== null}
         />
         <Ticker view={shown} />
         <ViewHost graph={graph} view={shown} health={health} onSelectNode={setNodeId} onOpenIncident={openIncident}>
@@ -180,13 +232,14 @@ export function App() {
               </div>
               <div className="graph-canvas">
                 <OfflineBanner connection={connection} />
-                {!graph && <Skeleton variant="graph" label="Loading the metric graph" />}
+                {connection !== "offline" && mapError && <div className="banner" role="alert">Metric map could not be loaded. {mapError}</div>}
+                {!mapError && !graph && <Skeleton variant="graph" label="Loading the metric map" />}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />
                   </ReactFlowProvider>
                 )}
-                <GraphExtensionLayer ext={extension} />
+                {!demoRun && <GraphExtensionLayer ext={extension} />}
               </div>
               <div className="graph-foot">
                 <Legend />
@@ -201,7 +254,7 @@ export function App() {
         <FxWorkspace graph={graph} view={shown} onOpenIncident={openIncident} onSelectNode={setNodeId} />
       </div>
       {incidentId && (
-        <IncidentSheet id={incidentId} summary={shown.incidents[incidentId]} graph={graph} onClose={closeIncident} />
+        <IncidentSheet key={incidentId} id={incidentId} summary={shown.incidents[incidentId]} graph={graph} onClose={closeIncident} />
       )}
       {nodeId && graph && <NodeSheet id={nodeId} graph={graph} view={shown} onClose={closeNode} />}
       {digestOpen && <DigestModal version={view.lastSeq} onClose={closeDigest} />}
@@ -219,10 +272,7 @@ export function App() {
           {toast.digest && (
             <button
               className="btn primary"
-              onClick={() => {
-                setDigestOpen(true);
-                setToast(null);
-              }}
+              onClick={openDigest}
             >
               While you slept
             </button>

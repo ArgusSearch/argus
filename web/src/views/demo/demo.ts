@@ -6,10 +6,10 @@
 //   &hold=12           seconds the incident report stays open before the page returns to the graph
 //   &end=report        open the morning report when the run is complete
 
-import { segmentLabel } from "../../lib/format";
+import { wherePhrase } from "../../fx/workspace/plain";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
-import { breadcrumb, chapterOf, suspects, verdictOf } from "../investigation";
+import { breadcrumb, chapterOf, spreadOf, suspects, verdictOf } from "../investigation";
 import { investigations, nodeLabel } from "../model";
 
 export interface DemoOptions {
@@ -64,17 +64,18 @@ export function beatFor(view: RunView, graph: Graph | null): Beat {
   const inv = investigations(view);
   const current = inv[inv.length - 1];
   const incident = current?.incidentId ? view.incidents[current.incidentId] : undefined;
+  const steps = current ? view.steps.filter((s) => s.anomalyId === current.anomalyId) : [];
 
   if (incident?.state === "resolved") return { id: "resolved", text: "Recovered. After three normal hours Argus closes the incident by itself." };
   if (incident?.state === "monitoring") return { id: "monitoring", text: "Back inside its band. Argus keeps watching before it closes the incident." };
   if (incident && incident.verdict !== "UNEXPLAINED") {
+    const where = Object.keys(incident.segment).length ? incident.segment : spreadOf(suspects(steps))?.scope ?? {};
     return {
       id: "verdict",
-      text: `Verdict: ${VERDICT_TEXT[incident.verdict]} in ${segmentLabel(incident.segment)}, with its cost, what was ruled out, and a receipt behind every number.`,
+      text: `Verdict for ${wherePhrase(where)}: ${VERDICT_TEXT[incident.verdict]}. The incident shows its cost, ruled-out causes and receipts.`,
     };
   }
   if (current) {
-    const steps = view.steps.filter((s) => s.anomalyId === current.anomalyId);
     const verdict = verdictOf(steps.map((s) => s.step));
     if (!incident && verdict === "EXPECTED") {
       return { id: "held", text: "It looked like an anomaly, but it was planned and delivered as planned. Argus did not wake anyone." };

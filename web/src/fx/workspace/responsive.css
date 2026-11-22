@@ -1,0 +1,299 @@
+/* Ice has its own grid. Keep the desktop recording layout and turn the narrow workspace into one scrolling page. */
+:root[data-fx] .fx-side-menu {
+  display: none;
+}
+
+@media (max-width: 1179px) {
+  :root[data-fx][data-fx-section] .app {
+    --fx-mobile-menu-row: 44px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: "side" "head" "body" "band";
+    align-content: start;
+    gap: var(--fx-space-3);
+    min-width: 0;
+    min-height: 100dvh;
+    height: auto;
+    padding: 0 var(--fx-space-3) var(--fx-space-4);
+  }
+
+  :root[data-fx] .fx-side {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(var(--fx-mobile-menu-row), auto);
+    grid-auto-rows: max-content;
+    align-content: start;
+    align-items: center;
+    gap: var(--fx-space-2);
+    max-height: calc(100dvh - 2 * var(--fx-space-3));
+    overflow-y: auto;
+    padding: var(--fx-space-2) var(--fx-space-3);
+    border: var(--fx-hair) solid var(--fx-glass-border);
+    border-radius: 0 0 var(--fx-radius-2) var(--fx-radius-2);
+    background: var(--fx-glass-solid);
+  }
+
+  :root[data-fx] .fx-side-brand {
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  :root[data-fx] .fx-side-brand div {
+    display: grid;
+  }
+
+  :root[data-fx] .fx-side-menu {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--fx-space-2);
+    min-height: var(--fx-mobile-menu-row);
+    padding: 0 var(--fx-space-3);
+    border: var(--fx-hair) solid var(--line-2);
+    border-radius: var(--fx-radius-1);
+    background: var(--fx-card);
+    color: var(--fx-ink-0);
+    cursor: pointer;
+  }
+
+  :root[data-fx] .fx-side-menu svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+
+  :root[data-fx] .fx-side :is(.fx-side-main, .fx-demo) {
+    display: none;
+    grid-column: 1 / -1;
+  }
+
+  :root[data-fx] .fx-side[data-menu-open="true"] :is(.fx-side-main, .fx-demo) {
+    display: grid;
+    overflow: visible;
+  }
+
+  :root[data-fx] .fx-side :is(.fx-side-item, .fx-side-ask) {
+    justify-content: flex-start;
+    height: auto;
+    min-height: 44px;
+    padding-inline: var(--fx-space-3);
+  }
+
+  :root[data-fx] .fx-side :is(.fx-side-item span, .fx-side-group, .fx-side-ask span) {
+    display: block;
+  }
+
+  :root[data-fx] .fx-side :is(.fx-side-badge, .fx-side-live) {
+    position: static;
+    margin-left: auto;
+  }
+
+  :root[data-fx] .header {
+    flex-wrap: wrap;
+    gap: var(--fx-space-2);
+    padding: 0;
+  }
+
+  :root[data-fx] .header .clock {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  :root[data-fx][data-fx-section] :is(.fx-dash, .vh-view, .graph) {
+    grid-area: body;
+  }
+
+  :root[data-fx] .cs-settings .cs-main {
+    scroll-margin-block-start: calc(var(--fx-mobile-menu-row) + 2 * var(--fx-space-2) + 2 * var(--fx-hair) + var(--fx-space-3));
+  }
+
+  :root[data-fx] :is(.fx-dash, .vw, .ws-story) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-fx] :is(.fx-dash, .vw-scroll, .ws-story) {
+    min-width: 0;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  :root[data-fx]:not([data-fx-section="graph"]) .graph {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  :root[data-fx]:not([data-fx-section="graph"]) .graph :is(.graph-bar, .graph-foot) {
+    display: none;
+  }
+
+  :root[data-fx]:not([data-fx-section="graph"]) #fx-stage::after {
+    opacity: 0.85;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph {
+    grid-template-rows: auto minmax(300px, 50dvh) auto;
+  }
+
+  :root[data-fx][data-fx-section="graph"] .graph-foot {
+    position: relative;
+    pointer-events: auto;
+  }
+
+  :root[data-fx] .ws-story {
+    grid-area: band;
+  }
+
+  :root[data-fx] :is(.ws-grid, .ip-grid, .iv-grid, .ag-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-fx] .ws-tiles {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  }
+
+  :root[data-fx] :is(.fx-card-head, .ip-head-actions, .mr-head, .mr-inc-head, .vw-bar, .iv-step-head) {
+    flex-wrap: wrap;
+  }
+
+  :root[data-fx] :is(.ws-gloss, .ip-where) {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  }
+
+  :root[data-fx] :is(.mr-page, .sc-page) {
+    width: 100%;
+    padding: var(--fx-space-4);
+  }
+
+  :root[data-fx] :is(.ws-pill, .sc-source, .tv-name, .num) {
+    white-space: normal;
+  }
+
+  :root[data-fx] .tv-row {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-block: 6px;
+  }
+
+  :root[data-fx] .tv-row .tv-state {
+    min-width: 0;
+  }
+
+  :root[data-fx] .sheet {
+    width: min(100%, 620px);
+  }
+
+  :root[data-fx] .ws-tip {
+    position: static;
+    width: auto;
+    max-width: 100%;
+  }
+
+  :root[data-fx] .ws-term:not(:hover, :focus) .ws-tip {
+    display: none;
+  }
+
+  :root[data-fx] .ws-term:is(:hover, :focus) .ws-tip {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  :root[data-fx] .header .clock {
+    flex-basis: 100%;
+  }
+
+  :root[data-fx] .header .spacer {
+    display: none;
+  }
+
+  :root[data-fx] .ws-tile-spacer {
+    display: none;
+  }
+
+  :root[data-fx] :is(.fx-side, .header, .fx-dash, .vh-view, .ws-story, .graph) .btn {
+    min-height: 44px;
+    height: auto;
+    padding-block: var(--fx-space-2);
+    white-space: normal;
+  }
+
+  :root[data-fx] :is(.ws-health-body, .mr-line, .mr-notes, .ip-cost) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-fx] :is(.ws-metric, .mr-kv) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--fx-space-2);
+  }
+
+  :root[data-fx] .ws-held li {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--fx-space-2);
+  }
+
+  :root[data-fx] .ws-held li > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  :root[data-fx] .ws-gloss {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-fx] :is(.ws-table, .sc-table, .ws-table tbody, .sc-table tbody) {
+    display: block;
+  }
+
+  :root[data-fx] :is(.ws-table, .sc-table) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+
+  :root[data-fx] :is(.ws-table, .sc-table) tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-fx] .sc-table tbody th {
+    width: auto;
+  }
+
+  :root[data-fx] :is(.ws-table, .sc-table) td[data-label]::before {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--fx-ink-2);
+    content: attr(data-label);
+    font-size: var(--fx-text-xs);
+    font-weight: 600;
+  }
+
+  :root[data-fx] .ws-table :is(td, td.ws-num) {
+    padding-block: var(--fx-space-2);
+    text-align: left;
+  }
+
+  :root[data-fx] .ws-table td:not(:last-child) {
+    border-bottom: 0;
+  }
+
+  :root[data-fx] .modal {
+    top: 3dvh;
+    width: calc(100% - 2 * var(--fx-space-3));
+    max-height: 94dvh;
+  }
+
+  :root[data-fx] .toast {
+    inset-inline: var(--fx-space-3);
+    flex-wrap: wrap;
+    transform: none;
+  }
+}

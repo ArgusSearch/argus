@@ -94,6 +94,7 @@ export function useIncidents(view: RunView): { incidents: Incident[]; failed: bo
     .map((i) => `${i.id}:${i.lastSeq}`)
     .join(",");
   useEffect(() => {
+    if (demo) return;
     let live = true;
     if (!version) {
       setState({ incidents: [], failed: false });
@@ -106,29 +107,30 @@ export function useIncidents(view: RunView): { incidents: Incident[]; failed: bo
     return () => {
       live = false;
     };
-  }, [version, view.stream]);
+  }, [version, view.stream, demo?.runId]);
   // the agent presentation carries its incidents in its snapshot
   if (demo) return { incidents: demo.snapshot?.incidents ?? [], failed: false };
   return state;
 }
 
 /** One incident with its findings, re-read whenever it changes on the stream. */
-export function useIncident(id: string, version: number): { incident: Incident | null; error: string | null } {
+export function useIncident(id: string, version: number, stream: string | null): { incident: Incident | null; error: string | null } {
   const demo = useAgentDemo();
   const [state, setState] = useState<{ incident: Incident | null; error: string | null }>({ incident: null, error: null });
   useEffect(() => {
+    if (demo) return;
     let live = true;
     api.incident(id).then(
       (incident) => live && setState({ incident, error: null }),
-      (e: Error) => live && setState((s) => ({ ...s, error: e.message })),
+      (e: Error) => live && setState({ incident: null, error: e.message }),
     );
     return () => {
       live = false;
     };
-  }, [id, version]);
+  }, [id, version, stream, demo?.runId]);
   if (demo) {
     const found = demo.snapshot?.incidents.find((i) => i.id === id) ?? null;
-    return { incident: found, error: found ? null : "not in the presentation yet" };
+    return { incident: found, error: demo.error ?? (demo.snapshot && !found ? "This incident is not in the presentation yet." : null) };
   }
   return state;
 }

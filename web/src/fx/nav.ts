@@ -8,12 +8,12 @@ import { useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 export type HostView = "graph" | "tree" | "investigation" | "report" | "scorecard";
-export type Page = "dashboard" | "incidents" | "incident" | "glossary" | "agent" | "village";
+export type Page = "dashboard" | "incidents" | "incident" | "glossary" | "agent" | "village" | "calendar" | "settings";
 export type Section = Page | HostView;
 
 const HOST_KEYS: Record<HostView, string> = { graph: "1", tree: "2", investigation: "3", report: "4", scorecard: "5" };
 const HOST_VIEWS = Object.keys(HOST_KEYS) as HostView[];
-const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary", "agent", "village"];
+const PAGES: readonly Page[] = ["dashboard", "incidents", "incident", "glossary", "agent", "village", "calendar", "settings"];
 
 export function isHostView(value: string | null | undefined): value is HostView {
   return HOST_VIEWS.includes(value as HostView);
@@ -62,7 +62,9 @@ let current: Location = typeof window === "undefined" ? HOME : initialLocation(w
 let previous: Location = HOME;
 let requested: HostView | null = null;
 
-type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+type TransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { ready: Promise<void>; finished: Promise<void> };
+};
 
 const calm = () => typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -77,10 +79,24 @@ function transition(update: () => void) {
     update();
     return;
   }
-  doc.startViewTransition(() => flushSync(update)).finished.catch(() => undefined);
+  const transition = doc.startViewTransition(() => flushSync(update));
+  // A viewport resize can cancel the animation while the route update still succeeds.
+  void transition.ready.catch(() => undefined);
+  void transition.finished.catch(() => undefined);
 }
 
-function set(next: Location, after?: () => void) {
+function remember(next: Location) {
+  const url = new URL(window.location.href);
+  if (next.section === "dashboard") url.searchParams.delete("view");
+  else url.searchParams.set("view", next.section);
+  if (next.incident) url.searchParams.set("incident", next.incident);
+  else url.searchParams.delete("incident");
+  if (url.href === window.location.href) return;
+  if (document.documentElement.classList.contains("argus-demo")) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
+
+function set(next: Location, after?: () => void, fromHistory = false) {
   if (next.section === current.section && next.incident === current.incident) {
     after?.();
     return;
@@ -88,6 +104,7 @@ function set(next: Location, after?: () => void) {
   const update = () => {
     if (current.section !== "incident") previous = current;
     current = next;
+    if (!fromHistory && typeof window !== "undefined") remember(next);
     for (const listener of [...listeners]) listener();
     after?.();
   };
@@ -119,14 +136,18 @@ export function hostTab(): HostView | null {
  * pages put the graph behind them (hidden), so the scene keeps its place. The incident page leaves the host
  * where it is, so demo mode's own switch back to the graph still registers as a change.
  */
-export function go(next: Section, incident: string | null = null) {
+function show(next: Section, incident: string | null, fromHistory: boolean) {
   const tab: HostView | null = isHostView(next) ? next : next === "incident" ? null : "graph";
   set({ section: next, incident: next === "incident" ? incident : null }, () => {
     if (tab && hostTab() !== tab) {
       requested = tab;
       window.dispatchEvent(new KeyboardEvent("keydown", { key: HOST_KEYS[tab] }));
     }
-  });
+  }, fromHistory);
+}
+
+export function go(next: Section, incident: string | null = null) {
+  show(next, incident, false);
 }
 
 export function openIncidentPage(id: string) {
@@ -154,6 +175,14 @@ export function watchHost(): () => void {
     set({ section: followHost(tab, document.documentElement.classList.contains("argus-demo")), incident: null });
   };
   const observer = new MutationObserver(sync);
+  const restore = () => {
+    const { section, incident } = initialLocation(window.location.search);
+    show(section, incident, true);
+  };
   observer.observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
-  return () => observer.disconnect();
+  window.addEventListener("popstate", restore);
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("popstate", restore);
+  };
 }

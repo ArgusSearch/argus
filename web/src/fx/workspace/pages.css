@@ -163,6 +163,38 @@
   gap: var(--fx-space-3);
 }
 
+:root[data-fx] .ws-compression {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-glass-1);
+}
+
+:root[data-fx] .ws-compression div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--fx-space-3);
+  padding: var(--fx-space-2) var(--fx-space-3);
+}
+
+:root[data-fx] .ws-compression div + div {
+  border-inline-start: var(--fx-hair) solid var(--line);
+}
+
+:root[data-fx] .ws-compression dt {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .ws-compression dd {
+  margin: 0;
+  color: var(--fx-ink-0);
+  font: 600 var(--fx-text-lg) / 1.25 var(--fx-font-mono);
+}
+
 :root[data-fx] .ws-tile {
   --tone: var(--ok);
   --tone-bg: var(--ok-bg);
@@ -806,6 +838,7 @@
 }
 
 :root[data-fx] .ip-step-body {
+  position: relative;
   display: grid;
   gap: var(--fx-space-3);
   min-width: 0;
@@ -832,6 +865,21 @@
   line-height: 1.55;
 }
 
+:root[data-fx] :is(.ip-lead, .ip-ruled li > div) {
+  position: relative;
+}
+
+:root[data-fx] .ip-step-body .ws-term {
+  position: static;
+}
+
+:root[data-fx] .ip-step-body .ws-tip {
+  position: absolute;
+  inset: calc(100% + 8px) auto auto 0;
+  width: max-content;
+  max-width: min(300px, 100%);
+}
+
 :root[data-fx] .ip-chart {
   display: grid;
   gap: 4px;
@@ -840,6 +888,64 @@
 :root[data-fx] .ip-chart-cap {
   color: var(--fx-ink-3);
   font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .ip-band-chart {
+  display: grid;
+  gap: var(--fx-space-2);
+  margin: 0;
+  padding: var(--fx-space-3);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+}
+
+:root[data-fx] .ip-band-track {
+  position: relative;
+  height: 18px;
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-well);
+}
+
+:root[data-fx] .ip-band-range {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+  border-block: 1px solid var(--probe);
+  background: var(--probe-bg);
+}
+
+:root[data-fx] .ip-band-observed {
+  position: absolute;
+  inset-block: -2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--alarm);
+  transform: translateX(-50%);
+}
+
+:root[data-fx] .ip-band-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--fx-space-4);
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .ip-band-key i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 1px;
+}
+
+:root[data-fx] .ip-band-range-key {
+  border: 1px solid var(--probe);
+  background: var(--probe-bg);
+}
+
+:root[data-fx] .ip-band-observed-key {
+  background: var(--alarm);
 }
 
 :root[data-fx] .ip-where {
@@ -923,7 +1029,7 @@
   gap: 2px;
 }
 
-:root[data-fx] .ip-ruled b {
+:root[data-fx] .ip-ruled li > div > b {
   color: var(--fx-ink-1);
   font-weight: 600;
   text-decoration: line-through;
@@ -1099,8 +1205,9 @@
   background: var(--ok);
 }
 
-:root[data-fx] .ip-timeline li.now i {
-  box-shadow: 0 0 0 4px var(--ok-bg);
+:root[data-fx] .ip-timeline li.evidence i {
+  border-color: var(--probe);
+  background: var(--probe-bg);
 }
 
 :root[data-fx] .ip-timeline li.done b {
@@ -1597,6 +1704,26 @@
 
 /* track record: Argus in its colors; its references (Stage 1 alone, the threshold alarm) are labelled
    comparisons, so their numbers stay neutral instead of reading as Argus failures */
+:root[data-fx] .vw.sc {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:root[data-fx] .sc-head {
+  flex-wrap: wrap;
+}
+
+:root[data-fx] .sc-agents {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+}
+
+:root[data-fx] .sc-agent-head {
+  flex-wrap: wrap;
+}
+
+:root[data-fx] .sc-page {
+  overflow-wrap: anywhere;
+}
+
 :root[data-fx] .sc-agent:not(.a-argus) .sc-metric .sc-metric-value {
   color: var(--fx-ink-2);
 }
@@ -1669,7 +1796,7 @@
   opacity: 0.8;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   :root[data-fx] .fx-side-ask {
     justify-content: center;
     padding: 0;
@@ -2167,13 +2294,6 @@
   background: linear-gradient(0deg, var(--ok), var(--probe));
 }
 
-:root[data-fx] .fx-side-main {
-  display: grid;
-  align-content: start;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 :root[data-fx] .ws-act-claim {
   display: flex;
   flex-wrap: wrap;
@@ -2182,12 +2302,9 @@
 }
 
 /* the agent presentation's control, above the sidebar's foot */
-:root[data-fx] .fx-side {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-}
-
 :root[data-fx] .fx-demo {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--fx-space-2);
   margin: var(--fx-space-2) 0 var(--fx-space-3);
   padding: var(--fx-space-3);
@@ -2220,10 +2337,15 @@
 }
 
 :root[data-fx] .fx-demo .btn {
-  padding-inline: 8px;
+  min-height: 28px;
+  height: auto;
+  padding: 5px 8px;
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   :root[data-fx] .fx-demo {
     display: none;
   }
@@ -2249,10 +2371,6 @@
   font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
   letter-spacing: var(--fx-tracking-hud);
   text-transform: uppercase;
-}
-
-:root[data-fx] .fx-side {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 :root[data-fx] .fx-demo .ws-pill {

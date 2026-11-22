@@ -65,7 +65,7 @@ export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | 
                       <b>{storyHeadline(graph, root?.node ?? inc.root_node, root?.change_pct.value ?? null, where)}</b>
                       {root?.evidence && <span className="ws-sub">Cause: {root.evidence.description}</span>}
                     </td>
-                    <td>{wherePhrase(where)}</td>
+                    <td data-label="Where">{wherePhrase(where)}</td>
                     <td>
                       <span className="ws-pills">
                         <Pill tone={STATE[inc.state].tone} title={STATE[inc.state].help}>
@@ -76,7 +76,7 @@ export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | 
                         </Pill>
                       </span>
                     </td>
-                    <td className="ws-num mono">{eur(Math.abs(inc.severity_eur))}</td>
+                    <td className="ws-num mono" data-label="Cost">{eur(Math.abs(inc.severity_eur))}</td>
                     <td>
                       <button
                         className="btn"

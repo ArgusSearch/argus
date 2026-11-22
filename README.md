@@ -1,235 +1,247 @@
 # Argus
 
-The analyst that never sleeps.
-Argus watches a business's metrics every hour, and when something breaks it says where, why, what it cost, how sure it is, and what it ruled out.
-Nobody asks it anything.
-Every number it reports comes from a SQL query with a reproducible receipt, and it knows when not to wake you.
+**Argus watches your business metrics, investigates what broke on its own, and shows you the cause, the cost and the SQL behind the numbers.**
 
-Built for the HackLab Berlin track "Eye of the System: Fully Agentic Monitoring" (sponsor: Almedia).
-All code in this repository was written during the hackathon.
+![Argus Mission Control traces a payment failure through the metric graph to PayCo on Android in Germany](docs/assets/hero-graph.jpg)
 
-## Quickstart
+Built for Almedia’s **Eye of the System: Fully Agentic Monitoring** track at HackLab Berlin. Argus runs against MockMart, a simulated shop and ads business with realistic delivery delays, deployment logs and faults.
 
-Requirements: [uv](https://docs.astral.sh/uv/) (it installs Python 3.13 and the locked dependencies on demand) and `make`.
+## Why Argus beats a threshold alert
 
-```bash
-make s1
-```
+In the recorded payment incident, success fell **2.40% across the shop** and **36.4% for PayCo on Android in Germany**. An Android release landed at the same time, but Android users outside that segment stayed healthy. Argus ruled the release out, filed one incident and estimated **EUR 21,742 in lost GMV for the first hour**. [Incident and receipt IDs](fixtures/report.md) · [SQL and result hashes](fixtures/receipts.json)
 
-This one command simulates a fresh world, runs Argus over it hour by hour, and grades the result against the hidden ground truth:
+We compared three approaches on the same **18 simulated worlds**, with three seeds each for a quiet control and five scenarios: a provider failure, a planned budget increase, a late data feed, an ad-pacing regression and a market-wide drop followed by a checkout fault. The benchmark commits to the hidden truth before running any agent and checks it after revealing it.
 
-```
-S1 seed 7: PayCo DE-android success 0.95 -> 0.62 from 2026-11-20 21:00 to 06:00 (hidden truth, read by the bench only)
-  PASS  supported_cause        INC-0001 SUPPORTED_CAUSE payment_success_rate DE/android/PayCo
-  PASS  release_ruled_out      dep_android-app_8.3.0: holdout normal: +0.9% (z +1.8) outside the segment vs -35.8% inside
-  PASS  detected_within_3h     opened 0 h after onset (data hour), 2 h wall clock
-  PASS  quiet_hours_silent     69 quiet hours, 0 anomalies before onset
-  PASS  one_incident           1 incident(s), 1 anomalies, 0 suppressed, state resolved
-  PASS  receipts_reproducible  21 receipts re-run, 0 mismatched, 0 unbacked numbers, 0 untagged lines
-  report: runs/s1-7/argus/reports/INC-0001.md   (6.7 s)
-ALL PASS
-```
+| Approach | Worlds passed | False alarms |
+| --- | ---: | ---: |
+| **Argus Stage 2 (deterministic)** | **18 / 18** | **0** |
+| Stage 1 fixed investigation checklist | 9 / 18 | 6 |
+| Threshold alerts on aggregate metrics | 3 / 18 | 21 |
 
-Use another seed with `make s1 SEED=3`.
-The report is plain markdown; open the path it prints.
+A pass means the runner met the scenario’s grading criteria. A false alarm is a page that touches no fault. These results cover the simulator, and the comparison runs with the language model off. [Scorecard](web/src/views/fixtures/scorecard.sample.json) · [Grading rules](src/bench/grade.py) · [Baselines](src/bench/baselines.py)
 
-### Watch it live
+Reproduce the comparison with `uv run argus-bench run --agents argus,argus-stage1,threshold --out runs/bench`. The `make bench` target runs the default comparison and checks the [release gate](scripts/agent_eval/bench_gate.py).
 
-Mission Control needs [Node.js](https://nodejs.org/) 22.12 or newer.
+The optional model chooses additional checks. The two checked-in live captures logged **$0.0392 for payments (S1)** and **$0.0459 for ad pacing (S4)** in investigation costs, with four model calls apiece. Offline playback makes no provider calls. [S1 cost record](fixtures/agent/v1/s1/activity.jsonl#L16) · [S4 cost record](fixtures/agent/v1/s4/activity.jsonl#L15) · [Cost and replay contract](docs/ext/agent.md#modes)
 
-```bash
-make setup   # the locked Python environment
-make web     # once: install, test and build Mission Control into web/dist
-make demo    # Argus live over a fresh S1 world, Mission Control on http://127.0.0.1:8000
-```
+## Demo
 
-`make demo SCENARIO=s4` runs another scenario (quiet, s1 to s5).
-`make api` replays a recorded run from `fixtures/` instead, with no world to generate.
-`make bench` grades every scenario on three seeds against the hidden truth and a threshold baseline.
-
-## What scenario S1 shows
-
-PayCo's payment success rate for Android users in Germany drops from about 95% to 60-72% at a random hour.
-In the same hour an Android app release ships to every country: an obvious suspect that is wrong.
-The total payment success rate moves only 2-3%.
-
-Argus:
-
-1. checks that the data arrived complete and that the identity `orders = payment_successes` holds (data before business);
-2. finds no planned event that would make the change expected;
-3. localises the drop to `DE / android / PayCo` (100% of the deviation on seed 7) instead of stopping at `DE`;
-4. tests both logged changes near the onset: the release is ruled out because Android outside the segment is normal (holdout), the PayCo status entry is kept;
-5. returns `SUPPORTED_CAUSE`, the exact LMDI split of the orders drop (payment success carries 82% on seed 7), the EUR impact and a suggested action that needs human approval;
-6. files one incident, silences downstream symptoms, monitors the root segment and resolves the incident after three normal hours.
-
-## Commands
-
-| Command | What it does |
+| Watch | Availability |
 | --- | --- |
-| `make setup` | install the locked environment |
-| `make s1 [SEED=n]` | S1 end to end, graded against the hidden truth |
-| `make bench` | the scorecard: quiet, S1-S5 x 3 seeds, Argus against a threshold baseline, truth sealed first |
-| `make world [SCENARIO=s1] [SEED=n]` | generate a world into `runs/<scenario>-<seed>/` (world.duckdb, truth.duckdb, manifest.json); scenarios: quiet, s1, s2, s3, s4, s5 |
-| `uv run argus run --world runs/s1-7/world.duckdb` | run Argus over a world and write its outputs next to it (`--stage 1` for the Stage-1 investigator) |
-| `make web` | install, test and build Mission Control into `web/dist` (Node.js 22.12+); the API serves it at `/` |
-| `make demo [SCENARIO=s1]` | API and Mission Control on port 8000 running Argus live over a fresh world, streaming events |
-| `make api [SCENARIO=s1]` | API and Mission Control replaying a recorded run: `fixtures/` for S1, `fixtures/<scenario>/` for the others (no world needed) |
-| `make check` | lint, format check, mypy, contract freshness, Mission Control tests and build, all tests (what CI runs) |
-| `make contracts` | regenerate `contracts/` from the pydantic models |
-| `make fixtures` | re-record `fixtures/` (S1) and `fixtures/<scenario>/` (quiet, S2, S3, S4, S5), each graded after it is written |
-| `uv run argus demo [--scenario s4]` | print the 90-second demo cue timeline that `POST /demo/start` plays ([docs/ext/demo.md](docs/ext/demo.md)) |
-| `uv run argus counterfactual --scenario s4` | replay an incident with its named cause switched off and verify the paired receipts ([docs/ext/counterfactual.md](docs/ext/counterfactual.md)) |
+| Live Mission Control | **TODO** · link after deployment is verified |
+| Pitch video | **TODO** · final video link |
+| Product showcase | **TODO** · final video link |
+| Demo recording | **TODO** · final video link |
+
+<!-- TODO(live): insert https://argus.caniberk.dev after deployment verification. -->
+<!-- TODO(videos): replace the three placeholders with the final unlisted YouTube or Drive URLs. -->
+
+### Quickstart
+
+In a clone of this repository, run the commands below with [uv](https://docs.astral.sh/uv/), `make` and [Node.js](https://nodejs.org/) 22.12 or newer.
+
+```bash
+make web
+make api
+```
+
+Open [Mission Control](http://127.0.0.1:8000/). The recorded S1 world starts on its own. Use `?fx=night` for the dark theme in the opening screenshot. Select **Play the S4 agent run** in the sidebar to replay the ad-pacing investigation and try the approval flow. This path needs no API key. [Demo controls](docs/ext/demo.md)
+
+For a fresh simulation with live SQL re-runs, use `make demo` in place of `make api`. To run and grade the PayCo investigation in the terminal, use `make s1`.
+
+## How the app works
+
+### 1. Start with Overview
+
+See shop health, open incidents, estimated impact and decisions waiting for an operator. Open **Track record** for the sealed benchmark or **Incidents** to see both filed incidents and held-back alerts.
+
+![Overview with shop health, open incident counts, held-back alerts and benchmark results](docs/assets/overview.jpg)
+
+### 2. Open an incident
+
+In S1, open the PayCo incident to see the affected countries, platforms and providers, the cost, and which suspects the evidence ruled out. Select a receipt chip to inspect the SQL, the pinned `as_of` time and the result hash. **Re-run SQL** is available against a live world. A recording carries its captured evidence. [Recorded S1 report](fixtures/report.md) · [Receipts](fixtures/receipts.json)
+
+| Incident | SQL receipt |
+| --- | --- |
+| ![The PayCo incident shows the affected segment, business impact and rejected suspects](docs/assets/incident.jpg) | ![The receipt drawer shows the SQL, as-of timestamp, returned rows and result hash](docs/assets/receipt.jpg) |
+
+### 3. Follow Live investigation
+
+Open **Live investigation** to watch Argus check data completeness, follow the metric graph, narrow the affected segment and test suspects against unaffected groups. **Agent activity** adds the check the model chose, its prediction, what the host found and what the call cost.
+
+![Agent activity shows the checks, predictions, observations and per-call costs](docs/assets/agent-activity.jpg)
+
+<details>
+<summary>Watch a short investigation replay</summary>
+
+![Recording of Argus moving from data checks and localisation through holdouts to a supported cause](docs/assets/investigation.gif)
+
+</details>
+
+### 4. Approve a proposed action
+
+Play the **S4 agent run** and open the proposal for the affected German and French budget lines. Review the proposed rollback and its evidence, then approve it to continue the replay. In live simulation, Argus waits for the operator before applying the playbook.
+
+![The ad-pacer rollback proposal is waiting for operator approval](docs/assets/approval-pending.jpg)
+
+### 5. Verify the outcome
+
+In the approved S4 recording, the pacing ratio returns to **1.01** in the treated shop while its untreated twin stays at **4.05**. Open the outcome to see the receipts for both measurements. [Recorded outcome](fixtures/agent/v1/s4/approve/actions.json) · [SQL receipts e4 and e5](fixtures/agent/v1/s4/approve/receipts.json)
+
+![The approved rollback is verified against the untreated twin](docs/assets/approval-verified.jpg)
+
+### 6. Ask Argus
+
+Open **Ask Argus** and enter the S4 recording’s question, **Could higher traffic explain the spend?** The read-only answer links to the evidence the investigation used. [Recorded answer](fixtures/agent/v1/s4/ask.jsonl)
+
+![Ask Argus explains why increased traffic was ruled out and links to its receipts](docs/assets/ask.jpg)
+
+### 7. Explore the Village and Settings
+
+Open **Village** to follow the case as it passes between the watcher, detective, skeptic, narrator, market analyst, operator and cartographer. The **Settings** integration preview shows the operating policy and detector thresholds, with planned changes alongside them in Calendar.
+
+| Village | Settings preview |
+| --- | --- |
+| ![Argus Village shows the case moving between agents in their igloos](docs/assets/village.jpg) | ![Settings shows the shop’s read-only operating policy and monitoring thresholds](docs/assets/settings.jpg) |
+
+### Extend the graph
+
+In **Visualization** or **Metric tree**, select **Add the ad metric pack**. Argus places cost per impression as `CTR × CPC` and attaches the definition check and edge tests. The same flow handles ambiguous and rejected definitions with a certificate explaining the result. [Placement guide](docs/ext/graph-extension.md) · [Recorded placement and SQL receipts](fixtures/graph_extension/placements.json)
+
+![The placement card shows the new cost-per-impression metric, its formula and the evidence for adding it](docs/assets/new-metric.jpg)
+
+## How Argus meets the Almedia brief
+
+| Criterion | What you can verify |
+| --- | --- |
+| **Metric graph (40%)** | The seed graph has **27 metrics and 44 typed edges** across the shop funnel and ads business. Argus re-tests formula and breakdown edges on the data each simulated day. Submit a YAML definition with `name`, `description` and `sql` to `POST /graph/metrics` to see automatic placement or a certificate explaining why it could not be placed. [Seed graph](graph/seed_graph.yml) · [Edge tests](src/argus/graph/edge_tests.py) · [Graph extension](docs/ext/graph-extension.md) |
+| **Autonomous monitoring and investigation (40%)** | Each simulated hour, Argus checks data delivery, scores key metrics, investigates an uncovered anomaly, and follows the root segment through recovery. The planned S2 spend increase stays in **Didn't wake you** with its evidence. [Runtime](src/argus/runtime/) · [Logged S2 outcome](fixtures/s2/notes.json) · [Decision rules](#how-argus-decides) |
+| **Demo (20%)** | Replay the investigation and approval, inspect receipts, or run `uv run argus-bench blind` to grade a case whose truth was sealed before the run. [Demo playback](docs/ext/demo.md) · [Blind challenge](src/bench/blind.py) |
+
+[Track rubric](docs/plan/c8-team-plan-v2.md)
+
+![A planned budget increase is explained under Didn't wake you](docs/assets/didnt-wake-you.jpg)
 
 ## Architecture
 
-```
- MockMart (simulator)                Argus (one process: runtime + API)                     surfaces
-+--------------------+  world   +-----------------------------------------------------+  SSE  +-----------------+
-| sim  scenarios     |--------->| semantic (receipts, as_of)   graph (edges + tests)  |------>| Mission Control |
-| delivery  truth    | .duckdb  | watcher -> investigator -> incidents -> narrator    | REST  | (lane U)        |
-+--------------------+          | runtime tick loop  ->  event bus  ->  api           |       +-----------------+
-          |                     +-----------------------------------------------------+
-          | truth.duckdb (hidden)                     | findings, receipts
-          +------------------------------> bench (grades verdicts against the truth)
-```
-
-One tick is one simulated hour:
-
-1. freshness gate for the newest hour that should be complete (`as_of` minus the 2 h delivery lag);
-2. once per simulated day, every formula and breakdown edge is re-tested against the data;
-3. the north-star nodes are scored; an anomaly opens on `|z| > 5` or on 2 of the last 3 hours `|z| > 3.5`; the planned-change looks (`src/argus/detect/`) open one when delivery does not follow a budget or calendar plan in force;
-4. an anomaly that no open incident covers is investigated with the Stage-2 investigator (`src/argus/investigate/`: hypothesis ledger, placebo, claim labels on top of the fixed opening in `src/argus/investigator/procedure.py`, which stays the fallback);
-5. findings become an incident (by fingerprint) or a note ("didn't wake you", data issue);
-6. open incidents are monitored on their root segment until they resolve;
-7. every step is published as an event (contract C5) and streamed on `GET /events`.
-
-## Repository layout
-
-```
-contracts/            generated contract artifacts: schema.sql and JSON Schemas (do not edit, run make contracts)
-graph/seed_graph.yml  hand-written seed metric graph: 27 nodes (shop funnel and ads business), 44 typed edges
-metrics/              C2 metric definitions (name, description, sql); new metrics are dropped here
-fixtures/             recorded runs for replay: S1 at the top level, quiet, s2, s3, s4, s5 in fixtures/<scenario>/
-src/argus/contracts/  the six contracts as pydantic models (single source of truth)
-src/argus/semantic/   SQL compiler for graph nodes, query runner, receipts with canonical hashes      lane G
-src/argus/graph/      seed graph loader, edge tests, changelog                                      lane G
-src/argus/cartographer/  metric onboarding (Stage 2 placeholder)                                    lane G
-src/argus/watcher/    freshness gate, expectation, robust z, open and resolve rules                 lane B
-src/argus/detect/     watcher with attention budget, pacing and planned-change looks (the runtime uses the last)  lane B
-src/argus/decompose/  LMDI, mix vs rate, segment search (pure functions)                            lane B
-src/argus/investigator/  typed tools (C6) and the fixed opening procedure (Stage 1, the fallback)   lane B
-src/argus/investigate/   Stage-2 investigator the runtime uses: hypothesis ledger, placebo, claims   lane B
-src/argus/incidents/  fingerprints, symptom silencing, lifecycle, severity                          lane B
-src/argus/runtime/    tick loop and event bus                                                       lane B
-src/argus/skeptic/, src/argus/llm/  Stage 2 placeholders                                            lane B
-src/argus/narrator/   template report, the number check, morning report, autonomy and playbooks     lane U
-src/argus/market/     S5 market control: metric against an independent demand index
-src/argus/counterfactual/  paired MockMart replay with the named cause switched off
-src/argus/demo/       90-second demo playback over the recorded S1 and S4 runs
-src/argus/api/        FastAPI REST routes and the SSE stream                                         lane U
-src/argus/mcp/        MCP server (Stage 3 placeholder)                                               lane U
-src/mockmart/         simulator: causal world, micro-batch delivery, decoy logs, scenarios, truth   lane W
-src/bench/            sealed scorecard, S1 criteria, recordings (the only code that reads truth.duckdb)  lane W
-web/                  Mission Control: React page over the SSE stream                               lane U
-tests/unit, tests/e2e one test per S1 exit criterion on three seeds, plus unit tests per module
-docs/                 ALGORITHM.md (how Argus decides), contracts.md, lanes.md, decisions.md; docs/ext/ for the extension contracts
+```text
+MockMart warehouse
+        |
+        v
+Freshness -> Detect -> Investigate -> Verdict -> Incident or note
+                         ^   |                           |
+          Metric graph --+   +-> SQL receipts            +-> Sealed bench
+        Optional model --+            |                  |        ^
+                                      v                  v        |
+                                  FastAPI REST + event stream   Hidden truth
+                                              |
+                                              v
+                                       Mission Control
 ```
 
-`docs/lanes.md` explains how the four people build in parallel from here.
-
-## The six contracts
-
-| Id | Contract | Code | Generated artifact |
-| --- | --- | --- | --- |
-| C1 | world tables (facts, logs, as_of views) | `src/argus/contracts/world.py` | `contracts/schema.sql`, `contracts/c1_world.json` |
-| C2 | metric definition YAML | `src/argus/contracts/metric.py` | `contracts/c2_metric.schema.json` |
-| C3 | metric graph (`graph.json`) | `src/argus/contracts/graph.py` | `contracts/c3_graph.schema.json` |
-| C4 | findings, receipts, notes, incidents | `src/argus/contracts/findings.py` | `contracts/c4_findings.schema.json` |
-| C5 | event stream and REST routes | `src/argus/contracts/events.py` | `contracts/c5_events.schema.json` |
-| C6 | investigation tools | `src/argus/contracts/tools.py` | `contracts/c6_tools.schema.json` |
-
-Details and examples: `docs/contracts.md`.
+MockMart provides business facts, logs and delayed batches in DuckDB. Every investigation query is pinned to the data available at its `as_of` time, and its canonical result hash can be compared on re-run. Only the benchmark reads the separate truth database. [Contracts](docs/contracts.md) · [Semantic layer](src/argus/semantic/)
 
 ## How Argus decides
 
-Four choices make Argus an analyst rather than an alert: what it watches, which edges it follows, which groups it checks, and when the evidence is enough.
-Each answer is a fixed rule in the code; [docs/ALGORITHM.md](docs/ALGORITHM.md) is the one-page version with a diagram.
+1. **What to watch.** Argus checks freshness before scoring the 7 north-star metrics against their usual hour-of-week behaviour. It opens an anomaly at `|z| > 5`, or `|z| > 3.5 in 2 of the last 3 hours` in the same direction. A planned change adds a check on its segment for 24 hours. The optional attention budget of 6 more looks per tick is implemented and tested separately from the runtime.
+2. **Which edge to follow.** Formula edges split the change using additive LMDI. Argus follows the factor whose movement exceeds its usual spread (|z| >= 3). Breakdown edges show which dimensions to examine, and evidence edges point to the logs that can explain what changed.
+3. **Which group to check.** Argus seeks the smallest set of at most 3 values of one dimension that explains at least 67% of the deviation. It descends when a single group’s share of the deviation exceeds its share of volume by 25 points and `|z| >= 3`. It checks suspects from 3 hours before to 1 hour after the segment’s onset using the unaffected scope or neighbouring groups, then looks for the same deviation in up to 8 earlier weeks as a placebo.
+4. **When to stop.** Argus judges at most 12 checks and asks the optional planner for more only while the explained share is below 80%. A supported cause needs an aligned event validated by a holdout or control, a root with `|z| >= 3`, at least 20% explained, and a placebo that does not recur. If evidence falls short, Argus reports a hypothesis or an unexplained verdict and records the unexplained share.
 
-**1. What it watches.**
-Every simulated hour Argus scores the 7 north-star metrics (sessions, orders, GMV, payment success rate, conversion rate, ad spend, CPA) and opens an anomaly at |z| > 5, or at |z| > 3.5 in 2 of the last 3 hours.
-A planned budget or calendar change adds a look at exactly the segment it names for 24 hours.
-Everything below the north stars is examined only when a north star moves, so about 7 statistical tests run per hour instead of hundreds of slices that would page on noise.
-The attention budget that would add 6 more looks per tick (`src/argus/detect/attention.py`, business weight x surprise x data confidence x novelty) is built and unit-tested but not used by the runtime yet.
+The optional agent writes a prediction and picks a typed check. The engine runs and judges it, verifies the numbers and admits the verdict. Provider failures and exhausted budgets fall back to the deterministic investigation in the same tick. The same engine files and resolves incidents automatically. Applying a playbook requires human approval. [Thresholds and rules](docs/ALGORITHM.md) · [Agent contract](docs/ext/agent.md)
 
-**2. Which edges it follows.**
-Formula edges first: an exact LMDI split, hop by hop (`gmv -> orders -> cvr -> payment_success_rate`), following the factor that moved beyond its week-to-week spread (|z| >= 3) rather than the largest share.
-For a ratio, a mix shift with every group's own rate flat is EXPECTED.
-Breakdown edges give the dimensions to search and evidence edges name the logs that can move a node; cause edges are not followed (the seed graph's one cause edge is PROPOSED and untested).
-Formula and breakdown edges are re-tested against the data once per simulated day; a BROKEN formula edge is not used for the split, and a broken identity marks a data problem.
+### Agent intelligence and release evals
 
-**3. Which groups it checks.**
-The smallest set of at most 3 values of one dimension that explains at least 67% of the deviation, descending into a single value while it carries 25 points more of the deviation than of the volume and |z| >= 3 (`DE / android / PayCo`, not just `DE`).
-The suspects are log entries from 3 hours before to 1 hour after the segment's own onset whose scope covers it.
-Each suspect gets a holdout: if its scope outside the segment stays normal, it is ruled out; when the scope is exactly the segment, untouched neighbouring groups are the control.
-A placebo looks for the same deviation in up to 8 earlier weeks.
+The model chooses what to check. Argus decides what the evidence supports.
 
-**4. When the evidence is enough.**
-Every check is a hypothesis with its prediction written first, judged by code, at most 12 per investigation.
-Late data or a broken identity stops early as a DATA_ISSUE; a plan that delivery follows, an outside market index that moves the same way, or a mix shift stops as EXPECTED; none of them pages anyone.
-A planner is asked for more checks only while less than 80% of the deviation is explained and checks remain; without one, the remainder is reported as unexplained.
-The verdict:
+| Technique | What it does | What keeps it honest | Release eval |
+| --- | --- | --- | --- |
+| Competing hypotheses | Puts rival causes and their cheapest decisive checks on a board | Judged checks determine each card's status | E18 checks 8 positive board reconstructions and 3 negative scenarios |
+| Self-written checks | Writes a SELECT for a cut outside the fixed tool menu | A parser limits queries to as-of views. A receipt pins the result. Stage 2 alone can grant a supported cause | E19 requires 28 SQL rejections, 10 accepted cuts and visibility at `as_of`. E20 checks both directions of a PayCo comparison |
+| Counter-check | A second model in a fresh context tries to falsify a supported cause | Code judges the receipts and can downgrade the verdict | E21 requires 3 of 3 planted false causes removed and 0 of 6 true causes vetoed. E22 checks verdict safety across 18 cases |
+| Case memory | Uses past denials and verified outcomes when considering another proposal | The deterministic proposal policy reads memory as advice. Evidence comes from checks | E23 checks denial and approval precedents. E24 requires identical verdicts, roots and proposals in 3 poisoned-memory trials |
+| Cause chain | Links the event, root segment, formula hops and EUR impact | Every link carries a receipt that can be re-run | E25 checks 6 supported cases and 3 negative scenarios |
+| Budget | Stops the detective and critic at fixed caps | Stage 2 completes in the same tick | E26 checks caps of 12 detective calls and 3 critic calls, exact recorded cost and zero replay spend |
 
-- **Supported cause (evidenced)** (`SUPPORTED_CAUSE`): a suspect aligned with the onset that its holdout or control validates, a root with |z| >= 3, at least 20% explained, and a placebo that does not recur.
-- **Hypothesis** (`HYPOTHESIS`): localised and significant, but no logged change is validated.
-- **Unexplained** (`UNEXPLAINED`): nothing localises and no logged change lines up.
+The host verifies numbers against receipts. The deterministic investigation rules govern supported causes. Operator approval is required, and the playbook derives the action parameters.
 
-The unexplained share is always stated, and every claim is labelled evidence or hypothesis.
+The default v1 profile has 17 offline agent evals. The v2 release requires the
+intelligence evals and six retained live trials, with three passes each on S1
+and S4. Live v2 qualification is pending. Sealed v1 investigation cassettes
+replay the provider exchange and activity offline byte for byte.
+See the [v2 capture and qualification guide](fixtures/agent/v2/README.md).
 
-**Where the language model fits.**
-The deterministic path needs none: the S1 investigation makes 0 LLM calls.
-A model may only propose the next check: the `Planner` interface (`src/argus/investigate/planner.py`) accepts typed checks from the C6 tool menu with a prediction, the investigator runs them, and the ledger judges them, so a model never produces a number or a verdict.
-Prose with numbers must pass the number check against the run's receipts.
-Every suggested action needs human approval (`needs_approval`, `GET /autonomy`); Argus files and closes incidents on its own but does not act on the business.
+## Tech stack
 
-**Underneath.**
+Python and DuckDB power the simulator and investigation engine. sqlglot handles SQL lineage and Pydantic defines the contracts. FastAPI serves REST and server-sent events. Mission Control is TypeScript and React built with Vite, with Three.js and React Flow for graph views. The Anthropic SDK is optional for live model calls.
 
-- **Receipts.**
-  Every query runs with `as_of` pinned, against views that only show micro-batches ingested by then.
-  The result hash is canonical (rows sorted, floats at 10 significant digits, SHA-256), so re-running a receipt returns the same hash even after late data arrived.
-- **Expectation and z.**
-  Same hour of the week over the last four weeks (median for counts, pooled ratio for rates), log residuals, scale from the MAD of the last 168 hours, floored by Poisson or binomial sampling noise of the hour and of the baseline.
-- **Freshness first.**
-  A node whose source table is incomplete for the hour is pending, not scored; a lagging table produces one DATA_ISSUE note.
-- **No alert spam.**
-  Fingerprint (root node, segment, direction), symptom silencing for every node whose formula contains the root, reopen within 24 h, severity in EUR.
+## Prior work and inspiration
 
-## Status
+- **Investigation methods.** The metric walk uses additive LMDI. Segment localisation draws on Adtributor, HotSpot and RiskLoc. The mix and rate split follows E. M. Kitagawa (*JASA*, 1955), and robust z-scores use the median absolute deviation described by Iglewicz and Hoaglin (ASQC, 1993). [LMDI guide](https://doi.org/10.1016/j.enpol.2003.10.010) · [Adtributor](https://www.usenix.org/conference/nsdi14/technical-sessions/presentation/bhagwan) · [HotSpot](https://doi.org/10.1109/ACCESS.2018.2804764) · [RiskLoc](https://arxiv.org/abs/2205.10004)
+- **Agent design.** ReAct informed the check-and-observe loop, Reflexion informed counter-checking and case memory, and Tree of Thoughts informed the competing-hypotheses design. [ReAct](https://arxiv.org/abs/2210.03629) · [Reflexion](https://arxiv.org/abs/2303.11366) · [Tree of Thoughts](https://arxiv.org/abs/2305.10601)
+- **UI credit.** The agent timeline and composer redesign draws on T3 Code, including folded runs, inline approvals, follow-tail scrolling and question history. The React implementation adapts the follow-tail state machine and the rule for the live status line. [T3 Code](https://github.com/pingdotgg/t3code) · [MIT notice](#built-on)
 
-Done (Stage 0 and the S1 skeleton): repo layout, the six contracts with generated schemas, MockMart with S1 and hidden truth, seed graph with edge tests, freshness gate and detection, investigator, incidents, template report, API with SSE, bench and tests, CI.
+### Evaluated and not used
 
-Integrated since: the Stage-2 investigator in the runtime, the detect lane's planned-change looks, scenarios S2-S4 with the sealed scorecard and blind challenge, metric self-classification as a command (`uv run python -m argus.graph.classify <metric.yml> --world <world.duckdb>`), and Mission Control over live and recorded runs of every scenario.
+- Merlion's evaluated release required NumPy below 2 and brought in a forecasting stack.
+- PyRCA's evaluated release required scikit-learn below 1.2 and a Java bridge.
+- DoWhy resolved to 45 packages in the evaluation. MockMart's untreated twin provides the comparison for action effects.
 
-Extensions (contracts in `docs/ext/`): S5 with a market control group, the receipt-backed morning report with the autonomy boundary and playbooks (`GET /report/morning`, `GET /autonomy`), counterfactual replay (`GET /incidents/{id}/counterfactual`), one-click demo playback (`/demo/*`) and the API robustness suite.
+## Built on
 
-Next (see `docs/lanes.md`): metric onboarding through the runtime and the API, the attention budget in the runtime, an LLM planner behind the `Planner` interface, cause-edge tests, scenario S6.
+Argus’s core monitoring and investigation algorithms were implemented during the hackathon. Dependencies come from PyPI and npm. Versions below follow the repository’s [Python lockfile](uv.lock) and [web lockfile](web/package-lock.json).
 
-## Source attributions
+| Library | Locked version | License | Role |
+| --- | --- | --- | --- |
+| Anthropic SDK | 2.12.0 | Apache-2.0 | Optional live model transport |
+| DuckDB | 2.0.1 | MIT | Simulator, as-of queries and receipts |
+| sqlglot | 30.33.0 | MIT | SQL parsing, validation and lineage |
+| FastAPI / Starlette / Uvicorn | 0.165.0 / 1.10.0 / 0.54.0 | MIT / BSD-3-Clause / BSD-3-Clause | HTTP and streaming |
+| Pydantic / PyYAML | 2.14.4 / 6.0.4 | MIT / MIT | Data contracts, metric and playbook definitions |
+| NumPy / pandas | 2.5.5 / 3.1.1 | BSD-3-Clause / BSD-3-Clause | Statistics and simulation |
+| React / React DOM | 19.3.1 | MIT | Mission Control |
+| React Flow / Three.js | 13.0.2 / 0.187.0 | MIT / MIT | Metric graph and 3D scenes |
+| Fontsource IBM Plex Mono / Bot Avatars | 5.3.0 / 0.2.2 | OFL-1.1 / MIT | Typography and avatars |
+| TypeScript / Vite / Vite React plugin / Vitest | 7.0.2 / 8.3.8 / 6.3.0 / 5.1.1 | Apache-2.0 / MIT / MIT / MIT | Web build and tests |
+| pytest / Ruff / mypy / httpx2 | 9.2.0 / 0.17.6 / 2.4.1 / 2.16.2 | MIT / MIT / MIT / BSD-3-Clause | Python tests and checks |
+| PyYAML type stubs | 6.0.12.20261113 | Apache-2.0 | Python type checking |
+| React / React DOM / Three.js type stubs | 19.3.0 / 19.3.0 / 0.187.0 | MIT | Web type checking |
 
-Algorithms and methods (implemented from the published descriptions; no third-party code was copied):
+<details>
+<summary>T3 Code license (MIT)</summary>
 
-- Additive LMDI decomposition: B. W. Ang, "The LMDI approach to decomposition analysis: a practical guide", Energy Policy 33(7), 2005.
-- Explanatory power and surprise for segment localisation: R. Bhagwan et al., "Adtributor: Revenue Debugging in Advertising Systems", NSDI 2014.
-- Descending while children deviate unevenly, inspired by Y. Sun et al., "HotSpot: Anomaly Localization for Additive KPIs With Multi-Dimensional Attributes", IEEE Access 2018, and M. Kalander, "RiskLoc: Localization of Multi-dimensional Root Causes by Weighted Risk", arXiv 2022.
-- Robust z-scores with the median absolute deviation: B. Iglewicz and D. C. Hoaglin, "How to Detect and Handle Outliers", ASQC 1993.
-- Mix vs rate split with midpoint weights: E. M. Kitagawa, "Components of a Difference Between Two Rates", JASA 50(272), 1955.
-- Benjamini-Hochberg false discovery rate control (planned for cause edges): Y. Benjamini and Y. Hochberg, JRSS B 57(1), 1995.
+```text
+MIT License
 
-Product research that shaped the design (ideas only, from public documentation): Datadog Bits AI SRE, Resolve.ai, Causely, Traversal, Anodot, Outlier, Sisu, ThoughtSpot SpotIQ, Power BI key influencers, Amplitude, Mixpanel, Tableau Pulse, Monte Carlo, Anomalo, Uber uVitals, LinkedIn ThirdEye, Airbnb Minerva, Netflix Kayenta, Meta's fast dimensional analysis, and the Flow-of-Action and ORCA-bench papers on root-cause agents.
+Copyright (c) 2026 T3 Tools Inc.
 
-Libraries (see each project's license): DuckDB (MIT), sqlglot (MIT), FastAPI (MIT), Starlette (BSD-3-Clause), pydantic (MIT), NumPy (BSD-3-Clause), pandas (BSD-3-Clause), PyYAML (MIT), uvicorn (BSD-3-Clause); for development pytest, ruff, mypy and httpx2.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-All company, advertiser and provider names in MockMart (PayCo, CardHub, WalletGo, Nimbus Games and the others) are fictional.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+</details>
+
+## Team
+
+Built at HackLab Berlin by [Batu](https://github.com/BatuCani), [Alan](https://github.com/Lumberj3ck), [Ansor](https://github.com/TheWingTheWong) and [Youssef](https://github.com/youssef-110).
+
+Mission Control’s design stays fixed unless Batu agrees to a change. [Contributing](CONTRIBUTING.md)
 
 ## License
 
-MIT, see `LICENSE`.
+[MIT](LICENSE). MockMart’s companies, advertisers and payment providers are fictional.

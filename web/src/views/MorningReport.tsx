@@ -4,11 +4,11 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Segments } from "../components/Feed";
 import { AgentReceiptChips, Num, ReceiptChips, useOpenReceipt } from "../components/Receipts";
-import { demoMorningReport, useAgentDemo, withRun, type NarratorReceipt, type NarratorReport } from "../lib/agentDemo";
+import { demoMorningReport, useAgentDemo, type NarratorReceipt, type NarratorReport } from "../lib/agentDemo";
 import { api, type Digest, type DigestLine } from "../lib/api";
-import { dayLabel, eur, hhmm, share } from "../lib/format";
+import { dayLabel, eur, hhmm, impactNoun, share } from "../lib/format";
 import type { RunView } from "../lib/store";
-import type { Incident, Note } from "../lib/types";
+import type { Graph, Incident, Note } from "../lib/types";
 import { explain, views } from "./data";
 import { parseMarkdown, type Block, type Inline } from "./markdown";
 import { plainWords } from "../fx/workspace/plain";
@@ -112,27 +112,24 @@ export function Markdown({ blocks }: { blocks: Block[] }) {
   );
 }
 
-function IncidentReport({ incident, onOpenIncident, scoped = false }: { incident: Incident; onOpenIncident: (id: string) => void; scoped?: boolean }) {
+function IncidentReport({ incident, graph, onOpenIncident, demoRun }: { incident: Incident; graph: Graph | null; onOpenIncident: (id: string) => void; demoRun?: string }) {
   const [md, setMd] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const f = incident.findings;
+  const money = f.impact ? impactNoun(f.impact.node, incident.direction, graph) : null;
 
   useEffect(() => {
     let live = true;
-    // a presentation's incident has no report route of its own: the global one would be another run's
-    if (scoped) {
-      setFailed(true);
-      return;
-    }
-    api.report(incident.id).then(
+    setFailed(false);
+    api.report(incident.id, demoRun).then(
       (text) => live && (setMd(text), setFailed(false)),
       () => live && setFailed(true),
     );
     return () => {
       live = false;
     };
-  }, [incident.id, incident.updated_at, incident.state, scoped]);
+  }, [incident.id, incident.updated_at, incident.state, demoRun]);
 
   const blocks = useMemo(() => (md ? parseMarkdown(md) : []), [md]);
   // the report repeats the title as its first heading; the card already shows it
@@ -153,14 +150,14 @@ function IncidentReport({ incident, onOpenIncident, scoped = false }: { incident
       <Segments segment={incident.segment} />
       <div className="mr-kv">
         <div>
-          <label>GMV lost while open</label>
-          <span className="big">{eur(incident.severity_eur)}</span>
+          <label>{money ? `${money} while open` : "Cumulative impact while open"}</label>
+          <span className="big">{eur(Math.abs(incident.severity_eur))}</span>
         </div>
         {f.impact && (
           <div>
-            <label>GMV per hour</label>
+            <label>{money} per hour</label>
             <span className="big">
-              <Num q={f.impact.gmv_eur_per_hour} />
+              <Num q={{ ...f.impact.gmv_eur_per_hour, value: Math.abs(f.impact.gmv_eur_per_hour.value) }} />
             </span>
           </div>
         )}
@@ -194,16 +191,12 @@ function IncidentReport({ incident, onOpenIncident, scoped = false }: { incident
           {f.suggested_action.text}
         </div>
       )}
-{!scoped && (
-        <>
       <button className="mr-toggle no-print" onClick={() => setOpen(!open)} aria-expanded={open}>
         {open ? "Hide the full report" : "Read the full report"}
       </button>
       <div className={`mr-report${open ? " open" : ""}`}>
         {md ? <Markdown blocks={body} /> : <div className="muted">{failed ? "The report could not be loaded." : "Loading the report…"}</div>}
       </div>
-        </>
-      )}
     </article>
   );
 }
@@ -236,7 +229,7 @@ function NarratorChips({ links }: { links: NarratorReceipt[] }) {
       <ReceiptChips ids={semantic} max={4} />
       <AgentReceiptChips links={agent} max={4} />
       {run.slice(0, 3).map((l) => (
-        <a key={l.id} className="rcpt" href={withRun(l.href)} target="_blank" rel="noreferrer" title="The run query behind this line (JSON)">
+        <a key={l.id} className="rcpt" href={l.href} target="_blank" rel="noreferrer" title="The run query behind this line (JSON)">
           {l.id}
         </a>
       ))}
@@ -244,7 +237,7 @@ function NarratorChips({ links }: { links: NarratorReceipt[] }) {
   );
 }
 
-export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenIncident: (id: string) => void }) {
+export function MorningReport({ graph, view, onOpenIncident }: { graph: Graph | null; view: RunView; onOpenIncident: (id: string) => void }) {
   // during the agent presentation the report, the incidents and the notes are the presentation's run
   const demo = useAgentDemo();
   const [scopedLinks, setScopedLinks] = useState<Record<string, NarratorReceipt[]> | null>(null);
@@ -258,9 +251,11 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
   const version = `${view.stream}:${incidentSeq}:${view.notes.length}:${Math.floor(view.ticks / 6)}`;
 
   const demoIncidents = demo?.snapshot?.incidents;
+  const reportReady = demo?.snapshot?.report_ready;
   useEffect(() => {
     let live = true;
     if (demo) {
+      if (!reportReady) return;
       setScopedLinks(null);
       demoMorningReport().then(
         (report) => {
@@ -292,7 +287,7 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
     return () => {
       live = false;
     };
-  }, [version, demo?.runId, demoIncidents]);
+  }, [version, demo?.runId, demoIncidents, reportReady]);
 
   const alarm = view.thresholds.alarm_z;
   return (
@@ -313,14 +308,22 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
               <button className="btn" disabled={!digest} onClick={() => digest && void navigator.clipboard.writeText(digest.markdown)}>
                 Copy as Markdown
               </button>
-              <button className="btn primary" onClick={() => window.print()}>
+              <button className="btn primary" disabled={!digest} onClick={() => window.print()}>
                 Print
               </button>
             </div>
           </header>
 
           {error && !digest && <div className="vw-error">{error}</div>}
-          {!digest && !error && <div className="vw-empty">Loading the morning report…</div>}
+          {!digest && !error && (
+            <div className="vw-empty">
+              {demo?.snapshot && !reportReady
+                ? demo.snapshot.state.status === "completed"
+                  ? "This recorded outcome has no morning report."
+                  : "The morning report appears when this recording reaches its report."
+                : "Loading the morning report…"}
+            </div>
+          )}
 
           {digest && (
             <div className="mr-digest">
@@ -349,7 +352,7 @@ export function MorningReport({ view, onOpenIncident }: { view: RunView; onOpenI
                 Incidents <span className="muted">· {incidents.length}</span>
               </h2>
               {incidents.length ? (
-                incidents.map((inc) => <IncidentReport key={inc.id} incident={inc} onOpenIncident={onOpenIncident} scoped={demo !== null} />)
+                incidents.map((inc) => <IncidentReport key={inc.id} incident={inc} graph={graph} onOpenIncident={onOpenIncident} demoRun={demo?.runId} />)
               ) : (
                 <div className="mr-quiet">No incident. Nothing crossed the alarm line long enough to page anyone.</div>
               )}

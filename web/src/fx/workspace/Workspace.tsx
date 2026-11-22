@@ -2,12 +2,14 @@
 // incident, glossary) as items of the app's grid; the other sections are the views of the view host. Every
 // number on these pages is one the API sent; the pages only pick, order and label them in plain words.
 
-import { lazy, Suspense, useEffect, useLayoutEffect, type ComponentType, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Mark } from "../../components/Header";
+import { useAgentDemo } from "../../lib/agentDemo";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
+import { EntryGate } from "../entry/EntryGate";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
 import { AgentDemoControl } from "./AgentDemoControl";
@@ -57,10 +59,14 @@ const Village = importVillage
     )
   : null;
 
+const SettingsSurface = lazy(() => import("../../settings"));
+
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
+  const demo = useAgentDemo();
   useLayoutEffect(() => {
     document.documentElement.dataset.fxSection = section;
+    if (window.matchMedia("(max-width: 1179px)").matches) window.scrollTo(0, 0);
   }, [section]);
   useEffect(() => watchHost(), []);
   return (
@@ -79,7 +85,13 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
         </main>
       )}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
-      <AskPanel incident={section === "incident" ? incident : null} />
+      {(section === "settings" || section === "calendar") && (
+        <Suspense fallback={null}>
+          <SettingsSurface key={section} section={section} graph={graph} view={view} />
+        </Suspense>
+      )}
+      <AskPanel key={demo?.runId} incident={section === "incident" ? incident : null} />
+      <EntryGate />
     </>
   );
 }
@@ -156,6 +168,20 @@ const NAV: NavItem[] = [
     icon: <path d="M3 3h4M5 3v10M5 7.5h3.5M5 12.5h3.5M10 6h3.5v3h-3.5zM10 11h3.5v3h-3.5z" />,
   },
   {
+    id: "calendar",
+    group: "Plan",
+    label: "Calendar",
+    hint: "Planned changes Argus expected, and when each agent checked",
+    icon: <path d="M2.5 4h11v9.5h-11zM2.5 7h11M5.5 2.5v3M10.5 2.5v3M5 9.5h2M9 9.5h2M5 11.5h2" />,
+  },
+  {
+    id: "settings",
+    group: "Plan",
+    label: "Settings",
+    hint: "What each agent may do alone, thresholds, budgets and data sources",
+    icon: <path d="M8 5.6a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8zM8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3" />,
+  },
+  {
     id: "scorecard",
     group: "Proof",
     label: "Track record",
@@ -172,6 +198,7 @@ const NAV: NavItem[] = [
 ];
 
 function Sidebar({ section, view }: { section: Section; view: RunView }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const counts = autonomyCounts(view);
   const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
   const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
@@ -179,10 +206,20 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const current = section === "incident" ? "incidents" : section;
   const agent = useAgent();
   const asking = useAskOpen();
-  const humans = useHumanActions(view.stream);
+  const humans = useHumanActions(view);
   const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
-    <nav className="fx-side" aria-label="sections">
+    <nav
+      className="fx-side"
+      aria-label="sections"
+      data-menu-open={menuOpen}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !menuOpen) return;
+        event.stopPropagation();
+        setMenuOpen(false);
+        event.currentTarget.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
+      }}
+    >
       <div className="fx-side-brand">
         <Mark />
         <div>
@@ -190,9 +227,30 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
           <span>Shop monitor</span>
         </div>
       </div>
-      <div className="fx-side-main">
+      <button
+        type="button"
+        className="fx-side-menu"
+        aria-expanded={menuOpen}
+        aria-controls="fx-side-main"
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d={menuOpen ? "M4 4l8 8M12 4l-8 8" : "M2 4h12M2 8h12M2 12h12"} />
+        </svg>
+        {menuOpen ? "Close menu" : "Menu"}
+      </button>
+      <div id="fx-side-main" className="fx-side-main">
       {agent.enabled && (
-        <button className={`fx-side-ask${asking ? " on" : ""}`} onClick={() => setAskOpen(!asking)} aria-expanded={asking} title="Ask Argus (/)">
+        <button
+          className={`fx-side-ask${asking ? " on" : ""}`}
+          onClick={() => {
+            setMenuOpen(false);
+            setAskOpen(!asking);
+          }}
+          aria-expanded={asking}
+          aria-label="Ask Argus"
+          title="Ask Argus (/)"
+        >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2zM5.5 6.5h5M5.5 8.5h3" />
           </svg>
@@ -207,14 +265,24 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
             <button
               className={`fx-side-item${current === item.id ? " on" : ""}`}
               aria-current={current === item.id ? "page" : undefined}
+              aria-label={item.label}
               title={item.hint}
-              onClick={() => go(item.id)}
+              onClick={(event) => {
+                if (menuOpen) event.currentTarget.closest("nav")?.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
+                setMenuOpen(false);
+                go(item.id);
+              }}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 {item.icon}
               </svg>
               <span>{item.label}</span>
               {item.id === "investigation" && running && <i className="fx-side-live" aria-label="investigation running" />}
+              {item.id === "agent" && agent.waiting > 0 && (
+                <em className="fx-side-badge" title="Proposals waiting for your approval" aria-label={`${agent.waiting} waiting for your approval`}>
+                  {agent.waiting}
+                </em>
+              )}
               {item.id === "incidents" && open > 0 && (
                 <em className="fx-side-badge" aria-label={`${open} open`}>
                   {open}

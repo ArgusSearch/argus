@@ -20,7 +20,7 @@ class FakeEventSource {
     this.readyState = FakeEventSource.OPEN;
     this.onopen?.();
   }
-  /** What a browser does when the server is gone: an error, then it keeps retrying (CONNECTING). */
+  /** When the server is gone, the browser reports an error and would reconnect on its own. */
   fail(): void {
     this.readyState = FakeEventSource.CONNECTING;
     this.onerror?.();
@@ -52,12 +52,15 @@ describe("follow: connection state", () => {
     es.fail();
     expect(states.at(-1)).toBe("connecting");
     vi.advanceTimersByTime(OFFLINE_AFTER_MS - 1);
-    es.fail();
+    const reconnect = FakeEventSource.last!;
+    expect(reconnect).not.toBe(es);
+    expect(reconnect.url).toBe("/events?include_stream=true");
+    reconnect.fail();
     expect(states.at(-1)).toBe("connecting");
     vi.advanceTimersByTime(1);
     expect(states.at(-1)).toBe("offline");
-    es.fail(); // further retries keep the banner
     vi.advanceTimersByTime(OFFLINE_AFTER_MS);
+    FakeEventSource.last!.fail(); // further retries keep the banner
     expect(states.at(-1)).toBe("offline");
   });
 
@@ -65,9 +68,13 @@ describe("follow: connection state", () => {
     const es = FakeEventSource.last!;
     es.open();
     es.fail();
+    expect(es.readyState).toBe(FakeEventSource.CLOSED);
     vi.advanceTimersByTime(OFFLINE_AFTER_MS);
     expect(states.at(-1)).toBe("offline");
-    es.open();
+    const fresh = FakeEventSource.last!;
+    expect(fresh).not.toBe(es);
+    expect(fresh.url).toBe("/events?include_stream=true");
+    fresh.open();
     expect(states.at(-1)).toBe("open");
   });
 
@@ -76,7 +83,7 @@ describe("follow: connection state", () => {
     es.open();
     es.fail();
     vi.advanceTimersByTime(OFFLINE_AFTER_MS / 2);
-    es.open();
+    FakeEventSource.last!.open();
     vi.advanceTimersByTime(OFFLINE_AFTER_MS * 2);
     expect(states).not.toContain("offline");
     expect(states.at(-1)).toBe("open");
