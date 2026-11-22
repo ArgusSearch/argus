@@ -15,6 +15,7 @@ import { demoGraph, useAgentDemo } from "./lib/agentDemo";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
+import { OfflineBanner, Skeleton } from "./ui";
 import { ViewHost } from "./views";
 
 /** The graph's legend in plain words: what a line is, and what a block's color says. */
@@ -110,6 +111,7 @@ export function App() {
         setView((v) => emptyView(header.stream, header.mode, v.thresholds));
         announced.current = new Set();
         setToast(null);
+        // Fresh connections send a stream header, including when the API comes back online.
         loadGraph();
       },
       onEvents: (events) => setView((v) => foldAll(v, events)),
@@ -229,9 +231,9 @@ export function App() {
                 )}
               </div>
               <div className="graph-canvas">
-                {connection === "offline" && <div className="banner" role="status">The API is offline. Start it with make api or make demo.</div>}
+                <OfflineBanner connection={connection} />
                 {connection !== "offline" && mapError && <div className="banner" role="alert">Metric map could not be loaded. {mapError}</div>}
-                {connection !== "offline" && !mapError && !graph && <div className="banner" role="status">Loading the metric map…</div>}
+                {!mapError && !graph && <Skeleton variant="graph" label="Loading the metric map" />}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />
