@@ -1,5 +1,4 @@
-// The investigation rules Argus runs with that the API does not serve. Each value is copied from the named source
-// file and constant; constants.test.ts reads those files and fails when a value here drifts from the code.
+// Labels and help for investigation controls. constants.test.ts checks the documented code defaults.
 
 export interface CodeRule {
   key: string;

@@ -173,4 +173,3 @@ export async function downloadData(scope: "settings" | "run") {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
