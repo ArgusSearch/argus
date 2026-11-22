@@ -56,7 +56,7 @@ from argus.decompose.segments import Cell
 from argus.investigate import claims as cl
 from argus.investigate.ledger import TRAIL_KIND, Hypothesis, Ledger, LedgerEntry
 from argus.investigate.planner import MAX_PROPOSALS, Planner, PlannerContext
-from argus.investigate.playbook import choose_playbook
+from argus.investigate.playbook import GENERAL_PLAYBOOK, choose_playbook
 from argus.investigate.tools import PLACEBO_WEEKS, ProductSplit, StageTwoToolbox
 from argus.investigate.walk import (
     FactorView,
@@ -72,6 +72,7 @@ from argus.investigator.procedure import Investigation, segment_text
 from argus.investigator.tools import SearchResult, covers
 from argus.semantic.compile import scope_where, segment_where, tables_of
 from argus.semantic.runner import Runner
+from argus.settings import Settings
 
 AGENT_SOURCE = "agent"  # ledger source of checks the agent chose (argus.agent.investigate)
 
@@ -194,15 +195,30 @@ class StageTwoInvestigation(Investigation):
         on_step: Callable[[TrailStep], None] | None = None,
         planner: Planner | None = None,
         selector: EvidenceSelector | None = None,
+        settings: Settings | None = None,
     ):
         super().__init__(graph, runner, anomaly, as_of, on_step)
         self.selector = selector
+        self.settings = settings or Settings()
+        self.thresholds = self.settings.thresholds
+        if settings is None:
+            self.thresholds = self.thresholds.model_copy(
+                update={
+                    "supported": SUPPORTED_MIN_EXPLAINED,
+                    "stop": STOP_EXPLAINED,
+                    "plan_band": PLAN_BAND_REL,
+                    "plan_min": PLAN_BAND_MIN,
+                }
+            )
         self.tools: StageTwoToolbox = StageTwoToolbox(graph, runner, as_of)
-        self.ledger = Ledger()
+        self.ledger = Ledger(self.thresholds.checks)
         self.planner = planner
         self.claims: list[cl.Claim] = []
         self.llm_calls = 0
         self.playbook = choose_playbook(graph, anomaly.node, anomaly.direction)
+        if self.playbook.id in self.settings.playbooks.disabled:
+            self.playbook = GENERAL_PLAYBOOK
+            self.selector = None
         self.flat_volumes: list[RuledOut] = []
         self.walk_split: ProductSplit | None = None
         self.plan_followed: tuple[FactorView, FactorView, list[str]] | None = None
@@ -319,7 +335,7 @@ class StageTwoInvestigation(Investigation):
         significant_root = abs(root_z) >= ROOT_Z
         recurring = placebo is not None and placebo.status == "refuted"
         hypothesis = (localised or (significant and focus != a.node)) and significant_root and not recurring
-        if supported and significant_root and explained >= SUPPORTED_MIN_EXPLAINED and not recurring:
+        if supported and significant_root and explained >= self.thresholds.supported and not recurring:
             verdict = Verdict.SUPPORTED_CAUSE
         elif hypothesis:
             verdict = Verdict.HYPOTHESIS
@@ -371,8 +387,8 @@ class StageTwoInvestigation(Investigation):
         self._cause_claims(verdict, focus, seg, evidence, placebo, impact, uncertain)
         headline = self._headline(verdict, focus_node.label, seg, root_cell.rel_change, evidence, a)
         stop_reason = (
-            f"explained {explained:.0%} >= {STOP_EXPLAINED:.0%}"
-            if explained >= STOP_EXPLAINED
+            f"explained {explained:.0%} >= {self.thresholds.stop:.0%}"
+            if explained >= self.thresholds.stop
             else f"no candidate left; {1 - explained:.0%} stays unexplained"
         )
         self.step(
@@ -421,16 +437,17 @@ class StageTwoInvestigation(Investigation):
     # ------------------------------------------------------------------ 1-3 data before business
     def _data_checks(self) -> tuple[Verdict, str] | None:
         tables = sorted(set(tables_of(self.graph, self.anomaly.node)) | self._identity_tables())
-        fresh = self.tools.check_freshness(tables, self.window)
+        fresh = self.tools.check_freshness(tables, self.window, self.thresholds.freshness)
+        defer = not fresh.ok and self.settings.autonomy.defer_late_data == "alone"
         self.step(
             "freshness",
             "check_freshness",
             fresh.summary,
-            "continue" if fresh.ok else "stop: DATA_ISSUE",
+            "stop: DATA_ISSUE" if defer else "continue",
             receipts=fresh.receipts,
             data={"tables": [t.model_dump(mode="json") for t in fresh.tables]},
         )
-        if not fresh.ok:
+        if defer:
             self.claims.append(cl.evidence(f"Source data is incomplete: {fresh.summary}.", "check_freshness"))
             return Verdict.DATA_ISSUE, "source data incomplete"
         ident = self.tools.check_identities(self.window)
@@ -447,7 +464,7 @@ class StageTwoInvestigation(Investigation):
                 cl.evidence(f"A cross-table identity is broken: {ident.summary}.", "check_identities", ident.receipts)
             )
             return Verdict.DATA_ISSUE, "identity broken"
-        return self._calendar_check()
+        return self._calendar_check() if self.settings.autonomy.hold_alert == "alone" else None
 
     def _calendar_check(self) -> tuple[Verdict, str] | None:
         """Planned events change the expectation (they never mute a metric): when a calendar entry in force
@@ -467,7 +484,11 @@ class StageTwoInvestigation(Investigation):
                 continue
             ep = inside[0].deviation / total[0].deviation
             rel = inside[0].rel_change
-            band = max(PLAN_BAND_REL * abs(uplift), PLAN_BAND_MIN, 2 * self._week_spread(a.node, where_inside))
+            band = max(
+                self.thresholds.plan_band * abs(uplift),
+                self.thresholds.plan_min,
+                2 * self._week_spread(a.node, where_inside),
+            )
             if ep >= PLAN_EP and abs(rel - uplift) <= band:
                 status = "as planned"
             elif ep >= PLAN_EP and rel * uplift > 0 and abs(rel) < abs(uplift) - band:
@@ -555,7 +576,8 @@ class StageTwoInvestigation(Investigation):
                 why="leaf node: the exact split ends here",
             )
             return a.node, 1.0, True
-        self.plan_followed = self._plan_follow(options)
+        if self.settings.autonomy.hold_alert == "alone":
+            self.plan_followed = self._plan_follow(options)
         d, split, chosen, significant = max(
             options, key=lambda o: (o[3], has_direct_evidence(self.graph, o[2].node), abs(o[2].share))
         )
@@ -935,7 +957,7 @@ class StageTwoInvestigation(Investigation):
 
     # ------------------------------------------------------------------ 12 planner
     def _plan(self, focus: str, seg: Segment, explained: float, events: list[EvidenceRef]) -> list[RuledOut]:
-        if self.planner is None or explained >= STOP_EXPLAINED or self.ledger.remaining <= 0:
+        if self.planner is None or explained >= self.thresholds.stop or self.ledger.remaining <= 0:
             return []
         ctx = PlannerContext(
             anomaly=self.anomaly,
@@ -1055,7 +1077,7 @@ class StageTwoInvestigation(Investigation):
             out.append(f"Placebo: {placebo.summary}; the deviation is not clearly unusual.")
         if placebo is not None and placebo.status == "refuted":
             out.append(f"Placebo: {placebo.summary}; deviations like this recur, so it may be noise.")
-        if self.planner is None and self.selector is None and explained < STOP_EXPLAINED:
+        if self.planner is None and self.selector is None and explained < self.thresholds.stop:
             out.append(f"{PROCESS_NOTE}, so the remainder was not explored further.")
         return out
 
@@ -1196,6 +1218,7 @@ def investigate(
     on_step: Callable[[TrailStep], None] | None = None,
     planner: Planner | None = None,
     selector: EvidenceSelector | None = None,
+    settings: Settings | None = None,
 ) -> Findings:
     """Drop-in replacement for `argus.investigator.procedure.investigate` with the Stage-2 layer."""
-    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector).run()
+    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector, settings).run()

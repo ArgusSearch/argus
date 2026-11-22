@@ -27,6 +27,7 @@ from argus.contracts.findings import Anomaly
 from argus.contracts.graph import Graph, NodeKind
 from argus.semantic.compile import hourly_sql, parts, points_condition
 from argus.semantic.runner import Runner, sql_ts
+from argus.settings import Lines
 
 HOUR = timedelta(hours=1)
 WEEK_H = 168
@@ -157,26 +158,29 @@ class Detector:
         sigma = max(1.4826 * mad, float(floor[-1]), 1e-9)
         return Score(node_id, hour, float(observed[-1]), float(expected[-1]), float(rel[-1] / sigma), sigma)
 
-    def observe(self, score: Score, as_of: datetime) -> tuple[Anomaly | None, Anomaly | None]:
+    def observe(
+        self, score: Score, as_of: datetime, lines: Lines | None = None, calm_hours: int = CALM_HOURS
+    ) -> tuple[Anomaly | None, Anomaly | None]:
         """Apply the open / resolve rules. Returns (opened, resolved)."""
         st = self.state[score.node]
         st.z[score.hour] = score.z
         prev = [st.z.get(score.hour - k * HOUR) for k in (1, 2)]
+        alarm, pair, onset_z = (lines.alarm_z, lines.pair_z, lines.wiggle_z) if lines else (Z_OPEN, Z_PAIR, Z_ONSET)
         if st.open_anomaly is not None:
             st.calm = st.calm + 1 if abs(score.z) < Z_CALM else 0
-            if st.calm >= CALM_HOURS:
+            if st.calm >= calm_hours:
                 closed, st.open_anomaly, st.calm = st.open_anomaly, None, 0
                 return None, closed
             return None, None
         rule = None
-        if abs(score.z) > Z_OPEN:
+        if abs(score.z) > alarm:
             rule = "z_gt_open"
-        elif abs(score.z) > Z_PAIR and any(p is not None and abs(p) > Z_PAIR and p * score.z > 0 for p in prev):
+        elif abs(score.z) > pair and any(p is not None and abs(p) > pair and p * score.z > 0 for p in prev):
             rule = "two_of_three"
         if rule is None:
             return None, None
         onset = score.hour
-        while (z := st.z.get(onset - HOUR)) is not None and abs(z) > Z_ONSET and z * score.z > 0:
+        while (z := st.z.get(onset - HOUR)) is not None and abs(z) > onset_z and z * score.z > 0:
             onset -= HOUR
         self._anomaly_seq += 1
         receipt = self._receipt(score, as_of)

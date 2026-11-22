@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -51,6 +52,8 @@ class AgentService:
     store: EvidenceStore | None = None
     asker: AskRunner | None = None
     recording: Path | None = None
+    settings_caps: Callable[[], dict[str, Any]] | None = field(default=None, kw_only=True)
+    settings_models: dict[str, str] | None = field(default=None, kw_only=True)
     conversations: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
     profile: Profile = V1
@@ -92,6 +95,12 @@ class AgentService:
                 "usd": critic.usd,
                 "wall_seconds": critic.wall_seconds,
             }
+        if self.settings_caps is not None:
+            health["caps"].update(self.settings_caps())
+        if self.settings_models is not None:
+            health["models"].update(
+                {key: self.settings_models[key] for key in health["models"] if key in self.settings_models}
+            )
         return health
 
     def ask(

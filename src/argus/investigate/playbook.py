@@ -113,6 +113,9 @@ def family(graph: Graph, node_id: str) -> tuple[str, str]:
     return "revenue", "Revenue"
 
 
+GENERAL_PLAYBOOK = Playbook(id="general", name="General investigation")
+
+
 def choose_playbook(graph: Graph, node_id: str, direction: str) -> Playbook:
     fam, label = family(graph, node_id)
     move = "drop" if direction == "down" else "spike"

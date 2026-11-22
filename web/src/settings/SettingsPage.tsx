@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
 import { dayLabel, hhmm, humanize } from "../lib/format";
+import { staticReplay } from "../lib/deployment";
 import { AGENT_ROLES } from "../lib/agent";
 import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
@@ -9,9 +10,13 @@ import { useIncidents } from "../fx/workspace/ui";
 import { ROLE_TEXT } from "../fx/workspace/AvatarSlot";
 import { CODE_RULES } from "./constants";
 import { useAutonomy, useHealth } from "./data";
+import { EditorSection, type Editor } from "./editor";
+import { useText } from "./language";
+import { loadSettings, useOperatorSettings, type Lines, type Settings } from "./operator";
+import { AccountTab, AiTab, AppearanceTab, DataTab, NotificationsTab, ShopTab } from "./SettingsForms";
 import { incidentCost, rulesByAgent } from "./model";
 import { SETTINGS_TABS, type SettingsTab } from "./route";
-import { Badge, Btn, Card, Empty, LevelPicker, PageHead, Portrait, Preview, Row, Source, SubNav, Switch, type SubNavGroup } from "./ui";
+import { Badge, Btn, Card, Empty, LevelPicker, PageHead, Portrait, NumberInput, Row, Source, SubNav, Switch, type SubNavGroup } from "./ui";
 
 const TITLES: Record<SettingsTab, { title: string; lead: string }> = {
   autonomy: { title: "Autonomy", lead: "What each agent may decide alone and where it asks you first. Argus watches and investigates on its own. Applying a fix requires approval." },
@@ -20,14 +25,21 @@ const TITLES: Record<SettingsTab, { title: string; lead: string }> = {
   budgets: { title: "Budgets", lead: "What one live agent run may spend, and what this run's investigations cost." },
   "quiet-hours": { title: "Quiet hours", lead: "When Argus may page a person, and what never pages anyone." },
   channels: { title: "Channels", lead: "Where Argus tells you about an incident." },
+  account: { title: "Account", lead: "The operator profile shown in Argus." },
+  ai: { title: "AI model", lead: "Choose the provider and model for the live agent." },
+  appearance: { title: "Appearance", lead: "Choose the workspace theme and language." },
+  notifications: { title: "Notifications", lead: "Set and test the destinations for incident notices." },
+  shop: { title: "Shop connection", lead: "Register and test a Shop endpoint." },
+  data: { title: "Export and reset", lead: "Download a copy of your settings or restore the defaults." },
   sources: { title: "Data sources", lead: "Where Argus reads the shop's numbers and change logs from, and how complete the latest hour is." },
 };
 
 const GROUPS: SubNavGroup<SettingsTab>[] = [
-  { label: "Agents", items: [{ id: "autonomy", label: "Autonomy" }, { id: "playbooks", label: "Playbooks" }] },
+  { label: "Agents", items: [{ id: "autonomy", label: "Autonomy" }, { id: "playbooks", label: "Playbooks" }, { id: "ai", label: "AI model" }] },
   { label: "Detection", items: [{ id: "thresholds", label: "Thresholds" }, { id: "budgets", label: "Budgets" }] },
-  { label: "Notifications", items: [{ id: "quiet-hours", label: "Quiet hours" }, { id: "channels", label: "Channels" }] },
-  { label: "Data", items: [{ id: "sources", label: "Data sources" }] },
+  { label: "Notifications", items: [{ id: "quiet-hours", label: "Quiet hours" }, { id: "channels", label: "Channels" }, { id: "notifications", label: "Notifications" }] },
+  { label: "Data", items: [{ id: "sources", label: "Data sources" }, { id: "shop", label: "Shop connection" }, { id: "data", label: "Export and reset" }] },
+  { label: "Workspace", items: [{ id: "account", label: "Account" }, { id: "appearance", label: "Appearance" }] },
 ];
 
 export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunView }) {
@@ -37,54 +49,59 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
     return SETTINGS_TABS.find((tab) => tab === requested) ?? "autonomy";
   });
   const t = TITLES[tab];
+  const tr = useText();
+  const { snapshot, error } = useOperatorSettings();
   const pickTab = (next: SettingsTab) => {
     setSettingsTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(window.history.state, "", url);
     content.current?.scrollIntoView({ block: "start" });
   };
+  const groups = GROUPS.map((group) => ({ label: tr(group.label), items: group.items.map((item) => ({ ...item, label: tr(item.label) })) }));
   return (
     <div className="cs-split cs-settings">
       <aside className="cs-list">
-        <span className="cs-side-title">Settings</span>
-        <SubNav groups={GROUPS} current={tab} onPick={pickTab} label="settings sections" />
-        <Btn onClick={() => go("calendar")}>Open calendar</Btn>
+        <span className="cs-side-title">{tr("Settings")}</span>
+        <SubNav groups={groups} current={tab} onPick={pickTab} label={tr("Settings sections")} />
+        <Btn onClick={() => go("calendar")}>{tr("Open calendar")}</Btn>
       </aside>
       <div className="cs-main" ref={content}>
-        <PageHead title={t.title} lead={t.lead} />
-        {tab === "autonomy" && <AutonomyTab view={view} />}
-        {tab === "playbooks" && <PlaybooksTab view={view} />}
-        {tab === "thresholds" && <ThresholdsTab view={view} />}
-        {tab === "budgets" && <BudgetsTab view={view} />}
-        {tab === "quiet-hours" && <QuietTab />}
-        {tab === "channels" && <ChannelsTab />}
-        {tab === "sources" && <SourcesTab graph={graph} view={view} />}
+        <PageHead title={tr(t.title)} lead={tr(t.lead)} />
+        {!snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
+          {error && !staticReplay && <Btn onClick={() => void loadSettings()}>{tr("Try again")}</Btn>}
+        </Card>}
+        {snapshot && <>
+          {snapshot.simulator && <p className="cs-note">{tr("Settings are saved for this simulator session.")}</p>}
+          {tab === "autonomy" && <EditorSection area="autonomy">{(editor) => <AutonomyTab view={view} editor={editor} />}</EditorSection>}
+          {tab === "playbooks" && <EditorSection area="playbooks">{(editor) => <PlaybooksTab view={view} editor={editor} />}</EditorSection>}
+          {tab === "thresholds" && <EditorSection area="thresholds">{(editor) => <ThresholdsTab graph={graph} editor={editor} />}</EditorSection>}
+          {tab === "budgets" && <EditorSection area="budgets">{(editor) => <BudgetsTab view={view} editor={editor} />}</EditorSection>}
+          {tab === "quiet-hours" && <EditorSection area="quiet_hours">{(editor) => <QuietTab editor={editor} />}</EditorSection>}
+          {tab === "channels" && <EditorSection area="channels">{(editor) => <ChannelsTab editor={editor} />}</EditorSection>}
+          {tab === "sources" && <SourcesTab graph={graph} view={view} />}
+          {tab === "shop" && <ShopTab />}
+          {tab === "account" && <AccountTab />}
+          {tab === "ai" && <AiTab />}
+          {tab === "notifications" && <NotificationsTab />}
+          {tab === "appearance" && <AppearanceTab />}
+          {tab === "data" && <DataTab />}
+        </>}
       </div>
     </div>
   );
 }
 
-function ReadOnly({ children }: { children: ReactNode }) {
-  return (
-    <p className="cs-note">
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3.5 7h9v6.5h-9z" />
-      </svg>
-      <span>{children}</span>
-    </p>
-  );
-}
-
 /* ------------------------------------------------------------------ autonomy */
 
-function AutonomyTab({ view }: { view: RunView }) {
+function AutonomyTab({ view, editor }: { view: RunView; editor: Editor<Settings["autonomy"]> }) {
+  const tr = useText();
   const autonomy = useAutonomy(view.stream);
   const ruled = useMemo(() => (autonomy.data ? rulesByAgent(autonomy.data, AGENT_ROLES) : null), [autonomy.data]);
   if (!ruled) return <Card>{autonomy.error ? <Empty>Could not read GET /autonomy: {autonomy.error}</Empty> : <Empty>Reading the limits…</Empty>}</Card>;
   const probation = autonomy.data?.probation ?? [];
   return (
     <>
-      <ReadOnly>
-        Read-only policy from <Source>GET /autonomy</Source>.
-      </ReadOnly>
       {ruled.agents.map(({ role, rules }) => {
         return (
           <Card
@@ -99,14 +116,14 @@ function AutonomyTab({ view }: { view: RunView }) {
           >
             {rules.length === 0 && <Row label="No rule of its own" help="Runs inside the Detective's investigation and follows its limits." />}
             {rules.map((r) => (
-              <Row key={r.id} label={r.name} help={`${r.when} ${r.behavior}`}>
-                <LevelPicker level={r.level} label={`${ROLE_TEXT[role].name}: ${r.name}`} />
+              <Row key={r.id} label={r.name} help={`${tr(r.when)} ${tr(r.behavior)}`}>
+                <LevelPicker level={editor.value[r.id] ?? r.level} allowed={r.level} onChange={(level) => editor.set(r.id, level)} label={`${ROLE_TEXT[role].name}: ${r.name}`} />
               </Row>
             ))}
             {role === "cartographer" && (
               <Row label="On probation now" help="Graph placements waiting for stronger evidence or your decision before promotion.">
                 <span className="cs-chips end">
-                  {probation.length === 0 ? <Badge tone="ok">none</Badge> : probation.map((p) => <Badge key={p.id} tone="watch">{p.id}</Badge>)}
+                  {probation.length === 0 ? <Badge tone="ok">{tr("none")}</Badge> : probation.map((p) => <Badge key={p.id} tone="watch">{p.id}</Badge>)}
                 </span>
               </Row>
             )}
@@ -116,8 +133,8 @@ function AutonomyTab({ view }: { view: RunView }) {
       {ruled.other.length > 0 && (
         <Card title="Other rules">
           {ruled.other.map((r) => (
-            <Row key={r.id} label={r.name} help={`${r.when} ${r.behavior}`}>
-              <LevelPicker level={r.level} label={r.name} />
+            <Row key={r.id} label={r.name} help={`${tr(r.when)} ${tr(r.behavior)}`}>
+              <LevelPicker level={editor.value[r.id] ?? r.level} allowed={r.level} onChange={(level) => editor.set(r.id, level)} label={r.name} />
             </Row>
           ))}
         </Card>
@@ -128,18 +145,20 @@ function AutonomyTab({ view }: { view: RunView }) {
 
 /* ------------------------------------------------------------------ playbooks */
 
-function PlaybooksTab({ view }: { view: RunView }) {
+function PlaybooksTab({ view, editor }: { view: RunView; editor: Editor<Settings["playbooks"]> }) {
   const autonomy = useAutonomy(view.stream);
   const books = autonomy.data?.playbooks ?? [];
   const used = new Set(view.steps.map((s) => (s.step.data?.playbook as { id?: string } | undefined)?.id).filter(Boolean));
   if (!autonomy.data) return <Card>{autonomy.error ? <Empty>Could not read GET /autonomy: {autonomy.error}</Empty> : <Empty>Reading the playbooks…</Empty>}</Card>;
   return (
     <>
-      <ReadOnly>
-        From <Source>GET /autonomy</Source> (playbooks). Argus picks one by the metric that moved and its direction; a playbook used in this run is marked.
-      </ReadOnly>
       {books.map((b) => (
         <Card key={b.id} title={b.name} desc={<Source>{b.id}</Source>} action={used.has(b.id) ? <Badge tone="probe" dot>used in this run</Badge> : undefined}>
+          <Row label={b.name} help="Turn off to use the general investigation for these changes.">
+            <Switch label={b.name} on={!editor.value.disabled.includes(b.id)} onChange={(on) => editor.set(
+              "disabled", on ? editor.value.disabled.filter((id) => id !== b.id) : [...editor.value.disabled, b.id],
+            )} />
+          </Row>
           <ol className="cs-steps">
             {b.steps.map((s) => (
               <li key={s.id}>
@@ -156,48 +175,66 @@ function PlaybooksTab({ view }: { view: RunView }) {
 
 /* ------------------------------------------------------------------ thresholds */
 
-function ThresholdsTab({ view }: { view: RunView }) {
-  const health = useHealth(view.stream);
-  const t = health.data?.thresholds;
+const WATCH_FIELDS = [
+  { key: "wiggle_z", label: "Ignore below", help: "Smaller moves count as noise." },
+  { key: "pair_z", label: "Open on two hours", help: "Two of three hours above this line in the same direction open an anomaly." },
+  { key: "alarm_z", label: "Open at once", help: "One hour above this line opens an anomaly and starts an investigation." },
+] as const;
+
+const INVESTIGATION_FIELDS = [
+  ["supported", "supported", 0.01],
+  ["stop", "stop", 0.01],
+  ["plan_band", "plan-band", 0.01],
+  ["plan_min", "plan-min", 0.01],
+  ["freshness", "late-data", 0.001],
+  ["calm_hours", "calm", 1],
+  ["checks", "checks", 1],
+] as const;
+
+function ThresholdsTab({ graph, editor }: { graph: Graph | null; editor: Editor<Settings["thresholds"]> }) {
+  const tr = useText();
+  const [metric, pickMetric] = useState("");
+  const t = editor.value;
+  const defaults: Lines = { wiggle_z: t.wiggle_z, pair_z: t.pair_z, alarm_z: t.alarm_z };
+  const chosen = t.per_metric[metric];
   return (
     <>
-      <Card title="Watcher defaults" desc={<>From <Source>GET /health</Source>. These thresholds use robust standard deviations (|z|) from the same hour of the last four weeks.</>}>
-        {!t ? (
-          <Empty>{health.error ? `Could not read GET /health: ${health.error}` : "Reading…"}</Empty>
-        ) : (
-          <>
-            <Ruler wiggle={t.wiggle_z} pair={t.pair_z} alarm={t.alarm_z} />
-            <Row label="Ignore below" help="A smaller move is noise: counted, never shown.">
-              <span className="cs-num">|z| &lt; {t.wiggle_z}</span>
-            </Row>
-            <Row label="Open on two hours" help="Two of three hours above this line, in the same direction, open an anomaly.">
-              <span className="cs-num">|z| &gt; {t.pair_z}</span>
-            </Row>
-            <Row label="Open at once" help="One hour above this line opens an anomaly and starts an investigation.">
-              <span className="cs-num">|z| &gt; {t.alarm_z}</span>
-            </Row>
-          </>
-        )}
-      </Card>
-      <Card title="Investigation rules" desc="Fixed limits from the investigation engine.">
-        {CODE_RULES.map((r) => (
-          <Row
-            key={r.key}
-            label={r.label}
-            help={
-              <>
-                {r.help} <Source>{`${r.file.replace("src/argus/", "")} · ${r.constant}`}</Source>
-              </>
-            }
-          >
-            <span className="cs-num">{r.show}</span>
+      <Card title="Watcher defaults" desc="Robust standard deviations (|z|) from the same hour of the last four weeks.">
+        {0 < t.wiggle_z && t.wiggle_z < t.pair_z && t.pair_z < t.alarm_z && <Ruler wiggle={t.wiggle_z} pair={t.pair_z} alarm={t.alarm_z} />}
+        {WATCH_FIELDS.map(({ key, label, help }) => (
+          <Row key={key} label={label} help={help}>
+            <NumberInput label={label} value={t[key]} step={0.1} min={0.1} max={40} onChange={(value) => editor.change(key, value)} />
           </Row>
         ))}
       </Card>
-      <Card title="Per-metric thresholds" action={<Preview />}>
-        <Row label="Tune a metric's lines" help="The Watcher derives slice thresholds from its defaults. Per-metric overrides would go here.">
-          <Switch on={false} label="Per-metric thresholds" />
+      <Card title="Investigation rules" desc="Enter shares as decimals, for example 0.8 for 80%.">
+        {INVESTIGATION_FIELDS.map(([field, ruleKey, step]) => {
+          const rule = CODE_RULES.find(({ key }) => key === ruleKey)!;
+          const label = field === "freshness" ? "Minimum source completeness" : rule.label;
+          return <Row key={field} label={label} help={field === "freshness" ? "Hold scoring when a source delivers less than this share." : rule.help}>
+            <NumberInput label={label} value={t[field]} step={step} onChange={(value) => editor.change(field, value)} />
+          </Row>;
+        })}
+      </Card>
+      <Card title="Per-metric thresholds" desc="Override the Watcher defaults for a metric.">
+        <Row label="Metric">
+          <select className="cs-input" aria-label={tr("Metric")} value={metric} onChange={(event) => pickMetric(event.target.value)}>
+            <option value="">{tr("Select a metric")}</option>
+            {graph?.nodes.filter((node) => node.north_star).map((node) => <option key={node.id} value={node.id}>{node.label}</option>)}
+          </select>
         </Row>
+        {metric && <Row label="Use an override"><Switch on={Boolean(chosen)} label="Use an override" onChange={(on) => {
+          const next = { ...t.per_metric };
+          if (on) next[metric] = defaults;
+          else delete next[metric];
+          editor.set("per_metric", next);
+        }} /></Row>}
+        {chosen && WATCH_FIELDS.map(({ key, label }) => (
+          <Row key={key} label={label}>
+            <NumberInput label={`Metric ${label.toLowerCase()}`} value={chosen[key]} step={0.1} min={0.1} max={40}
+              onChange={(value) => editor.change("per_metric", { ...t.per_metric, [metric]: { ...chosen, [key]: value } })} />
+          </Row>
+        ))}
       </Card>
     </>
   );
@@ -232,46 +269,29 @@ function Ruler({ wiggle, pair, alarm }: { wiggle: number; pair: number; alarm: n
 
 /* ------------------------------------------------------------------ budgets */
 
-const CAP_WORD: Record<string, { label: string; show: (v: number) => string }> = {
-  usd: { label: "Spend per run", show: (v) => `$${v.toFixed(2)}` },
-  requests: { label: "Model requests per run", show: (v) => String(v) },
-  tool_calls: { label: "Tool calls per run", show: (v) => String(v) },
-  input_tokens: { label: "Input tokens per run", show: (v) => v.toLocaleString("en") },
-  output_tokens: { label: "Output tokens per run", show: (v) => v.toLocaleString("en") },
-  wall_seconds: { label: "Wall time per run", show: (v) => `${v} s` },
-};
+const CAP_FIELDS = [
+  ["usd", "Spend per run (USD)", 0.01],
+  ["requests", "Model requests per run", 1],
+  ["tool_calls", "Tool calls per run", 1],
+  ["input_tokens", "Input tokens per run", 1],
+  ["output_tokens", "Output tokens per run", 1],
+  ["wall_seconds", "Wall time per run (seconds)", 1],
+] as const;
 
-function BudgetsTab({ view }: { view: RunView }) {
-  const agent = useAgent();
-  const health = agent.health;
+function BudgetsTab({ view, editor }: { view: RunView; editor: Editor<Settings["budgets"]> }) {
+  const { health } = useAgent();
   const { incidents, failed } = useIncidents(view);
   const cost = incidentCost(incidents);
-  const caps = Object.entries(health?.caps ?? {}).filter(([, v]) => typeof v === "number") as [string, number][];
-  const models = health ? (Array.isArray(health.models) ? health.models.map((m) => [m, m] as const) : Object.entries(health.models)) : [];
+  const models = health ? (Array.isArray(health.models) ? health.models.map((model) => [model, model]) : Object.entries(health.models)) : [];
   return (
     <>
-      <Card title="Live agent caps" desc={<>Live from <Source>GET /agent/health</Source>. A run that reaches a cap stops and falls back to the deterministic investigator.</>} action={health ? <Badge tone={health.enabled ? "ok" : "muted"} dot>{health.enabled ? `agent ${health.mode}` : "agent off in this run"}</Badge> : undefined}>
-        {!health ? (
-          <Empty>Agent caps are unavailable for this run.</Empty>
-        ) : (
-          <>
-            {!health.enabled && health.reason && <ReadOnly>{health.reason}</ReadOnly>}
-            {caps.length === 0 && <Empty>This run reports no live agent caps.</Empty>}
-            {caps.map(([k, v]) => (
-              <Row key={k} label={CAP_WORD[k]?.label ?? humanize(k)}>
-                <span className="cs-num">{CAP_WORD[k]?.show(v) ?? String(v)}</span>
-              </Row>
-            ))}
-            {models.map(([k, m]) => (
-              <Row key={k} label={`Model, ${humanize(k)}`}>
-                <code className="cs-source">{m}</code>
-              </Row>
-            ))}
-            <Row label="Spent by the live agent so far">
-              <span className="cs-num">${health.usd.toFixed(3)}</span>
-            </Row>
-          </>
-        )}
+      <Card title="Live agent caps" desc="The deterministic investigator takes over when a model run reaches a cap." action={health ? <Badge tone={health.enabled ? "ok" : "muted"} dot>{health.enabled ? `agent ${health.mode}` : "agent off in this run"}</Badge> : undefined}>
+        {CAP_FIELDS.map(([key, label, step]) => (
+          <Row key={key} label={label}><NumberInput label={label} value={editor.value[key]} step={step}
+            onChange={(value) => editor.change(key, value)} /></Row>
+        ))}
+        {models.map(([key, model]) => <Row key={key} label={`Model, ${humanize(key ?? "")}`}><Source>{model}</Source></Row>)}
+        {health && <Row label="Spent by the live agent so far"><span className="cs-num">${health.usd.toFixed(3)}</span></Row>}
       </Card>
       <Card title="This run's investigations" desc="Totals from the incidents with recorded costs.">
         {failed ? <Empty>Could not load incident costs.</Empty> : <>
@@ -292,9 +312,10 @@ function BudgetsTab({ view }: { view: RunView }) {
         </Row>
         </>}
       </Card>
-      <Card title="Monthly budget" action={<Preview />}>
-        <Row label="Stop the live agent at a monthly spend" help="A per-month ceiling across runs would go here; today only the per-run caps above apply.">
-          <Switch on={false} label="Monthly budget" />
+      <Card title="Monthly budget">
+        <Row label="Monthly model spend (USD)" help="Leave blank for no monthly ceiling. The ceiling resets at the start of each UTC month.">
+          <NumberInput label="Monthly model spend (USD)" step={0.01} value={editor.value.monthly_usd}
+            onChange={(value) => editor.set("monthly_usd", value)} />
         </Row>
       </Card>
     </>
@@ -303,36 +324,29 @@ function BudgetsTab({ view }: { view: RunView }) {
 
 /* ------------------------------------------------------------------ quiet hours */
 
-function QuietTab() {
+function QuietTab({ editor }: { editor: Editor<Settings["quiet_hours"]> }) {
+  const q = editor.value;
+  const tr = useText();
   return (
     <>
-      <Card title="What never wakes anyone" desc="Argus logs these cases without escalating them.">
-        <Row label="Planned changes" help="A change that follows a logged plan within its band is logged as a note, never paged (hold_alert).">
-          <Badge tone="ok" dot>
-            always on
-          </Badge>
-        </Row>
-        <Row label="Late data" help="An hour with incomplete source data waits for the data instead of raising an alarm (defer_late_data).">
-          <Badge tone="ok" dot>
-            always on
-          </Badge>
-        </Row>
-        <Row label="Symptoms of an open incident" help="A metric that moves because of an incident already filed adds to that incident, not a new page.">
-          <Badge tone="ok" dot>
-            always on
-          </Badge>
-        </Row>
+      <Card title="What never wakes anyone" desc="Planned changes, late data and covered symptoms follow the autonomy policy.">
+        <Row label="Planned changes" help="A change within its expected band can be logged as a note."><Badge>hold_alert</Badge></Row>
+        <Row label="Late data" help="Incomplete source data can wait before scoring."><Badge>defer_late_data</Badge></Row>
+        <Row label="Symptoms of an open incident" help="A covered symptom can be added to the existing incident."><Badge>hold_alert</Badge></Row>
       </Card>
-      <Card title="Paging window" action={<Preview />}>
-        <Row label="Quiet hours" help="Hold pages between these hours and deliver them in the morning report.">
-          <Switch on={false} label="Quiet hours" />
+      <Card title="Paging window">
+        <Row label="Quiet hours" help="Hold outgoing notices until the quiet window ends."><Switch on={q.enabled} label="Quiet hours" onChange={(on) => editor.set("enabled", on)} /></Row>
+        {(["start", "end"] as const).map((field) => {
+          const label = field === "start" ? "Start" : "End";
+          return <Row key={field} label={label}><input className="cs-input" type="time" aria-label={tr(label)}
+            value={q[field]} onChange={(event) => editor.set(field, event.target.value)} /></Row>;
+        })}
+        <Row label="Timezone"><input className="cs-input" aria-label={tr("Timezone")} value={q.timezone} maxLength={96}
+          onChange={(event) => editor.set("timezone", event.target.value)} /></Row>
+        <Row label="Page anyway above" help="Estimated impact in EUR per hour. Leave blank to hold all notices.">
+          <NumberInput label="Page anyway above" step={0.01} value={q.bypass_eur} onChange={(value) => editor.set("bypass_eur", value)} />
         </Row>
-        <Row label="Page anyway above" help="An incident costing more than this per hour would still page during quiet hours.">
-          <Badge>Not set</Badge>
-        </Row>
-        <Row label="Weekends" help="Treat Saturday and Sunday as quiet all day.">
-          <Switch on={false} label="Weekends quiet" />
-        </Row>
+        <Row label="Weekends" help="Treat Saturday and Sunday as quiet all day."><Switch on={q.weekends} label="Weekends" onChange={(on) => editor.set("weekends", on)} /></Row>
       </Card>
     </>
   );
@@ -340,24 +354,23 @@ function QuietTab() {
 
 /* ------------------------------------------------------------------ channels */
 
-const OUTSIDE: { id: string; name: string; help: string }[] = [
+const OUTSIDE: { id: Exclude<keyof Settings["channels"], "in_app">; name: string; help: string }[] = [
   { id: "slack", name: "Slack", help: "Post each incident with its verdict and receipts to a channel." },
-  { id: "email", name: "Email", help: "Send the morning report and every incident by mail." },
-  { id: "pagerduty", name: "PagerDuty", help: "Page the on-call person for an incident above the paging line." },
+  { id: "email", name: "Email", help: "Send incident notices by email." },
+  { id: "pagerduty", name: "PagerDuty", help: "Send an incident notice to your configured PagerDuty webhook." },
   { id: "webhook", name: "Webhook", help: "POST each incident as JSON to your own endpoint." },
 ];
 
-function ChannelsTab() {
+function ChannelsTab({ editor }: { editor: Editor<Settings["channels"]> }) {
+  const tr = useText();
   return (
     <>
       <Card title="In the app" desc="Notifications delivered inside the workspace.">
         <Row label="Live notices" help="A notice when an incident is explained and when the run completes.">
-          <Badge tone="ok" dot>
-            on
-          </Badge>
+          <Switch on={editor.value.in_app} label="Live notices" onChange={(on) => editor.set("in_app", on)} />
         </Row>
         <Row label="Morning report" help="The night in a few lines, each with its receipts.">
-          <Btn onClick={() => go("report")}>Open</Btn>
+          <Btn onClick={() => go("report")}>{tr("Open")}</Btn>
         </Row>
         <Row label="Event stream" help={<>Every event as it happens, for your own tools: <Source>GET /events</Source> (server-sent events).</>}>
           <Badge tone="ok" dot>
@@ -365,10 +378,10 @@ function ChannelsTab() {
           </Badge>
         </Row>
       </Card>
-      <Card title="Outside channels" action={<Preview />}>
+      <Card title="Outside channels" desc="Set delivery destinations under Notifications.">
         {OUTSIDE.map((c) => (
           <Row key={c.id} label={c.name} help={c.help}>
-            <Switch on={false} label={c.name} />
+            <Switch on={editor.value[c.id]} label={c.name} onChange={(on) => editor.set(c.id, on)} />
           </Row>
         ))}
       </Card>
@@ -377,8 +390,6 @@ function ChannelsTab() {
 }
 
 /* ------------------------------------------------------------------ sources */
-
-const CONNECTORS = ["Shopify", "Google Analytics 4", "Google Ads", "Meta Ads", "Stripe"];
 
 function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
   const health = useHealth(view.stream);
@@ -451,13 +462,7 @@ function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
           </Row>
         ))}
       </Card>
-      <Card title="Connectors" desc="The Shop is connected through DuckDB." action={<Preview />}>
-        {CONNECTORS.map((c) => (
-          <Row key={c} lead={<i className="cs-conn" aria-hidden="true" />} label={c}>
-            <Switch on={false} label={c} />
-          </Row>
-        ))}
-      </Card>
+      <ShopTab />
     </>
   );
 }

@@ -1,6 +1,4 @@
-// The reads the settings pages make on their own: GET /autonomy (what each agent may do alone) and GET /health
-// (the watcher's lines and the run's source). Read once per stream; a failed read shows as an error state, never as
-// a made-up value.
+// The run's autonomy rule catalog, playbooks, and source health. Read these once per stream.
 
 import { useEffect, useState } from "react";
 import { api, json } from "../lib/api";

@@ -2,6 +2,7 @@ import { api, type ConnectionState } from "../lib/api";
 import { dayLabel, hhmm } from "../lib/format";
 import { scoringHour, type RunView } from "../lib/store";
 import type { Health } from "../lib/types";
+import { AgentRunControls } from "../fx/workspace/AgentRunControls";
 import { FacetMark } from "../fx/entry/brand";
 
 const SPEEDS = [1, 2, 4, 8];
@@ -47,6 +48,7 @@ export function Header({
         {mode === "offline" ? "API offline" : mode === "connecting" ? "Connecting to API" : presenting
           ? "Agent replay · recorded run" : mode === "live" ? `Live${world ? ` · ${world}` : ""}` : "Replay · recorded run"}
       </span>
+      <AgentRunControls />
       {replay && (
         <>
           <div className="controls" aria-label="replay controls">

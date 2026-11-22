@@ -54,9 +54,18 @@ class OperatorSession(BaseModel):
 class OperatorGate:
     """In-memory operator sessions for the local Mission Control. A restarted server asks for a new session."""
 
-    def __init__(self, principal: str = "operator", allow_client: Callable[[str | None], bool] = is_local) -> None:
+    def __init__(
+        self,
+        principal: str = "operator",
+        allow_client: Callable[[str | None], bool] = is_local,
+        *,
+        cookie: str = COOKIE,
+        cookie_path: str = "/agent",
+    ) -> None:
         self.principal = principal
         self.allow_client = allow_client
+        self.cookie = cookie
+        self.cookie_path = cookie_path
         self._sessions: dict[str, str] = {}
         self._lock = threading.Lock()
 
@@ -64,29 +73,41 @@ class OperatorGate:
         origin = request.headers.get("origin")
         if origin is None:
             return True  # not a browser cross-site request; the cookie and token still apply
-        host = urlsplit(origin).hostname
-        own = urlsplit(f"//{request.headers.get('host', '')}").hostname
+        try:
+            host = urlsplit(origin).hostname
+            own = urlsplit(f"//{request.headers.get('host', '')}").hostname
+        except ValueError:
+            return False
         return is_local(host) or (host is not None and host == own)
 
-    def open(self, request: Request, response: Response) -> OperatorSession:
+    def open(self, request: Request, response: Response, *, resume: bool = False) -> OperatorSession:
         client = request.client.host if request.client else None
         if not self.allow_client(client) or not self._origin_ok(request):
             raise HTTPException(403, "operator sessions open only from the local machine")
-        sid, csrf = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
         with self._lock:
-            self._sessions[sid] = csrf
-        response.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/agent")
+            sid = request.cookies.get(self.cookie, "") if resume else ""
+            csrf = self._sessions.get(sid)
+            if csrf is None:
+                sid, csrf = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+                if len(self._sessions) >= 1024:
+                    del self._sessions[next(iter(self._sessions))]
+                self._sessions[sid] = csrf
+        response.set_cookie(self.cookie, sid, httponly=True, samesite="strict", path=self.cookie_path)
         return OperatorSession(principal=self.principal, csrf_token=csrf)
 
-    def check(self, request: Request) -> str:
-        sid = request.cookies.get(COOKIE)
+    def session_id(self, request: Request) -> str:
+        sid = request.cookies.get(self.cookie, "")
         token = request.headers.get(CSRF_HEADER)
         with self._lock:
-            expected = self._sessions.get(sid or "")
+            expected = self._sessions.get(sid)
         if expected is None or token is None or not secrets.compare_digest(expected, token):
             raise HTTPException(403, "an operator session and its CSRF token are required")
         if not self._origin_ok(request):
             raise HTTPException(403, "cross-origin decisions are refused")
+        return sid
+
+    def check(self, request: Request) -> str:
+        self.session_id(request)
         return self.principal
 
 
