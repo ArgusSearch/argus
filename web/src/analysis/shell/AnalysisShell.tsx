@@ -103,7 +103,7 @@ export function AnalysisShell({ graph, view, query, openIncident, secondaryLinks
               <div className="ws-head">
                 <h1 id="analysis-heading" tabIndex={-1} ref={heading}>{label}</h1>
                 <p>
-                  {view.mode === "live" ? "Live" : view.mode === "replay" ? "Replay" : "Connecting"}
+                  {view.mode === "live" ? "Live" : view.mode === "replay" ? "History" : "Connecting"}
                   {view.simTs ? ` · As of ${dayLabel(view.simTs)} ${hhmm(view.simTs)} UTC` : ""}
                 </p>
               </div>

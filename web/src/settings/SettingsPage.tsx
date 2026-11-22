@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { dayLabel, hhmm, humanize } from "../lib/format";
-import { staticReplay } from "../lib/deployment";
+import { publicApi, remoteGuidedRun, staticReplay } from "../lib/deployment";
 import { AGENT_ROLES } from "../lib/agent";
 import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
@@ -11,6 +11,7 @@ import { ROLE_TEXT } from "../fx/workspace/AvatarSlot";
 import { CODE_RULES } from "./constants";
 import { useAutonomy, useHealth } from "./data";
 import { EditorSection, type Editor } from "./editor";
+import { DeveloperTab } from "./DeveloperTab";
 import { useText } from "./language";
 import { loadSettings, useOperatorSettings, type Lines, type Settings } from "./operator";
 import { AccountTab, AiTab, AppearanceTab, DataTab, NotificationsTab, ShopTab } from "./SettingsForms";
@@ -32,6 +33,7 @@ const TITLES: Record<SettingsTab, { title: string; lead: string }> = {
   shop: { title: "Shop connection", lead: "Register and test a Shop endpoint." },
   data: { title: "Export and reset", lead: "Download a copy of your settings or restore the defaults." },
   sources: { title: "Data sources", lead: "Where Argus reads the shop's numbers and change logs from, and how complete the latest hour is." },
+  developer: { title: "Developer", lead: "Controls for capturing product footage." },
 };
 
 const GROUPS: SubNavGroup<SettingsTab>[] = [
@@ -58,7 +60,11 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
     window.history.replaceState(window.history.state, "", url);
     content.current?.scrollIntoView({ block: "start" });
   };
-  const groups = GROUPS.map((group) => ({ label: tr(group.label), items: group.items.map((item) => ({ ...item, label: tr(item.label) })) }));
+  const developer = tab === "developer" || new URLSearchParams(window.location.search).get("developer") === "1";
+  const navigation: SubNavGroup<SettingsTab>[] = developer
+    ? [...GROUPS, { label: "Developer", items: [{ id: "developer", label: "Time-lapse" }] }]
+    : GROUPS;
+  const groups = navigation.map((group) => ({ label: tr(group.label), items: group.items.map((item) => ({ ...item, label: tr(item.label) })) }));
   return (
     <div className="cs-split cs-settings">
       <aside className="cs-list">
@@ -67,11 +73,12 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
         <Btn onClick={() => go("calendar")}>{tr("Open calendar")}</Btn>
       </aside>
       <div className="cs-main" ref={content}>
-        <PageHead title={tr(t.title)} lead={tr(t.lead)} />
-        {!snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
+        <PageHead title={tr(t.title)} lead={tr(tab === "ai" && publicApi && !remoteGuidedRun ? "The models used for live investigations." : t.lead)} />
+        {tab === "developer" && <DeveloperTab />}
+        {tab !== "developer" && !snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
           {error && !staticReplay && <Btn onClick={() => void loadSettings()}>{tr("Try again")}</Btn>}
         </Card>}
-        {snapshot && <>
+        {tab !== "developer" && snapshot && <>
           {snapshot.simulator && <p className="cs-note">{tr("Settings are saved for this simulator session.")}</p>}
           {tab === "autonomy" && <EditorSection area="autonomy">{(editor) => <AutonomyTab view={view} editor={editor} />}</EditorSection>}
           {tab === "playbooks" && <EditorSection area="playbooks">{(editor) => <PlaybooksTab view={view} editor={editor} />}</EditorSection>}
@@ -82,7 +89,7 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
           {tab === "sources" && <SourcesTab graph={graph} view={view} />}
           {tab === "shop" && <ShopTab />}
           {tab === "account" && <AccountTab />}
-          {tab === "ai" && <AiTab />}
+          {tab === "ai" && (publicApi && !remoteGuidedRun ? <PublicModels /> : <AiTab />)}
           {tab === "notifications" && <NotificationsTab />}
           {tab === "appearance" && <AppearanceTab />}
           {tab === "data" && <DataTab />}
@@ -283,17 +290,28 @@ function BudgetsTab({ view, editor }: { view: RunView; editor: Editor<Settings["
   const { incidents, failed } = useIncidents(view);
   const cost = incidentCost(incidents);
   const models = health ? (Array.isArray(health.models) ? health.models.map((model) => [model, model]) : Object.entries(health.models)) : [];
+  const limits = health?.public_limits;
+  const serverManaged = publicApi && !remoteGuidedRun;
   return (
     <>
-      <Card title="Live agent caps" desc="The deterministic investigator takes over when a model run reaches a cap." action={health ? <Badge tone={health.enabled ? "ok" : "muted"} dot>{health.enabled ? `agent ${health.mode}` : "agent off in this run"}</Badge> : undefined}>
+      {serverManaged ? <Card title="Live investigation limits" desc="The daily budget resets at midnight UTC.">
+        {limits?.daily_usd === undefined && <Empty>{limits?.message ?? "Reading live limits…"}</Empty>}
+        {limits?.daily_usd !== undefined && <>
+          <Row label="Daily budget"><span className="cs-num">${limits.spent_today_usd?.toFixed(2)} / ${limits.daily_usd.toFixed(2)} USD</span></Row>
+          <Row label="Investigations per hour"><span className="cs-num">{limits.session_hour} per session · {limits.ip_hour} per IP · {limits.watcher_hour} for the watcher</span></Row>
+          <Row label="Tokens per model call"><span className="cs-num">{limits.input_tokens?.toLocaleString()} input · {limits.output_tokens?.toLocaleString()} output</span></Row>
+          <Row label="Model calls per run"><span className="cs-num">{limits.turns?.ask} Ask · {limits.turns?.investigate} investigation · {limits.turns?.critic} critic</span></Row>
+          {limits.message && <p className="cs-note" role="status">{limits.message}</p>}
+        </>}
+      </Card> : <Card title="Live agent caps" desc="The deterministic investigator takes over when a model run reaches a cap." action={health ? <Badge tone={health.enabled ? "ok" : "muted"} dot>{health.enabled ? "agent available" : "agent unavailable"}</Badge> : undefined}>
         {CAP_FIELDS.map(([key, label, step]) => (
           <Row key={key} label={label}><NumberInput label={label} value={editor.value[key]} step={step}
             onChange={(value) => editor.change(key, value)} /></Row>
         ))}
         {models.map(([key, model]) => <Row key={key} label={`Model, ${humanize(key ?? "")}`}><Source>{model}</Source></Row>)}
         {health && <Row label="Spent by the live agent so far"><span className="cs-num">${health.usd.toFixed(3)}</span></Row>}
-      </Card>
-      <Card title="This run's investigations" desc="Totals from the incidents with recorded costs.">
+      </Card>}
+      <Card title="This run's investigations" desc="Totals from incidents with cost data.">
         {failed ? <Empty>Could not load incident costs.</Empty> : <>
         <Row label="Incidents investigated">
           <span className="cs-num">{cost.n}</span>
@@ -312,13 +330,25 @@ function BudgetsTab({ view, editor }: { view: RunView; editor: Editor<Settings["
         </Row>
         </>}
       </Card>
-      <Card title="Monthly budget">
+      {!serverManaged && <Card title="Monthly budget">
         <Row label="Monthly model spend (USD)" help="Leave blank for no monthly ceiling. The ceiling resets at the start of each UTC month.">
           <NumberInput label="Monthly model spend (USD)" step={0.01} value={editor.value.monthly_usd}
             onChange={(value) => editor.set("monthly_usd", value)} />
         </Row>
-      </Card>
+      </Card>}
     </>
+  );
+}
+
+function PublicModels() {
+  const { health } = useAgent();
+  const models = health?.enabled && !Array.isArray(health.models) ? Object.entries(health.models) : [];
+  return (
+    <Card title="Live models">
+      {models.length ? models.map(([role, model]) => (
+        <Row key={role} label={humanize(role)}><Source>{model}</Source></Row>
+      )) : <Empty>{health?.reason || "Reading live model configuration…"}</Empty>}
+    </Card>
   );
 }
 
@@ -366,7 +396,7 @@ function ChannelsTab({ editor }: { editor: Editor<Settings["channels"]> }) {
   return (
     <>
       <Card title="In the app" desc="Notifications delivered inside the workspace.">
-        <Row label="Live notices" help="A notice when an incident is explained and when the run completes.">
+        <Row label="Live notices" help="A notice when an incident is explained.">
           <Switch on={editor.value.in_app} label="Live notices" onChange={(on) => editor.set("in_app", on)} />
         </Row>
         <Row label="Morning report" help="The night in a few lines, each with its receipts.">
@@ -392,6 +422,7 @@ function ChannelsTab({ editor }: { editor: Editor<Settings["channels"]> }) {
 /* ------------------------------------------------------------------ sources */
 
 function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
+  const tr = useText();
   const health = useHealth(view.stream);
   const h = health.data;
   const tables = useMemo(() => {
@@ -405,11 +436,10 @@ function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
       <Card title="Connected" desc={<>Live from <Source>GET /health</Source>.</>}>
         {!h ? <Empty>{health.error ? "Could not read the current source." : "Reading the current source…"}</Empty> : <Row
           lead={<i className="cs-conn ok" aria-hidden="true" />}
-          label={h.mode === "live" ? "Shop · live" : "Shop · sealed run"}
-          help={h.mode === "live" ? "Generated shop data served by DuckDB." : "A sealed recording of Argus over generated shop data."}
+          label={tr("Example shop")}
+          help={h.mode === "live" ? "Example shop data served by DuckDB." : "Historical example shop data."}
         >
           <span className="cs-chips end">
-            <Source>{h.source}</Source>
             <Badge tone="ok" dot>
               connected
             </Badge>

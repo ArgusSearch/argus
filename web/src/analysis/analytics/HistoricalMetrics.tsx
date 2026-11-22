@@ -157,7 +157,7 @@ export function HistoricalMetrics(props: HistoricalMetricsProps) {
             );
           })}
         </fieldset>
-      ) : <p className="fx-empty">No measured samples in this scope and period.{releaseOnly ? " Recorded events are shown below." : ""}</p>}
+      ) : <p className="fx-empty">No measured samples in this scope and period.{releaseOnly ? " Past events are shown below." : ""}</p>}
       <HistoryPlot {...props} marker={marker} visible={visible} />
       {markers.length > 0 && (
         <div className="an-events" role="group" aria-label="Timeline events">

@@ -33,7 +33,7 @@ async function playScenario(page: Page, replayDir: string): Promise<string> {
   const base = api.base;
   await page.goto(base);
   await expect(page).toHaveTitle("Argus · Mission Control");
-  await expect(page.locator(".header .mode")).toHaveText("Replay · recorded run", { timeout: 10_000 });
+  await expect(page.locator(".header .mode")).toHaveText("Example shop history", { timeout: 10_000 });
 
   const post = async (body: object) => {
     const res = await page.request.post(`${base}/replay`, { data: body });

@@ -36,7 +36,7 @@ export function explainError(error: unknown, route?: string): Explained {
     if (error instanceof TypeError || (error instanceof Error && /fetch|network|load failed/i.test(error.message))) {
       return {
         title: "Can't reach the Argus API",
-        detail: publicApi ? "Try again in a moment." : "Start it with make api (recorded run) or make demo (live), then try again.",
+        detail: publicApi ? "Try again in a moment." : "Start the API, then try again.",
         retry: true,
       };
     }
@@ -48,12 +48,12 @@ export function explainError(error: unknown, route?: string): Explained {
       title: "Receipt re-runs need live mode",
       detail: publicApi
         ? "Open Mission Control to re-run receipts from the live Shop."
-        : "This page replays a recorded run, so there is no database to query. Start Argus live with make demo to re-run receipts.",
+        : "Open a live source to re-run receipts.",
       retry: false,
     };
   }
   if (status === 409) {
-    return { title: "Not available in this mode", detail: said ?? (publicApi ? "Return to Mission Control and try again." : "Switch to live mode (make demo) and try again."), retry: false };
+    return { title: "Not available in this mode", detail: said ?? (publicApi ? "Return to Mission Control and try again." : "Open a live source and try again."), retry: false };
   }
   if (status === 501) {
     return { title: "Not built yet", detail: `The API does not serve${where || " this"} yet.`, retry: false };

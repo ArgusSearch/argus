@@ -64,6 +64,9 @@ export interface ArgusVillageProps {
 export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision }: ArgusVillageProps) {
   const search = typeof window === "undefined" ? "" : window.location.search;
   const params = useMemo(() => new URLSearchParams(search), [search]);
+  const recording = initial !== undefined || params.get("developer") === "1" || params.get("demo") === "1";
+  const visibleSources = recording || staticReplay || params.has("village")
+    ? sourceOptions : sourceOptions.filter((option) => option.id === "live");
   const [source, setSource] = useState<SourceId>(() => {
     const requested = initial ?? initialSource(search);
     return staticReplay && requested === "live" ? "s4-agent" : requested;
@@ -232,14 +235,14 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
 
       <div className="vl-hud vl-hud-tr" data-no-pick>
         <nav className="vl-seg" aria-label="source">
-          {sourceOptions.map((s) => (
+          {visibleSources.map((s) => (
             <button key={s.id} className={s.id === source ? "on" : ""} aria-pressed={s.id === source} title={s.hint} onClick={() => setSource(s.id)}>
               {s.label}
             </button>
           ))}
         </nav>
         <div className="vl-meta">
-          {source !== "live" && <span className="vl-live">Replay</span>}
+          {source !== "live" && <span className="vl-live">History</span>}
           <span>{tape ? tape.title : loadError ? `Could not load: ${loadError}` : source === "live" ? "Connecting…" : "Loading…"}</span>
           {state.simTs && (
             <b>
@@ -250,7 +253,7 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
         </div>
       </div>
 
-      <div className="vl-hud vl-hud-bl" data-no-pick>
+      {recording && <div className="vl-hud vl-hud-bl" data-no-pick>
         <div className="vl-controls">
           <button onClick={() => player.setPlaying(!player.playing)} aria-label={player.playing ? "Pause" : "Play"}>
             {player.playing ? "❚❚" : "▶"}
@@ -284,7 +287,7 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
             {player.timeline.waiting && !decision ? " · then your approval" : ""}
           </span>
         </div>
-      </div>
+      </div>}
 
       <div className="vl-hud vl-hud-bc" data-no-pick>
         <Caption state={state} avatars={avatars} />

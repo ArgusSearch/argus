@@ -1,16 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { runToIncident, watchErrors } from "./helpers";
+import { LIVE, replay, watchErrors } from "./helpers";
 
-test("While you slept opens and shows lines", async ({ page, request }) => {
+test("Since you were away opens as a workspace report", async ({ page, request }) => {
   const errors = watchErrors(page);
-  await runToIncident(page, request);
-  await page.locator(".header").getByRole("button", { name: "While you slept" }).click();
-  const modal = page.getByRole("dialog", { name: "While you slept" });
-  await expect(modal).toBeVisible();
-  await expect(modal.locator(".dline").first()).toBeVisible({ timeout: 10_000 });
-  expect(await modal.locator(".dline").count()).toBeGreaterThan(0);
-  await expect(modal.getByRole("button", { name: "Copy as Markdown" })).toBeEnabled();
-  await page.keyboard.press("Escape");
-  await expect(modal).toBeHidden();
+  if (!LIVE) await replay(request, { action: "end" });
+  await page.goto("/?view=report&fxintro=0");
+  const report = page.getByRole("region", { name: "morning report" });
+  await expect(report.getByRole("heading", { name: "Since you were away" })).toBeVisible();
+  await expect(report.locator(".mr-line").first()).toBeVisible();
+  await expect(report.getByRole("button", { name: "Copy as Markdown" })).toBeEnabled();
   expect(errors()).toEqual([]);
 });

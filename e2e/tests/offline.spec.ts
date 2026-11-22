@@ -17,12 +17,12 @@ test.afterEach(async () => {
 test("stopping the API shows the offline banner; starting it again recovers without a reload", async ({ page }) => {
   // Known app bug: with the connection refused the browser keeps the EventSource in CONNECTING and retries
   // forever, so web/src/lib/api.ts never reports "offline"; the header falls back to the last mode and keeps
-  // saying "Replay · recorded run". Observed 5 s and 30 s after the stop: no banner, header unchanged.
+  // saying "Example shop history". Observed 5 s and 30 s after the stop: no banner, header unchanged.
   test.setTimeout(90_000);
 
   api = await startApi(PORT);
   await page.goto(BASE);
-  await expect(page.locator(".header .mode")).toHaveText("Replay · recorded run", { timeout: 10_000 });
+  await expect(page.locator(".header .mode")).toHaveText("Example shop history", { timeout: 10_000 });
   await expect(page.locator(".banner")).toHaveCount(0);
 
   await stopApi(api);
@@ -33,5 +33,5 @@ test("stopping the API shows the offline banner; starting it again recovers with
 
   api = await startApi(PORT);
   await expect(page.locator(".banner")).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.locator(".header .mode")).toHaveText("Replay · recorded run");
+  await expect(page.locator(".header .mode")).toHaveText("Example shop history");
 });

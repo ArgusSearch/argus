@@ -9,6 +9,7 @@ playback (lane F); this service then only reports itself as off for live work. T
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -55,6 +56,8 @@ class AgentService:
     settings_caps: Callable[[], dict[str, Any]] | None = field(default=None, kw_only=True)
     settings_models: dict[str, str] | None = field(default=None, kw_only=True)
     conversations: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    ask_owners: dict[str, str] = field(default_factory=dict)
+    conversation_owners: dict[str, str] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
     profile: Profile = V1
     models: AgentModels = ANTHROPIC_MODELS
@@ -104,7 +107,13 @@ class AgentService:
         return health
 
     def ask(
-        self, question: str, scope: AskScope, incident_id: str | None, conversation_id: str | None = None
+        self,
+        question: str,
+        scope: AskScope,
+        incident_id: str | None,
+        conversation_id: str | None = None,
+        *,
+        owner: str | None = None,
     ) -> AskResult:
         """A question, optionally following up an earlier one: the conversation keeps its incident scope and
         hands the earlier questions and answers to the model as context (never as evidence: every figure
@@ -112,12 +121,26 @@ class AgentService:
         if self.asker is None:
             raise ProviderUnavailable(self.reason or "the agent is off")
         with self.lock:  # one question at a time keeps cost and the activity log readable
-            if conversation_id is not None and conversation_id not in self.conversations:
+            if conversation_id is not None and (
+                conversation_id not in self.conversations or self.conversation_owners.get(conversation_id) != owner
+            ):
                 return AskResult(status="unknown_conversation", run_id="", reason=f"no conversation {conversation_id}")
-            conversation_id = conversation_id or f"conv_{len(self.conversations) + 1:04d}"
+            if conversation_id is None:
+                conversation_id = secrets.token_urlsafe(18) if owner else f"conv_{len(self.conversations) + 1:04d}"
+                if owner:
+                    self.conversation_owners[conversation_id] = owner
             turns = self.conversations.setdefault(conversation_id, [])
             incident_id = incident_id or next((t["incident_id"] for t in turns if t["incident_id"]), None)
-            result = self.asker.ask(question, scope, incident_id, history=turns)
+            if owner:
+                result = self.asker.ask(
+                    question,
+                    scope,
+                    incident_id,
+                    history=turns,
+                    on_start=lambda run_id: self.ask_owners.__setitem__(run_id, owner),
+                )
+            else:
+                result = self.asker.ask(question, scope, incident_id, history=turns)
             result.conversation_id = conversation_id
             turns.append({"question": question, "answer": result.answer, "incident_id": incident_id})
         self.save()
@@ -130,7 +153,13 @@ class AgentService:
 
 
 def build(
-    mode: AgentMode, stream: str = "local", recording: Path | None = None, profile: Profile | None = None
+    mode: AgentMode,
+    stream: str = "local",
+    recording: Path | None = None,
+    profile: Profile | None = None,
+    *,
+    provider: Callable[[], tuple[LlmClient, AgentModels]] | None = None,
+    spend: SpendLedger | None = None,
 ) -> AgentService:
     journal = Journal(stream=stream)
     profile = profile or Profile.from_env()
@@ -142,11 +171,11 @@ def build(
             profile=profile,
         )
     try:
-        live, models = live_client(critic=profile.on("critic"))
+        live, models = provider() if provider is not None else live_client(critic=profile.on("critic"))
     except ProviderUnavailable as exc:
         return AgentService("off", journal, reason=f"The agent is off: {exc}.", profile=profile)
     client: LlmClient = RecordingClient(live, Cassette()) if mode == "record" else live
-    spend = SpendLedger()
+    spend = spend or SpendLedger()
     store = EvidenceStore()
     selector = AgentSelector(
         client, journal, mode=mode, spend=spend, profile=profile, model=models.loop, critic_model=models.critic

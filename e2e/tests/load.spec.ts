@@ -5,7 +5,7 @@ test("the page loads with the header, the seed graph and no errors", async ({ pa
   const errors = watchErrors(page);
   await openMissionControl(page);
   if (LIVE) await expect(page.locator(".header .mode")).toContainText(/^Live/);
-  else await expect(page.locator(".header .mode")).toHaveText("Replay · recorded run");
+  else await expect(page.locator(".header .mode")).toHaveText("Example shop history");
 
   const graph = (await (await request.get("/graph")).json()) as { nodes: unknown[]; edges: unknown[]; logs: unknown[] };
   expect(graph.nodes.length).toBeGreaterThanOrEqual(27);

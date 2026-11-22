@@ -312,7 +312,7 @@ function AskConversation({ agent, incident }: { agent: AgentState; incident: str
             <li className="ws-ask-empty">
               {suggestions.length ? (
                 <>
-                  <span>{demo ? "Recorded questions" : "Try"}</span>
+                  <span>{demo ? "Questions from the investigation" : "Try"}</span>
                   <div className="ws-ask-suggest">
                     {suggestions.map((s) => (
                       <button key={s} className="btn" onClick={() => void ask(s)}>

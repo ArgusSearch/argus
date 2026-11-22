@@ -265,7 +265,7 @@ function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTar
           {receipt?.verified_at_capture !== undefined && (
             <span className={`verify ${receipt.verified_at_capture ? "ok" : "bad"}`}>
               {receipt.verified_at_capture ? "✓ Verified at capture" : "✗ Not verified at capture"}
-              <span className="mono">recorded run · hash {receipt.result_hash.replace("sha256:", "").slice(0, 16)}</span>
+              <span className="mono">query result · hash {receipt.result_hash.replace("sha256:", "").slice(0, 16)}</span>
             </span>
           )}
           {canRerun && (
@@ -287,7 +287,7 @@ function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTar
                 : agent || demo
                   ? "An agent receipt: the verifier re-derived every number from it before the number was shown."
                   : recordedPlacement
-                    ? "This query was captured with the recorded metric placement."
+                    ? "This query is stored as evidence for the metric placement."
                     : canRerun
                       ? "Runs the exact SQL again at the pinned as_of and compares the hash."
                       : "SQL re-runs need a world. Start Argus over a world to verify this query."}

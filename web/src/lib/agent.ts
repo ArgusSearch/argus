@@ -2,8 +2,9 @@
 // src/argus/agent/types.py). The routes sit outside the C5 route table: `GET /agent/health` is the feature probe,
 // and every surface that uses them stays hidden (or falls back) while it answers 404.
 
-import { withRun } from "./agentDemo";
+import { demoRunId, withRun } from "./agentDemo";
 import { ApiError, apiFetch } from "./api";
+import { publicApi, remoteGuidedRun } from "./deployment";
 import type { Receipt } from "./types";
 
 export type AgentMode = "live" | "record" | "replay" | "off";
@@ -154,6 +155,20 @@ export interface AgentHealth {
   features?: string[];
   /** set when the server serves `/agent/boards` */
   board_version?: "agent-board/1";
+  public_limits?: PublicLimits;
+}
+
+export interface PublicLimits {
+  daily_usd?: number;
+  spent_today_usd?: number;
+  session_hour?: number;
+  ip_hour?: number;
+  watcher_hour?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  turns?: { ask: number; investigate: number; critic: number };
+  message?: string | null;
+  stored_investigation?: { stored_at: string; title: string; report: string | null } | null;
 }
 
 /** The derived investigation board (`GET /agent/boards`, `src/argus/agent/types.py` `Board`, version agent-board/1). */
@@ -389,6 +404,7 @@ export const agentApi = {
    */
   health: async (): Promise<AgentHealth | null> => {
     try {
+      if (publicApi) return await call<AgentHealth>("/agent/health");
       const table = await call<{ paths?: Record<string, unknown> }>("/openapi.json");
       if (!table.paths || !("/agent/health" in table.paths)) return null;
       return await call<AgentHealth>("/agent/health");
@@ -405,8 +421,19 @@ export const agentApi = {
   decide: (id: string, verb: "approve" | "deny", digest: string, key = idempotencyKey(), scope: "current" | "live" = "current") =>
     decideWithSession<ProposalView>(`/agent/actions/${encodeURIComponent(id)}/${verb}`, { digest, idempotency_key: key }, scope),
   /** `signal` stops waiting for the answer (the server's run still finishes and is billed) */
-  ask: (question: string, incidentId?: string | null, conversationId?: string | null, signal?: AbortSignal) =>
-    call<AskAnswer>(withRun("/agent/ask"), { ...post({ question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null }), signal }),
+  ask: async (question: string, incidentId?: string | null, conversationId?: string | null, signal?: AbortSignal) => {
+    const body = { question, incident_id: incidentId ?? null, conversation_id: conversationId ?? null };
+    const path = withRun("/agent/ask");
+    const send = (token: string | null) => call<AskAnswer>(path, { ...post(body, token ? { [CSRF_HEADER]: token } : {}), signal });
+    if (!publicApi || remoteGuidedRun || demoRunId()) return send(null);
+    const session = "/agent/operator/session";
+    try {
+      return await send(await operatorToken(session));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 403) return send(await operatorToken(session, true));
+      throw error;
+    }
+  },
   receipt: async (link: ReceiptLink): Promise<AgentReceipt> =>
     normalizeReceipt(
       await call<unknown>(withRun(`/agent/receipts/${encodeURIComponent(link.run_id)}/${encodeURIComponent(link.world_revision)}/${encodeURIComponent(link.receipt_id)}`)),

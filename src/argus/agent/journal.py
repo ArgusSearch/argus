@@ -39,6 +39,7 @@ class Journal:
         self.records: list[ActivityRecord] = []
         self.runs: dict[str, RunSummary] = {}
         self.usage: list[UsageRecord] = []
+        self._run_sequence = 0
         self.lock = threading.Lock()
 
     # ActivitySink
@@ -57,7 +58,8 @@ class Journal:
 
     def new_run_id(self) -> str:
         with self.lock:
-            return f"run_{len(self.runs) + 1:04d}"
+            self._run_sequence = max(self._run_sequence, len(self.runs)) + 1
+            return f"run_{self._run_sequence:04d}"
 
     def start_run(self, summary: RunSummary) -> None:
         with self.lock:

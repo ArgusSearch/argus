@@ -1,9 +1,11 @@
-"""Loopback origin for the public Argus demo. Run with an allowlisted environment."""
+"""Loopback origin for the public Argus workspace. Run with an allowlisted environment."""
 
 import argparse
+import math
 import os
 from collections import Counter
 from contextlib import AsyncExitStack, asynccontextmanager
+from ipaddress import ip_address
 from pathlib import Path
 from time import monotonic
 from urllib.parse import parse_qs
@@ -13,28 +15,63 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
+from argus.agent.profile import V2
+from argus.agent.provider import SpendLedger
 from argus.api.app import BENCH_OUT, create_app
+from argus.api.public_limits import PublicLimits, public_provider
 from argus.api.sources import LiveSource, ReplaySource
 from argus.graph.extension_api import PUBLIC_METRIC_BODY_LIMIT
-from argus.remediation.api import OperatorGate
+from argus.remediation.api import OperatorGate, is_local
 
 WEB_ORIGINS = ("https://argus.caniberk.dev", "https://argus-eye.pages.dev")
 PAGES_ORIGIN = WEB_ORIGINS[1]
 MAX_BODY = 128 * 1024
 OPERATOR_SESSION = "/agent/operator/session"
 SETTINGS_SESSION = "/settings/operator/session"
-SESSION_TTL = 30 * 60
+SESSION_TTL = 60 * 60
 
 
-def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
-    # Refuse inherited provider credentials and the provider helper's repository-local fallback.
-    if any(key.startswith(("ANTHROPIC_", "OPENAI_")) for key in os.environ) or Path(".env").exists():
-        raise RuntimeError("Public demo requires a clean checkout and a credential-free environment")
+def origin_app(
+    world: Path | None,
+    *,
+    bench_out: Path = BENCH_OUT,
+    state_dir: Path | None = None,
+    key_file: Path | None = None,
+):
     replay_source = ReplaySource(loop=world is None)
-    live_source = LiveSource(world, agent="off") if world else replay_source
     gate = OperatorGate(cookie_path="/", session_ttl=SESSION_TTL, max_sessions=256)
+    limits = None
+    if world is None:
+        live_source = replay_source
+    else:
+        limits = PublicLimits(state_dir or world.parent / ".argus-public", gate)
+        interval = float(os.environ.get("ARGUS_PUBLIC_TICK_SECONDS", "60"))
+        if not math.isfinite(interval) or interval <= 0:
+            raise ValueError("ARGUS_PUBLIC_TICK_SECONDS must be positive and finite")
+        live_source = LiveSource(
+            world,
+            seconds_per_tick=interval,
+            agent="live",
+            agent_provider=lambda: public_provider(limits, key_file),
+            agent_spend=SpendLedger(persist=False),
+            agent_profile=V2,
+            hold_for_approval=False,
+            wall_clock=True,
+        )
+        on_incident = live_source.runtime.on_incident
+
+        def save_investigation(incident, change):
+            if on_incident is not None:
+                on_incident(incident, change)
+            limits.archive(live_source, incident)
+
+        live_source.runtime.on_incident = save_investigation
     replay = create_app(replay_source, bench_out=bench_out, public_settings=True, public_gate=gate)
-    live = create_app(live_source, bench_out=bench_out, public_settings=True, public_gate=gate) if world else replay
+    live = (
+        create_app(live_source, bench_out=bench_out, public_settings=True, public_gate=gate, public_limits=limits)
+        if world
+        else replay
+    )
     apps = [live, replay] if world else [replay]
     for app in apps:
         app.user_middleware[:] = [entry for entry in app.user_middleware if entry.cls is not CORSMiddleware]
@@ -55,14 +92,21 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
             await uvicorn_lifespan(scope, receive, send)
             return
         headers = Headers(scope=scope)
-        if headers.get("origin") not in (None, *WEB_ORIGINS):
+        origin = headers.get("origin")
+        direct = not headers.get("cf-connecting-ip") and bool(scope.get("client") and is_local(scope["client"][0]))
+        own_origin = origin == f"{scope['scheme']}://{headers.get('host')}" if direct else False
+        if origin not in (None, *WEB_ORIGINS) and not own_origin:
             await JSONResponse({"detail": "Origin refused"}, status_code=403)(scope, receive, send)
             return
         minute = int(monotonic() // 60)
         if minute != window:
             requests.clear()
             window = minute
-        peer = headers.get("cf-connecting-ip", "loopback")
+        try:
+            peer = str(ip_address(headers.get("cf-connecting-ip") or scope["client"][0]))
+        except (ValueError, TypeError, KeyError):
+            peer = "unknown"
+        scope = {**scope, "state": {**scope.get("state", {}), "public_peer": peer}}
         if requests["total"] >= 1200 or requests[f"ip:{peer}"] >= 240:
             limit = JSONResponse({"detail": "Rate limit"}, status_code=429, headers={"Retry-After": "60"})
             await limit(scope, receive, send)
@@ -110,7 +154,6 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
         query = parse_qs(scope["query_string"].decode("ascii", errors="replace"))
         recorded = (
             sealed
-            or route == OPERATOR_SESSION
             or path in {"/demo", "/openapi.json"}
             or path.startswith("/demo/")
             or (path.startswith("/agent/") and "run_id" in query)
@@ -136,15 +179,13 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
             return
         if (path.startswith(("/agent/", "/settings")) or metric_write) and headers.get("origin") in WEB_ORIGINS:
             # The public origin was checked above. OperatorGate still requires its session and CSRF token
-            # for writes, and proposals still belong to the sealed playback.
+            # for writes, including decisions on the operation's own source.
             scope = {**scope, "headers": [(key, value) for key, value in scope["headers"] if key != b"origin"]}
 
         async def private_response(message):
             if message["type"] == "http.response.start":
                 values = MutableHeaders(scope=message)
-                if route in (OPERATOR_SESSION, "/graph") or path.startswith(
-                    ("/graph/metrics", "/receipts/", "/settings")
-                ):
+                if route == "/graph" or path.startswith(("/agent/", "/graph/metrics", "/receipts/", "/settings")):
                     values["cache-control"] = "private, no-store"
                 if route in (OPERATOR_SESSION, SETTINGS_SESSION) and (cookie := values.get("set-cookie")):
                     if sealed and route == SETTINGS_SESSION:
@@ -177,9 +218,11 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--world", type=Path)
     parser.add_argument("--bench-out", type=Path, default=BENCH_OUT)
+    parser.add_argument("--state-dir", type=Path)
+    parser.add_argument("--openai-key-file", type=Path)
     args = parser.parse_args()
     uvicorn.run(
-        origin_app(args.world, bench_out=args.bench_out),
+        origin_app(args.world, bench_out=args.bench_out, state_dir=args.state_dir, key_file=args.openai_key_file),
         host="127.0.0.1",
         port=args.port,
         proxy_headers=False,

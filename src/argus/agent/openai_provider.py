@@ -76,12 +76,14 @@ class OpenAIClient:
         timeout: float = 45.0,
         max_retries: int = 1,
         transport: httpx2.BaseTransport | None = None,
+        *,
+        base_url: str = API,
     ) -> None:
         key = key or api_key("OPENAI_API_KEY")
         if not key:
             raise ProviderUnavailable("OPENAI_API_KEY is not set")
         self._http = httpx2.Client(
-            base_url=API, headers={"Authorization": f"Bearer {key}"}, timeout=timeout, transport=transport
+            base_url=base_url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout, transport=transport
         )
         self._max_retries = max(0, max_retries)
 
@@ -119,10 +121,13 @@ class OpenAIClient:
             time.sleep(delay)
         raise ProviderUnavailable(OPENAI_UNAVAILABLE)
 
-    def create(self, request: LlmRequest) -> LlmResponse:
-        try:
-            items = _items(request.messages)
-            tools = [
+    @staticmethod
+    def request_body(request: LlmRequest) -> dict[str, Any]:
+        return {
+            "model": request.model,
+            "instructions": request.system,
+            "input": _items(request.messages),
+            "tools": [
                 {
                     "type": "function",
                     "name": tool["name"],
@@ -131,22 +136,17 @@ class OpenAIClient:
                     "strict": False,
                 }
                 for tool in request.tools
-            ]
-            data, request_id = self._request(
-                "POST",
-                "/responses",
-                {
-                    "model": request.model,
-                    "instructions": request.system,
-                    "input": items,
-                    "tools": tools,
-                    "parallel_tool_calls": bool(tools),
-                    "max_output_tokens": request.max_tokens,
-                    "reasoning": {"effort": "low"},
-                    "service_tier": "default",
-                    "store": False,
-                },
-            )
+            ],
+            "parallel_tool_calls": bool(request.tools),
+            "max_output_tokens": request.max_tokens,
+            "reasoning": {"effort": "low"},
+            "service_tier": "default",
+            "store": False,
+        }
+
+    def create(self, request: LlmRequest) -> LlmResponse:
+        try:
+            data, request_id = self._request("POST", "/responses", self.request_body(request))
             response = LlmResponse(
                 model=data["model"],
                 content=[],

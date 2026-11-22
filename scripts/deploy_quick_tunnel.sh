@@ -82,9 +82,10 @@ trap cleanup EXIT
 trap 'exit 0' TERM INT
 
 loopback="http://127.0.0.1:$port"
-env -i HOME="$state/api-home" PATH="$PATH" ARGUS_DISABLE_PROVIDER=1 \
+env -i HOME="$state/api-home" PATH="$PATH" ARGUS_PROVIDER=openai ARGUS_PUBLIC_DAILY_USD="${ARGUS_PUBLIC_DAILY_USD:-5.00}" \
   "$root/.venv/bin/python" "$root/scripts/cloudflare_api.py" --port "$port" \
-  --world "$root/world/world.duckdb" > "$state/api.log" 2>&1 &
+  --world "$root/world/world.duckdb" --state-dir "$state/live-investigations" \
+  --openai-key-file "$state/openai.key" > "$state/api.log" 2>&1 &
 api_pid=$!
 
 health() {

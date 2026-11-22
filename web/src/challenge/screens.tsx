@@ -79,8 +79,8 @@ function Shell({ step, children, aside }: { step: 1 | 2 | 3 | 4; children: React
 
 function RecordedChip({ rec }: { rec: Recorded }) {
   return (
-    <span className="ch-chip" title={`Recorded with ${rec.command}; live sealing needs POST /challenge/commit (not built yet)`}>
-      recorded run · seed {rec.reveal.seed} · {dayLabel(rec.sealedAt)} {hhmm(rec.sealedAt)}
+    <span className="ch-chip" title={`Published with ${rec.command}`}>
+      result · seed {rec.reveal.seed} · {dayLabel(rec.sealedAt)} {hhmm(rec.sealedAt)}
     </span>
   );
 }
@@ -165,7 +165,7 @@ function PickScreen({ rec, route }: { rec: Recorded; route: Route }) {
         <section className="ch-card ch-sealed">
           <div className="ch-sealed-main">
             <span className="ch-eyebrow">Committed before the run</span>
-            <h1>Argus sealed the answer key.</h1>
+            <h1>Argus committed to the answer key.</h1>
             <Hash value={rec.commitment} big />
             <p className="ch-lede">
               This is the SHA-256 of a secret nonce and the hidden truth. Neither leaves the bench until the run is over; afterwards
@@ -173,7 +173,7 @@ function PickScreen({ rec, route }: { rec: Recorded; route: Route }) {
             </p>
             {asked !== null && asked !== rec.reveal.seed && (
               <p className="ch-note">
-                Live sealing is not built yet, so this is the recorded challenge for seed {rec.reveal.seed}, not {asked}.
+                The published challenge used seed {rec.reveal.seed}. You selected {asked}.
               </p>
             )}
             <div className="ch-actions">
@@ -205,7 +205,7 @@ function RunBanner({ rec }: { rec: Recorded }) {
           sha256:{hex.slice(0, 12)}…{hex.slice(-6)}
         </span>
       </span>
-      <span className="ch-banner-tag">recorded</span>
+      <span className="ch-banner-tag">Published result</span>
       <button className="btn primary" onClick={() => go("reveal")}>
         Reveal
       </button>
@@ -237,7 +237,7 @@ function CheckLine({ check, commitment }: { check: Check | null; commitment: str
         {check.matches ? "✓" : "✗"}
       </span>
       <div>
-        <b>{check.matches ? "The hash matches. The truth was sealed before the run." : "The hash does not match."}</b>
+        <b>{check.matches ? "The hash matches the commitment published before the run." : "The hash does not match."}</b>
         <span>
           sha256(nonce + newline + payload), recomputed in this browser with {engine}
         </span>
@@ -339,7 +339,7 @@ function RevealScreen({ rec, route }: { rec: Recorded; route: Route }) {
     <Shell
       step={4}
       aside={
-        <span className={`ch-grade ${ok ? "pass" : "fail"}`} title="graded by the bench against the sealed truth">
+        <span className={`ch-grade ${ok ? "pass" : "fail"}`} title="graded by the bench against the pre-registered answer key">
           {ok ? "PASS" : "FAIL"}
         </span>
       }
@@ -471,7 +471,7 @@ function VerifyScreen({ rec, route }: { rec: Recorded; route: Route }) {
               setPayload(rec.reveal.payload);
             }}
           >
-            Load the recorded reveal (seed {rec.reveal.seed})
+            Load the published answer key (seed {rec.reveal.seed})
           </button>
           <input className="mono" value={nonce} onChange={(e) => setNonce(e.target.value)} placeholder="nonce" aria-label="nonce" spellCheck={false} />
           <textarea

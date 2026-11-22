@@ -7,7 +7,9 @@
 import { useState } from "react";
 import { AgentReceiptChips } from "../../components/Receipts";
 import { agentApi, type ProposalState, type ProposalView } from "../../lib/agent";
+import { demoRunId } from "../../lib/agentDemo";
 import { ApiError } from "../../lib/api";
+import { publicApi, remoteGuidedRun } from "../../lib/deployment";
 import { dayLabel, hhmm } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { IncidentState } from "../../lib/types";
@@ -167,6 +169,7 @@ function LocalAction({
   view: RunView;
 }) {
   const approvedAt = useApproval(view.stream, incidentId);
+  const recording = view.mode === "replay" && (!publicApi || remoteGuidedRun || demoRunId() !== null);
   return (
     <div className="ws-act local">
       <p className="ws-act-text">
@@ -176,10 +179,10 @@ function LocalAction({
       <div className="ws-act-foot">
         {incidentState === "resolved" ? (
           <span className="ws-task-note">Recovered on its own; no action needed any more.</span>
-        ) : view.mode !== "replay" ? (
+        ) : !recording ? (
           <span className="ws-task-note">For manual review. A live approval appears when Argus files an operator proposal.</span>
         ) : approvedAt ? (
-          <span className="ws-approved">✓ Approval recorded in this browser at {hhmm(approvedAt)}</span>
+          <span className="ws-approved">✓ Approved in this browser at {hhmm(approvedAt)}</span>
         ) : (
           <button
             className="btn primary"

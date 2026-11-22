@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from contextlib import nullcontext
 from datetime import datetime
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -43,6 +43,9 @@ from argus.demo.bundle import AskAnswer, ReceiptProof, receipt_keys
 from argus.demo.playback import ControlError, Playback
 from argus.remediation.api import DecisionBody, OperatorGate, OperatorSession
 
+if TYPE_CHECKING:
+    from argus.api.public_limits import PublicLimits
+
 
 class AskBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -57,17 +60,13 @@ def _service(source: Source) -> AgentService:
     found = getattr(source, "agent", None)
     if isinstance(found, AgentService):
         return found
-    reason = (
-        "This is a replay: the recorded agent run plays in the demo playback (/demo)."
-        if source.mode == "replay"
-        else "The agent is off."
-    )
+    reason = "Live investigations require a connected live source." if source.mode == "replay" else "The agent is off."
     return AgentService("off", Journal(stream=source.bus.stream), reason=reason)
 
 
 def _scope(source: Source) -> AskScope:
     if not isinstance(source, LiveSource):
-        raise HTTPException(409, "Ask needs a live run over a world: make demo with --agent live.")
+        raise HTTPException(409, "Ask needs a connected live source.")
     hub = source.bus
     tick = next((e for e in reversed(hub.history) if e.type is EventType.TICK), None)
     if tick is None or hub.state.last_tick is None:
@@ -126,7 +125,13 @@ def _incident_cites(ref: ReceiptLink, incidents: Iterable[Incident], records: Se
     return False
 
 
-def router(source: Source, playback: Playback | None = None, operator_gate: OperatorGate | None = None) -> APIRouter:
+def router(
+    source: Source,
+    playback: Playback | None = None,
+    operator_gate: OperatorGate | None = None,
+    *,
+    public_limits: PublicLimits | None = None,
+) -> APIRouter:
     routes = APIRouter(prefix="/agent", tags=["agent"])
     off = _service(source)
     gate = None
@@ -150,6 +155,12 @@ def router(source: Source, playback: Playback | None = None, operator_gate: Oper
     def service() -> AgentService:
         found = getattr(source, "agent", None)
         return found if isinstance(found, AgentService) else off
+
+    def can_read_run(svc: AgentService, request: Request, run_id: str | None) -> bool:
+        if public_limits is None or run_id is None:
+            return True
+        owner = svc.ask_owners.get(run_id)
+        return owner is None or public_limits.gate.session_id(request) == owner
 
     def profile_name(svc: AgentService) -> ProfileName:
         return "v2" if getattr(getattr(svc, "profile", None), "name", None) == "v2" else "v1"
@@ -183,6 +194,7 @@ def router(source: Source, playback: Playback | None = None, operator_gate: Oper
             "profile": profile_name(svc),
             "features": [f for f in FEATURES if f in features],
             "board_version": BOARD_VERSION,
+            **({"public_limits": public_limits.status()} if public_limits is not None else {}),
         }
 
     @routes.get("/boards")
@@ -219,7 +231,7 @@ def router(source: Source, playback: Playback | None = None, operator_gate: Oper
         )
 
     @routes.get("/activity")
-    async def activity(since: int = 0, run_id: str | None = None) -> dict[str, Any]:
+    async def activity(request: Request, since: int = 0, run_id: str | None = None) -> dict[str, Any]:
         if run_id is not None:
             shown = [r for r in presentation(run_id).activity if r.seq > since]
             return {
@@ -233,30 +245,36 @@ def router(source: Source, playback: Playback | None = None, operator_gate: Oper
         return {
             "stream": source.bus.stream,
             "mode": svc.mode,
-            "records": [r.model_dump(mode="json") for r in records],
+            "records": [r.model_dump(mode="json") for r in records if can_read_run(svc, request, r.run_id)],
             "next_cursor": records[-1].seq if records else since,
         }
 
     @routes.get("/runs")
-    async def runs(run_id: str | None = None) -> list[RunSummary]:
+    async def runs(request: Request, run_id: str | None = None) -> list[RunSummary]:
         if run_id is not None:
             return _recorded_runs(presentation(run_id).activity)
-        return list(service().journal.runs.values())
+        svc = service()
+        with svc.journal.lock:
+            return [run for run in svc.journal.runs.values() if can_read_run(svc, request, run.run_id)]
 
     @routes.post("/ask")
-    async def ask(body: AskBody, run_id: str | None = None) -> dict[str, Any]:
+    async def ask(body: AskBody, request: Request, run_id: str | None = None) -> dict[str, Any]:
         if run_id is not None:
             answer: AskAnswer = presentation(run_id).ask(body.question, body.incident_id, body.conversation_id)
             return answer.model_dump(mode="json")
         svc = service()
         if not svc.enabled:
             raise HTTPException(409, svc.reason)
-        scope = await run_in_threadpool(_scope, source)
-        cursor = svc.journal.records[-1].seq if svc.journal.records else 0
-        try:
-            result = await run_in_threadpool(svc.ask, body.question, scope, body.incident_id, body.conversation_id)
-        except ProviderUnavailable as exc:
-            raise HTTPException(503, str(exc)) from exc
+        with public_limits.ask_slot() if public_limits is not None else nullcontext():
+            owner = await run_in_threadpool(public_limits.admit_ask, request) if public_limits is not None else None
+            scope = await run_in_threadpool(_scope, source)
+            cursor = svc.journal.records[-1].seq if svc.journal.records else 0
+            try:
+                result = await run_in_threadpool(
+                    svc.ask, body.question, scope, body.incident_id, body.conversation_id, owner=owner
+                )
+            except ProviderUnavailable as exc:
+                raise HTTPException(503, str(exc)) from exc
         if result.status == "unknown_conversation":
             raise HTTPException(404, result.reason or "unknown conversation")
         return result.to_json(cursor)
@@ -319,6 +337,8 @@ def router(source: Source, playback: Playback | None = None, operator_gate: Oper
             if proof is None:
                 raise HTTPException(404, f"no released receipt {ref.key()}")
             return proof
+        if not can_read_run(service(), request, run_id):
+            raise HTTPException(404, "No receipt found.")
         return await run_in_threadpool(live_receipt, ref)
 
     def live_receipt(ref: ReceiptLink) -> Receipt:

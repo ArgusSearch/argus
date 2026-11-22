@@ -119,7 +119,7 @@ export function Ask({ enabled, incidentId, records, replayQuestions, children }:
       else {
         conversation.current = answer.conversation_id ?? null;
         update({ answer: replayQuestions && answer.status === "unavailable"
-          ? { ...answer, answer: "No recorded answer is available for this question at the current replay position." }
+          ? { ...answer, answer: "This investigation has no answer to that question." }
           : answer });
       }
     } catch (error) {

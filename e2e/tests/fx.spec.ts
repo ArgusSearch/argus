@@ -79,10 +79,10 @@ test.describe("Argus Ice (fx layer)", () => {
   const SECTIONS = [
     { nav: "Dashboard", region: (p: Page) => dashboard(p) },
     { nav: "Investigations", region: (p: Page) => p.getByRole("region", { name: "investigation" }) },
-    { nav: "Morning report", region: (p: Page) => p.getByRole("region", { name: "morning report" }) },
+    { nav: "Since you were away", region: (p: Page) => p.getByRole("region", { name: "morning report" }) },
     { nav: "Metric graph", region: (p: Page) => p.getByRole("region", { name: "metric graph" }) },
     { nav: "Metric tree", region: (p: Page) => p.getByRole("region", { name: "metric tree" }) },
-    { nav: "Scorecard", region: (p: Page) => p.getByRole("region", { name: "bench scorecard" }) },
+    { nav: "Track record", region: (p: Page) => p.getByRole("region", { name: "bench scorecard" }) },
   ];
 
   test("?fx=1 loads Argus Ice: theme set, loader gone, KPI cards for every north-star metric, no errors", async ({ page }) => {
@@ -140,13 +140,13 @@ test.describe("Argus Ice (fx layer)", () => {
     }
     // the view host's own shortcuts (web/src/views/index.tsx), followed by the sidebar (web/src/fx/nav.ts).
     // Start from Scorecard so that "1" is a change of the host's tab.
-    await navButton(page, "Scorecard").click();
+    await navButton(page, "Track record").click();
     const KEYS: [string, string][] = [
       ["1", "Metric graph"],
       ["2", "Metric tree"],
       ["3", "Investigations"],
-      ["4", "Morning report"],
-      ["5", "Scorecard"],
+      ["4", "Since you were away"],
+      ["5", "Track record"],
     ];
     for (const [key, nav] of KEYS) {
       await page.keyboard.press(key);

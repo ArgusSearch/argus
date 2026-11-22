@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -175,8 +176,12 @@ class AskRunner:
         scope: AskScope,
         incident_id: str | None = None,
         history: list[dict[str, Any]] | None = None,
+        *,
+        on_start: Callable[[str], None] | None = None,
     ) -> AskResult:
         run_id = self.journal.new_run_id()
+        if on_start is not None:
+            on_start(run_id)
         ctx = RunContext(
             run_id=run_id,
             stream=scope.stream,
