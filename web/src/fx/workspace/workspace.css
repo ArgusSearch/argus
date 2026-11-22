@@ -170,6 +170,11 @@
   :root[data-fx][data-fx-section="graph"] .graph-foot > * {
     pointer-events: auto;
   }
+
+  /* the floating legend now sits where the new-metric bar sat: lift the bar clear of it */
+  :root[data-fx][data-fx-section="graph"] .gx-layer {
+    bottom: 48px;
+  }
 }
 
 /* portrait windows (a 1200x2030 check window): a wide graph cannot fill a tall area, so its row stops near the
@@ -291,7 +296,9 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-height: 0;
-  padding: var(--fx-space-4) var(--fx-space-3) var(--fx-space-4);
+  /* run past the app's bottom padding so the glass reaches the viewport edge instead of stopping 12 px short */
+  margin-bottom: calc(-1 * var(--fx-space-3));
+  padding: var(--fx-space-4) var(--fx-space-3) calc(var(--fx-space-4) + var(--fx-space-3));
   border-right: var(--fx-hair) solid var(--fx-glass-border);
   background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-2);
   box-shadow: var(--fx-glass-shadow);
@@ -371,6 +378,7 @@
   cursor: pointer;
   font: 500 13.5px / 1 var(--fx-font-sans);
   text-align: left;
+  text-decoration: none; /* Analysis is a link; it must read like its button siblings */
   transition:
     background var(--fx-dur-fast) var(--fx-ease-out),
     color var(--fx-dur-fast) var(--fx-ease-out);
