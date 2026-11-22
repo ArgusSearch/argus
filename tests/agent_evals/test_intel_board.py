@@ -154,7 +154,6 @@ def test_e25_no_chain_for_nonpaging_disposition(world_case, scenario, monkeypatc
 @pytest.mark.parametrize("seed", SEEDS)
 def test_e25_chain_is_receipted_from_event_to_impact(world_case, supported_stage2, scenario, seed):
     from argus.agent.chain import build_chain
-
     from argus.semantic.runner import Runner
 
     case = world_case(scenario, seed)

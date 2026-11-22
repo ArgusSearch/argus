@@ -63,9 +63,9 @@ def investigate_with_memory(case, state, *, memory=None, decide=None):
 
 @pytest.mark.e2e
 def test_e23_denied_action_is_suppressed_and_verified_approval_is_cited(world_case, tmp_path):
-    from argus.agent.board import build_board
     from argus.agent.memory import JsonlCaseMemory
 
+    from argus.agent.board import build_board
     from argus.agent.types import CaseNote
 
     path = tmp_path / "operator-memory.jsonl"

@@ -40,7 +40,6 @@ def test_e27_v2_presentation_replays_cold_twice(scenario, monkeypatch, tmp_path)
     digest = json.loads((root / "accepted.json").read_bytes()).get(scenario)
     assert digest, f"v2/{scenario} needs a retained live capture and its external pin"
     from argus.agent.board import build_board
-
     from argus.demo.agent import load_agent_timeline
 
     spend = tmp_path / "replay-spend.jsonl"
