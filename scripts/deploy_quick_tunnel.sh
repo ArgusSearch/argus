@@ -92,7 +92,8 @@ health() {
   curl -fsS --max-time 5 -H "Origin: $web" "$1/health" | jq -e '.status == "ok" and .mode == "live"' >/dev/null
 }
 
-for ((attempt=0; attempt<30; attempt++)); do
+# Allow the local API to finish importing dependencies under load.
+for ((attempt=0; attempt<120; attempt++)); do
   kill -0 "$api_pid" || fail "Argus API exited. See $state/api.log."
   if health "$loopback"; then break; fi
   sleep 1
@@ -123,9 +124,11 @@ rg --files-with-matches --hidden --no-ignore -e \
 [ "$scan" -eq 1 ] || fail "Static asset secret scan failed."
 health "$api" || fail "Quick Tunnel stopped answering before publish."
 
+commit_dirty=false
+if [ -f "$root/web/.argus-pages-overlay" ]; then commit_dirty=true; fi
 CI=1 WRANGLER_LOG_PATH="$state/wrangler.log" CLOUDFLARE_ACCOUNT_ID=c452dd4753dd99c4d03eec47380d0470 \
   wrangler pages deploy "$dist" --cwd "$state" --project-name argus-eye --branch main \
-  --commit-hash "$sha" --commit-message "Deploy Argus $sha" --commit-dirty=false
+  --commit-hash "$sha" --commit-message "Deploy Argus $sha" --commit-dirty="$commit_dirty"
 printf '%s\n' "$api" > "$state/api-url.new"
 mv "$state/api-url.new" "$state/api-url"
 printf 'Published %s with %s\n' "$web" "$api"

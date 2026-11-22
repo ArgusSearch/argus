@@ -55,7 +55,20 @@ export function ConnectionsTab({ live }: { live: boolean }) {
     return () => { active = false; };
   }, [enabled, retry]);
 
-  if (!enabled) return <Card><Empty>Connections are available in the local Argus app.</Empty></Card>;
+  if (!enabled) return (
+    <>
+      <p className="cs-note">Connect providers from the local Argus app.</p>
+      <Card title={PROVIDERS.plausible.name} desc={PROVIDERS.plausible.description} action={<Badge>Local app</Badge>}>
+        {null}
+      </Card>
+      <Card title="Google Analytics 4 (GA4)" desc="Website traffic and conversion events." action={<Badge>Planned</Badge>}>
+        {null}
+      </Card>
+      <Card title={PROVIDERS.stripe.name} desc={PROVIDERS.stripe.description} action={<Badge>Test mode</Badge>}>
+        {null}
+      </Card>
+    </>
+  );
   if (!connections) return (
     <Card>
       <Empty>{error || "Reading connections…"}</Empty>
