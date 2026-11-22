@@ -39,7 +39,7 @@ function AnswerBody({ answer, records }: { answer: AskAnswer; records: ActivityR
     <div className="lf-answer">
       <strong>Argus</strong>
       {answer.answer && <p>{text(answer.answer)}</p>}
-      {answer.reason && answer.reason !== answer.answer && <p>{text(answer.reason)}</p>}
+      {answer.status !== "answered" && answer.status !== "ok" && answer.reason && answer.reason !== answer.answer && <p>{text(answer.reason)}</p>}
       {answer.claims.length > 0 && (
         <ul className="lf-claims">
           {answer.claims.map((claim) => <li key={claim.claim_id}>{text(claim.display, claim.receipts)}</li>)}

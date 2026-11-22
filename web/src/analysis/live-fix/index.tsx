@@ -15,7 +15,7 @@ import { dayLabel, eur, hhmm, humanize, share } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { ProposalView } from "../../lib/agent";
 import type { Anomaly, Graph, Incident, Quantity, Verdict } from "../../lib/types";
-import { AgentAvatar, agentName } from "../../village/avatars";
+import { AgentAvatar, agentName, PERSONAS } from "../../village/avatars";
 import { Ask } from "./Ask";
 import { lineageOf, liveFixThreads, matchesThread, recordedSpan, threadForIncident, uniqueReceipts, type LiveFixThread } from "./model";
 
@@ -141,46 +141,49 @@ function Investigation({ thread, incident, incidentId, incidentError, graph, vie
   const trigger = view.anomalies.find((anomaly) => anomaly.id === incident?.findings.anomaly_id);
   const roles = useMemo(() => thread ? lineageOf(thread) : [], [thread]);
   const line = thread?.state === "working" && thread.group ? liveLine(thread.group) : null;
+  const clockId = line ? JSON.stringify(["live-fix", scope, thread?.id]) : undefined;
   return (
     <>
       <Ask enabled={agent.enabled && !missingRun} incidentId={incidentId} records={agent.records} replayQuestions={agent.enabled ? replay?.snapshot?.questions : undefined}>
         {(turns, composer, count) => (
-          <Transcript count={count + (thread?.group?.records.length ?? 0)} composer={composer} turns={turns}>
+          <Transcript count={count + (line ? thread?.group?.records.length ?? 0 : 0)} composer={composer} turns={turns} heading={
             <header className="lf-work-heading">
               <h2>{incident ? `${metricName(graph, incident.root_node)} · ${wherePhrase(incidentWhere(incident))}` : thread?.title ?? "Investigation"}</h2>
               {incident && <Pill tone={STATE[incident.state].tone}>{STATE[incident.state].label}</Pill>}
               {incident && <button type="button" className="ag-link" onClick={() => onOpenIncident(incident.id)}>Open incident report</button>}
             </header>
+          }>
             {incidentId && !incident && <p className="lf-muted" role="status">{incidentError ?? "Loading incident evidence…"}</p>}
             {missingRun && <p className="lf-muted">The requested run is unavailable in this source.</p>}
             {!missingRun && !incidentId && !thread && <p className="lf-muted">Select an incident or an agent run to see its work.</p>}
             {incident && <IncidentEvidence incident={incident} />}
-            {thread && <RunWork thread={thread} roles={roles} />}
-            {line && <div className="lf-live" role="status">
+            {thread && <RunWork thread={thread} roles={roles} clockId={clockId} />}
+            {line && clockId && <div className="lf-live" role="status">
               <AgentAvatar role={line.role} status="working" size={32} badge={false} />
               <div><strong>{line.verb}</strong>{line.text && <p>{line.text}</p>}</div>
-              <span className="mono" title="Time observed in this browser">Watching for <Elapsed id={JSON.stringify(["live-fix", scope, thread?.id])} live /></span>
+              <span className="mono" title="Time observed in this browser">Watching for <Elapsed id={clockId} live /></span>
             </div>}
           </Transcript>
         )}
       </Ask>
-      <Insights incident={incident} thread={thread} trigger={trigger} graph={graph} roles={roles} />
+      <Insights incident={incident} thread={thread} trigger={trigger} graph={graph} roles={roles} clockId={clockId} />
     </>
   );
 }
 
-function Transcript({ count, composer, turns, children }: { count: number; composer: ReactNode; turns: ReactNode; children: ReactNode }) {
+function Transcript({ count, composer, turns, heading, children }: { count: number; composer: ReactNode; turns: ReactNode; heading: ReactNode; children: ReactNode }) {
   const tail = useFollowTail(count);
   return (
     <section className="lf-main" aria-label="Investigation work">
+      {heading}
       <div className="lf-transcript-wrap">
-        <div className="lf-transcript" ref={tail.ref} tabIndex={0} aria-label="Investigation transcript" onClick={(event) => {
+        <div className="lf-transcript" ref={count > 0 ? tail.ref : undefined} tabIndex={0} aria-label="Investigation transcript" onClick={(event) => {
           if (event.target instanceof Element && event.target.closest("summary")) tail.release();
         }}>
           {children}
           <ol className="lf-turns">{turns}</ol>
         </div>
-        <JumpToLatest tail={tail} noun="updates" />
+        {count > 0 && <JumpToLatest tail={tail} noun="updates" />}
       </div>
       {composer}
     </section>
@@ -216,22 +219,27 @@ function IncidentEvidence({ incident }: { incident: Incident }) {
   );
 }
 
-function RunWork({ thread, roles }: { thread: LiveFixThread; roles: ReturnType<typeof lineageOf> }) {
+function RunWork({ thread, roles, clockId }: { thread: LiveFixThread; roles: ReturnType<typeof lineageOf>; clockId?: string }) {
+  const [workOpen, setWorkOpen] = useState(false);
   const { group, proposals, run } = thread;
   const span = recordedSpan(group?.records[0]?.sim_ts, thread.at ?? undefined);
-  const featured = proposals.filter((proposal) => proposal.state === "AWAIT_OPERATOR" && !group?.proposed.includes(proposal.id));
-  const orphaned = proposals.filter((proposal) => proposal.state !== "AWAIT_OPERATOR" && !group?.proposed.includes(proposal.id));
+  const origin = (id: string) => group?.records.find((record) => record.kind === "action_proposed" && record.action_id === id);
+  const featured = proposals.filter((proposal) => proposal.state === "AWAIT_OPERATOR" && (!workOpen || !origin(proposal.id)));
+  const orphaned = proposals.filter((proposal) => proposal.state !== "AWAIT_OPERATOR" && !origin(proposal.id));
   const summary = group ? groupSummary(group, thread.state === "working") : run ? `${run.tool_calls} recorded checks` : "Run details";
   return (
     <article className="lf-work">
-      <details className="lf-disclosure">
+      <details className="lf-disclosure" onToggle={(event) => setWorkOpen(event.currentTarget.open)}>
         <summary>{span && thread.state === "settled" ? <>Worked for {formatElapsed(span)} <small>recorded span</small></> : "Agent work"} <small>{summary}</small></summary>
         {group?.steps.length ? <ol className="au-steps">
           {group.steps.map((step) => {
             if (step.kind === "check") return <CheckRow key={step.key} check={step} />;
             const record = step.record;
             const proposal = record.kind === "action_proposed" ? proposals.find((entry) => entry.id === record.action_id) : undefined;
-            if (proposal) return proposal.state === "AWAIT_OPERATOR" ? null : <Approval key={step.key} proposal={proposal} at={record.sim_ts} />;
+            if (proposal) {
+              if (origin(proposal.id)?.seq !== record.seq || (proposal.state === "AWAIT_OPERATOR" && !workOpen)) return null;
+              return <Approval key={step.key} proposal={proposal} at={record.sim_ts} />;
+            }
             if (!record.text && !record.receipt_links.length) return null;
             return <li className="lf-record" key={step.key}>
               <span className="mono">{hhmm(record.sim_ts)} UTC · {humanize(record.kind)}</span>
@@ -247,14 +255,10 @@ function RunWork({ thread, roles }: { thread: LiveFixThread; roles: ReturnType<t
           <span className="lf-avatar-stack" aria-hidden="true">{roles.map(({ role }) => <AgentAvatar key={role} role={role} size={23} badge={false} />)}</span>
           {roles.length} {roles.length === 1 ? "role" : "roles"} <small>{roles.some((role) => role.working) ? "1 working" : "Observed in this run"}</small>
         </summary>
-        <Lineage roles={roles} />
+        <Lineage roles={roles} clockId={clockId} />
       </details>}
       <ol className="lf-approvals au-steps">
-        {group?.records.filter((record) => record.kind === "action_proposed").flatMap((record) => {
-          const proposal = proposals.find((entry) => entry.id === record.action_id && entry.state === "AWAIT_OPERATOR");
-          return proposal ? [<Approval key={record.seq} proposal={proposal} at={record.sim_ts} />] : [];
-        })}
-        {featured.map((proposal) => <Approval key={proposal.id} proposal={proposal} />)}
+        {featured.map((proposal) => <Approval key={proposal.id} proposal={proposal} at={origin(proposal.id)?.sim_ts} />)}
       </ol>
     </article>
   );
@@ -270,7 +274,7 @@ function Approval({ proposal, at }: { proposal: ProposalView; at?: string }) {
   );
 }
 
-function Lineage({ roles }: { roles: ReturnType<typeof lineageOf> }) {
+function Lineage({ roles, clockId }: { roles: ReturnType<typeof lineageOf>; clockId?: string }) {
   return (
     <ul className="lf-lineage">
       {roles.map(({ role, last, seconds, working, checks }) => (
@@ -278,17 +282,18 @@ function Lineage({ roles }: { roles: ReturnType<typeof lineageOf> }) {
           <AgentAvatar role={role} size={29} status={working ? "working" : "idle"} badge={false} />
           <div>
             <strong>{agentName(role)}</strong>
-            <span>{checks.length ? `${checks.length} ${checks.length === 1 ? "check" : "checks"}` : humanize(last.kind)}{working && " · Working"}</span>
+            <span>{PERSONAS[role].title} · {checks.length ? `${checks.length} ${checks.length === 1 ? "check" : "checks"}` : humanize(last.kind)}{working && " · Working"}</span>
             <AgentReceiptChips links={uniqueReceipts([...last.receipt_links, ...(last.observation?.receipt_refs ?? [])])} />
           </div>
-          {seconds && <span className="mono" title="Recorded span between role events">{formatElapsed(seconds)}</span>}
+          {working && clockId ? <span title="Time observed in this browser"><Elapsed id={clockId} live className="mono" /></span>
+            : seconds && <span className="mono" title="Recorded span between role events">{formatElapsed(seconds)}</span>}
         </li>
       ))}
     </ul>
   );
 }
 
-function Insights({ incident, trigger, thread, graph, roles }: { incident: Incident | null; trigger?: Anomaly; thread?: LiveFixThread; graph: Graph | null; roles: ReturnType<typeof lineageOf> }) {
+function Insights({ incident, trigger, thread, graph, roles, clockId }: { incident: Incident | null; trigger?: Anomaly; thread?: LiveFixThread; graph: Graph | null; roles: ReturnType<typeof lineageOf>; clockId?: string }) {
   const findings = incident?.findings;
   const gate = (thread?.group && gateOf(thread.group)?.admitted) ?? thread?.run?.gate?.admitted;
   const verdict = incident?.verdict ?? gate;
@@ -332,7 +337,7 @@ function Insights({ incident, trigger, thread, graph, roles }: { incident: Incid
       </details>}
       <section className="lf-lineage-panel">
         <h3>Lineage</h3>
-        {roles.length ? <Lineage roles={roles} /> : <p className="lf-muted">No role activity reported for this run.</p>}
+        {roles.length ? <Lineage roles={roles} clockId={clockId} /> : <p className="lf-muted">No role activity reported for this run.</p>}
       </section>
       <small className="lf-credit">Inspired by <a href="https://github.com/pingdotgg/t3code/tree/11224f63d2a3d444ca1fd1f67cd3ff21c1f5f8a1" target="_blank" rel="noreferrer">T3 Code (MIT)</a></small>
     </aside>
