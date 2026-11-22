@@ -12,6 +12,7 @@ import { FxWorkspace, fxOn, GraphStage, openIncidentPage, useStoryFocus } from "
 import { go } from "./fx/nav";
 import { GraphExtensionLayer, useGraphExtension } from "./graph-extension";
 import { demoGraph, useAgentDemo } from "./lib/agentDemo";
+import { pollEvents } from "./lib/deployment";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
@@ -106,6 +107,7 @@ export function App() {
   }, [demoRun]);
 
   useEffect(() => {
+    loadGraph();
     return follow({
       onReset: (header) => {
         setView((v) => emptyView(header.stream, header.mode, v.thresholds));
@@ -132,16 +134,18 @@ export function App() {
 
   useEffect(() => {
     let live = true;
-    const poll = () =>
-      api.health().then(
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (!document.hidden) await api.health().then(
         (h) => live && setHealth(h),
         () => live && setHealth(null),
       );
-    poll();
-    const timer = setInterval(poll, 1000);
+      if (live) timer = setTimeout(poll, pollEvents ? 4000 : 1000);
+    };
+    void poll();
     return () => {
       live = false;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -233,7 +237,7 @@ export function App() {
               <div className="graph-canvas">
                 <OfflineBanner connection={connection} />
                 {connection !== "offline" && mapError && <div className="banner" role="alert">Metric map could not be loaded. {mapError}</div>}
-                {!mapError && !graph && <Skeleton variant="graph" label="Loading the metric map" />}
+                {connection !== "offline" && !mapError && !graph && <Skeleton variant="graph" label="Loading the metric map" />}
                 {graph && (
                   <ReactFlowProvider>
                     <GraphStage graph={graph} view={sceneView} onSelectNode={setNodeId} />

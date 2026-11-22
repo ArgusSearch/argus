@@ -1,4 +1,4 @@
-// When the entry screen (the demo sign-in) shows. It stands before the overview on a plain page load of the
+// When the entry screen shows. It stands before the overview on a plain page load of the
 // style layer, once per browser tab. Deep links go straight to what they name: the recording URL
 // (/?demo=1&captions=1&fx=1), the agent presentation (?agentdemo=, ?agentrun=) and every ?view=... link skip it,
 // so demo mode, recordings and tests never wait on a click.

@@ -240,7 +240,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
   const humans = useHumanActions(view);
   const items = recorded
     ? NAV.filter((item) => item.id === "dashboard" || item.id === "settings" || item.id === "calendar" || (item.id === "village" && Village)).map((item) =>
-      item.id === "dashboard" ? { ...item, label: "Recorded demo", hint: "Return to the recorded demo" } : item,
+      item.id === "dashboard" ? { ...item, label: "Mission Control", hint: "Return to Mission Control" } : item,
     )
     : NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
@@ -326,6 +326,14 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
             </button>
           </li>
         ))}
+        <li>
+          <button className="fx-side-item" onClick={() => window.location.assign("/?challenge=reveal")}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.5 2.5h9v11h-9zM5.5 8l1.5 1.5 3.5-3.5" />
+            </svg>
+            <span>Sealed result</span>
+          </button>
+        </li>
       </ul>
       </div>
       {!recorded && <AgentDemoControl />}

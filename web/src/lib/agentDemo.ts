@@ -5,8 +5,8 @@
 // One presentation at a time, shared by the whole page through this small store.
 
 import { useSyncExternalStore } from "react";
-import { ApiError } from "./api";
-import { apiUrl } from "./deployment";
+import { ApiError, apiFetch } from "./api";
+import { pollEvents } from "./deployment";
 import type { ArgusEvent, Graph, Incident } from "./types";
 
 export type AgentDemoStatus = "idle" | "playing" | "paused" | "awaiting_approval" | "completed";
@@ -42,7 +42,7 @@ export interface AgentDemo {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), init);
+  const res = await apiFetch(path, init);
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -73,7 +73,7 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 let current: AgentDemo | null = null;
 let timer = 0;
-const POLL_MS = 600;
+const POLL_MS = pollEvents ? 1000 : 600;
 
 function set(next: AgentDemo | null) {
   current = next;

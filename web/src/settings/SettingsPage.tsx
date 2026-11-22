@@ -325,21 +325,10 @@ function QuietTab() {
       </Card>
       <Card title="Paging window" action={<Preview />}>
         <Row label="Quiet hours" help="Hold pages between these hours and deliver them in the morning report.">
-          <span className="cs-chips end">
-            <span className="cs-input" aria-disabled="true">
-              22:00
-            </span>
-            <span className="cs-muted">to</span>
-            <span className="cs-input" aria-disabled="true">
-              07:00
-            </span>
-            <Switch on={false} label="Quiet hours" />
-          </span>
+          <Switch on={false} label="Quiet hours" />
         </Row>
         <Row label="Page anyway above" help="An incident costing more than this per hour would still page during quiet hours.">
-          <span className="cs-input" aria-disabled="true">
-            €1,000 / h
-          </span>
+          <Badge>Not set</Badge>
         </Row>
         <Row label="Weekends" help="Treat Saturday and Sunday as quiet all day.">
           <Switch on={false} label="Weekends quiet" />
@@ -405,7 +394,7 @@ function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
       <Card title="Connected" desc={<>Live from <Source>GET /health</Source>.</>}>
         {!h ? <Empty>{health.error ? "Could not read the current source." : "Reading the current source…"}</Empty> : <Row
           lead={<i className="cs-conn ok" aria-hidden="true" />}
-          label={h?.mode === "live" ? "Simulated shop, live" : "Simulated shop, recorded run"}
+          label={h.mode === "live" ? "Shop · live" : "Shop · sealed run"}
           help={h.mode === "live" ? "Generated shop data served by DuckDB." : "A sealed recording of Argus over generated shop data."}
         >
           <span className="cs-chips end">
@@ -429,7 +418,7 @@ function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
         )}
       </Card>
       <Card title="Tables" desc="The source tables metrics use, with coverage for the latest scored hour.">
-        {tables.length === 0 && <Empty>Loading the graph…</Empty>}
+        {tables.length === 0 && <Empty>No source tables available.</Empty>}
         {tables.map(([table, metrics]) => {
           const f = fresh.get(table);
           return (
@@ -462,7 +451,7 @@ function SourcesTab({ graph, view }: { graph: Graph | null; view: RunView }) {
           </Row>
         ))}
       </Card>
-      <Card title="Connectors" desc="Argus reads through one interface; only the simulator is behind it in the demo." action={<Preview />}>
+      <Card title="Connectors" desc="The Shop is connected through DuckDB." action={<Preview />}>
         {CONNECTORS.map((c) => (
           <Row key={c} lead={<i className="cs-conn" aria-hidden="true" />} label={c}>
             <Switch on={false} label={c} />

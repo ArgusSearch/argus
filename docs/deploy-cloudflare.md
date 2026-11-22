@@ -1,6 +1,25 @@
 # Argus on Cloudflare
 
-Cloudflare Pages project `argus-eye` serves [the Argus Ice web app](https://argus.caniberk.dev). The Studio runs the API on `127.0.0.1:18080`. The locally managed named tunnel `argus-api` serves [the public API](https://argus-api.caniberk.dev/health). The temporary Pages-only build at [argus-eye.pages.dev](https://argus-eye.pages.dev) includes the sealed challenge result, the recorded Village, and Settings. Live settings report their availability without contacting the API.
+Cloudflare Pages project `argus-eye` serves Mission Control at [argus-eye.pages.dev](https://argus-eye.pages.dev). The permanent setup runs the API on the Studio at `127.0.0.1:18080` behind the named tunnel `argus-api`. [Argus custom domain](https://argus.caniberk.dev), [API health](https://argus-api.caniberk.dev/health).
+
+## Interim quick tunnel
+
+On the Studio, run the release gates from a clean, committed checkout. Use its bench output when you install the interim LaunchAgent.
+
+```sh
+make web
+ARGUS_DISABLE_PROVIDER=1 make s1
+ARGUS_DISABLE_PROVIDER=1 make bench
+./scripts/deploy_quick_tunnel.sh --install "$PWD/runs/bench"
+```
+
+The machine needs a macOS GUI login, authenticated Wrangler with Pages access, Cloudflared, Node/npm, `uv`, Python, `curl`, `jq` and `rg`. The script exports the committed release into the task state directory, generates the S1 Shop world, and starts a supervised loopback API on port 18180. The API starts with an allowlisted environment and provider access disabled. The simulator moves quickly through its opening quiet hours. Once it has filed the first incident, the job restores normal speed and uploads the scanned build directly to the `main` production deployment of Pages.
+
+The temporary hostname changes whenever the job restarts. The LaunchAgent restarts the API and tunnel together and publishes a fresh build with the new hostname. Reload an open tab after the new deployment to pick up the URL. Cloudflare Quick Tunnels buffer event streams, so the interim build polls bounded event pages using the same sequence and stream IDs as the named tunnel's SSE connection. [Quick Tunnel limitations](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+
+Default job state, logs, and the active `api-url` file are in `~/.firstmate-secondmate-hacklab/data/argus-live-fix/quick-tunnel/`. Stop the interim job with `launchctl bootout "gui/$(id -u)/dev.caniberk.argus.quick"` before installing an updated interim release or switching to the named tunnel. For the permanent cutover, also remove the `dev.caniberk.argus.quick.plist` symlink from `~/Library/LaunchAgents` so the interim deployment does not resume at login.
+
+Opening the live site shows the Batu operator entry and then the workspace overview. The Shop data comes from a running simulation. The proof link opens the sealed result. The S1 recording URL `/?demo=1&captions=1&fx=1` uses its own event stream. The S4 recording starts at `/?fx=1&agentdemo=s4&agentspeed=2`.
 
 ## Activate on the Studio
 
@@ -14,7 +33,7 @@ The script lists DNS at both exact names first and refuses conflicting records. 
 
 - `dev.caniberk.argus.api` runs Uvicorn from a clean, detached clone of the checked-out green SHA. It generates a separate MockMart world per release. The overview uses that live simulation. The guided demo and case-scoped Ask and approvals use the sealed presentation. Recorded approval sets the presentation's decision, and the checked-in live simulator executor targets the generated DuckDB world. No provider credentials or customer connections are configured.
 - `dev.caniberk.argus.tunnel` runs `cloudflared` with its own configuration and connector credentials. Its ingress is limited to `argus-api.caniberk.dev`. `dev.caniberk.argus.deploy` checks `origin/main` CI every five minutes and deploys a new SHA after successful CI. The deployment builds with `VITE_ARGUS_API_URL=https://argus-api.caniberk.dev`, scans assets for credential patterns, checks CORS and `/health`, reads `/graph`, and loads `/?demo=1`.
-- The public API accepts browser requests from `https://argus.caniberk.dev`, limits requests per client and across the process, caps request bodies at 128 KiB, and refuses user-supplied metric definitions. The operator cookie and CSRF token protect decisions within the shared demo run. `VITE_ARGUS_STATIC_REPLAY=1` selects the Pages-only mode, which can verify the sealed result offline. The timed playback, Ask, and approval require the API.
+- The public API allows browser origins `https://argus.caniberk.dev` and `https://argus-eye.pages.dev`, limits requests per client and across the process, caps request bodies at 128 KiB, and refuses user-supplied metric definitions. The operator cookie and CSRF token protect simulator decisions in the sealed playback. `VITE_ARGUS_STATIC_REPLAY=1` selects the Pages-only fallback with offline verification. Timed playback, Ask, and approvals require the API.
 
 ## Stop or roll back
 

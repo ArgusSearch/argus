@@ -3,8 +3,8 @@
 // a made-up value.
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
-import { apiUrl, staticReplay } from "../lib/deployment";
+import { api, json } from "../lib/api";
+import { staticReplay } from "../lib/deployment";
 import type { Health } from "../lib/types";
 import type { Autonomy } from "./model";
 
@@ -14,7 +14,7 @@ interface Loaded<T> {
 }
 
 const LOADING = { data: null, error: null };
-const RECORDED = { data: null, error: "Live settings are unavailable in the recorded demo." };
+const RECORDED = { data: null, error: "The live API is unavailable." };
 
 function useRead<T>(read: () => Promise<T>, stream: string | null): Loaded<T> {
   const [result, setResult] = useState<(Loaded<T> & { stream: string | null }) | null>(null);
@@ -37,13 +37,7 @@ function useRead<T>(read: () => Promise<T>, stream: string | null): Loaded<T> {
   return result?.stream === stream ? result : LOADING;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(apiUrl(path));
-  if (!res.ok) throw new Error(`${path} answered ${res.status}`);
-  return (await res.json()) as T;
-}
-
-const readAutonomy = () => getJson<Autonomy>("/autonomy");
+const readAutonomy = () => json<Autonomy>("/autonomy");
 const readHealth = () => api.health();
 
 export function useAutonomy(stream: string | null): Loaded<Autonomy> {

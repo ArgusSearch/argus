@@ -1,7 +1,4 @@
-// The entry screen: the demo sign-in in front of Mission Control. A split card over the ice scene: on the left
-// the night over the igloo, the Argus mark keeping watch and the seven agents on the snow; on the right who you
-// enter as, what you are looking at (from GET /health) and one way in. There are no accounts in this demo and the
-// screen says so; "Enter Mission Control" lands on the overview. EntryGate.tsx and gate.ts decide when it shows.
+// The Mission Control entry card identifies the operator and shows the latest check from GET /health.
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
@@ -63,7 +60,6 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
     if (shown) dialog.current?.focus({ preventScroll: true });
   }, [shown]);
 
-  const recorded = health?.mode !== "live";
   const lastCheck = health?.sim_ts ? `${dayLabel(health.sim_ts)} · ${hhmm(health.sim_ts)}` : null;
   const checkStatus = health === null ? "Connection unavailable" : "Connecting…";
 
@@ -77,7 +73,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
       aria-labelledby="fx-entry-title"
       aria-describedby="fx-entry-lede"
     >
-      <CornerHud fixed tl={<span className="fx-hud">Argus</span>} tr="Mission control" bl="Demo sign-in" br="Autonomous watch" />
+      <CornerHud fixed tl={<span className="fx-hud">Argus</span>} tr="Mission control" bl="Operator workspace" br="Autonomous watch" />
       <div className="fx-entry-card">
         <section className="fx-entry-art" aria-label="Argus keeps watch">
           <EntrySky />
@@ -110,48 +106,41 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
               <dt>You enter as</dt>
               <dd>
                 <span className="fx-entry-monogram" aria-hidden="true">
-                  DO
+                  B
                 </span>
-                <span>Demo operator</span>
-                <em>demo</em>
+                <span>Batu</span>
               </dd>
             </div>
             <div>
               <dt>Shop</dt>
               <dd>
-                <span>A simulated online shop</span>
-                <em>test data</em>
+                <span>Shop</span>
               </dd>
             </div>
             <div>
               <dt>{staticReplay ? "Mode" : "Last check"}</dt>
               <dd>
                 <i className={`fx-entry-dot${health ? " on" : ""}`} aria-hidden="true" />
-                <span>{staticReplay ? "Recorded demo" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
-                {health && <em>{recorded ? "recorded run" : "live"}</em>}
+                <span>{staticReplay ? "Sealed result" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
+                {health?.mode === "live" && <em>live</em>}
               </dd>
             </div>
           </dl>
 
           <button type="button" className="fx-entry-go" onClick={onEnter} disabled={leaving}>
-            <span>{staticReplay ? "Open the sealed replay" : "Enter Mission Control"}</span>
+            <span>{staticReplay ? "Open the sealed result" : "Sign in as Batu"}</span>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h9.5M8.5 4l4 4-4 4" />
             </svg>
           </button>
           {staticReplay ? (
             <>
-              <a className="fx-entry-alt" href="/?view=village">Village replay</a>
+              <a className="fx-entry-alt" href="/?view=village">Village</a>
               <a className="fx-entry-alt" href="/?view=settings&tab=quiet-hours">Settings</a>
             </>
           ) : (
             <>
-              <a className="fx-entry-alt" href="/?demo=1&captions=1&fx=1">
-                Or watch the guided demo: one incident, start to finish
-              </a>
-              <p className="fx-entry-foot">
-                This demo has no accounts or passwords. Approvals go through a local operator session on this machine.
-              </p>
+              <a className="fx-entry-alt" href="/?challenge=reveal">Verify the sealed result</a>
             </>
           )}
         </section>
