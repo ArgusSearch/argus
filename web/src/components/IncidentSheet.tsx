@@ -85,7 +85,7 @@ export function IncidentSheet({
             {incident && <span className={`pill ${incident.verdict}`}>{verdictLabel(incident.verdict)}</span>}
             <span className="spacer" />
             <button className="btn" onClick={copy} disabled={!incident}>
-              {copied ? "Copied" : "Copy report (Markdown)"}
+              {copied ? "Copied" : "Copy as Markdown"}
             </button>
             <button className="icon-btn" onClick={onClose} aria-label="Close">
               ✕
