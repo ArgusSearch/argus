@@ -17,7 +17,8 @@ from pathlib import Path
 import pytest
 
 from argus.contracts.events import Event, EventType, InvestigationStepPayload
-from argus.contracts.findings import Incident, Verdict
+from argus.contracts.findings import Anomaly, Incident, Verdict
+from argus.contracts.graph import Graph
 from argus.investigate import procedure
 from argus.investigate.__main__ import run_world
 from argus.investigate.claims import claims_of
@@ -27,9 +28,10 @@ from argus.investigate.procedure import StageTwoInvestigation
 from argus.investigate.report import render_findings
 from argus.narrator.report import unbacked_numbers
 from argus.runtime.loop import Runtime
+from argus.semantic.runner import Runner
 from mockmart.sim import WorldConfig
 from mockmart.truth import read_truth
-from mockmart.world import generate
+from mockmart.world import WorldPaths, generate
 
 pytestmark = pytest.mark.e2e
 SEEDS = (1, 4, 7)
@@ -168,6 +170,57 @@ def test_planner_hypotheses_are_checked_by_the_ledger(runs: dict[int, Run], monk
     ]
     assert any(r.hypothesis.startswith("the drop is a mix shift") for r in findings.ruled_out)
     assert findings.verdict is Verdict.SUPPORTED_CAUSE
+
+
+@pytest.mark.parametrize(
+    ("hits", "weeks", "status", "verdict", "reason"),
+    [
+        (None, None, "validated", Verdict.SUPPORTED_CAUSE, "placebo did not recur"),
+        (0, 0, "inconclusive", Verdict.HYPOTHESIS, "historical placebo check was inconclusive"),
+        (1, 5, "inconclusive", Verdict.HYPOTHESIS, "historical placebo check was inconclusive"),
+        (2, 5, "refuted", Verdict.UNEXPLAINED, "deviations like this in earlier weeks"),
+        (None, None, None, Verdict.HYPOTHESIS, "historical placebo check was not run"),
+    ],
+)
+def test_s1_supported_cause_requires_validated_history(
+    s1_world: WorldPaths,
+    graph: Graph,
+    monkeypatch: pytest.MonkeyPatch,
+    hits: int | None,
+    weeks: int | None,
+    status: str | None,
+    verdict: Verdict,
+    reason: str,
+) -> None:
+    path = Path(__file__).resolve().parents[2] / "fixtures" / "anomalies.json"
+    anomaly = Anomaly.model_validate(json.loads(path.read_text())[0])
+    runner = Runner(s1_world.world)
+    try:
+        investigation = StageTwoInvestigation(graph, runner, anomaly, anomaly.detected_at)
+        if status is None:
+            monkeypatch.setattr(investigation, "_placebo", lambda *_: None)
+        elif hits is not None:
+            placebo_test = investigation.tools.placebo_test
+
+            def with_history(*args, **kwargs):
+                output, detail = placebo_test(*args, **kwargs)
+                summary = f"{hits} of {weeks} earlier weeks deviate as much"
+                return output.model_copy(update={"hits": hits, "weeks": weeks, "summary": summary}), detail
+
+            monkeypatch.setattr(investigation.tools, "placebo_test", with_history)
+        findings = investigation.run()
+    finally:
+        runner.close()
+
+    assert findings.verdict is verdict
+    assert reason in findings.trail[-1].why
+    ledger = findings.trail[-1].data["ledger"]
+    placebo = [e for e in ledger if e["hypothesis"]["tool"] == "placebo_test"]
+    assert [entry["status"] for entry in placebo] == ([status] if status else [])
+    assert any(e["hypothesis"]["tool"] == "holdout_check" and e["status"] == "validated" for e in ledger)
+    if verdict is Verdict.HYPOTHESIS:
+        assert findings.root is not None and findings.root.evidence is None
+        assert any(c.upgrade == "a validated historical placebo check" for c in claims_of(findings))
 
 
 def test_cli_writes_stage_two_reports(tmp_path: Path) -> None:

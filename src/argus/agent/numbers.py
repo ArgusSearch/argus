@@ -1,10 +1,7 @@
 """The hard boundary in code: every number the agent writes must come from a receipted tool result.
 
-`FactBook` collects every number of every tool result the agent saw in one run, each with the receipts of
-the result it came from. `check` reads a draft report sentence by sentence: a number that matches no fact is
-unbacked, and a line with a number but no `[receipt]` tag naming a receipt the run actually saw is
-untagged. A report with either, or with a citation that is not a receipt id, is returned to the model to fix; it is
-never filed. Tags are checked per sentence, so one tag at the end of a paragraph cannot vouch for it all.
+`FactBook` collects numbers by the receipts of the tool results they came from. `check` reads a draft
+sentence by sentence: each measured number must match a value from a receipt cited in that sentence.
 """
 
 from __future__ import annotations
@@ -14,17 +11,21 @@ from dataclasses import dataclass, field
 from typing import Any
 
 NUMBER = re.compile(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?")
-TAG = re.compile(r"\[((?:[ra]\d+)(?:\s*,\s*[ra]\d+)*)\]")
+TAGS = r"[aqr]\d+(?:\s*,\s*[aqr]\d+)*"
+TAG = re.compile(rf"\[({TAGS})\]")
+LIST_MARKER = re.compile(r"^\s*\d+[.)]\s+")
 # Not quantities: receipt tags and ids, inline code, incident/anomaly/action ids, dates and clock times,
 # list markers, model and version names.
-SKIP = re.compile(
-    r"\[[ra]\d+(?:\s*,\s*[ra]\d+)*\]|\b[ra]\d+\b|`[^`]*`|INC-\d+|\ban_p?\d+\b|\b(?:act|rep|run|h)_?\d+\b"
-    r"|\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\b\d{1,2}:\d{2}\b|^\s*\d+\.\s|^#+.*$"
+NON_QUANTITIES = (
+    rf"\[{TAGS}\]|\b[aqr]\d+\b|INC-\d+|\ban_p?\d+\b|\b(?:act|rep|run|h)_?\d+\b"
+    r"|\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\b\d{1,2}:\d{2}\b"
     r"|\b\d+\.\d+\.\d+\b|\b[A-Za-z]+[-_]\d[\w.\-]*|\b(?:[Vv]ersion|pacer|v)\s*\d+(?:\.\d+)+"
     r"|\b\d{1,2}(?:st|nd|rd|th)\b"
     r"|\b\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b"
     r"|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}\b"
 )
+CHECK_SKIP = re.compile(NON_QUANTITIES)
+SKIP = re.compile(NON_QUANTITIES + r"|`[^`]*`|^\s*\d+\.\s|^#+.*$")
 
 
 def numbers_in(value: Any, out: set[float]) -> None:
@@ -48,23 +49,25 @@ class FactBook:
     """Numbers the run has seen, from receipted tool results only."""
 
     values: set[float] = field(default_factory=set)
-    receipts: set[str] = field(default_factory=set)
+    by_receipt: dict[str, set[float]] = field(default_factory=dict)
 
     def add(self, result: Any, receipts: list[str]) -> None:
         """Record a tool result. A result without receipts adds no numbers: nothing backs them."""
         if not receipts:
             return
-        self.receipts.update(receipts)
-        numbers_in(result, self.values)
+        values: set[float] = set()
+        numbers_in(result, values)
+        self.values.update(values)
+        for receipt in receipts:
+            self.by_receipt.setdefault(receipt, set()).update(values)
 
-    def backs(self, token: str) -> bool:
+    def backs(self, token: str, tags: list[str] | None = None, *, percent: bool = True) -> bool:
         x = float(token.replace(",", ""))
         decimals = len(token.split(".")[1]) if "." in token else 0
         tol = 0.5 * 10**-decimals + 1e-9
         signed = token[0] in "+-"
-        if not signed and abs(x) <= 10 and decimals == 0 and x == int(x):
-            return True  # small counts in prose ("two checks", "3 hours") are structure, not measurements
-        candidates = self.values | {v * 100 for v in self.values}
+        values = self.values if not tags else {v for tag in tags for v in self.by_receipt.get(tag, ())}
+        candidates = values | {v * 100 for v in values} if percent else values
         return any(abs((x if signed else abs(x)) - (v if signed else abs(v))) <= tol for v in candidates)
 
 
@@ -82,7 +85,7 @@ class NumberCheck:
     def problems(self) -> str:
         parts = []
         if self.unbacked:
-            parts.append(f"numbers no tool result of this run backs: {', '.join(self.unbacked[:12])}")
+            parts.append(f"numbers without matching receipt values: {', '.join(self.unbacked[:12])}")
         if self.untagged:
             parts.append(
                 "sentences with numbers but no [receipt] tag: " + " | ".join(s[:80] for s in self.untagged[:5])
@@ -93,7 +96,7 @@ class NumberCheck:
 
 
 SENTENCE = re.compile(r"(?<=[.!?:;])\s+(?=\S)")
-LEADING_TAGS = re.compile(r"^((?:\s*\[[ra]\d+(?:\s*,\s*[ra]\d+)*\])+)")
+LEADING_TAGS = re.compile(rf"^((?:\s*\[{TAGS}\])+)")
 PSEUDO = re.compile(r"\[[^\]]*(?:INC-\d|\b(?:get|list|check)_\w+)[^\]]*\]")
 
 
@@ -118,18 +121,28 @@ def check(report: str, facts: FactBook) -> NumberCheck:
     cited: list[str] = []
     for line in report.splitlines():
         unknown.extend(f"{p} (cite receipt ids like [a12])" for p in PSEUDO.findall(line) if p not in unknown)
-        for sentence in sentences(line):
+        for sentence in sentences(LIST_MARKER.sub("", line)):
             tags = [t.strip() for group in TAG.findall(sentence) for t in group.split(",")]
             cited.extend(t for t in tags if t not in cited)
-            unknown.extend(t for t in tags if t not in facts.receipts and t not in unknown)
-            tokens = NUMBER.findall(SKIP.sub(" ", sentence))
-            unbacked.extend(t for t in tokens if not facts.backs(t))
-            if any(not _structural(t) for t in tokens) and not tags:
+            unknown.extend(t for t in tags if t not in facts.by_receipt and t not in unknown)
+            quantities = CHECK_SKIP.sub(" ", sentence)
+            tokens = list(NUMBER.finditer(quantities))
+            for token in tokens:
+                suffix = quantities[token.end() :].lstrip()
+                if not facts.backs(token.group(), tags, percent=suffix.startswith("%")):
+                    unbacked.append(token.group())
+            if tokens and not tags:
                 untagged.append(sentence.strip())
     return NumberCheck(unbacked, untagged, unknown, cited)
 
 
 UNVERIFIED = "[unverified]"
+ANSWER_NUMBER = re.compile(r"[-+]?(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def scrub_answer(text: str) -> str:
+    """Ask prose takes no figures; only verified claims supply the rendered digits."""
+    return ANSWER_NUMBER.sub(UNVERIFIED, text)
 
 
 def scrub(text: str, facts: FactBook) -> str:
@@ -139,7 +152,7 @@ def scrub(text: str, facts: FactBook) -> str:
     out, last = [], 0
     for m in NUMBER.finditer(text):
         start, end = m.span()
-        if any(a <= start < b or a < end <= b for a, b in skipped) or facts.backs(m.group()):
+        if any(a <= start < b or a < end <= b for a, b in skipped) or _structural(m.group()) or facts.backs(m.group()):
             continue
         out += [text[last:start], UNVERIFIED]
         last = end

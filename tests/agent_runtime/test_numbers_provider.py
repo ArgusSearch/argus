@@ -33,6 +33,19 @@ def test_receipts_without_results_back_nothing() -> None:
     assert not check("Half of it: 0.5 [a1].", book).ok
 
 
+def test_measurement_must_match_the_cited_receipt() -> None:
+    book = FactBook()
+    book.add({"refunds": 42}, ["r11"])
+    book.add({"orders": 300}, ["r12"])
+    book.add({"share": 0.42}, ["r13"])
+
+    assert check("Refunds were 42 [r12].", book).unbacked == ["42"]
+    assert check("Refunds were 42 [r13].", book).unbacked == ["42"]
+    assert check("Refunds were 42 [r11]. Orders were 300 [r12].", book).ok
+    assert check("1. Refunds were 42 [r11].", book).ok
+    assert check("Revenue was EUR 7.", book).unbacked == ["7"]
+
+
 def test_price_is_never_guessed() -> None:
     assert price("claude-sonnet-5-5", {"input_tokens": 1_000_000}) == pytest.approx(2.0)
     assert price("claude-unknown", {"input_tokens": 1}) is None

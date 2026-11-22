@@ -20,7 +20,7 @@ from typing import Any
 
 from argus.agent import prompts
 from argus.agent.journal import Journal
-from argus.agent.numbers import FactBook, check, scrub
+from argus.agent.numbers import FactBook, check, scrub, scrub_answer
 from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, call_model
 from argus.agent.types import (
     AgentMode,
@@ -411,10 +411,9 @@ class AskRunner:
 
     def _answer(self, ctx: RunContext, args: dict[str, Any], retried: bool) -> AskResult | None:
         text = str(args.get("text", "")).strip()
-        masked = scrub(text, FactBook())  # ids, dates, versions and small counts are not figures
+        masked = scrub_answer(text)
         if masked != text and not retried:
             return None
-        text = masked
         verified: list[VerifiedClaim] = []
         lines = []
         for claim in args.get("claims") or []:
@@ -430,12 +429,16 @@ class AskRunner:
             verified.append(outcome)
             wording = re.sub(r"\d", "", str(claim.get("wording", ""))).strip()
             lines.append(f"- {wording}: {outcome.display}" if wording else f"- {outcome.display}")
-        answer = text + ("\n\n" + "\n".join(lines) if lines else "")
+        answer = masked + ("\n\n" + "\n".join(lines) if lines else "")
         facts = FactBook()
         for c in verified:
             facts.add({"value": c.value, "display": c.display}, [r.receipt_id for r in c.receipts])
-        if not check(answer, facts).ok and lines:
-            # rendered figures always pass; anything else is a bug worth seeing, not hiding
-            self.journal.add("rejected", "VERIFY", ctx.as_of, ctx.run_id, text=check(answer, facts).problems())
+        checked = check(answer, facts)
+        if not checked.ok:
+            self.journal.add("rejected", "VERIFY", ctx.as_of, ctx.run_id, text=checked.problems())
+            if not retried:
+                return None
+        if not checked.ok or (masked != text and not verified):
+            return AskResult(status="refused", run_id=ctx.run_id, reason="The answer's figures could not be verified.")
         links = [r for c in verified for r in c.receipts]
         return AskResult(status="answered", run_id=ctx.run_id, answer=answer, claims=verified, receipt_links=links)

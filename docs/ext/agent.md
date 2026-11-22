@@ -27,8 +27,8 @@ It changes only by request to lane A.
 Rules every implementation keeps:
 
 - The model never types a number into findings or reports: it cites fact handles or receipts, and the host renders figures.
-- Prose that still contains numbers passes the number check (`argus.agent.numbers`): every number must come from a receipted tool result of the run, and every sentence with a number carries a receipt tag.
-- The verdict is admitted by the deterministic gate (freshness and identities, localisation, a validated holdout or control for the named event, a non-recurring placebo, explained share at least 0.20); anything less is downgraded with the check that would upgrade it.
+- The number check (`argus.agent.numbers`) requires each measured number in a sentence to match a tool result from a receipt cited in that sentence.
+- The deterministic gate admits a supported cause after freshness and identity checks, localisation, a validated holdout or control for the named event, a validated non-recurring historical placebo, and an explained share of at least 0.20. Missing or inconclusive history blocks confirmation, and the finding names the check needed to confirm the cause.
 - Any agent failure (budget, provider error, gate) falls back to the Stage-2 investigator in the same tick; quiet hours call no model; the bench runs Stage 2 and stays 18 of 18.
 - No tool accepts SQL, a shell, a path or an approval; the model never sees credentials; actuator parameters come from the admitted incident, never from prose.
 - Times are naive UTC simulated time; a model's `...Z` timestamps are normalised before validation.
@@ -81,6 +81,7 @@ All routes sit outside the C5 `ROUTES` tuple, mounted like the narrator and demo
 
 Ask runs with its own `RunContext`, a read-only runner with its own receipt namespace (`q1`, `q2`, ...) and a session in lane B's `EvidenceStore`.
 The model finishes with prose without digits plus claims that cite fact handles; the host verifies every claim and renders its figure with its receipt.
+Ask retries once when the model puts digits in prose. If the model repeats the error, Ask masks the digits and returns the verified claims that remain. If no verified claim remains, the response has status `refused`.
 A follow-up with the same `conversation_id` keeps the incident scope and sees the earlier turns as context, never as evidence.
 After an approved action is applied, the run, its investigations and Ask read the treated branch (`world_revision` `<action id>-treated`).
 

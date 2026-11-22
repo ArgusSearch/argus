@@ -19,7 +19,7 @@
 ```
 
 Verdicts: SUPPORTED_CAUSE needs a validated event hypothesis, a significant root and >= 20% explained,
-and a placebo that does not recur. HYPOTHESIS needs a localised, significant root. Anything else is
+and a validated historical placebo. HYPOTHESIS needs a localised, significant root. Anything else is
 UNEXPLAINED with the remainder stated as a number. `investigate()` keeps the Stage-1 signature, so the
 runtime can switch to it by changing one import.
 """
@@ -334,8 +334,11 @@ class StageTwoInvestigation(Investigation):
             explained = max(explained, share * scope_share.ep)
         significant_root = abs(root_z) >= ROOT_Z
         recurring = placebo is not None and placebo.status == "refuted"
+        history_validated = placebo is not None and placebo.status == "validated"
         hypothesis = (localised or (significant and focus != a.node)) and significant_root and not recurring
-        if supported and significant_root and explained >= self.thresholds.supported and not recurring:
+        can_support = best is not None and significant_root and explained >= self.thresholds.supported
+        pending_history = best if can_support and not history_validated and not recurring else None
+        if can_support and history_validated:
             verdict = Verdict.SUPPORTED_CAUSE
         elif hypothesis:
             verdict = Verdict.HYPOTHESIS
@@ -379,12 +382,21 @@ class StageTwoInvestigation(Investigation):
             if verdict is not Verdict.UNEXPLAINED
             else None
         )
-        uncertain = self._uncertain_all(verdict, seg, evidence, explained, placebo, events)
+        uncertain = self._uncertain_all(verdict, seg, evidence or pending_history, explained, placebo, events)
+        history_reason = ""
+        if pending_history is not None:
+            history_reason = (
+                "the historical placebo check was inconclusive"
+                if placebo is not None
+                else "the historical placebo check was not run"
+            )
+            if placebo is None:
+                uncertain.append("A validated historical placebo check is required to confirm the cause.")
         if challenge is not None and challenge.downgrade:
             uncertain.append(
                 f"Counter-check {challenge.verdict} the supported cause {best_ref(best)}: {challenge.reason}"
             )
-        self._cause_claims(verdict, focus, seg, evidence, placebo, impact, uncertain)
+        self._cause_claims(verdict, focus, seg, evidence, placebo, impact, uncertain, pending_history)
         headline = self._headline(verdict, focus_node.label, seg, root_cell.rel_change, evidence, a)
         stop_reason = (
             f"explained {explained:.0%} >= {self.thresholds.stop:.0%}"
@@ -399,7 +411,7 @@ class StageTwoInvestigation(Investigation):
             why=(
                 f"counter-check {challenge.verdict}: {challenge.reason}"
                 if challenge is not None and challenge.downgrade
-                else self._why(verdict, evidence, significant_root, recurring, localised)
+                else history_reason or self._why(verdict, evidence, significant_root, recurring, localised)
             ),
             data={
                 "claims": [c.model_dump() for c in self.claims],
@@ -1090,6 +1102,7 @@ class StageTwoInvestigation(Investigation):
         placebo: LedgerEntry | None,
         impact: Any,
         uncertain: list[str],
+        pending_history: EvidenceRef | None,
     ) -> None:
         if placebo is not None:
             text = f"Placebo on {focus} in {segment_text(seg)}: {placebo.summary}."
@@ -1110,6 +1123,14 @@ class StageTwoInvestigation(Investigation):
                     f"next to the onset: {entry.summary if entry else 'consistent'}.",
                     "holdout_check: consistent, aligned with the onset",
                     entry.receipts if entry else [],
+                )
+            )
+        elif verdict is Verdict.HYPOTHESIS and pending_history is not None:
+            self.claims.append(
+                cl.hypothesis(
+                    f"{pending_history.description} ({pending_history.ref}) may explain the deviation.",
+                    "aligned event with a validated holdout or control check",
+                    "a validated historical placebo check",
                 )
             )
         elif verdict is Verdict.HYPOTHESIS:
