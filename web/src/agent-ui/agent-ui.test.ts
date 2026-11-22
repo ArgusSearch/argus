@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { ActivityRecord, AskAnswer, ProposalView, RunSummary } from "../lib/agent";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { agentApi, type ActivityRecord, type AskAnswer, type ProposalView, type RunSummary } from "../lib/agent";
 import {
   evidenceChecks,
   firstSentence,
@@ -217,6 +217,43 @@ describe("the checks behind an Ask answer", () => {
     const records = [result("holdout_check", "consistent", { run_id: "ask_1" }), result("placebo_test", "unusual", { run_id: "other" })];
     expect(evidenceChecks({ run_id: "ask_1", receipt_links: [], claims: [] }, records).map((c) => c.tool)).toEqual(["holdout_check"]);
     expect(evidenceChecks({ run_id: null, receipt_links: [], claims: [] }, records)).toEqual([]);
+  });
+});
+
+describe("Ask requests", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("continues a server conversation in the same incident", async () => {
+    const answer = { ...S4_ASK, conversation_id: "conversation_1" };
+    const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json(answer));
+    vi.stubGlobal("fetch", request);
+
+    await expect(agentApi.ask("What did you rule out?", "INC-0001", answer.conversation_id)).resolves.toEqual(answer);
+    expect(request).toHaveBeenCalledWith(
+      "/agent/ask",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          question: "What did you rule out?",
+          incident_id: "INC-0001",
+          conversation_id: answer.conversation_id,
+        }),
+      }),
+    );
+  });
+
+  it("aborts the in-flight request when the reader stops waiting", async () => {
+    const controller = new AbortController();
+    const request = vi.fn<typeof fetch>((_url, init) => new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      expect(signal).toBe(controller.signal);
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    vi.stubGlobal("fetch", request);
+
+    const stopped = expect(agentApi.ask("What happened?", null, null, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    await stopped;
   });
 });
 
