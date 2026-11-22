@@ -3,7 +3,9 @@
 // number on these pages is one the API sent; the pages only pick, order and label them in plain words.
 
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
-import { AnalysisShell, analysisHref, DEFAULT_QUERY, followLink, LinkedReceipt, navigateWorkspaceURL, useAnalysisQuery } from "../../analysis";
+import { LinkedReceipt } from "../../analysis/pages/LinkedReceipt";
+import { analysisHref, followLink, navigateWorkspaceURL, useAnalysisQuery } from "../../analysis/shell/location";
+import { DEFAULT_QUERY } from "../../analysis/shell/query";
 import { Mark } from "../../components/Header";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { emptyView, type RunView } from "../../lib/store";
@@ -61,6 +63,7 @@ const Village = importVillage
   : null;
 
 const SettingsSurface = lazy(() => import("../../settings"));
+const AnalysisShell = lazy(() => import("../../analysis/shell/AnalysisShell").then((module) => ({ default: module.AnalysisShell })));
 
 export function StaticWorkspace() {
   const { section } = useLocation();
@@ -118,18 +121,20 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
     <>
       <Sidebar section={section} view={analysis ? analysisView : view} />
       {analysis ? (
-        <AnalysisShell
-          graph={presentationPending ? null : graph}
-          view={analysisView}
-          streamError={demo?.error}
-          query={analysis}
-          openIncident={onOpenIncident}
-          secondaryLinks={<>
-            <AnalysisWorkspaceLink section="report">Morning report</AnalysisWorkspaceLink>
-            <AnalysisWorkspaceLink section="calendar">Calendar</AnalysisWorkspaceLink>
-            <AnalysisWorkspaceLink section="settings" tab="sources">Data sources</AnalysisWorkspaceLink>
-          </>}
-        />
+        <Suspense fallback={null}>
+          <AnalysisShell
+            graph={presentationPending ? null : graph}
+            view={analysisView}
+            streamError={demo?.error}
+            query={analysis}
+            openIncident={onOpenIncident}
+            secondaryLinks={<>
+              <AnalysisWorkspaceLink section="report">Morning report</AnalysisWorkspaceLink>
+              <AnalysisWorkspaceLink section="calendar">Calendar</AnalysisWorkspaceLink>
+              <AnalysisWorkspaceLink section="settings" tab="sources">Data sources</AnalysisWorkspaceLink>
+            </>}
+          />
+        </Suspense>
       ) : section === "dashboard" && <Overview graph={graph} view={view} onOpenIncident={onOpenIncident} onSelectNode={onSelectNode} />}
       {section === "incidents" && <IncidentsPage graph={graph} view={view} onOpenIncident={onOpenIncident} />}
       {section === "incident" && incident && (
