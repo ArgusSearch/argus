@@ -1,0 +1,17 @@
+{
+  "payment_intents": [
+    {"object": "list", "data": [
+      {"id": "pi_example_eur", "livemode": false, "created": 1795219200, "status": "succeeded", "currency": "eur", "amount_received": 2345}
+    ], "has_more": true},
+    {"object": "list", "data": [
+      {"id": "pi_example_failed", "livemode": false, "created": 1795219200, "status": "requires_payment_method", "last_payment_error": {"code": "card_declined"}},
+      {"id": "pi_example_usd", "livemode": false, "created": 1795219200, "status": "succeeded", "currency": "usd", "amount_received": 3000},
+      {"id": "pi_example_pending", "livemode": false, "created": 1795219200, "status": "requires_payment_method", "last_payment_error": null}
+    ], "has_more": false}
+  ],
+  "subscriptions": [
+    {"object": "list", "data": [
+      {"id": "sub_example_canceled", "livemode": false, "created": 1795219200, "status": "canceled"}
+    ], "has_more": false}
+  ]
+}

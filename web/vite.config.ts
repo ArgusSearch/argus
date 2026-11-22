@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // The API (`make api`, port 8000) serves the C5 routes at the root; the dev server proxies them.
 const api = process.env.ARGUS_API ?? "http://127.0.0.1:8000";
 // The extension routers (narrator, demo, agent) and the route table the agent probe reads come along.
-const routes = ["/health", "/events", "/graph", "/incidents", "/notes", "/receipts", "/replay", "/digest", "/routes", "/bench", "/report", "/autonomy", "/settings", "/demo", "/agent", "/openapi.json", "/sealed-run"];
+const routes = ["/health", "/events", "/graph", "/incidents", "/notes", "/receipts", "/replay", "/digest", "/routes", "/bench", "/report", "/autonomy", "/settings", "/connections", "/demo", "/agent", "/openapi.json", "/sealed-run"];
 
 // Libraries in chunks of their own: the page's code changes often, React and the graph renderer rarely.
 const vendor = [
@@ -29,7 +29,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: Object.fromEntries(routes.map((r) => [r, { target: api, changeOrigin: true }])),
+    proxy: Object.fromEntries(routes.map((r) => [r, { target: api, changeOrigin: r !== "/connections" }])),
   },
   test: { environment: "node" },
 });

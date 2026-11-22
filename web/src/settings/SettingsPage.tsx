@@ -8,6 +8,7 @@ import { go } from "../fx/nav";
 import { useAgent } from "../fx/workspace/agent";
 import { useIncidents } from "../fx/workspace/ui";
 import { ROLE_TEXT } from "../fx/workspace/AvatarSlot";
+import { ConnectionsTab } from "./connections/ConnectionsTab";
 import { CODE_RULES } from "./constants";
 import { useAutonomy, useHealth } from "./data";
 import { EditorSection, type Editor } from "./editor";
@@ -30,6 +31,7 @@ const TITLES: Record<SettingsTab, { title: string; lead: string }> = {
   ai: { title: "AI model", lead: "Choose the provider and model for the live agent." },
   appearance: { title: "Appearance", lead: "Choose the workspace theme and language." },
   notifications: { title: "Notifications", lead: "Set and test the destinations for incident notices." },
+  connections: { title: "Connections", lead: "Bring provider metrics into Argus." },
   shop: { title: "Shop connection", lead: "Register and test a Shop endpoint." },
   data: { title: "Export and reset", lead: "Download a copy of your settings or restore the defaults." },
   sources: { title: "Data sources", lead: "Where Argus reads the shop's numbers and change logs from, and how complete the latest hour is." },
@@ -40,7 +42,7 @@ const GROUPS: SubNavGroup<SettingsTab>[] = [
   { label: "Agents", items: [{ id: "autonomy", label: "Autonomy" }, { id: "playbooks", label: "Playbooks" }, { id: "ai", label: "AI model" }] },
   { label: "Detection", items: [{ id: "thresholds", label: "Thresholds" }, { id: "budgets", label: "Budgets" }] },
   { label: "Notifications", items: [{ id: "quiet-hours", label: "Quiet hours" }, { id: "channels", label: "Channels" }, { id: "notifications", label: "Notifications" }] },
-  { label: "Data", items: [{ id: "sources", label: "Data sources" }, { id: "shop", label: "Shop connection" }, { id: "data", label: "Export and reset" }] },
+  { label: "Data", items: [{ id: "sources", label: "Data sources" }, { id: "shop", label: "Shop connection" }, { id: "connections", label: "Connections" }, { id: "data", label: "Export and reset" }] },
   { label: "Workspace", items: [{ id: "account", label: "Account" }, { id: "appearance", label: "Appearance" }] },
 ];
 
@@ -65,6 +67,7 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
     ? [...GROUPS, { label: "Developer", items: [{ id: "developer", label: "Time-lapse" }] }]
     : GROUPS;
   const groups = navigation.map((group) => ({ label: tr(group.label), items: group.items.map((item) => ({ ...item, label: tr(item.label) })) }));
+  const usesSnapshot = tab !== "connections" && tab !== "developer";
   return (
     <div className="cs-split cs-settings">
       <aside className="cs-list">
@@ -74,11 +77,12 @@ export function SettingsPage({ graph, view }: { graph: Graph | null; view: RunVi
       </aside>
       <div className="cs-main" ref={content}>
         <PageHead title={tr(t.title)} lead={tr(tab === "ai" && publicApi && !remoteGuidedRun ? "The models used for live investigations." : t.lead)} />
+        {tab === "connections" && <ConnectionsTab live={view.mode === "live"} />}
         {tab === "developer" && <DeveloperTab />}
-        {tab !== "developer" && !snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
+        {usesSnapshot && !snapshot && <Card><Empty>{tr(error || "Loading settings…")}</Empty>
           {error && !staticReplay && <Btn onClick={() => void loadSettings()}>{tr("Try again")}</Btn>}
         </Card>}
-        {tab !== "developer" && snapshot && <>
+        {usesSnapshot && snapshot && <>
           {snapshot.simulator && <p className="cs-note">{tr("Settings are saved for this simulator session.")}</p>}
           {tab === "autonomy" && <EditorSection area="autonomy">{(editor) => <AutonomyTab view={view} editor={editor} />}</EditorSection>}
           {tab === "playbooks" && <EditorSection area="playbooks">{(editor) => <PlaybooksTab view={view} editor={editor} />}</EditorSection>}

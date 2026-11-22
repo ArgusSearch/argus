@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import uvicorn
-from credentials import get_key, update_key
+from credentials import backend, get_key, update_key
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -100,7 +100,12 @@ async def serve(command: dict) -> None:
     mimetypes.add_type("text/javascript", ".js")
     mimetypes.add_type("text/javascript", ".mjs")
     mimetypes.add_type("text/css", ".css")
-    app = create_app(source, bench_out=data / "runs" / "bench")
+    app = create_app(
+        source,
+        bench_out=data / "runs" / "bench",
+        connections_path=data / "connections",
+        connection_keyring=backend(),
+    )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.bind((HOST, 0))

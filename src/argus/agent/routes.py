@@ -36,6 +36,7 @@ from argus.agent.types import (
     RunSummary,
 )
 from argus.api.sources import LiveSource, Source
+from argus.connectors.data import SOURCE_PREFIX
 from argus.contracts.events import EventType
 from argus.contracts.findings import Incident, Receipt
 from argus.demo.agent import AgentView
@@ -71,18 +72,24 @@ def _scope(source: Source) -> AskScope:
     tick = next((e for e in reversed(hub.history) if e.type is EventType.TICK), None)
     if tick is None or hub.state.last_tick is None:
         raise HTTPException(409, "The run has not completed its first hour yet.")
-    return AskScope(
-        stream=hub.stream,
-        through_seq=hub.last_seq,
-        as_of=tick.sim_ts,
-        latest_hour=hub.state.last_tick.hour,
-        graph=source.graph(),
-        incidents=source.incidents(),
-        # the world the run reads now: after an applied action that is the treated branch, not the factual one
-        world=source.runtime.runner.world_path,
-        world_revision=source.world_revision(),
-        proposals=[p.model_dump(mode="json") for p in source.remediation.proposals()] if source.remediation else [],
-    )
+    with source.runtime.lock:
+        runner = source.runtime.runner
+        return AskScope(
+            stream=hub.stream,
+            through_seq=hub.last_seq,
+            as_of=tick.sim_ts,
+            latest_hour=hub.state.last_tick.hour,
+            graph=source.graph(),
+            incidents=source.incidents(),
+            world=runner.world_path,
+            world_revision=source.world_revision(),
+            proposals=[p.model_dump(mode="json") for p in source.remediation.proposals()] if source.remediation else [],
+            source_data=runner.source_data,
+            source_clocks={
+                SOURCE_PREFIX + provider: (snapshot.synced_at, snapshot.latest_hour)
+                for provider, snapshot in runner.source_snapshots.items()
+            },
+        )
 
 
 def _recorded_runs(activity: Iterable[ActivityRecord]) -> list[RunSummary]:

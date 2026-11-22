@@ -12,6 +12,7 @@ from an older stream, first gets `event: stream` with `{"stream", "mode"}` and m
 from __future__ import annotations
 
 import json
+import os
 import signal
 import threading
 from collections.abc import AsyncIterator, Callable
@@ -27,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from argus.agent.routes import router as agent_router
+from argus.api.connections_routes import create_router as connections_router
 from argus.api.digest import Digest, build_digest
 from argus.api.hub import EventHub
 from argus.api.rerun import RerunResult, RerunUnavailable
@@ -34,6 +36,9 @@ from argus.api.settings_routes import create_router as settings_router
 from argus.api.settings_routes import local_settings_path
 from argus.api.sources import ControlError, LiveSource, Source
 from argus.api.state import ALARM_Z, PAIR_Z, WIGGLE_Z
+from argus.connectors.data import SourceData
+from argus.connectors.service import Connections
+from argus.connectors.vault import Keyring, Vault
 from argus.contracts import CONTRACT_VERSION
 from argus.contracts.events import ROUTES
 from argus.contracts.findings import Incident, Note, Receipt
@@ -103,6 +108,8 @@ def create_app(
     settings_path: Path | None = None,
     public_settings: bool = False,
     public_limits: PublicLimits | None = None,
+    connections_path: Path | None = None,
+    connection_keyring: Keyring | None = None,
 ) -> FastAPI:
     from argus.agent.settings_runtime import default_settings
 
@@ -146,6 +153,17 @@ def create_app(
     public_extensions = PublicGraphExtensions(source, public_gate) if public_gate else None
     extension = public_extensions.base if public_extensions else extension_for(source)
     app.include_router(graph_extension_router(extension, public_extensions))
+    if not public_settings and public_gate is None:
+        directory = connections_path or Path(
+            os.environ.get("ARGUS_CONNECTIONS_DIR", Path.home() / ".local/state/argus/connections")
+        )
+        data = SourceData(directory / "snapshots")
+        if extension.runtime is not None:
+            extension.runtime.runner.source_data = data
+        publish = extension.place_source if extension.runtime is not None else None
+        connections = Connections(Vault(directory, connection_keyring), data, publish)
+        connections.restore()
+        app.include_router(connections_router(connections))
     hub = source.bus
 
     def placement_receipt(request: Request, receipt_id: str) -> Receipt | None:

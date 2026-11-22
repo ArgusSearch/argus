@@ -25,6 +25,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from argus.connectors.data import SOURCE_PREFIX
 from argus.contracts.events import AttentionPayload
 from argus.contracts.graph import EdgeKind, EdgeStatus, Graph, NodeKind
 
@@ -62,7 +63,13 @@ class Terms:
 
 
 def watchable_nodes(graph: Graph) -> list[str]:
-    return [n.id for n in graph.nodes if n.kind in (NodeKind.ADDITIVE, NodeKind.RATIO) and n.state != "retired"]
+    return [
+        node.id
+        for node in graph.nodes
+        if node.kind in (NodeKind.ADDITIVE, NodeKind.RATIO)
+        and node.state != "retired"
+        and not node.source.startswith(SOURCE_PREFIX)
+    ]
 
 
 def candidate_units(graph: Graph) -> list[Unit]:
