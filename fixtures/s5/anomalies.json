@@ -1,0 +1,86 @@
+[
+  {
+    "id": "an_0001",
+    "node": "sessions",
+    "segment": {},
+    "direction": "down",
+    "hour": "2026-11-21T12:00:00",
+    "detected_at": "2026-11-21T14:00:00",
+    "onset": "2026-11-21T12:00:00",
+    "observed": 117584.0,
+    "expected": 166532.0,
+    "band": [
+      155574.993531,
+      178260.698551
+    ],
+    "z": -10.23,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r225"
+    ]
+  },
+  {
+    "id": "an_0002",
+    "node": "orders",
+    "segment": {},
+    "direction": "down",
+    "hour": "2026-11-21T12:00:00",
+    "detected_at": "2026-11-21T14:00:00",
+    "onset": "2026-11-21T12:00:00",
+    "observed": 7624.0,
+    "expected": 10819.5,
+    "band": [
+      10129.750115,
+      11556.215989
+    ],
+    "z": -10.63,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r231"
+    ]
+  },
+  {
+    "id": "an_0003",
+    "node": "gmv",
+    "segment": {},
+    "direction": "down",
+    "hour": "2026-11-21T12:00:00",
+    "detected_at": "2026-11-21T14:00:00",
+    "onset": "2026-11-21T12:00:00",
+    "observed": 536583.79,
+    "expected": 765239.34,
+    "band": [
+      712986.140377,
+      821322.06269
+    ],
+    "z": -10.04,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r237"
+    ]
+  },
+  {
+    "id": "an_0004",
+    "node": "payment_success_rate",
+    "segment": {},
+    "direction": "down",
+    "hour": "2026-11-21T15:00:00",
+    "detected_at": "2026-11-21T17:00:00",
+    "onset": "2026-11-21T15:00:00",
+    "observed": 0.914018,
+    "expected": 0.946161,
+    "band": [
+      0.941142,
+      0.951207
+    ],
+    "z": -13.0,
+    "rule": "z_gt_open",
+    "data_confidence": 1.0,
+    "receipts": [
+      "r243"
+    ]
+  }
+]

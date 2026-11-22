@@ -1,0 +1,42 @@
+{
+  "plan": {
+    "version": "mockmart-paired-v1",
+    "scenario": "s4",
+    "config": {
+      "seed": 7,
+      "days": 42,
+      "live_days": 5
+    },
+    "intervention": {
+      "log": "log_deploys",
+      "ref": "dep_ad-pacer_1.7.0",
+      "ts": "2026-11-19T23:29:00",
+      "kind": "deploy",
+      "description": "ad-pacer 1.7.0 rolled out for the DE and FR budget lines (faster intraday pacing)",
+      "scope": {
+        "country": [
+          "DE",
+          "FR"
+        ]
+      }
+    },
+    "metric": "pacing_ratio",
+    "segment": {},
+    "onset": "2026-11-20T00:00:00",
+    "window": {
+      "start": "2026-11-19T18:00:00",
+      "end": "2026-11-20T23:00:00"
+    },
+    "as_of": "2026-11-21T01:00:00"
+  },
+  "factual": {
+    "sql": "WITH t0 AS (SELECT ts, SUM(planned_spend) AS den FROM fact_ad_plan_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(ad_spend) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
+    "result_hash": "sha256:f73a31a6297cb821",
+    "rows": 30
+  },
+  "counterfactual": {
+    "sql": "WITH t0 AS (SELECT ts, SUM(planned_spend) AS den FROM fact_ad_plan_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts), t1 AS (SELECT ts, SUM(ad_spend) AS num FROM fact_ads_hourly WHERE (TRUE) AND (ts BETWEEN TIMESTAMP '2026-11-19 18:00:00' AND TIMESTAMP '2026-11-20 23:00:00') GROUP BY ts)\nSELECT ts, den, num FROM t0 JOIN t1 USING (ts) ORDER BY ts",
+    "result_hash": "sha256:643e39e50d1a50d7",
+    "rows": 30
+  }
+}

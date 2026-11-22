@@ -30,7 +30,11 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from argus.agent.investigate import Case as AgentCase
+    from argus.agent.investigate import Selection
 
 from argus.contracts.findings import (
     Anomaly,
@@ -67,6 +71,18 @@ from argus.investigator.procedure import Investigation, segment_text
 from argus.investigator.tools import SearchResult, covers
 from argus.semantic.compile import scope_where, segment_where, tables_of
 from argus.semantic.runner import Runner
+
+AGENT_SOURCE = "agent"  # ledger source of checks the agent chose (argus.agent.investigate)
+
+
+class EvidenceSelector(Protocol):
+    """Chooses and runs the candidate checks before the verdict (the agent seam). `select` returns what the
+    verdict rules need; `close` hears the admitted verdict. Without one, Stage 2 runs its fixed checks."""
+
+    def select(self, inv: StageTwoInvestigation, case: AgentCase) -> Selection: ...
+
+    def close(self, inv: StageTwoInvestigation, selection: Selection, admitted: str) -> None: ...
+
 
 HOUR = timedelta(hours=1)
 EVENT_BEFORE = timedelta(hours=3)
@@ -168,8 +184,10 @@ class StageTwoInvestigation(Investigation):
         as_of: datetime,
         on_step: Callable[[TrailStep], None] | None = None,
         planner: Planner | None = None,
+        selector: EvidenceSelector | None = None,
     ):
         super().__init__(graph, runner, anomaly, as_of, on_step)
+        self.selector = selector
         self.tools: StageTwoToolbox = StageTwoToolbox(graph, runner, as_of)
         self.ledger = Ledger()
         self.planner = planner
@@ -253,9 +271,35 @@ class StageTwoInvestigation(Investigation):
             )
 
         onset = self._root_onset(focus, seg) if localised else a.onset
-        events = self._events(focus, seg, onset)
-        supported, ruled_out = self._test_events(events, focus, seg, root_cell.rel_change, onset)
-        placebo = self._placebo(focus, seg, a.direction)
+        selection = None
+        if self.selector is not None:
+            # the model chooses the checks; the gate backfills what it skipped (argus.agent.investigate)
+            from argus.agent.investigate import Case
+
+            case = Case(
+                anomaly=a,
+                as_of=self.as_of,
+                focus=focus,
+                start=seg0,
+                segment=seg,
+                localised=localised,
+                explained_share=search.output.explained_share,
+                root_rel=root_cell.rel_change,
+                root_z=root_z,
+                onset=onset,
+                window=self.window,
+            )
+            selection = self.selector.select(self, case)
+            events, supported, ruled_out, placebo = (
+                selection.events,
+                selection.supported,
+                selection.ruled_out,
+                selection.placebo,
+            )
+        else:
+            events = self._events(focus, seg, onset)
+            supported, ruled_out = self._test_events(events, focus, seg, root_cell.rel_change, onset)
+            placebo = self._placebo(focus, seg, a.direction)
 
         share = max(0.0, min(1.0, focus_share))
         explained = share * search.output.explained_share if localised else 0.0
@@ -340,6 +384,8 @@ class StageTwoInvestigation(Investigation):
             uncertain=uncertain,
             action=self._suggest(verdict, focus, seg, evidence, search),
         )
+        if self.selector is not None and selection is not None:
+            self.selector.close(self, selection, verdict.value)
         return self._with_llm_cost(findings)
 
     # ------------------------------------------------------------------ 1-3 data before business
@@ -979,7 +1025,7 @@ class StageTwoInvestigation(Investigation):
             out.append(f"Placebo: {placebo.summary}; the deviation is not clearly unusual.")
         if placebo is not None and placebo.status == "refuted":
             out.append(f"Placebo: {placebo.summary}; deviations like this recur, so it may be noise.")
-        if self.planner is None and explained < STOP_EXPLAINED:
+        if self.planner is None and self.selector is None and explained < STOP_EXPLAINED:
             out.append(f"{PROCESS_NOTE}, so the remainder was not explored further.")
         return out
 
@@ -1000,7 +1046,9 @@ class StageTwoInvestigation(Investigation):
             else:
                 self.claims.append(cl.evidence(text, f"placebo_test: {placebo.outcome}", placebo.receipts))
         cause_entries = [
-            e for e in self.ledger.entries if e.hypothesis.tool == "holdout_check" and e.hypothesis.source == "graph"
+            e
+            for e in self.ledger.entries
+            if e.hypothesis.tool == "holdout_check" and e.hypothesis.source in ("graph", AGENT_SOURCE)
         ]
         if verdict is Verdict.SUPPORTED_CAUSE and evidence is not None:
             entry = next((e for e in cause_entries if evidence.ref in e.hypothesis.statement), None)
@@ -1069,11 +1117,11 @@ class StageTwoInvestigation(Investigation):
     ) -> SuggestedAction | None:
         if verdict is Verdict.UNEXPLAINED:
             return None
-        action = self._action(focus, seg, search.last_level)
-        if action is None and evidence is not None and evidence.log == "log_deploys":
+        if evidence is not None and evidence.log == "log_deploys":
+            # The supported cause is our own change: undo it rather than route around the segment it hit.
             where = segment_text(seg) if seg else scope_text(evidence.scope)
-            action = SuggestedAction(text=f"Roll back {evidence.ref} for {where} and watch {focus}.")
-        return action
+            return SuggestedAction(text=f"Roll back {evidence.ref} for {where} and watch {focus}.")
+        return self._action(focus, seg, search.last_level)
 
     def _close(
         self, stop: tuple[Verdict, str], observed: Any, started: float, queries0: int, headline: str
@@ -1117,6 +1165,7 @@ def investigate(
     as_of: datetime,
     on_step: Callable[[TrailStep], None] | None = None,
     planner: Planner | None = None,
+    selector: EvidenceSelector | None = None,
 ) -> Findings:
     """Drop-in replacement for `argus.investigator.procedure.investigate` with the Stage-2 layer."""
-    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner).run()
+    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector).run()

@@ -37,11 +37,24 @@ WEEK = timedelta(days=7)
 REOPEN_WITHIN = timedelta(hours=24)
 CALM_Z = 2.0
 CALM_HOURS = 3
+# A ratio of amounts (pacing = spend / planned spend, around 1) has no count model: `Cell.z` gives it a
+# Poisson-style variance on EUR amounts, or a binomial one whenever it dips just below 1, both far below how
+# much a healthy hour moves (up to about 10% for pacing), and a huge one when the spend is zero. The calm test
+# uses a relative noise scale instead; without it a recovered pacing ratio never stays calm long enough to resolve.
+RATIO_NOISE = 0.06
 
 
 def fingerprint(node: str, segment: Segment, direction: str) -> str:
     key = f"{node}|{','.join(f'{k}={v}' for k, v in sorted(segment.items()))}|{direction}"
     return hashlib.sha1(key.encode()).hexdigest()[:12]
+
+
+def calm_z(cell: Cell, share: bool) -> float:
+    """z for the calm test: `Cell.z` for counts and shares; a ratio of amounts is scaled by `RATIO_NOISE`."""
+    if share or not cell.is_ratio or not cell.cur_den or not cell.base_den or not cell.base:
+        return cell.z
+    p0, p1 = cell.base / cell.base_den, cell.cur / cell.cur_den
+    return (p1 - p0) / (RATIO_NOISE * abs(p0))
 
 
 def symptoms_of(graph: Graph, root: str) -> list[str]:
@@ -176,12 +189,13 @@ class IncidentBook:
             cell = self._root_cell(runner, inc, hour, as_of)
             if cell is None:
                 continue
-            if abs(cell.z) < CALM_Z:
+            z = calm_z(cell, self.graph.node(inc.root_node).unit == "share")
+            if abs(z) < CALM_Z:
                 mon.calm += 1
             else:
                 mon.calm = 0
                 inc.severity_eur = round(inc.severity_eur + abs(cell.deviation) * mon.aov, 2)
-            reason = f"root segment z {cell.z:+.1f} at {hour:%Y-%m-%d %H:%M}"
+            reason = f"root segment z {z:+.1f} at {hour:%Y-%m-%d %H:%M}"
             if inc.state is IncidentState.EXPLAINED and mon.calm >= 1:
                 self._move(inc, IncidentState.MONITORING, hour, reason)
                 changes.append((inc, "state"))

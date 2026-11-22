@@ -1,0 +1,1299 @@
+/* Argus Ice: scoped upgrades of Mission Control's existing class names (report section 3.4, I8).
+   Every rule sits under :root[data-fx], so without the flag nothing here matches. The page keeps its layout:
+   the stage shows through the graph panel, the other panels float over it as frosted glass, chrome and numbers
+   switch to IBM Plex Mono, headings get `//` prefixes, the active tab and the checked metric get brackets.
+   Colors come from tokens.css; the few hard-coded colors of styles.css, views.css and the components that do not
+   read on a light page are overridden here, next to the part they belong to. */
+
+/* ---------------------------------------------------------------- base */
+
+:root[data-fx] {
+  --fx-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.15 0 0 0 0 0.22 0.26 0 0 0 -0.08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --fx-glass-solid: rgba(238, 241, 246, 0.96);
+  --fx-primary-bg: var(--fx-ink-0);
+  --fx-primary-fg: #ffffff;
+  --fx-focus-ring: 0 0 0 1px var(--probe), 0 0 0 4px var(--probe-bg);
+}
+
+:root[data-fx="night"] {
+  --fx-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.84 0 0 0 0 0.9 0 0 0 0 1 0.14 0 0 0 -0.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --fx-glass-solid: rgba(17, 26, 43, 0.97);
+  --fx-primary-bg: var(--fx-glow-ice);
+  --fx-primary-fg: #06101f;
+}
+
+:root[data-fx] body {
+  font-family: var(--fx-font-sans);
+}
+
+:root[data-fx] ::selection {
+  background: var(--probe-bg);
+}
+
+:root[data-fx] ::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+
+:root[data-fx] ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fx-ink-4);
+}
+
+/* the shared label type of the layer: mono, uppercase, tracked */
+:root[data-fx] .panel-title,
+:root[data-fx] .card-kind,
+:root[data-fx] .sec h3,
+:root[data-fx] .fresh-label,
+:root[data-fx] .dline-label,
+:root[data-fx] .mode,
+:root[data-fx] .pill,
+:root[data-fx] .tab,
+:root[data-fx] .vh-tab,
+:root[data-fx] .btn,
+:root[data-fx] .pb-step,
+:root[data-fx] .tstep-kind,
+:root[data-fx] .mnode-tag,
+:root[data-fx] .iv-chapter-title,
+:root[data-fx] .tv-section,
+:root[data-fx] .tv-kind,
+:root[data-fx] .tv-via,
+:root[data-fx] .mr-kicker,
+:root[data-fx] .mr-label,
+:root[data-fx] .mr-line-label,
+:root[data-fx] .iv-card-label,
+:root[data-fx] .iv-hyp label,
+:root[data-fx] .iv-pred label,
+:root[data-fx] .iv-facts label,
+:root[data-fx] .mr-kv label,
+:root[data-fx] .sc-commit label,
+:root[data-fx] .autonomy-col h4,
+:root[data-fx] .path-cell .dim {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+/* headings in the comment style of the HUD */
+:root[data-fx] .panel-title::before,
+:root[data-fx] .sec h3::before,
+:root[data-fx] .iv-chapter-title::before,
+:root[data-fx] .tv-section::before,
+:root[data-fx] .mr-kicker::before,
+:root[data-fx] .iv-card-label::before {
+  content: "// ";
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- glass (A4) */
+
+/* panels over the moving stage: at most three of these blur at a time (trail, feed, an open sheet) */
+:root[data-fx] .trail,
+:root[data-fx] .rail,
+:root[data-fx] .sheet,
+:root[data-fx] .vh-view,
+:root[data-fx] .fx-glass {
+  --panel: var(--fx-card);
+  --panel-2: var(--fx-card-hover);
+  --bg: var(--fx-well);
+  --bg-2: var(--fx-well);
+  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-1);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  box-shadow: var(--fx-glass-shadow);
+}
+
+:root[data-fx] .trail,
+:root[data-fx] .rail,
+:root[data-fx] .sheet,
+:root[data-fx] .fx-glass-blur {
+  -webkit-backdrop-filter: blur(var(--fx-blur-2)) saturate(var(--fx-saturate));
+  backdrop-filter: blur(var(--fx-blur-2)) saturate(var(--fx-saturate));
+}
+
+/* surfaces above the panels: opaque enough to read without a blur of their own */
+:root[data-fx] .modal,
+:root[data-fx] .toast,
+:root[data-fx] .autonomy,
+:root[data-fx] .cap-line {
+  --panel: var(--fx-card);
+  --panel-2: var(--fx-card-hover);
+  --bg: var(--fx-well);
+  --bg-2: var(--fx-well);
+  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-solid);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  box-shadow: var(--fx-shadow-pop);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------------------------------------------------------------- shell */
+
+:root[data-fx] .app {
+  background: transparent;
+}
+
+:root[data-fx] .main {
+  gap: var(--fx-space-3);
+  padding: 0 var(--fx-space-3) var(--fx-space-3);
+}
+
+:root[data-fx] .left {
+  gap: var(--fx-space-3);
+  border-right: 0;
+}
+
+/* header: HUD type straight on the fog */
+:root[data-fx] .header {
+  background: transparent;
+  border-bottom: 0;
+  padding: 0 var(--fx-space-4) 0 var(--fx-space-5);
+}
+
+:root[data-fx] .brand-name {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+  letter-spacing: 0.32em;
+}
+
+:root[data-fx] .brand-sub {
+  border-left-color: var(--line-2);
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+:root[data-fx] .brand-mark [stroke="#e7ebf3"] {
+  stroke: var(--text);
+}
+
+:root[data-fx] .brand-mark [fill="#e7ebf3"] {
+  fill: var(--text);
+}
+
+:root[data-fx] .brand-mark [stroke="#5aa7ff"] {
+  stroke: var(--probe);
+}
+
+:root[data-fx] .clock-time {
+  font-weight: var(--fx-weight-medium);
+  letter-spacing: 0.04em;
+}
+
+:root[data-fx] .clock-sub {
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+  letter-spacing: 0.04em;
+}
+
+:root[data-fx] .mode {
+  height: 24px;
+  border-color: var(--line-2);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-2xs);
+}
+
+:root[data-fx] .controls {
+  border-color: var(--line-2);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+}
+
+:root[data-fx] .ctl {
+  border-radius: var(--fx-radius-1);
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .ctl:hover {
+  background: var(--fx-card-hover);
+}
+
+:root[data-fx] .ctl.on {
+  background: var(--fx-primary-bg);
+  color: var(--fx-primary-fg);
+}
+
+:root[data-fx] .progress {
+  height: 2px;
+  border-radius: 0;
+  background: var(--line-2);
+}
+
+:root[data-fx] .progress > div {
+  background: var(--text);
+}
+
+/* ticker: a glass bar of numbers */
+:root[data-fx] .ticker {
+  margin: 0 var(--fx-space-3);
+  padding: 0 var(--fx-space-4);
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-glass-2);
+  box-shadow: var(--fx-glass-shadow);
+  --panel-2: var(--fx-card);
+}
+
+:root[data-fx] .app {
+  grid-template-rows: 54px 42px minmax(0, 1fr);
+  row-gap: 0;
+}
+
+:root[data-fx] .funnel-step b {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .funnel-step span {
+  color: var(--fx-ink-2);
+}
+
+:root[data-fx] .fresh {
+  border-left-color: var(--line);
+}
+
+:root[data-fx] .chip {
+  border-radius: var(--fx-radius-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-2xs);
+}
+
+/* buttons */
+:root[data-fx] .btn {
+  height: 28px;
+  padding: 0 12px;
+  border-color: var(--line-2);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+  color: var(--text);
+  font-size: var(--fx-text-2xs);
+  transition:
+    background var(--fx-dur-fast) var(--fx-ease-out),
+    border-color var(--fx-dur-fast) var(--fx-ease-out),
+    color var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .btn:hover {
+  background: var(--fx-card-hover);
+  border-color: var(--text-2);
+}
+
+:root[data-fx] .btn.primary {
+  border-color: var(--fx-primary-bg);
+  background: var(--fx-primary-bg);
+  color: var(--fx-primary-fg);
+}
+
+:root[data-fx] .btn.primary:hover {
+  filter: none;
+  opacity: 0.88;
+}
+
+:root[data-fx] .icon-btn {
+  border-color: var(--line-2);
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .icon-btn:hover {
+  background: var(--fx-card-hover);
+}
+
+:root[data-fx] :focus-visible {
+  outline: 1px solid var(--probe);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- view switcher (Youssef's host) */
+
+:root[data-fx] .vh-bar {
+  padding: 0 var(--fx-space-4) 0 var(--fx-space-3);
+  border-bottom: 0;
+  background: transparent;
+}
+
+:root[data-fx] .vh-tabs {
+  gap: var(--fx-space-1);
+}
+
+:root[data-fx] .vh-tab {
+  padding: 0 var(--fx-space-3);
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .vh-tab:hover,
+:root[data-fx] .vh-tab.on {
+  color: var(--fx-ink-0);
+}
+
+:root[data-fx] .vh-tab:focus-visible {
+  border-radius: 0;
+  outline-offset: -6px;
+}
+
+:root[data-fx] .as {
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+  letter-spacing: 0.02em;
+}
+
+:root[data-fx] .as-item b {
+  color: var(--fx-ink-0);
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .as-item.k-human b {
+  color: var(--ok);
+}
+
+:root[data-fx] .vh-body {
+  padding: 0;
+}
+
+/* other views sit on one large glass plate; the stage under them is still, so no blur is needed */
+:root[data-fx] .vh-view {
+  margin: 0 var(--fx-space-3) var(--fx-space-3);
+  overflow: hidden;
+  animation: none;
+}
+
+/* the scene stops while another view is open: fade its canvas out and let the fog show */
+:root[data-fx] #fx-stage > * {
+  transition: opacity var(--fx-dur-move) var(--fx-ease-inout);
+}
+
+:root[data-fx]:has(.vh-graph[hidden]) #fx-stage > * {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- brackets (A6) */
+
+:root[data-fx] .fx-bracket {
+  position: relative;
+}
+
+:root[data-fx] .vh-tab::after,
+:root[data-fx] .tab::after,
+:root[data-fx] .fx-bracket::after,
+:root[data-fx] .graph-bar .checking::after {
+  content: "";
+  position: absolute;
+  inset: var(--fx-bracket-inset, 6px 2px);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(currentColor 0 0) left top / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) left top / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) right top / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) right top / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) left bottom / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) left bottom / 1px var(--fx-bracket),
+    linear-gradient(currentColor 0 0) right bottom / var(--fx-bracket) 1px,
+    linear-gradient(currentColor 0 0) right bottom / 1px var(--fx-bracket);
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1.16, 1.3);
+  transition:
+    opacity var(--fx-dur-fast) var(--fx-ease-out),
+    transform var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .vh-tab:hover::after,
+:root[data-fx] .tab:hover::after {
+  opacity: 0.35;
+  transform: scale(1.06, 1.12);
+}
+
+:root[data-fx] .vh-tab.on::after,
+:root[data-fx] .tab.on::after,
+:root[data-fx] .fx-bracket.on::after,
+:root[data-fx] .graph-bar .checking::after {
+  opacity: 1;
+  transform: none;
+}
+
+:root[data-fx] .fx-bracket {
+  --fx-bracket-inset: -3px -6px;
+}
+
+/* ---------------------------------------------------------------- graph panel: the stage shows through */
+
+:root[data-fx] .graph {
+  --panel: var(--fx-glass-2);
+  --panel-2: var(--fx-glass-2);
+  --bg-2: var(--fx-glass-1);
+  background: transparent;
+}
+
+:root[data-fx] .graph .react-flow {
+  --xy-background-color: transparent;
+}
+
+:root[data-fx] .graph-bar {
+  align-items: center;
+  padding: 10px var(--fx-space-3) 0 var(--fx-space-2);
+}
+
+:root[data-fx] .graph .panel-title {
+  color: var(--fx-hud);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .graph-bar .sub {
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .graph-bar .checking {
+  position: relative;
+  padding: 3px 10px;
+  color: var(--probe);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  animation: fx-bracket-in var(--fx-dur-fast) var(--fx-ease-out) both;
+  --fx-bracket-inset: 0;
+}
+
+:root[data-fx] .graph-bar .checking b {
+  font-weight: var(--fx-weight-medium);
+  text-transform: none;
+}
+
+:root[data-fx] .graph-foot {
+  padding: 0 var(--fx-space-2) var(--fx-space-2);
+}
+
+:root[data-fx] .legend {
+  gap: var(--fx-space-4);
+  padding: 7px 12px;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-glass-2);
+  box-shadow: var(--fx-glass-shadow);
+  color: var(--fx-ink-1);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-2xs);
+  letter-spacing: 0.02em;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root[data-fx] .swatch {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .autonomy {
+  border-radius: var(--fx-radius-2);
+}
+
+:root[data-fx] .autonomy-col li b {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .banner {
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-glass-solid);
+  border-color: var(--alarm);
+  color: var(--alarm);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+}
+
+/* the classic graph, when the scene is absent or failed: blocks of frosted ice */
+:root[data-fx] .mnode {
+  border-color: var(--fx-glass-border);
+  border-radius: var(--fx-radius-1);
+  box-shadow: var(--fx-glass-shadow);
+}
+
+:root[data-fx] .mnode:hover {
+  border-color: var(--text-2);
+}
+
+:root[data-fx] .mnode-label {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .mnode-z {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .mnode-tag {
+  border-radius: var(--fx-radius-1);
+  font-size: 9px;
+}
+
+:root[data-fx] .mnode.wiggle {
+  border-color: var(--watch);
+}
+
+:root[data-fx] .mnode.alarm,
+:root[data-fx] .mnode.root {
+  border-color: var(--alarm);
+  background: linear-gradient(180deg, var(--alarm-bg), var(--fx-glass-2) 70%);
+}
+
+:root[data-fx] .mnode.symptom {
+  border-color: var(--alarm);
+}
+
+:root[data-fx] .mnode.root .mnode-tag,
+:root[data-fx] .mnode.focus .mnode-tag {
+  color: var(--fx-on-accent);
+}
+
+:root[data-fx] .mnode.focus {
+  border-color: var(--probe);
+  box-shadow:
+    0 0 0 3px var(--probe-bg),
+    0 0 28px var(--probe-bg);
+}
+
+:root[data-fx] .lnode {
+  border-color: var(--line-2);
+  color: var(--fx-ink-1);
+}
+
+/* ---------------------------------------------------------------- trail */
+
+:root[data-fx] .trail {
+  border-top: var(--fx-hair) solid var(--fx-glass-border);
+}
+
+:root[data-fx] .trail-head {
+  padding: 12px var(--fx-space-4) 10px;
+}
+
+:root[data-fx] .pb-step {
+  height: 20px;
+  border-radius: var(--fx-radius-1);
+  font-size: 9.5px;
+}
+
+:root[data-fx] .tstep {
+  border-radius: var(--fx-radius-1);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .tstep.latest {
+  border-color: var(--probe);
+  box-shadow: var(--fx-focus-ring);
+}
+
+:root[data-fx] .tstep-n {
+  border-radius: var(--fx-radius-1);
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .tstep-kind {
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .rcpt {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .watch-z b {
+  font-weight: var(--fx-weight-medium);
+}
+
+/* ---------------------------------------------------------------- feed */
+
+:root[data-fx] .tabs {
+  padding: 8px 12px 0;
+  border-bottom-color: var(--line);
+}
+
+:root[data-fx] .tab {
+  padding: 0 8px;
+  color: var(--text-2);
+  font-size: var(--fx-text-2xs);
+  letter-spacing: 0.04em;
+}
+
+:root[data-fx] .tab.on {
+  color: var(--text);
+}
+
+:root[data-fx] .tab .count {
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-well);
+  letter-spacing: 0;
+}
+
+:root[data-fx] .card {
+  border-radius: var(--fx-radius-1);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .card.click {
+  transition:
+    background var(--fx-dur-fast) var(--fx-ease-out),
+    border-color var(--fx-dur-fast) var(--fx-ease-out);
+}
+
+:root[data-fx] .card-kind {
+  font-size: 9.5px;
+}
+
+:root[data-fx] .card-title {
+  font-weight: 600;
+}
+
+:root[data-fx] .card.incident {
+  border-color: var(--alarm);
+}
+
+:root[data-fx] .card.incident.resolved,
+:root[data-fx] .card.incident.monitoring {
+  border-color: var(--ok);
+}
+
+:root[data-fx] .inc-money b,
+:root[data-fx] .dline-value,
+:root[data-fx] .kv .big,
+:root[data-fx] .node-now b,
+:root[data-fx] .sheet-meta b {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .pill,
+:root[data-fx] .seg,
+:root[data-fx] .st {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .pill {
+  font-size: 9.5px;
+}
+
+:root[data-fx] .gauge-bar,
+:root[data-fx] .gauge-fill {
+  border-radius: 0;
+}
+
+:root[data-fx] .edge-row {
+  border-radius: var(--fx-radius-1);
+}
+
+/* feed cascade (A19): a burst of cards arrives one after another */
+:root[data-fx] .feed > .card:nth-child(2) {
+  animation-delay: calc(1 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .feed > .card:nth-child(3) {
+  animation-delay: calc(2 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .feed > .card:nth-child(4) {
+  animation-delay: calc(3 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .feed > .card:nth-child(5) {
+  animation-delay: calc(4 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .feed > .card:nth-child(6) {
+  animation-delay: calc(5 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .feed > .card:nth-child(n + 7) {
+  animation-delay: calc(6 * var(--fx-stagger-tight));
+}
+
+/* ---------------------------------------------------------------- sheets, modals, toast */
+
+:root[data-fx] .scrim {
+  background: var(--fx-scrim);
+  animation: fx-fade var(--fx-dur-fast) var(--fx-ease-linear) both;
+}
+
+:root[data-fx] .sheet {
+  border-width: 0 0 0 var(--fx-hair);
+  border-radius: 0;
+  background: var(--fx-grain) 0 0 / 180px 180px, var(--fx-glass-2);
+  box-shadow: var(--fx-shadow-pop);
+  animation: fx-sheet-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .sheet-head {
+  border-bottom-color: var(--line);
+}
+
+:root[data-fx] .sheet-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  animation: fx-type var(--fx-dur-reveal) steps(28, end) both;
+  animation-delay: 120ms;
+}
+
+:root[data-fx] .modal {
+  border-radius: var(--fx-radius-2);
+  animation: fx-modal-in var(--fx-dur-base) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .modal-head h2 {
+  font-weight: 600;
+}
+
+:root[data-fx] .sql {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .kv > div,
+:root[data-fx] .facts > div,
+:root[data-fx] .path-cell,
+:root[data-fx] .ruled-item,
+:root[data-fx] .evidence,
+:root[data-fx] .action {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .action .pill {
+  color: var(--fx-on-accent);
+}
+
+:root[data-fx] .bar-track,
+:root[data-fx] .bar-fill {
+  border-radius: 0;
+}
+
+:root[data-fx] .toast {
+  border-radius: var(--fx-radius-2);
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+/* charts.tsx draws with fixed colors made for the dark page */
+:root[data-fx] .chart line[stroke="#1f2635"] {
+  stroke: var(--line);
+}
+
+:root[data-fx] .chart path[stroke="#e7ebf3"] {
+  stroke: var(--text);
+}
+
+:root[data-fx] .chart path[stroke="#7b8498"] {
+  stroke: var(--muted);
+}
+
+:root[data-fx] .chart [stroke="#f2585d"] {
+  stroke: var(--alarm);
+}
+
+:root[data-fx] .chart text {
+  font-family: var(--fx-font-mono);
+}
+
+/* ---------------------------------------------------------------- views: common */
+
+:root[data-fx] .vw-bar {
+  border-bottom-color: var(--line);
+}
+
+:root[data-fx] .vw-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-fx] .vw-search,
+:root[data-fx] .chip-btn {
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+}
+
+:root[data-fx] .chip-btn {
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .struck {
+  text-decoration-color: var(--alarm);
+}
+
+/* ---------------------------------------------------------------- views: tree */
+
+:root[data-fx] .tv-row {
+  border-bottom-color: var(--line);
+}
+
+:root[data-fx] .tv-via,
+:root[data-fx] .tv-kind,
+:root[data-fx] .tv-badge {
+  border-radius: var(--fx-radius-1);
+  font-size: 9.5px;
+}
+
+:root[data-fx] .tv-via.v-formula {
+  color: var(--text-2);
+}
+
+:root[data-fx] .tv-via.v-breakdown {
+  color: var(--probe);
+}
+
+:root[data-fx] .tv-name {
+  font-weight: var(--fx-weight-medium);
+}
+
+/* ---------------------------------------------------------------- views: investigation */
+
+:root[data-fx] .iv-dot {
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .iv-step.latest .iv-dot {
+  color: var(--fx-on-accent);
+  box-shadow:
+    0 0 0 1px var(--probe),
+    0 0 18px var(--probe-bg);
+}
+
+:root[data-fx] .iv-step.refuted .iv-dot,
+:root[data-fx] .iv-step.kept .iv-dot {
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+:root[data-fx] .iv-step-body,
+:root[data-fx] .iv-card {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .iv-step.latest .iv-step-body {
+  border-color: var(--probe);
+  box-shadow: var(--fx-focus-ring);
+}
+
+:root[data-fx] .iv-step {
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .iv-node,
+:root[data-fx] .iv-verdict {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+  letter-spacing: -0.01em;
+}
+
+:root[data-fx] .iv-crumb {
+  border-radius: var(--fx-radius-1);
+  font-family: var(--fx-font-mono);
+}
+
+/* ---------------------------------------------------------------- views: morning report (A20 in CSS) */
+
+:root[data-fx] .vw.mr {
+  background: radial-gradient(90% 60% at 50% 0%, var(--fx-dawn), transparent 70%);
+}
+
+:root[data-fx] .mr-kicker {
+  color: var(--probe);
+}
+
+:root[data-fx] .mr-head h1 {
+  font-weight: 600;
+  letter-spacing: var(--fx-tracking-display);
+  animation: fx-type var(--fx-dur-reveal) steps(20, end) both;
+  animation-delay: 250ms;
+}
+
+:root[data-fx] .mr-digest,
+:root[data-fx] .mr-incident,
+:root[data-fx] .mr-note,
+:root[data-fx] .mr-action,
+:root[data-fx] .mr-quiet {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .mr-line-value {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .mr-incident,
+:root[data-fx] .mr-note,
+:root[data-fx] .mr-line {
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+/* ---------------------------------------------------------------- views: scorecard */
+
+:root[data-fx] .sc-agent,
+:root[data-fx] .sc-metric,
+:root[data-fx] .sc-table-wrap,
+:root[data-fx] .sc-misses,
+:root[data-fx] .sc-label,
+:root[data-fx] .sc-source {
+  border-radius: var(--fx-radius-1);
+}
+
+:root[data-fx] .sc-metric-value {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+}
+
+:root[data-fx] .sc-cell.t-bad .sc-label {
+  background: var(--alarm-bg);
+  color: var(--alarm);
+}
+
+:root[data-fx] .sc-cell.t-good .sc-label {
+  color: var(--ok);
+}
+
+:root[data-fx] .sc-agent {
+  animation: fx-card-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+/* ---------------------------------------------------------------- views: cascade (A19) */
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(2) {
+  animation-delay: calc(1 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(3) {
+  animation-delay: calc(2 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(4) {
+  animation-delay: calc(3 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(5) {
+  animation-delay: calc(4 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(6) {
+  animation-delay: calc(5 * var(--fx-stagger-tight));
+}
+
+:root[data-fx] .vh-view :is(.iv-step, .iv-card, .mr-line, .mr-incident, .mr-note, .sc-agent):nth-child(n + 7) {
+  animation-delay: calc(6 * var(--fx-stagger-tight));
+}
+
+/* ---------------------------------------------------------------- captions (demo mode) */
+
+:root[data-fx] .cap-line {
+  padding: 14px 26px;
+  border-radius: var(--fx-radius-2);
+  color: var(--fx-ink-0);
+  animation: fx-cap-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+:root[data-fx] .cap-line.b-verdict,
+:root[data-fx] .cap-line.b-resolved {
+  border-color: var(--ok);
+}
+
+:root[data-fx] .cap-line.b-suspects {
+  border-color: var(--alarm);
+}
+
+:root[data-fx] .cap-line.b-held {
+  border-color: var(--calm);
+}
+
+/* ---------------------------------------------------------------- primitives */
+
+:root[data-fx] .fx-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:root[data-fx] .fx-hud {
+  font-family: var(--fx-font-mono);
+  font-weight: var(--fx-weight-medium);
+  letter-spacing: var(--fx-tracking-hud);
+  text-transform: uppercase;
+}
+
+/* two-stage text reveal (A3): the block cell first, the glyph resolves out of it */
+:root[data-fx] .fx-reveal {
+  --fx-reveal-step: 22ms;
+}
+
+:root[data-fx] .fx-ch {
+  position: relative;
+  white-space: pre;
+  animation: fx-glyph var(--fx-dur-reveal) var(--fx-ease-soft-out) both;
+  animation-delay: calc(var(--fx-delay, 0ms) + var(--fx-dur-base) * 0.5 + var(--i, 0) * var(--fx-reveal-step));
+}
+
+:root[data-fx] .fx-ch::after {
+  content: "";
+  position: absolute;
+  inset: 0.16em 0.04em 0.1em;
+  background: currentColor;
+  opacity: 0;
+  animation: fx-cell calc(var(--fx-dur-base) + var(--fx-dur-reveal)) var(--fx-ease-soft-out) both;
+  animation-delay: calc(var(--fx-delay, 0ms) + var(--i, 0) * var(--fx-reveal-step));
+}
+
+:root[data-fx][data-fx-phase="boot"] .fx-ch,
+:root[data-fx][data-fx-phase="boot"] .fx-ch::after {
+  animation-play-state: paused;
+}
+
+@keyframes fx-glyph {
+  0%,
+  35% {
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes fx-cell {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+  25% {
+    opacity: 0.85;
+    transform: none;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* glass panel primitive */
+:root[data-fx] .fx-glass {
+  padding: var(--fx-space-4);
+}
+
+/* title card (A20) */
+:root[data-fx] .fx-intro {
+  position: relative;
+  display: grid;
+  min-height: 0;
+}
+
+:root[data-fx] .fx-intro-body {
+  display: grid;
+  min-height: 0;
+  animation: fx-view-in var(--fx-dur-move) var(--fx-ease-glide) both;
+  animation-delay: calc(var(--fx-dur-reveal) + var(--fx-dur-base));
+}
+
+:root[data-fx] .fx-intro-card {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--fx-space-3);
+  background: radial-gradient(80% 70% at 50% 30%, var(--fx-dawn), transparent 70%), var(--fx-glass-solid);
+  transition:
+    opacity var(--fx-dur-move) var(--fx-ease-glide),
+    transform var(--fx-dur-move) var(--fx-ease-glide);
+}
+
+:root[data-fx] .fx-intro-card.lifting {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+:root[data-fx] .fx-intro-kicker {
+  color: var(--probe);
+  font-size: var(--fx-text-xs);
+}
+
+:root[data-fx] .fx-intro-title {
+  color: var(--fx-ink-0);
+  font: 600 var(--fx-text-3xl) / var(--fx-leading-display) var(--fx-font-sans);
+  letter-spacing: var(--fx-tracking-display);
+}
+
+:root[data-fx="ice"] {
+  --fx-dawn: rgba(255, 214, 170, 0.32);
+}
+
+:root[data-fx="night"] {
+  --fx-dawn: rgba(255, 170, 110, 0.1);
+}
+
+/* debug readout */
+:root[data-fx] .fx-debug {
+  --fx-corner-inset: 6px;
+  z-index: var(--fx-z-loader);
+  color: var(--fx-ink-0);
+  font-size: var(--fx-text-2xs);
+}
+
+/* ---------------------------------------------------------------- opening (StyleProvider phases) */
+
+/* the shell arrives while the loader fades: bars drop in, panels rise, the graph HUD types in */
+:root[data-fx][data-fx-phase="intro"] .header {
+  animation: fx-drop var(--fx-dur-slow) var(--fx-ease-glide) both;
+}
+
+:root[data-fx][data-fx-phase="intro"] .fx-side {
+  animation: fx-slide-left var(--fx-dur-slow) var(--fx-ease-glide) both;
+}
+
+:root[data-fx][data-fx-phase="intro"] .fx-dash {
+  animation: fx-rise var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(3 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .ticker {
+  animation: fx-drop var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(1 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .vh-bar {
+  animation: fx-drop var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(2 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .graph-bar {
+  animation: fx-fade var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(4 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .graph .panel-title {
+  animation: fx-type var(--fx-dur-reveal) steps(16, end) both;
+  animation-delay: calc(4 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .graph-canvas {
+  animation: fx-fade var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(3 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .graph-foot {
+  animation: fx-fade var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(5 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .trail {
+  animation: fx-rise var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(5 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .rail,
+:root[data-fx][data-fx-phase="intro"] .vh-view {
+  animation: fx-slide var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(6 * var(--fx-stagger));
+}
+
+:root[data-fx][data-fx-phase="intro"] .cap {
+  animation: fx-fade var(--fx-dur-slow) var(--fx-ease-glide) both;
+  animation-delay: calc(7 * var(--fx-stagger));
+}
+
+/* ---------------------------------------------------------------- view enter (A18) */
+
+:root[data-fx][data-fx-phase="ready"] .vh-view > * {
+  animation: fx-view-in var(--fx-dur-move) var(--fx-ease-glide) both;
+}
+
+/* ---------------------------------------------------------------- keyframes */
+
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fx-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    filter: blur(var(--fx-blur-reveal));
+  }
+}
+
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes fx-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes fx-slide {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes fx-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--fx-blur-reveal));
+    filter: blur(var(--fx-blur-reveal));
+  }
+}
+
+@keyframes fx-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(6px);
+  }
+}
+
+@keyframes fx-cap-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(8px);
+  }
+}
+
+@keyframes fx-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+
+@keyframes fx-modal-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.985);
+  }
+}
+
+@keyframes fx-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes fx-bracket-in {
+  from {
+    opacity: 0;
+    transform: scale(1.12, 1.4);
+  }
+}

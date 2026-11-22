@@ -1,0 +1,465 @@
+/* Graph extension: the "New metric placed" card and its placement diagram. Uses the page tokens (styles.css),
+   with fallbacks so the fx workspace can host it too. */
+
+.gx-layer {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(500px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  pointer-events: none;
+}
+
+.gx-layer > * {
+  pointer-events: auto;
+}
+
+.gx-card {
+  --gx-tone: var(--ok, #3fbf8f);
+  --gx-tone-bg: var(--ok-bg, rgba(63, 191, 143, 0.12));
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 10px;
+  border-radius: var(--radius, 10px);
+  background: color-mix(in srgb, var(--panel, #121722) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gx-tone) 45%, var(--line-2, #2a3346));
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  backdrop-filter: blur(8px);
+  animation: gx-card-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.gx-card.watch {
+  --gx-tone: var(--watch, #e3a63b);
+  --gx-tone-bg: var(--watch-bg, rgba(227, 166, 59, 0.13));
+}
+
+.gx-card.bad {
+  --gx-tone: var(--alarm, #f2585d);
+  --gx-tone-bg: var(--alarm-bg, rgba(242, 88, 93, 0.14));
+}
+
+.gx-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted, #7b8498);
+}
+
+.gx-kind {
+  font-weight: 650;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gx-tone);
+}
+
+.gx-verdict {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gx-tone);
+  background: var(--gx-tone-bg);
+}
+
+.gx-when {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--faint, #4a5368);
+}
+
+.gx-close {
+  border: 0;
+  background: none;
+  color: var(--muted, #7b8498);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+}
+
+.gx-close:hover {
+  color: var(--text, #e7ebf3);
+}
+
+.gx-title {
+  margin: 7px 0 0;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.gx-id {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted, #7b8498);
+}
+
+.gx-desc {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-2, #aeb6c7);
+}
+
+.gx-headline {
+  margin: 4px 0 0;
+  padding: 7px 10px;
+  border-left: 2px solid var(--gx-tone);
+  border-radius: 0 6px 6px 0;
+  background: var(--gx-tone-bg);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text, #e7ebf3);
+}
+
+.gx-diff {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  max-height: 150px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg, #0a0d13);
+  border: 1px solid var(--line, #1f2635);
+  font: 11px/1.5 var(--mono, ui-monospace, monospace);
+  color: var(--text-2, #aeb6c7);
+  white-space: pre;
+}
+
+.gx-diff .add {
+  color: var(--ok, #3fbf8f);
+}
+
+.gx-diff .del {
+  color: var(--alarm, #f2585d);
+  text-decoration: line-through;
+  text-decoration-color: rgba(242, 88, 93, 0.5);
+}
+
+.gx-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.gx-more {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2, #2a3346);
+  background: var(--panel-2, #171d2a);
+  color: var(--text-2, #aeb6c7);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.gx-more:hover {
+  color: var(--text, #e7ebf3);
+  border-color: var(--faint, #4a5368);
+}
+
+.gx-cert {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #1f2635);
+  font-size: 11.5px;
+  color: var(--text-2, #aeb6c7);
+}
+
+.gx-cert h4 {
+  margin: 8px 0 4px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #7b8498);
+}
+
+.gx-cert ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+
+.gx-cert li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gx-reason {
+  margin: 0 0 3px;
+}
+
+.gx-tried li {
+  font-size: 10.5px;
+  color: var(--muted, #7b8498);
+  overflow-wrap: anywhere;
+}
+
+.gx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok, #3fbf8f);
+}
+
+.gx-dot.watch {
+  background: var(--watch, #e3a63b);
+}
+
+/* ---------------------------------------------------------------- the diagram */
+
+.gx-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 8px 0 4px;
+  overflow: visible;
+}
+
+.gx-chip rect {
+  fill: var(--panel-2, #171d2a);
+  stroke: var(--line-2, #2a3346);
+}
+
+.gx-chip text {
+  fill: var(--text-2, #aeb6c7);
+  font: 11px var(--sans, system-ui, sans-serif);
+}
+
+.gx-chip.raw text {
+  font: 10.5px var(--mono, ui-monospace, monospace);
+}
+
+.gx-chip.alt rect {
+  stroke-dasharray: 3 3;
+  fill: transparent;
+}
+
+.gx-chip.alt text {
+  fill: var(--muted, #7b8498);
+}
+
+.gx-chip {
+  animation: gx-fade 0.4s ease both;
+}
+
+.gx-op,
+.gx-feed-label,
+.gx-dims,
+.gx-wire-label {
+  fill: var(--muted, #7b8498);
+  font: 10.5px var(--sans, system-ui, sans-serif);
+}
+
+.gx-op {
+  font-size: 13px;
+}
+
+.gx-wire-label.watch {
+  fill: var(--watch, #e3a63b);
+}
+
+.gx-wire {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: gx-draw 0.7s ease-out forwards;
+}
+
+.gx-wire.good {
+  stroke: var(--ok, #3fbf8f);
+}
+
+.gx-wire.watch {
+  stroke: var(--watch, #e3a63b);
+}
+
+.gx-wire.bad {
+  stroke: var(--alarm, #f2585d);
+}
+
+.gx-wire.alt {
+  stroke: var(--faint, #4a5368);
+  stroke-dasharray: 0.02 0.02;
+  stroke-dashoffset: 0;
+  animation: gx-fade 0.6s ease both;
+}
+
+.gx-node rect {
+  fill: var(--gx-tone-bg);
+  stroke: var(--gx-tone);
+  stroke-width: 1.5;
+}
+
+.gx-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gx-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) 0.1s both;
+}
+
+.gx-node-label {
+  fill: var(--text, #e7ebf3);
+  font: 600 12.5px var(--sans, system-ui, sans-serif);
+}
+
+.gx-node-sub {
+  fill: var(--gx-tone);
+  font: 10.5px var(--mono, ui-monospace, monospace);
+}
+
+.gx-cross {
+  stroke: var(--alarm, #f2585d);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ---------------------------------------------------------------- the bar */
+
+.gx-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gx-pill {
+  height: 24px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2, #2a3346);
+  background: color-mix(in srgb, var(--panel, #121722) 92%, transparent);
+  color: var(--text-2, #aeb6c7);
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(6px);
+  animation: gx-fade 0.35s ease both;
+}
+
+.gx-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok, #3fbf8f);
+}
+
+.gx-pill.watch::before {
+  background: var(--watch, #e3a63b);
+}
+
+.gx-pill.bad::before {
+  background: var(--alarm, #f2585d);
+}
+
+.gx-pill:hover,
+.gx-pill.on {
+  color: var(--text, #e7ebf3);
+  border-color: var(--faint, #4a5368);
+}
+
+.gx-add {
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-2, #2a3346);
+  background: color-mix(in srgb, var(--panel, #121722) 92%, transparent);
+  color: var(--probe, #5aa7ff);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.gx-add:hover:not(:disabled) {
+  border-color: var(--probe, #5aa7ff);
+}
+
+.gx-add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.gx-error {
+  font-size: 11px;
+  color: var(--alarm, #f2585d);
+}
+
+/* ---------------------------------------------------------------- motion */
+
+@keyframes gx-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+@keyframes gx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes gx-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes gx-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes gx-arrive {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px rgba(63, 191, 143, 0.35), 0 0 30px rgba(63, 191, 143, 0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gx-row-arrive {
+  0%,
+  30% {
+    background: rgba(63, 191, 143, 0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gx-card,
+  .gx-node,
+  .gx-chip,
+  .gx-pill,
+  .gx-wire,
+  .gx-wire.alt {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

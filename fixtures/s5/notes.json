@@ -1,0 +1,68 @@
+[
+  {
+    "id": "note_0001",
+    "kind": "expected",
+    "sim_ts": "2026-11-21T14:00:00",
+    "node": "sessions",
+    "segment": {},
+    "reason": "Sessions: The metric tracked the market-wide decline within the residual band. Evidence from market_demand_hourly.",
+    "numbers": [
+      {
+        "value": -29.39,
+        "unit": "pct",
+        "receipt": "r225"
+      }
+    ],
+    "receipts": [
+      "r226",
+      "r227",
+      "r228",
+      "r229",
+      "r230"
+    ]
+  },
+  {
+    "id": "note_0002",
+    "kind": "expected",
+    "sim_ts": "2026-11-21T14:00:00",
+    "node": "orders",
+    "segment": {},
+    "reason": "Orders: The metric tracked the market-wide decline within the residual band. Evidence from market_demand_hourly.",
+    "numbers": [
+      {
+        "value": -29.53,
+        "unit": "pct",
+        "receipt": "r231"
+      }
+    ],
+    "receipts": [
+      "r232",
+      "r233",
+      "r234",
+      "r235",
+      "r236"
+    ]
+  },
+  {
+    "id": "note_0003",
+    "kind": "expected",
+    "sim_ts": "2026-11-21T14:00:00",
+    "node": "gmv",
+    "segment": {},
+    "reason": "GMV: The metric tracked the market-wide decline within the residual band. Evidence from market_demand_hourly.",
+    "numbers": [
+      {
+        "value": -29.88,
+        "unit": "pct",
+        "receipt": "r237"
+      }
+    ],
+    "receipts": [
+      "r238",
+      "r239",
+      "r240",
+      "r241",
+      "r242"
+    ]
+  }
+]

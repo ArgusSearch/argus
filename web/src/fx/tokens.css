@@ -1,0 +1,200 @@
+/* Argus Ice tokens. Inert unless <html data-fx="ice"> or <html data-fx="night">. */
+
+:root[data-fx] {
+  /* type */
+  --fx-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fx-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fx-text-2xs: 10px;
+  --fx-text-xs: 11px;
+  --fx-text-sm: 12px;
+  --fx-text-md: 13px;   /* base, same as styles.css */
+  --fx-text-lg: 14px;   /* HUD labels, the igloo.inc size */
+  --fx-text-xl: 18px;
+  --fx-text-2xl: 28px;
+  --fx-text-3xl: 44px;
+  --fx-text-display: 72px; /* intro title only */
+  --fx-leading-hud: 1.05;
+  --fx-leading-body: 1.45;
+  --fx-leading-display: 0.95;
+  --fx-tracking-hud: 0.08em;     /* uppercase HUD labels */
+  --fx-tracking-body: 0;
+  --fx-tracking-display: -0.02em;
+  --fx-weight-regular: 400;
+  --fx-weight-medium: 500;
+
+  /* spacing, 4 px base */
+  --fx-space-1: 4px;
+  --fx-space-2: 8px;
+  --fx-space-3: 12px;
+  --fx-space-4: 16px;
+  --fx-space-5: 24px;
+  --fx-space-6: 32px;
+  --fx-space-7: 48px;
+  --fx-edge: clamp(20px, 3.4vw, 56px); /* HUD margin, 50 px at 1440 */
+
+  /* shape */
+  --fx-radius-0: 0;
+  --fx-radius-1: 2px;
+  --fx-radius-2: 6px;
+  --fx-radius-pill: 999px;
+  --fx-hair: 1px;
+  --fx-bracket: 8px;   /* corner bracket arm length */
+
+  /* blur */
+  --fx-blur-1: 10px;
+  --fx-blur-2: 18px;   /* default glass */
+  --fx-blur-3: 32px;   /* modal scrim */
+  --fx-blur-reveal: 12px; /* enter transitions */
+  --fx-saturate: 1.15;
+
+  /* easing */
+  --fx-ease-glide: cubic-bezier(0.6, 0, 0, 1);       /* camera, snap, view enter */
+  --fx-ease-settle: cubic-bezier(0.5, 0, 0.1, 1);    /* intro, large blocks */
+  --fx-ease-inout: cubic-bezier(0.645, 0.045, 0.355, 1); /* default move */
+  --fx-ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);    /* UI response */
+  --fx-ease-soft-out: cubic-bezier(0.39, 0.575, 0.565, 1); /* text reveal */
+  --fx-ease-linear: linear;
+
+  /* durations */
+  --fx-dur-instant: 100ms;
+  --fx-dur-hide: 150ms;
+  --fx-dur-fast: 200ms;
+  --fx-dur-base: 400ms;    /* reveal stage one */
+  --fx-dur-move: 600ms;    /* default move */
+  --fx-dur-reveal: 750ms;  /* reveal stage two */
+  --fx-dur-slow: 1250ms;
+  --fx-dur-camera: 2000ms;
+  --fx-dur-intro: 3000ms;
+  --fx-stagger: 100ms;
+  --fx-stagger-tight: 40ms;
+
+  /* layers */
+  --fx-z-stage: 0;
+  --fx-z-app: 1;
+  --fx-z-hud: 20;
+  --fx-z-loader: 100;
+
+  /* emissive status colors for the 3D scene and glows, same in both themes */
+  --fx-glow-ice: #d6e6ff;
+  --fx-glow-ok: #3fbf8f;
+  --fx-glow-watch: #e3a63b;
+  --fx-glow-alarm: #f2585d;
+  --fx-glow-probe: #5aa7ff;
+  --fx-glow-calm: #9d8cff;
+
+  /* legacy variables of styles.css that are the same in both themes */
+  --mono: var(--fx-font-mono);
+  --sans: var(--fx-font-sans);
+  --radius: var(--fx-radius-2);
+  --radius-sm: var(--fx-radius-1);
+}
+
+/* ------------------------------------------------------------------ ice */
+:root[data-fx="ice"] {
+  color-scheme: light;
+
+  --fx-stage: #a2a8b5;       /* fog and page background */
+  --fx-stage-hi: #c3c9d6;    /* horizon, top of the gradient */
+  --fx-stage-lo: #8a91a0;    /* ground */
+  --fx-ink-0: #0b1320;       /* 13.2:1 on glass */
+  --fx-ink-1: #1b2436;       /* 11.0:1 on glass */
+  --fx-ink-2: #3a4560;       /* 6.7:1 on glass */
+  --fx-ink-3: #4f5973;       /* about 5:1 on glass */
+  --fx-ink-4: #7a8398;       /* 2.7:1, decoration only */
+  --fx-hud: #ffffff;         /* HUD labels on the stage, large and sparse only */
+  --fx-glass-1: rgba(244, 247, 251, 0.62);  /* resolves to about #d5d9e0 over the stage */
+  --fx-glass-2: rgba(244, 247, 251, 0.78);  /* resolves to about #e2e6ec */
+  --fx-glass-border: rgba(255, 255, 255, 0.55);
+  --fx-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 24px 60px -30px rgba(11, 19, 32, 0.35);
+  --fx-well: rgba(11, 19, 32, 0.06);
+  --fx-scrim: rgba(162, 168, 181, 0.55);
+
+  /* legacy variables of styles.css, remapped */
+  --bg: var(--fx-well);
+  --bg-2: var(--fx-glass-2);
+  --panel: var(--fx-glass-1);
+  --panel-2: var(--fx-glass-2);
+  --line: rgba(11, 19, 32, 0.12);
+  --line-2: rgba(11, 19, 32, 0.22);
+  --text: var(--fx-ink-0);
+  --text-2: var(--fx-ink-2);
+  --muted: var(--fx-ink-3);
+  --faint: var(--fx-ink-4);
+  --ok: #0c6b4a;      /* 4.6:1 on glass */
+  --ok-bg: rgba(12, 107, 74, 0.12);
+  --watch: #8a4f05;   /* 4.6:1 */
+  --watch-bg: rgba(138, 79, 5, 0.13);
+  --alarm: #b3192a;   /* about 4.8:1 */
+  --alarm-bg: rgba(179, 25, 42, 0.12);
+  --probe: #1556b3;   /* 4.9:1 */
+  --probe-bg: rgba(21, 86, 179, 0.12);
+  --calm: #5644c9;    /* 4.8:1 */
+  --calm-bg: rgba(86, 68, 201, 0.12);
+}
+
+/* ---------------------------------------------------------------- night */
+:root[data-fx="night"] {
+  color-scheme: dark;
+
+  --fx-stage: #080d16;
+  --fx-stage-hi: #16223a;
+  --fx-stage-lo: #05080e;
+  --fx-ink-0: #e9eef8;       /* 14.5:1 on glass */
+  --fx-ink-1: #d3dbea;
+  --fx-ink-2: #b4bfd4;       /* 9.1:1 */
+  --fx-ink-3: #8590a8;       /* 5.3:1 */
+  --fx-ink-4: #56617a;       /* decoration only */
+  --fx-hud: #ffffff;
+  --fx-glass-1: rgba(26, 39, 64, 0.6);   /* resolves to about #131d2f */
+  --fx-glass-2: rgba(30, 45, 74, 0.78);
+  --fx-glass-border: rgba(214, 230, 255, 0.14);
+  --fx-glass-shadow: inset 0 1px 0 rgba(214, 230, 255, 0.1), 0 24px 60px -30px rgba(0, 0, 0, 0.7);
+  --fx-well: rgba(214, 230, 255, 0.05);
+  --fx-scrim: rgba(8, 13, 22, 0.6);
+
+  --bg: var(--fx-well);
+  --bg-2: var(--fx-glass-2);
+  --panel: var(--fx-glass-1);
+  --panel-2: var(--fx-glass-2);
+  --line: rgba(214, 230, 255, 0.1);
+  --line-2: rgba(214, 230, 255, 0.18);
+  --text: var(--fx-ink-0);
+  --text-2: var(--fx-ink-2);
+  --muted: var(--fx-ink-3);
+  --faint: var(--fx-ink-4);
+  /* status colors stay as styles.css defines them: 5.1:1 to 7.9:1 on glass */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-fx] {
+    --fx-dur-base: 1ms;
+    --fx-dur-move: 1ms;
+    --fx-dur-reveal: 1ms;
+    --fx-dur-slow: 1ms;
+    --fx-dur-camera: 1ms;
+    --fx-dur-intro: 1ms;
+    --fx-stagger: 0ms;
+    --fx-stagger-tight: 0ms;
+  }
+}
+
+/* ------------------------------------------------------- layer additions */
+/* Used only inside web/src/fx (not part of the frozen contract): surfaces inside glass panels, text on filled
+   status colors, the stage dot grid and the dimmer HUD white. */
+:root[data-fx="ice"] {
+  --fx-card: rgba(255, 255, 255, 0.4);
+  --fx-card-hover: rgba(255, 255, 255, 0.62);
+  --fx-on-accent: #ffffff;
+  --fx-dot: rgba(255, 255, 255, 0.2);
+  --fx-hud-dim: rgba(255, 255, 255, 0.82);
+  --fx-shadow-pop: 0 30px 80px -24px rgba(11, 19, 32, 0.45);
+}
+
+:root[data-fx="night"] {
+  --fx-card: rgba(214, 230, 255, 0.045);
+  --fx-card-hover: rgba(214, 230, 255, 0.085);
+  --fx-on-accent: #06101f;
+  --fx-dot: rgba(214, 230, 255, 0.07);
+  --fx-hud-dim: rgba(255, 255, 255, 0.7);
+  --fx-shadow-pop: 0 30px 80px -20px rgba(0, 0, 0, 0.75);
+}
