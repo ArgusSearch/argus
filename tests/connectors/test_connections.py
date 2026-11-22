@@ -11,7 +11,7 @@ from test_providers import plausible_response, stripe_response
 
 from argus.agent.types import RunContext
 from argus.api import app as api_app
-from argus.api.sources import LiveSource
+from argus.api.sources import LiveSource, ReplaySource
 from argus.connectors.provider import ProviderError
 from argus.connectors.service import Connections
 from argus.connectors.vault import Credentials, Vault
@@ -178,6 +178,17 @@ def test_rate_limit_applies_across_sessions(live_api):
     headers = authenticate(client)
     reply = client.post("/connections/plausible/test", headers=headers)
     assert reply.status_code == 429 and reply.headers["Retry-After"] == "60"
+
+
+def test_public_demo_never_loads_connector_credentials(monkeypatch, tmp_path):
+    def forbidden(*args, **kwargs):
+        pytest.fail("The public demo attempted to initialize local Connections.")
+
+    monkeypatch.setattr(api_app, "Connections", forbidden)
+    app = api_app.create_app(ReplaySource(loop=True), start=False, public_settings=True, connections_path=tmp_path)
+    with TestClient(app, **CLIENT) as client:
+        assert client.get("/connections").status_code == 404
+        assert client.post("/connections/operator/session").status_code == 404
 
 
 def test_desktop_credentials_use_an_os_keyring(tmp_path: Path):
