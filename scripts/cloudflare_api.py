@@ -107,7 +107,7 @@ def origin_app(
         except (ValueError, TypeError, KeyError):
             peer = "unknown"
         scope = {**scope, "state": {**scope.get("state", {}), "public_peer": peer}}
-        if requests["total"] >= 1200 or requests[f"ip:{peer}"] >= 240:
+        if requests["total"] >= 12000 or requests[f"ip:{peer}"] >= 3000:
             limit = JSONResponse({"detail": "Rate limit"}, status_code=429, headers={"Retry-After": "60"})
             await limit(scope, receive, send)
             return
