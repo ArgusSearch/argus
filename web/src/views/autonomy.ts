@@ -17,6 +17,5 @@ export function autonomyCounts(view: RunView): AutonomyCount[] {
     { key: "investigations", label: "investigated", value: investigations(view).length },
     { key: "incidents", label: Object.keys(view.incidents).length === 1 ? "incident" : "incidents", value: Object.keys(view.incidents).length },
     { key: "notes", label: "didn't wake you", value: view.notes.length },
-    { key: "human", label: "human actions", value: 0 },
   ];
 }

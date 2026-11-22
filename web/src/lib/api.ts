@@ -30,9 +30,10 @@ export const api = {
   health: () => json<Health>("/health"),
   graph: () => json<Graph>("/graph"),
   incident: (id: string) => json<Incident>(`/incidents/${encodeURIComponent(id)}`),
-  report: async (id: string) => {
-    const res = await fetch(`/incidents/${encodeURIComponent(id)}/report`);
-    if (!res.ok) throw new Error(`${res.status}`);
+  report: async (id: string, demoRun?: string) => {
+    const path = `/incidents/${encodeURIComponent(id)}/report`;
+    const res = await fetch(demoRun ? `/demo${path}?run_id=${encodeURIComponent(demoRun)}` : path);
+    if (!res.ok) throw new ApiError(res.status, `The incident report could not be loaded (${res.status}).`);
     return res.text();
   },
   receipt: (id: string) => json<Receipt>(`/receipts/${encodeURIComponent(id)}`),
@@ -73,11 +74,11 @@ export type ConnectionState = "connecting" | "open" | "offline";
 
 /** How long the stream may fail to reconnect before the page says the API is offline. */
 export const OFFLINE_AFTER_MS = 4000;
+const RECONNECT_AFTER_MS = 1500;
 
 /**
- * Follow `GET /events`. Events arrive in seq order, batched per animation frame. `onReset` fires when
- * the server starts a new stream (a replay restart, or a reconnect after one): drop the state, the
- * events that follow rebuild it. EventSource reconnects by itself and resumes with Last-Event-ID.
+ * Follow `GET /events`. Each connection starts with a stream header and a full snapshot of the event
+ * history. A fresh connection after an error avoids sending a cursor from an earlier API process.
  */
 export function follow(handlers: {
   onReset: (header: StreamHeader) => void;
@@ -90,6 +91,7 @@ export function follow(handlers: {
   let frame = 0;
   let offline = false;
   let offlineTimer: ReturnType<typeof setTimeout> | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
 
   const flush = () => {
     frame = 0;
@@ -102,33 +104,28 @@ export function follow(handlers: {
 
   const open = () => {
     if (closed) return;
-    handlers.onState("connecting");
-    const es = new EventSource("/events");
+    const es = new EventSource("/events?include_stream=true");
     source = es;
     es.onopen = () => {
+      if (source !== es) return;
       clearTimeout(offlineTimer);
       offlineTimer = undefined;
       offline = false;
       handlers.onState("open");
     };
-    // A stopped API refuses the connection and the browser keeps retrying with readyState CONNECTING,
-    // so "offline" cannot wait for CLOSED: it is declared when no reconnect succeeds for a while.
     es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) {
-        clearTimeout(offlineTimer);
-        offlineTimer = undefined;
-        offline = true;
-        handlers.onState("offline");
-        return;
+      if (source !== es) return;
+      es.close();
+      source = null;
+      retry = setTimeout(open, RECONNECT_AFTER_MS);
+      if (!offline && offlineTimer === undefined) {
+        handlers.onState("connecting");
+        offlineTimer = setTimeout(() => {
+          offlineTimer = undefined;
+          offline = true;
+          handlers.onState("offline");
+        }, OFFLINE_AFTER_MS);
       }
-      if (offline) return; // still down: keep the banner instead of flickering back to "connecting"
-      handlers.onState("connecting");
-      offlineTimer ??= setTimeout(() => {
-        offlineTimer = undefined;
-        if (closed) return;
-        offline = true;
-        handlers.onState("offline");
-      }, OFFLINE_AFTER_MS);
     };
     es.addEventListener("stream", (msg) => {
       // events of the old stream still waiting for a frame are void
@@ -146,8 +143,10 @@ export function follow(handlers: {
   open();
   return () => {
     closed = true;
+    clearTimeout(retry);
     if (frame) cancelAnimationFrame(frame);
     clearTimeout(offlineTimer);
     source?.close();
+    source = null;
   };
 }

@@ -45,6 +45,7 @@ from argus.graph.store import REPO
 from argus.narrator.routes import router as narrator_router
 
 WEB_DIST = REPO / "web" / "dist"
+BENCH_OUT = REPO / "runs" / "bench"
 
 
 class RunControl(BaseModel):
@@ -85,7 +86,9 @@ def end_streams_on_exit(hub: EventHub) -> Callable[[], None]:
     return restore
 
 
-def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) -> FastAPI:
+def create_app(
+    source: Source, start: bool = True, web_dist: Path = WEB_DIST, *, bench_out: Path = BENCH_OUT
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         restore = end_streams_on_exit(source.bus)
@@ -142,14 +145,33 @@ def create_app(source: Source, start: bool = True, web_dist: Path = WEB_DIST) ->
     def routes() -> list[dict[str, str]]:
         return [r.model_dump() for r in ROUTES]
 
+    @app.get("/bench/scorecard")
+    def bench_scorecard() -> dict[str, Any] | None:
+        """Read the published bench artifact across the package boundary."""
+        try:
+            card = json.loads((bench_out / "scorecard.json").read_bytes())
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError) as exc:
+            raise HTTPException(503, "The latest bench scorecard file could not be read.") from exc
+        if not isinstance(card, dict) or not (
+            isinstance(card.get("bench_commitment"), str)
+            and all(isinstance(card.get(key), list) for key in ("scenarios", "summaries", "rows"))
+        ):
+            raise HTTPException(503, "The latest bench scorecard file has an invalid format.")
+        return card
+
     @app.get("/events", response_class=EventSourceResponse)
     async def events(
-        since: int = 0, limit: int | None = None, last_event_id: str | None = Header(None)
+        since: int = 0,
+        limit: int | None = None,
+        last_event_id: str | None = Header(None),
+        include_stream: bool = False,
     ) -> AsyncIterator[ServerSentEvent]:
         """The history after `since` (or Last-Event-ID), then live events."""
         after = int(last_event_id) if last_event_id and last_event_id.isdigit() else since
         sent = 0
-        async for item in hub.follow(after):
+        async for item in hub.follow(after, include_stream=include_stream):
             if item.event is None:
                 header = {"stream": item.stream, "mode": source.mode}
                 yield ServerSentEvent(event="stream", raw_data=json.dumps(header))

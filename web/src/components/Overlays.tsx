@@ -90,7 +90,6 @@ export function AutonomyLegend({ view, graph }: { view: RunView; graph: Graph })
   const silenced = view.notes.filter((n) => n.reason.includes("symptom of")).length;
   const status = (id: string, fallback: string) => view.edges[id]?.status ?? fallback;
   const unsure = graph.edges.filter((e) => ["PROBATION", "PROPOSED"].includes(status(e.id, e.status))).length;
-  const approvals = incidents.filter((i) => i.verdict === "SUPPORTED_CAUSE").length;
   return (
     <>
       <button className="btn autonomy-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
@@ -127,7 +126,7 @@ export function AutonomyLegend({ view, graph }: { view: RunView; graph: Graph })
               <h4>Flags for a human</h4>
               <ul>
                 <li>
-                  <b>{approvals}</b> any action on the business (approval)
+                  <b>·</b> approval before a business action
                 </li>
                 <li>
                   <b>{unsure}</b> edges on probation or only proposed

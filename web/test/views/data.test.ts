@@ -1,67 +1,31 @@
-// Reads of routes owned by other lanes: a route the API's table marks as a stub is not requested, so the page
-// falls back without a failed request in the browser console.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isStub, type RouteInfo } from "../../src/views/data";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { views } from "../../src/views/data";
 
-const STUB: RouteInfo = { method: "GET", path: "/bench/results", status: "stub" };
-const BUILT: RouteInfo = { method: "GET", path: "/bench/results", status: "implemented" };
-
-describe("isStub", () => {
-  it("reads the status of exactly that method and path", () => {
-    expect(isStub([STUB], "GET", "/bench/results")).toBe(true);
-    expect(isStub([BUILT], "GET", "/bench/results")).toBe(false);
-    expect(isStub([STUB], "POST", "/bench/results")).toBe(false);
-    expect(isStub([STUB], "GET", "/bench")).toBe(false);
-  });
-
-  it("marks nothing when the table could not be read", () => {
-    expect(isStub(null, "GET", "/bench/results")).toBe(false);
-    expect(isStub([], "GET", "/bench/results")).toBe(false);
-  });
-});
+const result: unknown = JSON.parse(readFileSync(new URL("../../src/views/fixtures/scorecard.sample.json", import.meta.url), "utf8"));
 
 describe("views.benchResults", () => {
-  const requested: string[] = [];
+  afterEach(() => vi.unstubAllGlobals());
 
-  function serve(routes: unknown, scorecard: unknown = { seeds: [] }) {
-    vi.stubGlobal("fetch", async (path: string) => {
-      requested.push(path);
-      if (path === "/routes") return Response.json(routes);
-      if (path === "/bench/results") return Response.json(scorecard);
-      return new Response("not found", { status: 404 });
-    });
-  }
-
-  beforeEach(() => {
-    requested.length = 0;
-    vi.resetModules();
+  it("reads the scorecard from the API", async () => {
+    const fetch = vi.fn(async () => Response.json(result));
+    vi.stubGlobal("fetch", fetch);
+    await expect(views.benchResults()).resolves.toEqual(result);
+    expect(fetch).toHaveBeenCalledExactlyOnceWith("/bench/scorecard", { headers: { accept: "application/json" } });
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  it("preserves the API's empty result", async () => {
+    vi.stubGlobal("fetch", async () => Response.json(null));
+    await expect(views.benchResults()).resolves.toBeNull();
   });
 
-  it("does not request a stubbed route", async () => {
-    serve([STUB]);
-    const { views } = await import("../../src/views/data");
-    // a fresh module graph per test, so the error class is the one that module instance sees
-    const { ApiError } = await import("../../src/lib/api");
-    await expect(views.benchResults()).rejects.toSatisfy((e) => e instanceof ApiError && e.status === 501);
-    await expect(views.benchResults()).rejects.toBeInstanceOf(ApiError);
-    expect(requested).toEqual(["/routes"]);
+  it("rejects malformed data", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ seeds: [] }));
+    await expect(views.benchResults()).rejects.toThrow("invalid bench scorecard");
   });
 
-  it("reads the route once it is built", async () => {
-    serve([BUILT], { seeds: [1, 2, 3] });
-    const { views } = await import("../../src/views/data");
-    await expect(views.benchResults()).resolves.toEqual({ seeds: [1, 2, 3] });
-    expect(requested).toEqual(["/routes", "/bench/results"]);
-  });
-
-  it("still tries the route when the table is unreadable", async () => {
-    serve("not a table");
-    const { views } = await import("../../src/views/data");
-    await expect(views.benchResults()).resolves.toEqual({ seeds: [] });
-    expect(requested).toEqual(["/routes", "/bench/results"]);
+  it("surfaces an unreadable result from the API", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ detail: "Scorecard file unreadable." }, { status: 503 }));
+    await expect(views.benchResults()).rejects.toMatchObject({ status: 503, message: "Scorecard file unreadable." });
   });
 });

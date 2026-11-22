@@ -70,9 +70,9 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
   }, [options.demo, clearTimers]);
 
   // start once the API says what it is: a replay restarts from the first tick, a live run keeps going.
-  // The stream id comes from /health: a page that joined the first stream never gets a stream header.
+  // Wait for the first stream header before restarting, so the page can follow the new stream from its start.
   const mode = health?.mode;
-  const stream = health?.stream ?? null;
+  const stream = view.stream;
   useEffect(() => {
     if (!options.demo || started.current || !mode || (mode === "replay" && !stream)) return;
     started.current = { before: mode === "replay" ? stream : null };

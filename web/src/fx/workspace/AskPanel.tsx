@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Fragment, type ReactNode } from "react";
 import { AgentReceiptChips, useOpenReceipt } from "../../components/Receipts";
 import { agentApi, type AskAnswer, type ReceiptLink } from "../../lib/agent";
+import { useAgentDemo } from "../../lib/agentDemo";
 import { AvatarSlot } from "./AvatarSlot";
 import { useAgent } from "./agent";
 
@@ -111,6 +112,8 @@ interface Turn {
 
 export function AskPanel({ incident }: { incident: string | null }) {
   const agent = useAgent();
+  const demo = useAgentDemo();
+  const suggestions = demo ? demo.snapshot?.questions ?? [] : SUGGESTIONS;
   const shown = useAskOpen();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
@@ -132,7 +135,7 @@ export function AskPanel({ incident }: { incident: string | null }) {
       if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         setAskOpen(true);
-      } else if (e.key === "Escape" && open) {
+      } else if (e.key === "Escape" && open && !document.querySelector(".modal[aria-label^='Receipt ']")) {
         e.preventDefault();
         setAskOpen(false);
       }
@@ -187,14 +190,18 @@ export function AskPanel({ incident }: { incident: string | null }) {
       <ol className="ws-ask-turns" ref={list}>
         {turns.length === 0 && (
           <li className="ws-ask-empty">
-            <span>Try</span>
-            <div className="ws-ask-suggest">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} className="btn" onClick={() => void ask(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
+            {suggestions.length ? (
+              <>
+                <span>{demo ? "Recorded questions" : "Try"}</span>
+                <div className="ws-ask-suggest">
+                  {suggestions.map((s) => (
+                    <button key={s} className="btn" onClick={() => void ask(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : <span>Recorded answers appear as the investigation progresses.</span>}
           </li>
         )}
         {turns.map((t, i) => (

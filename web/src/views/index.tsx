@@ -3,6 +3,8 @@
 // the switcher by itself. Deep link to a view with ?view=tree|investigation|report|scorecard.
 
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { useAgentDemo } from "../lib/agentDemo";
+import { fxOn } from "../fx/flag";
 import type { RunView } from "../lib/store";
 import type { Graph, Health } from "../lib/types";
 import { AutonomyStrip } from "./AutonomyStrip";
@@ -37,9 +39,25 @@ function initialTab(): DemoTab {
 }
 
 export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, children }: ViewHostProps) {
+  const demo = useAgentDemo();
   const [tab, setTabState] = useState<DemoTab>(initialTab);
   const setTab = useCallback((next: DemoTab) => setTabState(next), []);
   const { options, beat } = useDemo({ view, graph, health, setTab, onOpenIncident });
+  const selectTab = useCallback((next: DemoTab) => {
+    setTabState(next);
+    if (fxOn() || options.demo) return;
+    const url = new URL(window.location.href);
+    if (next === "graph") url.searchParams.delete("view");
+    else url.searchParams.set("view", next);
+    if (url.href !== window.location.href) window.history.pushState(null, "", url);
+  }, [options.demo]);
+
+  useEffect(() => {
+    if (fxOn()) return;
+    const restore = () => setTabState(initialTab());
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
 
   // 1-5 switch views (not while typing, and not with a modifier)
   useEffect(() => {
@@ -48,11 +66,11 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
       const target = e.target as HTMLElement | null;
       if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
       const hit = TABS.find((t) => t.key === e.key);
-      if (hit) setTabState(hit.id);
+      if (hit) selectTab(hit.id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [selectTab]);
 
   const running = view.anomalies.length > 0 && !view.steps.some((s) => s.step.kind === "verdict" && s.anomalyId === view.anomalies[view.anomalies.length - 1].id);
   const fallback = <div className="vw-empty">Loading…</div>;
@@ -67,7 +85,7 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
               role="tab"
               aria-selected={tab === t.id}
               className={`vh-tab${tab === t.id ? " on" : ""}`}
-              onClick={() => setTabState(t.id)}
+              onClick={() => selectTab(t.id)}
               title={`${t.label} (${t.key})`}
             >
               {t.label}
@@ -86,7 +104,7 @@ export function ViewHost({ graph, view, health, onSelectNode, onOpenIncident, ch
             <Suspense fallback={fallback}>
               {tab === "tree" && <TreeView graph={graph} view={view} onSelectNode={onSelectNode} />}
               {tab === "investigation" && <InvestigationView graph={graph} view={view} onSelectNode={onSelectNode} onOpenIncident={onOpenIncident} />}
-              {tab === "report" && <MorningReport view={view} onOpenIncident={onOpenIncident} />}
+              {tab === "report" && <MorningReport key={demo?.runId} graph={graph} view={view} onOpenIncident={onOpenIncident} />}
               {tab === "scorecard" && <ScorecardView />}
             </Suspense>
           </div>

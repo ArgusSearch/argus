@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useApprovalCount } from "./approvals";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
+import type { RunView } from "../../lib/store";
 
 export interface AgentState {
   enabled: boolean;
@@ -28,11 +29,11 @@ export function useAgent(): AgentState {
 }
 
 /** Decisions people made: approved or denied proposals (operator decisions), plus approvals kept in this browser. */
-export function useHumanActions(stream: string | null): number {
+export function useHumanActions(view: Pick<RunView, "stream" | "mode">): number {
   const agent = useAgent();
-  const local = useApprovalCount(stream);
+  const local = useApprovalCount(view.stream);
   const decided = agent.enabled ? agent.proposals.filter((p) => p.decision !== null).length : 0;
-  return decided + local;
+  return decided + (view.mode === "replay" ? local : 0);
 }
 
 /** The proposal for an incident (the newest one), if the agent made one. */

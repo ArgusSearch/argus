@@ -8,6 +8,7 @@ data has arrived, which is what "click the number, re-run the SQL, same hash" re
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import threading
@@ -48,6 +49,8 @@ class Runner:
         self._con = duckdb.connect(str(self.world_path), read_only=True)
         self._local = threading.local()
         self._lock = threading.Lock()
+        self._cancelled = threading.Event()
+        self._active: set[duckdb.DuckDBPyConnection] = set()
         self.receipts: dict[str, Receipt] = {}
         self.query_count = 0
 
@@ -59,11 +62,32 @@ class Runner:
         return cur
 
     def _execute(self, sql: str, as_of: datetime) -> tuple[list[tuple[Any, ...]], list[str]]:
-        cur = self._cursor()
-        cur.execute(f"SET VARIABLE {AS_OF_VARIABLE} = {sql_ts(as_of)}")
-        result = cur.execute(sql)
-        columns = [d[0] for d in result.description] if result.description else []
-        return result.fetchall(), columns
+        with self._lock:
+            if self._cancelled.is_set():
+                raise asyncio.CancelledError
+            cur = self._cursor()
+            self._active.add(cur)
+        try:
+            cur.execute(f"SET VARIABLE {AS_OF_VARIABLE} = {sql_ts(as_of)}")
+            if self._cancelled.is_set():
+                raise asyncio.CancelledError
+            result = cur.execute(sql)
+            columns = [d[0] for d in result.description] if result.description else []
+            return result.fetchall(), columns
+        except duckdb.InterruptException as exc:
+            if self._cancelled.is_set():
+                raise asyncio.CancelledError from exc
+            raise
+        finally:
+            with self._lock:
+                self._active.remove(cur)
+
+    def cancel(self) -> None:
+        """Interrupt queries in flight and stop accepting SQL before shutdown."""
+        with self._lock:
+            self._cancelled.set()
+            for cur in self._active:
+                cur.interrupt()
 
     def fetch(self, sql: str, as_of: datetime) -> list[dict[str, Any]]:
         """Run a query without a receipt (monitoring internals). Returns rows as dicts."""
