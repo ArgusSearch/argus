@@ -1,0 +1,163 @@
+/* Opaque shell and Overview surfaces. The other views retain their own panel tokens. */
+:root[data-fx] :is(.fx-side, .header, .ws-overview) {
+  --fx-ink-0: var(--workspace-ink);
+  --fx-ink-1: var(--workspace-ink);
+  --fx-ink-2: var(--workspace-muted);
+  --fx-ink-3: var(--workspace-muted);
+  --fx-hud: var(--workspace-muted);
+  --fx-card: var(--workspace-canvas);
+  --fx-card-hover: var(--workspace-selection);
+  --fx-well: var(--workspace-selection);
+  --line: var(--workspace-line);
+  --line-2: var(--workspace-line);
+  color: var(--workspace-ink);
+}
+
+:root[data-fx] .fx-side {
+  background: var(--workspace-canvas);
+  border-color: var(--workspace-line);
+  box-shadow: none;
+}
+
+:root[data-fx] .fx-side-brand b {
+  font: 650 16px / 1.1 var(--fx-font-sans);
+  letter-spacing: -0.02em;
+}
+
+:root[data-fx] :is(.fx-side-brand span, .fx-side-group, .fx-side-foot .fx-hud) {
+  font: 500 12px / 1.3 var(--fx-font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-fx] :is(.fx-side-item, .fx-side-menu) {
+  border-radius: 8px;
+}
+
+:root[data-fx] :is(.fx-side-item:hover, .fx-side-item.on) {
+  background: var(--workspace-selection);
+}
+
+:root[data-fx] .fx-side-item.on {
+  font-weight: 650;
+}
+
+:root[data-fx] .fx-side-item::after,
+:root[data-fx] :is(.fx-side-foot .fx-hud, .ws-overview .fx-hud)::before {
+  content: none;
+}
+
+:root[data-fx] :is(.fx-side-item, .fx-side-menu):focus-visible {
+  outline: 2px solid var(--calm);
+  outline-offset: -2px;
+}
+
+:root[data-fx] .header {
+  padding-inline: var(--fx-space-4);
+  border-bottom: 1px solid var(--workspace-line);
+  background: var(--workspace-surface);
+}
+
+:root[data-fx] .header .mode {
+  border-radius: var(--fx-radius-pill);
+  background: var(--workspace-canvas);
+  font-family: var(--fx-font-sans);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+:root[data-fx][data-fx-section="dashboard"]:has(.ws-overview) #fx-stage {
+  background: var(--workspace-canvas);
+}
+
+:root[data-fx] .ws-overview {
+  --fx-glass-border: var(--workspace-line);
+  --fx-glass-1: var(--workspace-surface);
+  --fx-glass-2: var(--workspace-surface);
+  --fx-glass-solid: var(--workspace-surface);
+  --fx-glass-shadow: none;
+  padding: var(--fx-space-5) var(--fx-space-4);
+}
+
+:root[data-fx] .ws-overview .ws-head {
+  gap: 8px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--workspace-line);
+}
+
+:root[data-fx] .ws-overview .ws-head h1 {
+  font-size: 32px;
+  line-height: 1.12;
+  text-wrap: balance;
+  max-width: 32ch;
+}
+
+:root[data-fx] .ws-overview :is(.ws-kicker, .fx-card-head h2) {
+  font-family: var(--fx-font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-fx] .ws-overview .fx-card-head h2 {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+:root[data-fx] .ws-overview :is(.ws-tile, .fx-card, .ws-compression) {
+  border-radius: 12px;
+  background: var(--workspace-surface);
+  box-shadow: none;
+}
+
+:root[data-fx] .ws-overview .ws-tile::before {
+  height: 1px;
+}
+
+:root[data-fx] .ws-overview .ws-tile:not(.t-alarm)::before {
+  background: transparent;
+}
+
+:root[data-fx] .ws-overview .ws-tile.t-alarm {
+  border-color: var(--alarm);
+}
+
+:root[data-fx] .ws-overview :is(.ws-tile, .fx-card, .ws-task)[data-light]::after {
+  background: none;
+}
+
+:root[data-fx] .ws-overview :is(.ws-tile, .ws-task)[data-light]:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-fx] .ws-overview :is(.ws-tile-value b, .ws-compression dd) {
+  font-family: var(--fx-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-fx] .ws-overview .fx-card-head .btn {
+  border-radius: 8px;
+  font-family: var(--fx-font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root[data-fx] .ws-overview .ws-head .btn {
+  max-width: 100%;
+}
+
+@media (max-width: 1179px) {
+  :root[data-fx] .header {
+    padding-block: var(--fx-space-2);
+    border: 1px solid var(--workspace-line);
+    border-radius: 8px;
+  }
+
+  :root[data-fx] .ws-overview {
+    padding: var(--fx-space-2) 0 var(--fx-space-4);
+  }
+
+  :root[data-fx] .ws-overview .ws-head h1 {
+    font-size: 28px;
+  }
+}

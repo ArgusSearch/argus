@@ -93,6 +93,13 @@
 :root[data-fx="ice"] {
   color-scheme: light;
 
+  --workspace-canvas: #f7f7f5;
+  --workspace-surface: #fff;
+  --workspace-selection: #ecece8;
+  --workspace-line: #deded8;
+  --workspace-ink: #20211e;
+  --workspace-muted: #62645e;
+
   --fx-stage: #a2a8b5;       /* fog and page background */
   --fx-stage-hi: #c3c9d6;    /* horizon, top of the gradient */
   --fx-stage-lo: #8a91a0;    /* ground */
@@ -135,6 +142,13 @@
 /* ---------------------------------------------------------------- night */
 :root[data-fx="night"] {
   color-scheme: dark;
+
+  --workspace-canvas: #191a18;
+  --workspace-surface: #21221f;
+  --workspace-selection: #2e302c;
+  --workspace-line: #40413b;
+  --workspace-ink: #f1f2ed;
+  --workspace-muted: #b2b5aa;
 
   --fx-stage: #080d16;
   --fx-stage-hi: #16223a;
