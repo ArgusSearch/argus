@@ -269,9 +269,7 @@ def test_e22_critic_is_isolated_and_bounded(world_case, payments, fail):
         assert len(unavailable) == 1 and unavailable[0].sim_ts == deterministic.as_of
 
 
-def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):
-    from argus.agent.board import build_board
-
+def test_e26_detective_and_critic_budget_caps(world_case, tmp_path):
     def loop(request):
         if request.key.startswith("critic:"):
             return critic_call(request, "placebo_test", {**series_args(request), **CHECKS, "expect": "recurring"})
@@ -299,6 +297,11 @@ def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):
     assert 0 < sum(u.usd or 0 for u in journal.usage if u.model in critics) <= 0.20
     assert 0 < sum(u.usd or 0 for u in journal.usage if u.model not in critics) <= 0.50
     assert path.read_bytes()
+
+
+def test_e26_replay_reports_exact_cost_without_spend(world_case, tmp_path):
+    from argus.agent.board import build_board
+
     replay_path = tmp_path / "replay-spend.jsonl"
     replay, replay_journal, _ = run_v2(
         world_case("s1"),
