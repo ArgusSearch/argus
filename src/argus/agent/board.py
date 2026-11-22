@@ -283,10 +283,10 @@ class _Derivation:
                 move = HypothesisMove.model_validate(args["move"])
             except ValidationError:
                 return
-            card = self.book.find(f"model:{move.id}")
-            if card is not None:
-                if move.call_id is None or any(c.call_id == move.call_id for c in card.checks):
-                    card.status, card.reason = move.status, move.reason
+            moved = self.book.find(f"model:{move.id}")
+            if moved is not None:
+                if move.call_id is None or any(c.call_id == move.call_id for c in moved.checks):
+                    moved.status, moved.reason = move.status, move.reason
                 else:
                     self.pending_moves[move.call_id] = move
 

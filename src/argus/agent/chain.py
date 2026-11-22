@@ -69,9 +69,9 @@ def _formula_hops(findings: Findings, root: str) -> Iterable[tuple[str, str, flo
         yield last, parent, float(share) if isinstance(share, int | float) else None, step.receipts
         last = parent
     if (parent := findings.decomposed_node) and parent not in (root, last):
-        factor = next((c for c in findings.decomposition if c.node == last), None)
-        if factor is not None:
-            yield last, parent, factor.share, [factor.receipt] if factor.receipt else []
+        contribution = next((c for c in findings.decomposition if c.node == last), None)
+        if contribution is not None:
+            yield last, parent, contribution.share, [contribution.receipt] if contribution.receipt else []
 
 
 def _eur(value: float) -> str:
