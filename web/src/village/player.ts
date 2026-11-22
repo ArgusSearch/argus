@@ -12,6 +12,8 @@ export class Player {
   time = 0;
   speed = 1;
   playing = true;
+  /** Changes when the playhead jumps instead of advancing. */
+  seekVersion = 0;
   private tl: Timeline = { slots: [], total: 0, waiting: false };
   private last = 0;
   private frame = 0;
@@ -27,7 +29,10 @@ export class Player {
   /** Swaps the timeline (a decision, new live beats, another tape). The clock keeps its time unless `restart`. */
   load(tl: Timeline, restart = false): void {
     this.tl = tl;
-    if (restart) this.time = 0;
+    if (restart) {
+      this.time = 0;
+      this.seekVersion += 1;
+    }
     this.time = Math.min(this.time, tl.total);
     this.emit(true);
   }
@@ -73,6 +78,7 @@ export class Player {
 
   seek(time: number): void {
     this.time = Math.max(0, Math.min(this.tl.total, time));
+    this.seekVersion += 1;
     this.emit(true);
   }
 

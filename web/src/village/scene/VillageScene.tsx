@@ -5,19 +5,21 @@ import { useEffect, useRef } from "react";
 import { qualityMode } from "../../fx/scene/quality";
 import type { Player } from "../player";
 import type { RoleId } from "../roles";
+import type { RoomTelemetry } from "./rooms";
 import type { VillageState } from "../timeline";
 import { VillageEngine } from "./engine";
 
 export interface VillageSceneProps {
   player: Player;
   state: VillageState;
+  telemetry: RoomTelemetry;
   anchors: Map<string, HTMLElement>;
   onSelect: (role: RoleId) => void;
   onHover: (role: RoleId | null) => void;
   onFail: (error: Error) => void;
 }
 
-export default function VillageScene({ player, state, anchors, onSelect, onHover, onFail }: VillageSceneProps) {
+export default function VillageScene({ player, state, telemetry, anchors, onSelect, onHover, onFail }: VillageSceneProps) {
   const mount = useRef<HTMLDivElement>(null);
   const engine = useRef<VillageEngine | null>(null);
   const handlers = useRef({ onSelect, onHover, onFail });
@@ -46,12 +48,17 @@ export default function VillageScene({ player, state, anchors, onSelect, onHover
     return () => {
       e.dispose();
       engine.current = null;
+      delete (window as unknown as { __village?: VillageEngine }).__village;
     };
   }, [player, anchors]);
 
   useEffect(() => {
     engine.current?.setState(state);
   }, [state]);
+
+  useEffect(() => {
+    engine.current?.setTelemetry(telemetry);
+  }, [telemetry]);
 
   return <div ref={mount} className="vl-stage3d" />;
 }

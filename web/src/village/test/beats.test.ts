@@ -1,19 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { buildBeats, roleOfTool } from "../beats";
 import { ROLES } from "../roles";
+import { initialSource } from "../source";
 import { idleBubbles, timeline, villageAt } from "../timeline";
 import type { ActivityRecord, VillageTape } from "../types";
 import s1Tape from "../tapes/s1.json";
 import s2Tape from "../tapes/s2.json";
 import s4Tape from "../tapes/s4.json";
+import s4AgentTape from "../tapes/s4-agent.json";
 import s5Tape from "../tapes/s5.json";
 import metricTape from "../tapes/metric.json";
+import s4Actions from "../../../../fixtures/agent/v1/s4/actions.json";
+import s4ApprovedActions from "../../../../fixtures/agent/v1/s4/approve/actions.json";
 
 const s1 = s1Tape as unknown as VillageTape;
 const s4 = s4Tape as unknown as VillageTape;
 const s2 = s2Tape as unknown as VillageTape;
 const s5 = s5Tape as unknown as VillageTape;
 const idle = idleBubbles(ROLES);
+
+describe("live village", () => {
+  it("requires an explicit replay selection", () => {
+    expect(initialSource("?fx=1&view=village")).toBe("live");
+    expect(initialSource("?village=invalid")).toBe("live");
+    expect(initialSource("?village=s4")).toBe("s4");
+  });
+
+  it("shows the Stage-2 recommendation without creating a simulated live approval", () => {
+    const beats = buildBeats({ ...s1, scenario: "live" }, { decision: null });
+    expect(beats.some((beat) => beat.kind === "report")).toBe(true);
+    expect(beats.some((beat) => beat.gate)).toBe(false);
+  });
+});
 
 // the recordings the tapes were built from (tools/build-tapes.mjs): a tape must not drift from its fixture
 const fixtures = import.meta.glob<string>(["../../../../fixtures/events.jsonl", "../../../../fixtures/s{2,4,5}/events.jsonl"], {
@@ -105,6 +123,21 @@ describe("S4", () => {
     const done = buildBeats(s4, { decision: "approve" });
     expect(done[done.length - 1].role).toBe("watcher");
     expect(order(open)).toContain("cartographer");
+  });
+
+  it("carries one case to the operator and plays the recorded verification only after approval", () => {
+    const tape = s4AgentTape as unknown as VillageTape;
+    const waiting = buildBeats(tape, { decision: null });
+    const gate = waiting.at(-1);
+    expect(gate?.gate?.proposal?.state).toBe("AWAIT_OPERATOR");
+    expect(waiting.find((beat) => beat.kind === "detect")?.caseId).toBe(gate?.caseId);
+    expect(timeline(waiting).slots.at(-1)?.from).toBe("narrator");
+    expect(waiting.some((beat) => beat.kind === "effect")).toBe(false);
+    const approved = buildBeats(tape, { decision: "approve" });
+    expect(approved.filter((beat) => beat.kind === "decision")).toHaveLength(1);
+    expect(approved.find((beat) => beat.kind === "apply")?.caseId).toBe(gate?.caseId);
+    expect(approved.find((beat) => beat.kind === "effect")?.done).toMatch(/against the untreated twin/);
+    expect(buildBeats(tape, { decision: "deny" }).some((beat) => beat.kind === "apply" || beat.kind === "effect")).toBe(false);
   });
 });
 
@@ -229,5 +262,13 @@ describe("agent activity", () => {
     expect(approved.find((b) => b.kind === "decision")?.done).toMatch(/applying in the simulator/);
     const denied = buildBeats(tape, { decision: "deny" });
     expect(denied.some((b) => b.kind === "apply" || b.kind === "effect")).toBe(false);
+  });
+
+  it("opens a live gate only while its API proposal is awaiting the operator", () => {
+    const live: VillageTape = { ...tape, scenario: "live", activity: tape.activity.slice(0, 4).map((r) => r.kind === "action_proposed" ? { ...r, action_id: s4Actions[0].id } : r) };
+    const beats = (actions: unknown) => buildBeats({ ...live, actions: actions as VillageTape["actions"] }, { decision: null });
+    expect(beats([]).some((beat) => beat.gate)).toBe(false);
+    expect(beats(s4Actions).find((beat) => beat.gate)?.gate?.proposal?.state).toBe("AWAIT_OPERATOR");
+    expect(beats(s4ApprovedActions).some((beat) => beat.gate)).toBe(false);
   });
 });

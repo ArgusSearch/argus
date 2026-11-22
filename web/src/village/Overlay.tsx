@@ -2,7 +2,7 @@
 // stage through the anchors map), the case-file tag, the role panel with its tool log, the approval card and
 // the caption line. Text stays DOM so it is crisp in the video and selectable.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hhmm } from "../lib/format";
 import { AgentAvatar } from "./avatars/AgentAvatar";
 import { agentName, PERSONAS } from "./avatars/personas";
@@ -11,15 +11,35 @@ import type { Player } from "./player";
 import { ROLE, ROLES, type RoleId } from "./roles";
 import type { VillageState } from "./timeline";
 
+/** A corner the pins keep clear of (the title block), in stage pixels from the top left. */
+export interface Keepout {
+  right: number;
+  bottom: number;
+}
+
 /**
  * Moves a pinned element to (x, y) stage pixels. A column with a bubble needs room above its anchor, so it is
- * held below the top edge instead of sliding out of view.
+ * held below the top edge instead of sliding out of view. A bubble that would run into the title block slides
+ * sideways past it (`--dodge`), while the name plate stays over its igloo.
  */
-export function placePin(el: HTMLElement, x: number, y: number, visible = true): void {
-  const top = el.classList.contains("on") ? 150 : 52;
-  const yy = Math.max(top, y);
+export function placePin(el: HTMLElement, x: number, y: number, visible = true, keepout: Keepout | null = null): void {
+  const on = el.classList.contains("on");
+  const tall = on ? 150 : 52;
+  const yy = Math.max(tall, y);
+  let dodge = 0;
+  if (on && keepout && el.classList.contains("vl-pin-role") && yy - tall < keepout.bottom + 8) dodge = Math.max(0, Math.min(220, keepout.right + 12 - (x - 140)));
   el.style.transform = `translate3d(${x.toFixed(1)}px, ${yy.toFixed(1)}px, 0)`;
+  el.style.setProperty("--dodge", `${dodge.toFixed(1)}px`);
   el.style.visibility = visible ? "visible" : "hidden";
+}
+
+/** The title block's corner, measured against the stage, for placePin. */
+export function measureKeepout(stage: HTMLElement): Keepout | null {
+  const hud = stage.closest(".vl-root")?.querySelector(".vl-hud-tl");
+  if (!hud) return null;
+  const a = stage.getBoundingClientRect();
+  const b = hud.getBoundingClientRect();
+  return { right: b.right - a.left, bottom: b.bottom - a.top };
 }
 
 /** Registers an element under `key` in the anchors map, for the stage to move. */
@@ -89,19 +109,45 @@ export function Bubbles({ views, anchors, player, onNeed, onSelect, selected }: 
   );
 }
 
-function Bubble({ view, anchors, player, onNeed, onSelect, selected }: { view: RoleView; anchors: Map<string, HTMLElement>; player: Player; onNeed: () => void; onSelect: (r: RoleId) => void; selected: boolean }) {
+/**
+ * Holds a bubble that just cleared for the length of its exit, so it fades out instead of vanishing.
+ * Returns the view to draw and whether it is on its way out.
+ */
+function useLinger(view: RoleView, ms = 280): [RoleView, boolean] {
+  const [held, setHeld] = useState<RoleView | null>(null);
+  const last = useRef<RoleView>(view);
+  useEffect(() => {
+    if (view.kind) {
+      setHeld(null);
+      return;
+    }
+    const prev = last.current;
+    if (!prev.kind) return;
+    last.current = view;
+    setHeld(prev);
+    const timer = window.setTimeout(() => setHeld(null), ms);
+    return () => window.clearTimeout(timer);
+  }, [view.kind, ms]);
+  useEffect(() => {
+    if (view.kind) last.current = view;
+  }, [view]);
+  return held && !view.kind ? [held, true] : [view, false];
+}
+
+function Bubble({ view: live, anchors, player, onNeed, onSelect, selected }: { view: RoleView; anchors: Map<string, HTMLElement>; player: Player; onNeed: () => void; onSelect: (r: RoleId) => void; selected: boolean }) {
+  const [view, leaving] = useLinger(live);
   const persona = PERSONAS[view.role];
   const ref = useAnchor(anchors, `bubble:${view.role}`);
   let big: ReactNode = null;
   if (view.kind === "working")
     big = (
-      <span className="vl-bubble working">
+      <span key="working" className="vl-bubble working">
         Working <Clock player={player} since={view.since} />
       </span>
     );
   if (view.kind === "need")
     big = (
-      <button className="vl-bubble need" onClick={onNeed} aria-label={`${agentName(view.role)} needs you: open the approval`}>
+      <button key="need" className="vl-bubble need" onClick={onNeed} disabled={leaving} aria-label={`${agentName(view.role)} needs you: open the approval`}>
         Needs you
         <span className="vl-bang" aria-hidden="true">
           !
@@ -110,15 +156,19 @@ function Bubble({ view, anchors, player, onNeed, onSelect, selected }: { view: R
     );
   if (view.kind === "finished")
     big = (
-      <span className="vl-bubble finished">
+      <span key="finished" className="vl-bubble finished">
         <span aria-hidden="true">✓</span> Finished
       </span>
     );
   return (
-    <div ref={ref} className={`vl-pin vl-pin-role${view.kind ? ` on ${view.kind}` : ""}${selected ? " selected" : ""}`} style={{ ["--role" as string]: persona.glow }}>
+    <div ref={ref} className={`vl-pin vl-pin-role${view.kind ? ` on ${view.kind}` : ""}${leaving ? " leaving" : ""}${selected ? " selected" : ""}`} style={{ ["--role" as string]: persona.glow }}>
       <div className="vl-pin-inner">
         {big}
-        {view.line && view.kind && <span className="vl-line">{view.line}</span>}
+        {view.line && view.kind && (
+          <span key={view.line} className="vl-line">
+            {view.line}
+          </span>
+        )}
         <button className="vl-plate" onClick={() => onSelect(view.role)} title={`${persona.title}: open the tool log`} data-no-pick>
           <b>{agentName(view.role)}</b>
           <span>{persona.title}</span>
@@ -133,7 +183,11 @@ export function FileTag({ anchors, caseId, waiting }: { anchors: Map<string, HTM
   const ref = useAnchor(anchors, "file");
   return (
     <div ref={ref} className={`vl-pin vl-pin-file${waiting ? " waiting" : ""}`} aria-hidden={!caseId}>
-      {caseId && <span className="vl-file">{caseId}</span>}
+      {caseId && (
+        <span key={caseId} className="vl-file">
+          {caseId}
+        </span>
+      )}
     </div>
   );
 }
@@ -267,10 +321,10 @@ export function ApprovalCard({
               <dd>{hhmm(p.expires_at)}</dd>
             </div>
           </dl>
-        ) : (
+        ) : null}
+        {!live && (
           <p className="vl-note">
-            {gate.incidentId ? `For ${gate.incidentId}. ` : ""}
-            {live ? "This run has no agent proposal for it; the decision is kept on this page." : "Replay of a recorded run: your decision is kept on this page and nothing outside it changes."}
+            Replay only. Your decision applies to this playback.
           </p>
         )}
         {error && <p className="vl-error">{error}</p>}
@@ -293,7 +347,7 @@ export function Caption({ state }: { state: VillageState }) {
   if (!beat) return null;
   const r = state.roles[beat.role];
   return (
-    <div className="vl-caption" style={{ ["--role" as string]: PERSONAS[beat.role].glow }}>
+    <div key={state.index} className="vl-caption" style={{ ["--role" as string]: PERSONAS[beat.role].glow }}>
       <AgentAvatar role={beat.role} size={30} status={r.status === "waiting" ? "waiting" : "working"} badge={false} />
       <b>{agentName(beat.role)}</b>
       <span>{r.bubble}</span>

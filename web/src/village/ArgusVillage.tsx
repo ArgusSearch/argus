@@ -1,5 +1,5 @@
-// The Argus Village page: seven agents at work, one igloo each. Plays a recorded run (S4 by default) or
-// follows the API live, and shows the existing metric map as its second sub-view through `onMetricMap`.
+// The Argus Village page: seven agents at work, one igloo each. Follows the live API or an explicit replay,
+// and shows the existing metric map as its second sub-view through `onMetricMap`.
 //
 //   <ArgusVillage onMetricMap={() => go("graph")} />
 //
@@ -13,6 +13,7 @@ import { ApprovalCard, Bubbles, Caption, FileTag, RolePanel, roleViews } from ".
 import { Player, SPEEDS } from "./player";
 import { ROLES, type RoleId } from "./roles";
 import { decideLive, followLive, initialSource, loadTape, SOURCES, type SourceId } from "./source";
+import { marketVerdict, watchSeries } from "./telemetry";
 import { idleBubbles, timeline, villageAt, type VillageState } from "./timeline";
 import type { Decision, VillageTape } from "./types";
 import { Village2D } from "./Village2D";
@@ -51,7 +52,7 @@ class SceneBoundary extends Component<{ onFail: (e: Error) => void; children: Re
 export interface ArgusVillageProps {
   /** opens the existing metric map (the shell's visualization page); the tab is hidden without it */
   onMetricMap?: () => void;
-  /** the source to start on; default from ?village=, else the S4 replay */
+  /** the source to start on; default from ?village=, else Live */
   initial?: SourceId;
 }
 
@@ -124,12 +125,19 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
   }, [player]);
 
   const views = useMemo(() => roleViews(state, player), [state, player]);
+  const simTs = state.simTs;
+  const hasMarket = state.roles.market.beats > 0;
+  const telemetry = useMemo(() => ({
+    watch: tape && simTs ? watchSeries(tape.events, simTs, tape.labels) : [],
+    market: tape && simTs && hasMarket ? marketVerdict(tape.events, simTs) : null,
+  }), [tape, simTs, hasMarket]);
 
   const decide = useCallback(
     async (d: Decision) => {
       const gate = state.gate;
       if (!gate) return;
-      if (source === "live" && gate.proposal) {
+      if (source === "live") {
+        if (!gate.proposal) return;
         setDeciding({ busy: true, error: null });
         try {
           await decideLive(gate.proposal, d);
@@ -181,7 +189,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
         {stage === "3d" ? (
           <SceneBoundary onFail={onFail}>
             <Suspense fallback={<div className="vl-loading">Building the village…</div>}>
-              <VillageScene player={player} state={state} anchors={anchors} onSelect={setSelected} onHover={() => undefined} onFail={onFail} />
+              <VillageScene player={player} state={state} telemetry={telemetry} anchors={anchors} onSelect={setSelected} onHover={() => undefined} onFail={onFail} />
             </Suspense>
           </SceneBoundary>
         ) : (
@@ -213,6 +221,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
           ))}
         </nav>
         <div className="vl-meta">
+          {source !== "live" && <span className="vl-live">Replay</span>}
           <span>{tape ? tape.title : loadError ? `Could not load: ${loadError}` : source === "live" ? "Connecting…" : "Loading…"}</span>
           {state.simTs && (
             <b>
@@ -251,7 +260,7 @@ export function ArgusVillage({ onMetricMap, initial }: ArgusVillageProps) {
           </span>
         </div>
         <div className="vl-progress" aria-label="progress">
-          <i style={{ width: `${(progress * 100).toFixed(1)}%` }} />
+          <i style={{ transform: `scaleX(${progress})` }} />
           <span>
             step {Math.max(0, state.index + 1)} of {player.timeline.slots.length}
             {player.timeline.waiting && !decision ? " · then your approval" : ""}

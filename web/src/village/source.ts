@@ -8,7 +8,7 @@ import { api, follow, type ConnectionState } from "../lib/api";
 import type { ArgusEvent, Incident } from "../lib/types";
 import type { ActivityRecord, ProposalView, TapeIncident, TapePlacement, VillageTape } from "./types";
 
-export type SourceId = "s1" | "s2" | "metric" | "s4" | "s5" | "live";
+export type SourceId = "s1" | "s2" | "metric" | "s4" | "s4-agent" | "s5" | "live";
 export type TapeId = Exclude<SourceId, "live">;
 
 export const SOURCES: readonly { id: SourceId; label: string; hint: string }[] = [
@@ -16,6 +16,7 @@ export const SOURCES: readonly { id: SourceId; label: string; hint: string }[] =
   { id: "s2", label: "S2", hint: "Harmless change: a planned ad push, checked and logged, nobody woken (recorded run)" },
   { id: "metric", label: "New metric", hint: "New metrics place themselves in the map: placed, held when two formulas fit, rejected when the SQL is wrong (recorded)" },
   { id: "s4", label: "S4", hint: "Fault: the ad pacer overspends in DE and FR, and the fix waits for your approval (recorded run)" },
+  { id: "s4-agent", label: "S4 agent", hint: "Recorded agent run: investigate the ad pacer, approve or deny the rollback, and inspect the effect" },
   { id: "s5", label: "S5", hint: "The whole market dips (expected), and a routing fault hides inside it (recorded run)" },
   { id: "live", label: "Live", hint: "Follow the API's event stream and the agent's activity log" },
 ];
@@ -36,10 +37,10 @@ export async function loadTape(scenario: TapeId, signal?: AbortSignal): Promise<
   return (await res.json()) as VillageTape;
 }
 
-/** Which source a page load starts on: ?village=s1|s2|s4|s5|live, else the S4 replay (the demo story). */
+/** Open Live unless the URL explicitly selects a replay. */
 export function initialSource(search: string): SourceId {
   const asked = new URLSearchParams(search).get("village");
-  return SOURCES.some((s) => s.id === asked) ? (asked as SourceId) : "s4";
+  return SOURCES.find((s) => s.id === asked)?.id ?? "live";
 }
 
 // ---------------------------------------------------------------- live
