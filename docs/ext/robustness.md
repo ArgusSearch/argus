@@ -80,7 +80,7 @@ Live mode matches the recorded event types and simulated timestamps while indepe
 | --- | --- | --- | ---: | --- |
 | Quiet | Pass | Pass | 154 | No anomaly, note, or incident |
 | S1 | Pass | Pass | 173 | PayCo DE Android incident resolves and the holdout rules out the Android release |
-| S2 | Pass | Pass | 163 | Planned spending change produces one `expected` note |
+| S2 | Pass | Pass | 160 | Planned spending change produces one `expected` note |
 | S3 | Pass | Pass | 155 | Delayed data produces one `data_issue` note, holds scoring on orders, and recovers |
 | S4 | Pass | Pass | 170 | Ad pacer deployment produces one `SUPPORTED_CAUSE` incident |
 | S5 | Pass | Pass | 193 | Market-wide dip produces three `expected` notes; the checkout-routing fault produces one `SUPPORTED_CAUSE` incident that resolves |

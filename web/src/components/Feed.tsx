@@ -1,7 +1,7 @@
 // The right rail: incidents, "didn't wake you" notes and graph changes, newest first.
 
 import { useState } from "react";
-import { eur, hhmm, impactNoun, segmentEntries } from "../lib/format";
+import { eur, hhmm, impactNoun, segmentEntries, verdictLabel } from "../lib/format";
 import { type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
 import type { Graph, Note } from "../lib/types";
 import { Num, ReceiptChips } from "./Receipts";
@@ -37,7 +37,7 @@ function IncidentCard({ inc, graph, onOpen }: { inc: IncidentView; graph: Graph 
       <div className="card-head">
         <span className="card-kind">{inc.id}</span>
         <span className={`pill state-${inc.state}`}>{STATE_TEXT[inc.state]}</span>
-        <span className={`pill ${inc.verdict}`}>{inc.verdict.replace("_", " ")}</span>
+        <span className={`pill ${inc.verdict}`}>{verdictLabel(inc.verdict)}</span>
         <span className="card-time">{hhmm(inc.updatedAt)}</span>
       </div>
       <div className="card-title">{inc.title}</div>

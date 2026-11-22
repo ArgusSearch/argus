@@ -9,9 +9,12 @@ from argus.api.digest import Digest
 from argus.contracts.events import Event
 from argus.contracts.findings import Incident, Verdict
 
-type Scenario = Literal["s1", "s4"]
+type Scenario = Literal["s1", "s2", "s4"]
+type AgentScenario = Literal["s1", "s4"]
+type Variant = Literal["legacy", "agent"]
 type Action = Literal["pause", "resume", "skip", "restart"]
-type Status = Literal["idle", "playing", "paused", "completed"]
+type Decision = Literal["approve", "deny"]
+type Status = Literal["idle", "playing", "paused", "awaiting_approval", "completed"]
 type BeatKind = Literal[
     "quiet_world",
     "anomaly_appears",
@@ -19,6 +22,12 @@ type BeatKind = Literal[
     "investigation_steps",
     "evidence",
     "verdict",
+    "expected_change",
+    "agent_activity",
+    "agent_verdict",
+    "action_proposed",
+    "action_executed",
+    "effect_checked",
     "morning_report",
 ]
 
@@ -30,6 +39,7 @@ class _Strict(BaseModel):
 class StartDemo(_Strict):
     scenario: Scenario = "s4"
     speed: float = Field(default=1.0, ge=0.25, le=100, allow_inf_nan=False)
+    variant: Variant = "legacy"
 
 
 class ControlDemo(_Strict):
@@ -46,6 +56,13 @@ class DemoState(_Strict):
     duration_ms: int | None = None
     beat_index: int | None = None
     beat_count: int = 0
+
+
+class AgentDemoState(DemoState):
+    variant: Literal["agent"] = "agent"
+    decision: Decision | None = None
+    sim_ts: datetime
+    through_seq: int
 
 
 class QuietWorld(_Strict):
@@ -71,6 +88,11 @@ class Evidence(_Strict):
     steps: list[Event]
 
 
+class ExpectedChange(_Strict):
+    note: Event
+    incidents: Literal[0] = 0
+
+
 class VerdictBeat(_Strict):
     outcome: Verdict
     decision: Event
@@ -84,8 +106,20 @@ class MorningReport(_Strict):
     report: str = Field(description="GET path of the narrator's morning report for this demo run")
 
 
+class RecordingPrefix(_Strict):
+    through_seq: int = Field(ge=0, description="last visible C5 event sequence")
+
+
 type BeatData = (
-    QuietWorld | AnomalyAppears | AttentionShifts | InvestigationSteps | Evidence | VerdictBeat | MorningReport
+    QuietWorld
+    | AnomalyAppears
+    | AttentionShifts
+    | InvestigationSteps
+    | Evidence
+    | ExpectedChange
+    | VerdictBeat
+    | MorningReport
+    | RecordingPrefix
 )
 
 

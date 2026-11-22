@@ -41,8 +41,10 @@ def sql_ts(ts: datetime) -> str:
 class Runner:
     """Read-only access to a world. One instance per Argus process; safe to use from several threads."""
 
-    def __init__(self, world_path: str | Path):
+    def __init__(self, world_path: str | Path, receipt_prefix: str = "r"):
+        """`receipt_prefix` keeps receipt ids of a second runner on the same world apart (the agent uses "a")."""
         self.world_path = Path(world_path)
+        self.receipt_prefix = receipt_prefix
         self._con = duckdb.connect(str(self.world_path), read_only=True)
         self._local = threading.local()
         self._lock = threading.Lock()
@@ -77,7 +79,7 @@ class Runner:
         ms = (time.perf_counter() - started) * 1000
         with self._lock:
             self.query_count += 1
-            rid = f"r{len(self.receipts) + 1}"
+            rid = f"{self.receipt_prefix}{len(self.receipts) + 1}"
             receipt = Receipt(
                 id=rid,
                 sql=sql.strip(),
