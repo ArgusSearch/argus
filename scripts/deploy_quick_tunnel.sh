@@ -135,9 +135,11 @@ incident_ready || fail "The live Shop did not file its S1 incident."
 pace_shop 1
 health "$api" || fail "Quick Tunnel stopped answering before publish."
 
+commit_dirty=false
+if [ -f "$root/web/.argus-pages-overlay" ]; then commit_dirty=true; fi
 CI=1 WRANGLER_LOG_PATH="$state/wrangler.log" CLOUDFLARE_ACCOUNT_ID=c452dd4753dd99c4d03eec47380d0470 \
   wrangler pages deploy "$dist" --cwd "$state" --project-name argus-eye --branch main \
-  --commit-hash "$sha" --commit-message "Deploy Argus $sha" --commit-dirty=false
+  --commit-hash "$sha" --commit-message "Deploy Argus $sha" --commit-dirty="$commit_dirty"
 printf '%s\n' "$api" > "$state/api-url.new"
 mv "$state/api-url.new" "$state/api-url"
 printf 'Published %s with %s\n' "$web" "$api"
