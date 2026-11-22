@@ -62,7 +62,9 @@ let current: Location = typeof window === "undefined" ? HOME : initialLocation(w
 let previous: Location = HOME;
 let requested: HostView | null = null;
 
-type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+type TransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { ready: Promise<void>; finished: Promise<void> };
+};
 
 const calm = () => typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -77,7 +79,10 @@ function transition(update: () => void) {
     update();
     return;
   }
-  doc.startViewTransition(() => flushSync(update)).finished.catch(() => undefined);
+  const transition = doc.startViewTransition(() => flushSync(update));
+  // A viewport resize can cancel the animation while the route update still succeeds.
+  void transition.ready.catch(() => undefined);
+  void transition.finished.catch(() => undefined);
 }
 
 function remember(next: Location) {
