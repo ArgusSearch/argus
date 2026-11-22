@@ -16,11 +16,12 @@ Click an igloo or a name plate for that agent's tool log.
 
 | Source | What plays |
 | --- | --- |
-| `s4` (default) | Fault: the ad pacer overspends in DE and FR; the rollback waits for your approval |
+| `s4` | Fault: the ad pacer overspends in DE and FR; the rollback waits for your approval |
+| `s4-agent` | The recorded agent investigates S4, asks for approval, and checks the rollback against the untreated twin |
 | `s1` | Fault: PayCo payments fail on Android in Germany |
 | `s2` | Harmless change: a planned ad push, checked and logged, nobody woken |
 | `s5` | The whole market dips (expected, the Market Analyst clears it) and a routing fault hides inside it |
-| `live` | The API's C5 stream (`GET /events`, the Stage-2 trail) and, when `GET /agent/health` says enabled, the agent's activity log (`GET /agent/activity`) and proposals (`GET /agent/actions`) |
+| `live` (default) | The API's C5 stream (`GET /events`, the Stage-2 trail) and, when `GET /agent/health` says enabled, the agent's activity log (`GET /agent/activity`) and proposals (`GET /agent/actions`) |
 
 The recorded sources are tapes in `tapes/`, built from the checked-in recordings and replayed in the browser with no API.
 A tape has lane D's presentation-export shape (`fixtures/agent/v1/README.md`): `events`, `activity`, `actions`, and `approve`/`deny` continuations.
@@ -32,8 +33,10 @@ With a real agent proposal in Live, Approve and Deny call `POST /agent/actions/{
 
 ## URL options
 
-`?village=s1|s2|s4|s5|live`, `?village2d=1` (the 2D stage), `?vspeed=0.5|1|2|4`, `?vat=<seconds>` (start there), `fxq=low|mid|high`.
+`?village=s1|s2|metric|s4|s4-agent|s5|live`, `?village2d=1` (the 2D stage), `?vspeed=0.5|1|2|4`, `?vat=<seconds>` (start there), `fxq=low|mid|high`.
 `window.__villagePlayer` is the clock (`seek`, `setPlaying`, `setSpeed`) for headless captures.
+In the 3D scene, `window.__village.step(seconds)` advances the scene and playback clocks by one frame for recording.
+`window.__village.release()` returns both clocks to browser playback.
 
 ## Roles
 
@@ -58,6 +61,7 @@ import { AgentAvatar } from "../village/avatars";
 
 `status`: `idle`, `working`, `waiting` (coral "!" badge), `done` (green check), `sleeping`.
 The bodies are `bot-avatars` (MIT, libraries.dev/bots); armor, names and colors are ours.
+Each agent wears a role costume over the armor (`avatars/costumes.ts`, two looks per role, our own vector shapes); look 1 is the default everywhere (`defaultLook`), and props stay close to the avatar's box so it can sit next to text.
 PNG sheets and single avatars: `web/public/village/avatars/` and the brand kit.
 
 ## Files

@@ -1,5 +1,6 @@
 // The seven agent personas: a plush bot body (bot-avatars, MIT) in the role's color, our own slim tech armor,
-// a job-specific HUD detail and an acronym nameplate. Names are our own; none is a film character's.
+// a role costume (costumes.ts; `detail` is the HUD detail of the plain, costume-less bot) and an acronym
+// nameplate. Names are our own; none is a film character's.
 // `name` is the chosen acronym; `names` lists the candidates the captain picks from (the first is the default).
 
 import type { BotAvatarType } from "bot-avatars";

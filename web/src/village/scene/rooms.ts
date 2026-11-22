@@ -21,8 +21,12 @@ import {
   TorusGeometry,
   Vector3,
   type Material,
+  type Object3D,
 } from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import type { Growth } from "../timeline";
 import type { RoleId } from "../roles";
+import type { MarketVerdict, WatchSeries } from "../telemetry";
 import { seeded } from "./util";
 
 /** Where things sit in every room. */
@@ -33,14 +37,22 @@ interface Kit {
   glow: (color: string, intensity?: number) => MeshBasicMaterial;
   box: (w: number, h: number, d: number, m: Material, x: number, y: number, z: number) => Mesh;
   cyl: (rt: number, rb: number, h: number, m: Material, x: number, y: number, z: number, seg?: number) => Mesh;
-  screen: (draw: (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void, w: number, h: number, px?: number) => { mesh: Mesh; tick: (t: number) => void };
+  screen: (draw: (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void, w: number, h: number, px?: number, animated?: boolean) => { mesh: Mesh; tick: (t: number) => void };
 }
 
 export interface Room {
   group: Group;
   /** redraws live textures; called a few times a second */
   tick: (t: number, busy: boolean) => void;
+  /** the Cartographer's latest placement, drawn growing into its map; other rooms ignore it */
+  grow: (g: Growth | null) => void;
+  setTelemetry: (data: RoomTelemetry) => void;
   dispose: () => void;
+}
+
+export interface RoomTelemetry {
+  watch: readonly WatchSeries[];
+  market: MarketVerdict | null;
 }
 
 function kit(disposables: { dispose(): void }[], ticks: ((t: number) => void)[]): Kit {
@@ -94,7 +106,7 @@ function kit(disposables: { dispose(): void }[], ticks: ((t: number) => void)[])
     mesh.castShadow = true;
     return mesh;
   };
-  const screen: Kit["screen"] = (draw, w, h, px = 256) => {
+  const screen: Kit["screen"] = (draw, w, h, px = 256, animated = true) => {
     const canvas = document.createElement("canvas");
     canvas.width = px;
     canvas.height = Math.round((px * h) / w);
@@ -110,10 +122,40 @@ function kit(disposables: { dispose(): void }[], ticks: ((t: number) => void)[])
       texture.needsUpdate = true;
     };
     tick(0);
-    ticks.push(tick);
+    if (animated) ticks.push(tick);
     return { mesh, tick };
   };
   return { mat, glow, box, cyl, screen };
+}
+
+/** Bake stationary furniture into room-space batches, keeping its original material and shadow settings. */
+function batchFurniture(root: Group, moving: Set<Object3D>, disposables: { dispose(): void }[]): void {
+  const batches = new Map<string, Mesh[]>();
+  function collect(object: Object3D): void {
+    if (moving.has(object)) return;
+    if (object instanceof Mesh && object.material instanceof MeshStandardMaterial && (object.geometry instanceof BoxGeometry || object.geometry instanceof CylinderGeometry)) {
+      const key = `${object.material.id}:${object.castShadow}:${object.receiveShadow}`;
+      const batch = batches.get(key) ?? [];
+      batch.push(object);
+      batches.set(key, batch);
+    }
+    for (const child of object.children) collect(child);
+  }
+  collect(root);
+  root.updateMatrixWorld(true);
+  for (const meshes of batches.values()) {
+    if (meshes.length < 2) continue;
+    const copies = meshes.map((mesh) => mesh.geometry.clone().applyMatrix4(mesh.matrixWorld));
+    const geometry = mergeGeometries(copies);
+    for (const copy of copies) copy.dispose();
+    if (!geometry) continue;
+    const batch = new Mesh(geometry, meshes[0].material);
+    batch.castShadow = meshes[0].castShadow;
+    batch.receiveShadow = meshes[0].receiveShadow;
+    for (const mesh of meshes) mesh.removeFromParent();
+    root.add(batch);
+    disposables.push(geometry);
+  }
 }
 
 // ---------------------------------------------------------------- shared pieces
@@ -201,57 +243,56 @@ function onWall(mesh: Mesh | Group, angle: number, y: number, r = 1.62) {
 
 // ---------------------------------------------------------------- canvas pictures
 
-function chart(color: string, seed: number) {
-  return (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
-    ctx.fillStyle = "#16304f";
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = "rgba(150,190,255,0.18)";
-    ctx.lineWidth = 1;
-    for (let i = 1; i < 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(0, (h * i) / 4);
-      ctx.lineTo(w, (h * i) / 4);
-      ctx.stroke();
+function chart(ctx: CanvasRenderingContext2D, w: number, h: number, series: WatchSeries | undefined, color: string) {
+  ctx.fillStyle = "#16304f";
+  ctx.fillRect(0, 0, w, h);
+  if (!series) return;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.font = "600 13px sans-serif";
+  ctx.fillText(series.label, 8, 16, w - 16);
+  ctx.lineWidth = Math.max(2, w / 70);
+  const max = Math.max(1, ...series.values.map((value) => value ?? 0));
+  const dx = (w - 16) / Math.max(1, series.values.length - 1);
+  let connected = false;
+  ctx.beginPath();
+  series.values.forEach((value, i) => {
+    if (value === null) {
+      connected = false;
+      return;
     }
-    ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(2, w / 70);
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += 4) {
-      const u = x / w + t * 0.05 + seed;
-      const y = h * (0.55 - 0.18 * Math.sin(u * 9) - 0.1 * Math.sin(u * 23 + seed * 7) - 0.12 * (x / w));
-      if (x) ctx.lineTo(x, y);
-      else ctx.moveTo(x, y);
+    const x = i * dx + 8;
+    const y = h - 6 - (value / max) * (h - 29);
+    if (connected) ctx.lineTo(x, y);
+    else {
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      ctx.moveTo(x, y);
     }
-    ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.15;
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  };
+    connected = true;
+  });
+  ctx.stroke();
 }
 
-function stockBoard(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+const MARKET_LABEL: Record<MarketVerdict, { text: string; color: string }> = {
+  market: { text: "Market-wide move", color: "#8ef0c4" },
+  us: { text: "Shop-specific move", color: "#ff9f8b" },
+  inconclusive: { text: "Inconclusive", color: "#ffd18a" },
+};
+
+function stockBoard(ctx: CanvasRenderingContext2D, w: number, h: number, verdict: MarketVerdict | null) {
   ctx.fillStyle = "#0b1520";
   ctx.fillRect(0, 0, w, h);
-  const n = 18;
-  const bw = w / n;
-  let price = h * 0.5;
-  const rand = seeded(9);
-  for (let i = 0; i < n; i++) {
-    const drift = Math.sin(i * 0.7 + t * 0.6) * h * 0.08 + (rand() - 0.5) * h * 0.12;
-    const open = price;
-    const close = Math.max(h * 0.15, Math.min(h * 0.85, price + drift));
-    const up = close < open;
-    ctx.fillStyle = up ? "#3fdf8f" : "#ff5c5c";
-    ctx.fillRect(i * bw + bw * 0.25, Math.min(open, close), bw * 0.5, Math.max(3, Math.abs(close - open)));
-    ctx.fillRect(i * bw + bw * 0.47, Math.min(open, close) - 8, bw * 0.06, Math.abs(close - open) + 16);
-    price = close;
-  }
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#b0c9dc";
+  ctx.font = "600 20px sans-serif";
+  ctx.fillText("MARKET COMPARISON", w / 2, h * 0.38, w - 24);
+  if (!verdict) return;
+  ctx.fillStyle = MARKET_LABEL[verdict].color;
+  ctx.font = "600 30px sans-serif";
+  ctx.fillText(MARKET_LABEL[verdict].text, w / 2, h * 0.68, w - 24);
 }
 
-function mapPicture(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+function mapPicture(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, growth: Growth | null = null) {
   ctx.fillStyle = "#e9dcbc";
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "rgba(120,90,50,0.35)";
@@ -299,6 +340,76 @@ function mapPicture(ctx: CanvasRenderingContext2D, w: number, h: number, t: numb
     ctx.arc(x * w, y * h, 4, 0, Math.PI * 2);
     ctx.fill();
   }
+  if (growth) newNode(ctx, w, h, nodes, growth);
+}
+
+const easeOutBack = (x: number) => {
+  const c = 1.9;
+  const k = Math.min(1, Math.max(0, x));
+  return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2);
+};
+
+/**
+ * The metric being placed grows into the map: its edges draw out from the two nodes it hangs off, the node
+ * springs in with a ring of light, and settles green (placed), amber and dashed (held) or red and crossed out,
+ * fading away (rejected).
+ */
+function newNode(ctx: CanvasRenderingContext2D, w: number, h: number, nodes: [number, number][], g: Growth) {
+  const at: [number, number] = [0.93 * w, 0.42 * h];
+  const tone = g.kind === "placed" ? "#2fb57a" : g.kind === "held" ? "#d99a2b" : "#e0564a";
+  const fadeOut = g.kind === "rejected" ? Math.max(0, Math.min(1, (g.age - 1.6) / 0.8)) : 0;
+  if (fadeOut >= 1) return;
+  ctx.save();
+  ctx.globalAlpha = 1 - fadeOut;
+  const draw = Math.min(1, g.age / 0.8);
+  ctx.strokeStyle = tone;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  if (g.kind !== "placed") ctx.setLineDash([10, 9]);
+  for (const i of [3, 6]) {
+    const [x, y] = [nodes[i][0] * w, nodes[i][1] * h];
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (at[0] - x) * draw, y + (at[1] - y) * draw);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  const grow = easeOutBack((g.age - 0.45) / 0.55);
+  if (grow > 0) {
+    // the ring of light as it lands
+    const ring = Math.min(1, Math.max(0, (g.age - 0.6) / 0.9));
+    if (ring > 0 && ring < 1) {
+      ctx.strokeStyle = tone;
+      ctx.globalAlpha = (1 - fadeOut) * (1 - ring) * 0.9;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(at[0], at[1], 14 + ring * 34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1 - fadeOut;
+    }
+    const pulse = g.kind === "held" ? 1 + Math.sin(g.age * 5) * 0.08 : 1;
+    const r = 13 * grow * pulse;
+    ctx.fillStyle = tone;
+    ctx.beginPath();
+    ctx.arc(at[0], at[1], r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(at[0], at[1], r * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    if (g.kind === "rejected" && g.age > 1.05) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      const c = r * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(at[0] - c, at[1] - c);
+      ctx.lineTo(at[0] + c, at[1] + c);
+      ctx.moveTo(at[0] + c, at[1] - c);
+      ctx.lineTo(at[0] - c, at[1] + c);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------- the seven rooms
@@ -308,7 +419,13 @@ export function buildRoom(role: RoleId, color: string): Room {
   const ticks: ((t: number) => void)[] = [];
   const k = kit(disposables, ticks);
   const g = new Group();
+  const telemetryScreens: ((t: number) => void)[] = [];
+  const moving = new Set<Object3D>();
+  let telemetry: RoomTelemetry = { watch: [], market: null };
   let tickBusy: ((t: number) => void) | null = null;
+  /** the Cartographer's latest placement (only its map reads it) */
+  let growth: Growth | null = null;
+  let growthChanged = false;
 
   switch (role) {
     case "watcher": {
@@ -317,7 +434,8 @@ export function buildRoom(role: RoleId, color: string): Room {
       for (let i = 0; i < 6; i++) {
         const angle = -0.62 + (i % 3) * 0.62;
         const y = i < 3 ? 1.05 : 1.55;
-        const s = k.screen(chart(i % 2 ? "#7cc4ff" : "#9ff0d0", i * 0.37), 0.62, 0.4, 160);
+        const s = k.screen((ctx, w, h) => chart(ctx, w, h, telemetry.watch[i], i % 2 ? "#7cc4ff" : "#9ff0d0"), 0.62, 0.4, 160, false);
+        telemetryScreens.push(s.tick);
         const holder = new Group();
         holder.add(k.box(0.68, 0.46, 0.04, frame, 0, 0, -0.025));
         s.mesh.position.z = 0.002;
@@ -399,6 +517,7 @@ export function buildRoom(role: RoleId, color: string): Room {
       scale.add(k.cyl(0.13, 0.16, 0.05, gold, 0, 0, 0));
       scale.add(k.cyl(0.02, 0.02, 0.6, gold, 0, 0.3, 0));
       const beam = new Group();
+      moving.add(beam);
       beam.add(k.box(0.75, 0.025, 0.025, gold, 0, 0, 0));
       for (const s of [-1, 1]) {
         beam.add(k.cyl(0.004, 0.004, 0.22, gold, s * 0.36, -0.11, 0));
@@ -417,7 +536,8 @@ export function buildRoom(role: RoleId, color: string): Room {
     }
     case "market": {
       desk(k, g, 1.7);
-      const s = k.screen(stockBoard, 1.5, 0.82, 320);
+      const s = k.screen((ctx, w, h) => stockBoard(ctx, w, h, telemetry.market), 1.5, 0.82, 320, false);
+      telemetryScreens.push(s.tick);
       const holder = new Group();
       holder.add(k.box(1.58, 0.9, 0.05, k.mat("#1f2630", 0.4, 0.3), 0, 0, -0.03));
       s.mesh.position.z = 0.002;
@@ -497,7 +617,7 @@ export function buildRoom(role: RoleId, color: string): Room {
       // the map table
       g.add(k.box(1.9, 0.08, 0.95, k.mat(WOOD_LIGHT, 0.7), 0, 0.6, SEAT.desk.z + 0.12));
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(k.box(0.07, 0.56, 0.07, k.mat(WOOD, 0.8), sx * 0.88, 0.28, SEAT.desk.z + 0.12 + sz * 0.42));
-      const map = k.screen(mapPicture, 1.7, 0.8, 340);
+      const map = k.screen((ctx, w, h, t) => mapPicture(ctx, w, h, t, growth), 1.7, 0.8, 340);
       map.mesh.rotation.x = -Math.PI / 2;
       map.mesh.position.set(0, 0.645, SEAT.desk.z + 0.12);
       g.add(map.mesh);
@@ -524,17 +644,28 @@ export function buildRoom(role: RoleId, color: string): Room {
   disposables.push(lantern.geometry, lantern.material as Material);
   g.add(lantern);
   void color;
+  batchFurniture(g, moving, disposables);
 
   let last = -1;
   return {
     group: g,
     tick: (t, busy) => {
       if (busy && tickBusy) tickBusy(t);
-      // live textures at about 8 frames a second
-      if (Math.floor(t * 8) !== last) {
+      // live textures at about 8 frames a second, every frame while a new node grows into the map
+      const growing = growth !== null && growth.age < 2.6;
+      if (growing || growthChanged || Math.floor(t * 8) !== last) {
         last = Math.floor(t * 8);
         for (const f of ticks) f(t);
+        growthChanged = false;
       }
+    },
+    grow: (next) => {
+      growthChanged = growth?.kind !== next?.kind;
+      growth = next;
+    },
+    setTelemetry: (data) => {
+      telemetry = data;
+      for (const paint of telemetryScreens) paint(0);
     },
     dispose: () => {
       for (const d of disposables) d.dispose();

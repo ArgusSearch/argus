@@ -16,6 +16,8 @@ export interface Slot {
   length: number;
   /** the role the beat's case comes from, when it changes hands at this beat */
   from: RoleId | null;
+  /** Index of the most recent placement before this step. */
+  previousPlacement: number;
 }
 
 export interface Timeline {
@@ -28,6 +30,7 @@ export interface Timeline {
 export function timeline(beats: Beat[], pace = PACE): Timeline {
   const slots: Slot[] = [];
   const holder = new Map<string, RoleId>();
+  let previousPlacement = -1;
   let t = 0;
   for (const beat of beats) {
     let from: RoleId | null = null;
@@ -37,7 +40,9 @@ export function timeline(beats: Beat[], pace = PACE): Timeline {
       holder.set(beat.caseId, beat.role);
     }
     const length = beat.weight * pace + (from ? TRAVEL : 0);
-    slots.push({ beat, start: t, length, from });
+    const slot = { beat, start: t, length, from, previousPlacement };
+    slots.push(slot);
+    if (isPlacement(beat)) previousPlacement = slots.length - 1;
     t += length;
   }
   const last = beats[beats.length - 1];
@@ -165,4 +170,25 @@ export function villageAt(tl: Timeline, t: number, idle: Record<RoleId, string>)
 /** The idle bubbles, from the role table. */
 export function idleBubbles(roles: readonly { id: RoleId; idle: string }[]): Record<RoleId, string> {
   return Object.fromEntries(roles.map((r) => [r.id, r.idle])) as Record<RoleId, string>;
+}
+
+/** A metric the Cartographer places on its map: how it ended and how long ago (timeline seconds). */
+export interface Growth {
+  kind: "placed" | "held" | "rejected";
+  age: number;
+}
+
+function isPlacement(beat: Beat): boolean {
+  return beat.role === "cartographer" && beat.kind === "verdict" && beat.log.some((entry) => entry.tool === "place_metric");
+}
+
+/** The Cartographer's latest placement at time t, drawn growing into its map table. */
+export function growthAt(tl: Timeline, index: number, t: number): Growth | null {
+  const slot = tl.slots[index];
+  if (!slot) return null;
+  const start = slot.start + slot.length * 0.3;
+  const placement = t >= start && isPlacement(slot.beat) ? slot : tl.slots[slot.previousPlacement];
+  if (!placement) return null;
+  const kind = placement.beat.outcome === "ok" ? "placed" : placement.beat.outcome === "alarm" ? "rejected" : "held";
+  return { kind, age: t - (placement.start + placement.length * 0.3) };
 }

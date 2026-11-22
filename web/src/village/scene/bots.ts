@@ -36,12 +36,13 @@ export class Bot {
   private readonly dpr: number;
   /** seconds since the last paint; idle bots paint at a lower rate */
   private since = 1;
+  private dirty = true;
   status: AvatarStatus = "idle";
 
-  constructor(role: RoleId, seed: number, dpr: number) {
+  constructor(role: RoleId, seed: number, dpr: number, private readonly reduced: boolean) {
     this.role = role;
     this.dpr = dpr;
-    this.painter = new AvatarPainter(PERSONAS[role], seed, false);
+    this.painter = new AvatarPainter(PERSONAS[role], seed, reduced);
     this.canvas = document.createElement("canvas");
     const px = Math.round(PAINT_BOX * OVERSCAN * dpr);
     this.canvas.width = px;
@@ -63,15 +64,39 @@ export class Bot {
   setStatus(status: AvatarStatus): void {
     this.status = status;
     this.painter.setStatus(status);
+    this.dirty = true;
+  }
+
+  /** Turns the head toward a direction on screen (x right, y up, about -1.5..1.5); strength 0 lets go. */
+  look(x: number, y: number, strength: number): void {
+    this.painter.sim.setPointer(x, y, strength);
+  }
+
+  /** A happy hop and a turn, now: a bot that receives a case. */
+  poke(): void {
+    this.painter.sim.poke();
+  }
+
+  /**
+   * The walk: `phase` advances with the steps, `lean` (-1..1) tips the body into the direction of travel and
+   * `amount` (0..1) blends the gait in and out. Returns how far the body is lifted off the snow this frame.
+   */
+  stride(phase: number, lean: number, amount: number): number {
+    const bounce = Math.abs(Math.sin(phase));
+    const contact = (1 - bounce) * amount;
+    this.sprite.material.rotation = -lean * 0.16 * amount + Math.sin(phase) * 0.05 * amount;
+    this.sprite.scale.set(BOT_SIZE * OVERSCAN * (1 + 0.07 * contact), BOT_SIZE * OVERSCAN * (1 - 0.07 * contact), 1);
+    return bounce * 0.2 * amount;
   }
 
   /** Paints when due: busy or walking bots every frame, the others about 20 times a second. */
   update(dt: number, busy: boolean): boolean {
     this.since += dt;
     const due = busy ? 0 : 1 / 20;
-    if (this.since < due) return false;
-    this.painter.paint(this.ctx, PAINT_BOX, this.dpr, this.since);
+    if (!this.dirty && (this.reduced || this.since < due)) return false;
+    this.painter.paint(this.ctx, PAINT_BOX, this.dpr, this.reduced ? 0 : this.since);
     this.since = 0;
+    this.dirty = false;
     this.texture.needsUpdate = true;
     return true;
   }
@@ -109,9 +134,11 @@ export class CaseFile {
     this.halo.color.set(hex);
   }
 
-  place(p: Vector3, tilt: number, opacity: number): void {
+  /** `scale` lets the file pop when it changes hands; `spin` turns it slowly while it rests on a desk. */
+  place(p: Vector3, tilt: number, opacity: number, scale = 1, spin = 0): void {
     this.group.position.copy(p);
-    this.group.rotation.set(tilt, 0, tilt * 0.4);
+    this.group.rotation.set(tilt, spin, tilt * 0.4);
+    this.group.scale.setScalar(scale);
     this.halo.opacity = 0.75 * opacity;
     this.group.visible = opacity > 0.02;
   }

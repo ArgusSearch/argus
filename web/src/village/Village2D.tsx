@@ -4,9 +4,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AgentAvatar } from "./avatars/AgentAvatar";
-import { placePin } from "./Overlay";
+import { measureKeepout, placePin } from "./Overlay";
 import type { Player } from "./player";
-import { ROLE, ROLES, type RoleId } from "./roles";
+import { APPROVAL_POST, ROLE, ROLES, type RoleId } from "./roles";
 import { slotAt, TRAVEL, type VillageState } from "./timeline";
 
 interface Box {
@@ -38,9 +38,11 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
 
   useEffect(() => {
     let frame = 0;
+    const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const keepout = ref.current ? measureKeepout(ref.current) : null;
     const pin = (key: string, p: [number, number]) => {
       const el = anchors.get(key);
-      if (el) placePin(el, p[0], p[1]);
+      if (el) placePin(el, p[0], p[1], true, keepout);
     };
     const loop = () => {
       frame = requestAnimationFrame(loop);
@@ -54,12 +56,20 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
       const slot = tl.slots[i];
       const file = anchors.get("file");
       let who: RoleId | null = null;
-      if (slot?.from && t - slot.start < TRAVEL) {
+      if (state.gate && file) {
+        pin("file", at(box, ...APPROVAL_POST, 1.3));
+        file.style.opacity = "1";
+      } else if (!calm && slot?.from && t - slot.start < TRAVEL) {
         const k = ease((t - slot.start) / TRAVEL);
         const a = ROLE[slot.from];
         const b = ROLE[slot.beat.role];
         const p = at(box, a.x + (b.x - a.x) * k, a.z + (b.z - a.z) * k + Math.sin(k * Math.PI) * 2.2, 0.2);
-        if (walker.current) walker.current.style.transform = `translate3d(${p[0] - s * 0.78}px, ${p[1] - s * 1.6}px, 0)`;
+        // the gait, as in 3D: a bounce per step and a lean into the walk, easing in and out at the doors
+        const local = t - slot.start;
+        const gait = Math.max(0, Math.min(1, local / 0.3, (TRAVEL - local) / 0.3));
+        const bob = Math.abs(Math.sin(local * 9.5)) * s * 0.28 * gait;
+        const lean = Math.sign(b.x - a.x) * 7 * gait + Math.sin(local * 9.5) * 2.5 * gait;
+        if (walker.current) walker.current.style.transform = `translate3d(${p[0] - s * 0.78}px, ${p[1] - s * 1.6 - bob}px, 0) rotate(${lean.toFixed(2)}deg)`;
         who = slot.from;
         pin("file", [p[0] + s * 0.2, p[1] - s * 0.6]);
         if (file) file.style.opacity = "1";
@@ -72,13 +82,13 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
     };
     loop();
     return () => cancelAnimationFrame(frame);
-  }, [box, player, anchors]);
+  }, [box, player, anchors, state.gate]);
 
   const s = Math.min(box.w / 30, box.h / 22.5);
   const plaza = at(box, 0, 0.2);
   return (
-    <div ref={ref} className="vl-stage2d" aria-hidden="true">
-      <svg className="vl-paths" width={box.w} height={box.h}>
+    <div ref={ref} className="vl-stage2d">
+      <svg className="vl-paths" width={box.w} height={box.h} aria-hidden="true">
         <ellipse cx={plaza[0]} cy={plaza[1]} rx={s * 2.1} ry={s * 1.4} />
         {ROLES.map((r) => {
           const d = at(box, r.x, r.z + r.size * 0.7);
@@ -108,8 +118,8 @@ export function Village2D({ player, state, anchors, onSelect }: { player: Player
             </button>
           );
         })}
-      <div ref={walker} className="vl-walker" style={{ opacity: mover ? 1 : 0 }}>
-        {mover && <AgentAvatar role={mover} size={Math.round(s * 1.55)} status="working" badge={false} />}
+      <div ref={walker} className="vl-walker" aria-hidden="true" style={{ opacity: mover ? 1 : 0 }}>
+        {mover && <AgentAvatar role={mover} size={Math.round(s * 1.55)} paused badge={false} />}
       </div>
     </div>
   );

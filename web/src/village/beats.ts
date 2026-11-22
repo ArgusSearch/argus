@@ -239,12 +239,11 @@ function activityOutcome(rec: ActivityRecord): Outcome {
   return "info";
 }
 
-function activityBeat(rec: ActivityRecord, actions: ProposalView[]): Beat | null {
+function activityBeat(rec: ActivityRecord, actions: ProposalView[], live: boolean, caseId: string | null): Beat | null {
   const role = activityRole(rec);
   const outcome = activityOutcome(rec);
   const tool = rec.tool ?? rec.observation?.tool ?? rec.kind;
   const text = rec.text || rec.observation?.summary || "";
-  const caseId = rec.anomaly_id ?? rec.incident_id ?? null;
   const log: LogEntry = {
     key: `a${rec.seq}`,
     simTs: rec.sim_ts,
@@ -285,11 +284,10 @@ function activityBeat(rec: ActivityRecord, actions: ProposalView[]): Beat | null
       return {
         ...base,
         kind: "proposal",
-        caseId: rec.incident_id ?? caseId,
         doing: short(action, 70),
         done: short(`Proposed: ${action}`),
         weight: 1.2,
-        gate: { actionId: rec.action_id ?? null, action, incidentId: rec.incident_id ?? null, proposal },
+        gate: !live || proposal?.state === "AWAIT_OPERATOR" ? { actionId: rec.action_id ?? null, action, incidentId: rec.incident_id ?? null, proposal } : null,
       };
     }
     case "action_decided":
@@ -297,7 +295,7 @@ function activityBeat(rec: ActivityRecord, actions: ProposalView[]): Beat | null
     case "action_applied":
       return { ...base, kind: "apply", doing: short(text || "Applying the approved action"), done: short(text || "Action applied"), weight: 1.4 };
     case "effect_checked":
-      return { ...base, kind: "effect", doing: "Checking the effect against an untouched twin", done: short(text || "Effect checked"), weight: 1.4 };
+      return { ...base, kind: "effect", doing: "Checking the effect against an untouched twin", done: short(text || "Effect checked", 96), weight: 1.4 };
     case "budget":
     case "fallback":
       return { ...base, kind: "check", doing: short(text || rec.kind), done: short(text || rec.kind) };
@@ -405,8 +403,12 @@ interface Ordered {
 }
 
 function ordered(part: TapePart): Ordered[] {
+  const agentCases = new Set(part.activity.map((record) => record.anomaly_id));
   const items: Ordered[] = [
-    ...part.events.map((event) => ({ ts: event.sim_ts, lane: CASE_TYPES.has(event.type) ? 2 : 0, seq: event.seq, event })),
+    ...part.events.map((event) => {
+      const startsAgent = event.type === "anomaly_opened" && agentCases.has(event.payload.id);
+      return { ts: event.sim_ts, lane: !startsAgent && CASE_TYPES.has(event.type) ? 2 : 0, seq: event.seq, event };
+    }),
     ...part.activity.map((record) => ({ ts: record.sim_ts, lane: 1, seq: record.seq, record })),
   ];
   return items.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.lane - b.lane || a.seq - b.seq));
@@ -438,6 +440,10 @@ export function buildBeats(tape: VillageTape, opts: BuildOptions): Beat[] {
   const lead = opts.leadHours ?? 3;
   const incidents = new Map<string, TapeIncident>(tape.incidents.map((i) => [i.id, i]));
   const agentRuns = new Set(tape.activity.filter((r) => r.anomaly_id).map((r) => r.anomaly_id as string));
+  const caseOfRun = new Map<string, string>();
+  for (const record of tape.activity) {
+    if (record.run_id && record.anomaly_id) caseOfRun.set(record.run_id, record.anomaly_id);
+  }
   const beats: Beat[] = [];
   const where = new Map<string, string>(); // anomaly id -> located segment, for the bubbles
   const caseOfIncident = new Map<string, string>();
@@ -533,6 +539,7 @@ export function buildBeats(tape: VillageTape, opts: BuildOptions): Beat[] {
   };
 
   const askApproval = (incidentId: string, caseId: string | null, simTs: string) => {
+    if (tape.scenario === "live") return;
     const action = incidents.get(incidentId)?.suggested_action;
     if (!action?.needs_approval || gateAsked) return;
     gateAsked = true;
@@ -574,7 +581,9 @@ export function buildBeats(tape: VillageTape, opts: BuildOptions): Beat[] {
           flushEdges();
           flushQuiet(lead);
         }
-        const beat = activityBeat(rec, tape.actions);
+        const caseId = rec.anomaly_id ?? (rec.run_id ? caseOfRun.get(rec.run_id) : undefined) ?? rec.incident_id ?? null;
+        if (caseId && rec.incident_id) caseOfIncident.set(rec.incident_id, caseId);
+        const beat = activityBeat(rec, tape.actions, tape.scenario === "live", caseId);
         if (!beat) continue;
         beats.push(beat);
         if (beat.gate) {
@@ -585,7 +594,9 @@ export function buildBeats(tape: VillageTape, opts: BuildOptions): Beat[] {
           }
           const cont = tape.continuations[opts.decision];
           const released = tape.activity.some((r) => r.gate_action && r.gate_action === beat.gate?.actionId);
-          beats.push(decisionBeat(beat, opts.decision, Boolean(cont?.activity.length || cont?.events.length || released)));
+          if (!cont?.activity.some((record) => record.kind === "action_decided" && record.action_id === beat.gate?.actionId)) {
+            beats.push(decisionBeat(beat, opts.decision, Boolean(cont?.activity.length || cont?.events.length || released)));
+          }
         }
         continue;
       }
