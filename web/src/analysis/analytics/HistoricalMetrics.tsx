@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type CSSProperties } from "react";
+import { Fragment, useId, useState, type CSSProperties, type MouseEventHandler } from "react";
 import { ReceiptChips } from "../../components/Receipts";
 import { Card } from "../../fx/workspace/ui";
 import { hhmm } from "../../lib/format";
@@ -16,6 +16,7 @@ interface HistoricalMetricsProps {
   change?: Quantity | null;
   onPeriodChange?: (period: AnalyticsPeriod) => void;
   incidentHref?: (id: string) => string;
+  onNavigate?: MouseEventHandler<HTMLAnchorElement>;
   stream?: string | null;
 }
 
@@ -117,7 +118,7 @@ function HistoryPlot({
 }
 
 export function HistoricalMetrics(props: HistoricalMetricsProps) {
-  const { metric, scope, period, window, points, markers, change, onPeriodChange, incidentHref, stream } = props;
+  const { metric, scope, period, window, points, markers, change, onPeriodChange, incidentHref, onNavigate, stream } = props;
   const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({ observed: true, expected: true, band: true });
   const [active, setActive] = useState<{ id: string; stream: typeof stream }>();
   const marker = active?.stream === stream ? markers.find(({ id }) => id === active?.id) : undefined;
@@ -175,7 +176,7 @@ export function HistoricalMetrics(props: HistoricalMetricsProps) {
                     <>
                       <p><strong>{dateTime(event.at)}</strong> · {event.detail}</p>
                       <ReceiptChips ids={[...event.receipts]} />
-                      {event.kind === "incident" && incidentHref && <a href={incidentHref(event.id)}>Open {event.id}</a>}
+                      {event.kind === "incident" && incidentHref && <a href={incidentHref(event.id)} onClick={onNavigate}>Open {event.id}</a>}
                     </>
                   )}
                 </div>

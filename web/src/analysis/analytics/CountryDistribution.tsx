@@ -1,3 +1,4 @@
+import type { MouseEventHandler } from "react";
 import { ReceiptChips } from "../../components/Receipts";
 import { wherePhrase } from "../../fx/workspace/plain";
 import { Card } from "../../fx/workspace/ui";
@@ -14,14 +15,15 @@ interface CountryDistributionProps {
   volumeBasis?: string;
   segmentHref?: (segment: Segment) => string;
   incidentHref?: (id: string) => string;
+  onNavigate?: MouseEventHandler<HTMLAnchorElement>;
 }
 
-export function CountryDistribution({ metric, scope, rows, incident, measurement, volumeBasis, segmentHref, incidentHref }: CountryDistributionProps) {
+export function CountryDistribution({ metric, scope, rows, incident, measurement, volumeBasis, segmentHref, incidentHref, onNavigate }: CountryDistributionProps) {
   const start = time(measurement?.start);
   const end = time(measurement?.end);
   return (
     <Card title="Country Distribution" className="an-card an-distribution"
-      action={incident && incidentHref && <a href={incidentHref(incident.id)}>{incident.id}</a>}>
+      action={incident && incidentHref && <a href={incidentHref(incident.id)} onClick={onNavigate}>{incident.id}</a>}>
       <div className="an-context">
         <strong>{metric.label} · {scope}</strong>
         {rows.length > 0 && start !== null && end !== null && (
@@ -40,7 +42,7 @@ export function CountryDistribution({ metric, scope, rows, incident, measurement
                   return (
                     <tr key={JSON.stringify(segment)}>
                       <th scope="row">
-                        {segmentHref ? <a href={segmentHref(segment)}>{name}</a> : name}
+                        {segmentHref ? <a href={segmentHref(segment)} onClick={onNavigate}>{name}</a> : name}
                         <small>Within {wherePhrase(parent)}</small>
                       </th>
                       <td>{pct(change * 100, 2)}</td>

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type MouseEventHandler } from "react";
 import { metricName, wherePhrase } from "../../fx/workspace/plain";
 import { Card } from "../../fx/workspace/ui";
 import type { RunView } from "../../lib/store";
@@ -27,12 +27,14 @@ export interface AnalyticsPanelsProps {
   onPeriodChange?: (period: AnalyticsPeriod) => void;
   segmentHref?: (segment: Segment) => string;
   incidentHref?: (id: string) => string;
+  /** Lets the workspace follow links without reloading the active run. */
+  onNavigate?: MouseEventHandler<HTMLAnchorElement>;
   section?: "history" | "distribution" | "both";
 }
 
 export function AnalyticsPanels({
   graph, view, incidents, query, asOf = view.simTs, incidentId, incidentError, onRetry, onPeriodChange,
-  segmentHref, incidentHref, section = "both",
+  segmentHref, incidentHref, onNavigate, section = "both",
 }: AnalyticsPanelsProps) {
   const metric = graph?.nodes.find(({ id }) => id === query.metric);
   const scope = wherePhrase(query.segment);
@@ -60,11 +62,12 @@ export function AnalyticsPanels({
         {section !== "distribution" && (
           <HistoricalMetrics metric={metric} scope={scope} period={query.period} window={window} points={points} markers={markers}
             incident={incident} change={scopedIncidentChange(incident, query, window, measurement)} onPeriodChange={onPeriodChange}
-            incidentHref={incidentHref} stream={view.stream} />
+            incidentHref={incidentHref} onNavigate={onNavigate} stream={view.stream} />
         )}
         {section !== "history" && (
           <CountryDistribution metric={metric} scope={scope} rows={distributionRows(incident, metric, window, query.segment, measurement)}
-            incident={incident} measurement={measurement} volumeBasis={volumeBasis} segmentHref={segmentHref} incidentHref={incidentHref} />
+            incident={incident} measurement={measurement} volumeBasis={volumeBasis} segmentHref={segmentHref} incidentHref={incidentHref}
+            onNavigate={onNavigate} />
         )}
       </div>
     </>

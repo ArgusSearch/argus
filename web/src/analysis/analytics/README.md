@@ -1,6 +1,6 @@
 # Argus analytics
 
-Use `AnalyticsPanels` with the active `RunView`, graph, and incident details from the same stream. The controlled `query` accepts the analysis shell’s `metric`, `segment`, and `period` fields. Connect `onPeriodChange` to the shell’s query update and `segmentHref` to its Segments destination. Pass `section="history"` or `section="distribution"` for single-panel destinations. `ShopMetrics` reads the existing whole-shop health checks. Mount these components inside the Ice workspace and its `ReceiptProvider`.
+Use `AnalyticsPanels` with the active `RunView`, graph, and incident details from the same stream. The controlled `query` accepts the analysis shell’s `metric`, `segment`, and `period` fields. Connect `onPeriodChange` to the shell’s query update and `segmentHref` to its Segments destination. Pass the workspace’s link handler as `onNavigate` to preserve the active run on ordinary link clicks. Use `section="history"` or `section="distribution"` for single-panel destinations. `ShopMetrics` reads the existing whole-shop health checks. Production mounting belongs to the analysis shell. Mount inside the Ice workspace and its `ReceiptProvider`.
 
 For a local check, run the API with `make api` at the project root and Vite with `npm run dev` in `web/`. Open `/src/analysis/analytics/dev.html` on the Vite server. In the S1 replay, pause then end through the existing replay controls or `POST /replay` to inspect the finished run.
 

@@ -18,10 +18,6 @@
   flex-wrap: wrap;
 }
 
-.an-shop-head p {
-  color: var(--text);
-}
-
 .an-card :is(a, summary),
 .an-state button {
   color: var(--probe);
@@ -69,7 +65,7 @@
   gap: var(--fx-space-2);
 }
 
-:is(.an-periods, .an-events, .an-state) button {
+:is(.an-periods, .an-events, .an-state) > button {
   padding: 5px var(--fx-space-2);
   min-height: 30px;
   border: 1px solid var(--line);
@@ -80,7 +76,7 @@
   cursor: pointer;
 }
 
-:is(.an-periods, .an-events) button:is(:hover, [aria-pressed="true"]) {
+:is(.an-periods, .an-events) > button:is(:hover, [aria-pressed="true"]) {
   border-color: var(--probe);
   color: var(--probe);
   background: var(--probe-bg);
@@ -323,6 +319,10 @@
   justify-content: space-between;
   gap: var(--fx-space-2);
   margin-bottom: var(--fx-space-3);
+}
+
+.an-shop-head p {
+  color: var(--text);
 }
 
 .an-shop :is(h2, h3) {
