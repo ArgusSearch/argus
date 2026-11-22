@@ -4,13 +4,19 @@
 // placeholder, the role's initial in a circle of its color with the role's short name.
 
 import { lazy, Suspense, type ComponentType } from "react";
-import type { AgentRole } from "../../lib/agent";
+import { AGENT_ROLES, type AgentRole } from "../../lib/agent";
+import type { AgentAvatarProps } from "../../village/avatars/AgentAvatar";
+import type { AvatarCue } from "../../village/avatars/state";
+import { useAgent } from "./agent";
 
 export interface AvatarProps {
   role: AgentRole;
   size?: "sm" | "md" | "lg";
   /** what the role is doing: drives a ring on lane G's avatar */
   status?: "idle" | "working" | "waiting" | "done" | "alarm";
+  cue?: AvatarCue;
+  showThought?: boolean;
+  paused?: boolean;
   /** show the role's nameplate next to the face */
   nameplate?: boolean;
 }
@@ -26,19 +32,9 @@ export const ROLE_TEXT: Record<AgentRole, { name: string; plate: string }> = {
   operator: { name: "Operator", plate: "OPR" },
 };
 
-/** Lane G's props (web/src/village/avatars/AgentAvatar.tsx). */
-interface LaneGAvatarProps {
-  role: AgentRole;
-  status?: "idle" | "working" | "waiting" | "done" | "sleeping";
-  size?: number;
-  nameplate?: boolean;
-  badge?: boolean;
-}
-type AvatarModule = { AgentAvatar?: ComponentType<LaneGAvatarProps>; default?: ComponentType<LaneGAvatarProps> };
+type AvatarModule = { AgentAvatar?: ComponentType<AgentAvatarProps>; default?: ComponentType<AgentAvatarProps> };
 
 const PX: Record<NonNullable<AvatarProps["size"]>, number> = { sm: 24, md: 30, lg: 48 };
-/** our statuses in lane G's set: a sent-back or fallen-back step works on (lane G has no alarm pose) */
-const STATUS: Record<NonNullable<AvatarProps["status"]>, LaneGAvatarProps["status"]> = { idle: "idle", working: "working", waiting: "waiting", done: "done", alarm: "working" };
 // import.meta.glob: an absent module builds to an empty map instead of failing
 const files = import.meta.glob<AvatarModule>(["../../village/avatars.tsx", "../../village/avatars/index.tsx", "../../village/avatars/index.ts"]);
 const load = Object.values(files)[0];
@@ -52,10 +48,11 @@ const Avatar = load
     )
   : null;
 
-function Placeholder({ role, size = "sm", status, nameplate }: AvatarProps) {
+function Placeholder({ role, size = "sm", status, cue, nameplate }: AvatarProps) {
   const t = ROLE_TEXT[role];
+  const state = cue?.status ?? status;
   return (
-    <span className={`ws-avatar s-${size}${status ? ` st-${status}` : ""}`} style={{ ["--role" as string]: `var(--role-${role})` }} title={t.name}>
+    <span className={`ws-avatar s-${size}${state ? ` st-${state}` : ""}`} style={{ ["--role" as string]: `var(--role-${role})` }} title={t.name}>
       <i aria-hidden="true">{t.name[0]}</i>
       {nameplate && <b>{t.plate}</b>}
       <span className="sr-only">{t.name}</span>
@@ -65,12 +62,35 @@ function Placeholder({ role, size = "sm", status, nameplate }: AvatarProps) {
 
 export function AvatarSlot(props: AvatarProps) {
   if (!Avatar) return <Placeholder {...props} />;
+  const status = props.cue?.status ?? (props.status === "alarm" ? "done" : props.status);
   return (
     <Suspense fallback={<Placeholder {...props} />}>
       <span className={`ws-avatar-g s-${props.size ?? "sm"}`}>
-        <Avatar role={props.role} size={PX[props.size ?? "sm"]} status={props.status ? STATUS[props.status] : "idle"} badge={false} />
+        <Avatar
+          role={props.role}
+          size={PX[props.size ?? "sm"]}
+          status={status}
+          motionKey={props.cue?.key}
+          thought={props.showThought ? props.cue?.text : undefined}
+          badge={status === "waiting"}
+          paused={props.paused}
+        />
         {props.nameplate && <b>{ROLE_TEXT[props.role].plate}</b>}
       </span>
     </Suspense>
+  );
+}
+
+export function AgentTeam({ compact = false }: { compact?: boolean }) {
+  const { enabled, avatars } = useAgent();
+  if (!enabled) return null;
+  return (
+    <div className={compact ? "fx-demo ws-side-team" : "ws-agent-team"} role="group" aria-label="Agent team">
+      <div className="ws-agent-team-faces">
+        {AGENT_ROLES.map((role) => (
+          <AvatarSlot key={role} role={role} size={compact ? "sm" : "lg"} cue={avatars[role]} showThought />
+        ))}
+      </div>
+    </div>
   );
 }

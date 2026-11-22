@@ -2515,6 +2515,27 @@
   letter-spacing: 0.06em;
 }
 
+:root[data-fx] .ws-agent-team-faces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px 8px;
+}
+
+:root[data-fx] .ws-agent-team {
+  margin: var(--fx-space-3) 0;
+}
+
+:root[data-fx] .ws-side-team .ws-agent-team-faces {
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+:root[data-fx] .ws-side-team .agent-avatar-thought {
+  max-width: 18ch;
+}
+
 :root[data-fx] .ws-ask-a ul {
   display: grid;
   gap: 4px;

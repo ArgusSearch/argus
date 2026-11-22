@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { qualityMode } from "../../fx/scene/quality";
+import type { AvatarCues } from "../avatars/state";
 import type { Player } from "../player";
 import type { RoleId } from "../roles";
 import type { RoomTelemetry } from "./rooms";
@@ -12,6 +13,7 @@ import { VillageEngine } from "./engine";
 export interface VillageSceneProps {
   player: Player;
   state: VillageState;
+  avatars: AvatarCues;
   telemetry: RoomTelemetry;
   anchors: Map<string, HTMLElement>;
   onSelect: (role: RoleId) => void;
@@ -19,7 +21,7 @@ export interface VillageSceneProps {
   onFail: (error: Error) => void;
 }
 
-export default function VillageScene({ player, state, telemetry, anchors, onSelect, onHover, onFail }: VillageSceneProps) {
+export default function VillageScene({ player, state, avatars, telemetry, anchors, onSelect, onHover, onFail }: VillageSceneProps) {
   const mount = useRef<HTMLDivElement>(null);
   const engine = useRef<VillageEngine | null>(null);
   const handlers = useRef({ onSelect, onHover, onFail });
@@ -55,6 +57,10 @@ export default function VillageScene({ player, state, telemetry, anchors, onSele
   useEffect(() => {
     engine.current?.setState(state);
   }, [state]);
+
+  useEffect(() => {
+    engine.current?.setAvatars(avatars);
+  }, [avatars]);
 
   useEffect(() => {
     engine.current?.setTelemetry(telemetry);

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hhmm } from "../lib/format";
 import { AgentAvatar } from "./avatars/AgentAvatar";
 import { agentName, PERSONAS } from "./avatars/personas";
+import { IDLE_AVATAR, type AvatarCue, type AvatarCues } from "./avatars/state";
 import type { LogEntry, Outcome } from "./beats";
 import type { Player } from "./player";
 import { ROLE, ROLES, type RoleId } from "./roles";
@@ -68,15 +69,23 @@ export interface RoleView {
   role: RoleId;
   kind: BubbleKind;
   line: string | null;
-  since: number;
+  since: number | null;
 }
 
 /** What each role's bubble shows at this moment. FINISHED stays for a few seconds after a role's part ends. */
-export function roleViews(state: VillageState, player: Player): RoleView[] {
+export function roleViews(state: VillageState, player: Player, live?: AvatarCues): RoleView[] {
   const tl = player.timeline;
   const t = player.time;
   const current = tl.slots[state.index];
   return ROLES.map(({ id }) => {
+    const cue = live?.[id];
+    if (live) {
+      if (cue?.status === "working") return { role: id, kind: "working", line: cue.text ?? null, since: null };
+      if (cue?.status === "waiting" && current?.beat === state.beat && state.gate?.actionId === cue.actionId) {
+        return { role: id, kind: "need", line: cue.text ?? null, since: null };
+      }
+      return { role: id, kind: null, line: null, since: null };
+    }
     // The player can load a new source before React commits the state folded from that source.
     if (!current || current.beat !== state.beat) return { role: id, kind: null, line: null, since: 0 };
     const r = state.roles[id];
@@ -145,7 +154,7 @@ function Bubble({ view: live, anchors, player, onNeed, onSelect, selected }: { v
   if (view.kind === "working")
     big = (
       <span key="working" className="vl-bubble working">
-        Working <Clock player={player} since={view.since} />
+        Working {view.since !== null && <Clock player={player} since={view.since} />}
       </span>
     );
   if (view.kind === "need")
@@ -205,7 +214,7 @@ const OUTCOME: Record<Outcome, { label: string; tone: string }> = {
   denied: { label: "denied", tone: "out" },
 };
 
-export function RolePanel({ role, state, onClose }: { role: RoleId; state: VillageState; onClose: () => void }) {
+export function RolePanel({ role, state, cue = IDLE_AVATAR, onClose }: { role: RoleId; state: VillageState; cue?: AvatarCue; onClose: () => void }) {
   const persona = PERSONAS[role];
   const r = state.roles[role];
   const log = [...r.log].reverse();
@@ -214,11 +223,11 @@ export function RolePanel({ role, state, onClose }: { role: RoleId; state: Villa
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
-  const status = r.status === "waiting" ? "waiting" : r.status === "working" ? "working" : r.status === "done" ? "done" : "idle";
+  const { status } = cue;
   return (
     <aside className="vl-panel" aria-label={`${persona.title} tool log`} style={{ ["--role" as string]: persona.glow }} data-no-pick>
       <header>
-        <AgentAvatar role={role} size={64} status={status} />
+        <AgentAvatar role={role} size={64} status={status} motionKey={cue.key} />
         <div className="vl-panel-id">
           <span className="vl-kicker">// {persona.title}</span>
           <h2>{agentName(role)}</h2>
@@ -229,9 +238,9 @@ export function RolePanel({ role, state, onClose }: { role: RoleId; state: Villa
         </button>
       </header>
       <p className="vl-job">{ROLE[role].job}</p>
-      <div className={`vl-now ${r.status}`}>
-        <span>{r.status === "working" ? "Now" : r.status === "waiting" ? "Needs you" : r.beats ? "Last" : "Idle"}</span>
-        <b>{r.bubble}</b>
+      <div className={`vl-now ${status}`}>
+        <span>{status === "working" ? "Now" : status === "waiting" ? "Needs you" : r.beats ? "Last" : "Idle"}</span>
+        <b>{cue.text ?? r.bubble}</b>
       </div>
       <h3>
         Tool log <small>{r.log.length ? `${r.log.length} entr${r.log.length === 1 ? "y" : "ies"}, newest first` : ""}</small>
@@ -345,13 +354,14 @@ export function ApprovalCard({
 }
 
 /** One line at the bottom: who is doing what right now. */
-export function Caption({ state }: { state: VillageState }) {
+export function Caption({ state, avatars }: { state: VillageState; avatars: AvatarCues }) {
   const beat = state.beat;
   if (!beat) return null;
   const r = state.roles[beat.role];
+  const cue = avatars[beat.role] ?? IDLE_AVATAR;
   return (
     <div key={state.index} className="vl-caption" style={{ ["--role" as string]: PERSONAS[beat.role].glow }}>
-      <AgentAvatar role={beat.role} size={30} status={r.status === "waiting" ? "waiting" : "working"} badge={false} />
+      <AgentAvatar role={beat.role} size={30} status={cue.status} motionKey={cue.key} badge={false} />
       <b>{agentName(beat.role)}</b>
       <span>{r.bubble}</span>
     </div>

@@ -21,6 +21,7 @@ export interface CostumeKit {
   glow: string;
   time: number;
   busy: boolean;
+  workTime: number;
   /** a face point (face units) on the head sphere, in body units, or null round the back */
   face: (x: number, y: number) => [number, number] | null;
   yaw: number;
@@ -239,9 +240,31 @@ function magnifier(k: CostumeKit, x: number, y: number, r = 7, angle = 0.7) {
   ctx.restore();
 }
 
+function binoculars(k: CostumeKit, x: number, y: number, tilt = 0) {
+  const { ctx } = k;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.fillStyle = "#252d38";
+  ctx.fillRect(-5, -2, 10, 5);
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(side * 7, 0, 6, 6.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#293442";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(side * 7, 0, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#7cc4ff";
+    ctx.fill();
+    ctx.fillStyle = "#e0f3ff";
+    ctx.fillRect(side * 7 - 2, -3, 2, 2);
+  }
+  ctx.restore();
+}
+
 function scales(k: CostumeKit, x: number, y: number, s = 1) {
   const { ctx } = k;
-  const tilt = Math.sin(k.time * 1.2) * 0.18;
+  const tilt = Math.sin(k.workTime * 5) * 0.27;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
@@ -338,10 +361,18 @@ const watcher: [Look, Look] = [
       ctx.fill();
       outline(ctx);
       ctx.restore();
-      // the lantern in a mitten at the side
-      const hx = k.half(18) + 4;
-      lantern(k, hx + 2, 16);
-      mitten(k, hx + 2, 12, 5);
+      if (k.busy) {
+        const sweep = Math.sin(k.workTime * 2.6);
+        const [fx, fy] = k.face(0, 4) ?? [k.fx, k.fy + 4];
+        const x = fx + 7 * sweep;
+        mitten(k, x - 13, fy + 5, 4);
+        mitten(k, x + 13, fy + 5, 4);
+        binoculars(k, x, fy, sweep * 0.12);
+      } else {
+        const hx = k.half(18) + 4;
+        lantern(k, hx + 2, 16);
+        mitten(k, hx + 2, 12, 5);
+      }
     },
   },
   {
@@ -423,9 +454,11 @@ const detective: [Look, Look] = [
       ctx.fillStyle = "#3b2b1a";
       ctx.fillRect(-3, yb - 0.5, 6, 5);
       brimHat(k, { crown: "#6b4f3a", band: "#2a1d14", brim: "#5b412e", w: 27, h: 16, dent: true, up: 7 });
-      const hx = k.half(12) + 5;
-      magnifier(k, hx + 2, 2, 7.5, 0.5);
-      mitten(k, hx + 6, 13, 5);
+      const sweep = Math.sin(k.workTime * 3.6);
+      const hx = k.busy ? k.fx + 17 + 8 * sweep : k.half(12) + 7;
+      const hy = k.busy ? k.fy + 4 + 3 * Math.cos(k.workTime * 3.6) : 2;
+      magnifier(k, hx, hy, k.busy ? 9 : 7.5, k.busy ? -0.4 + 0.35 * sweep : 0.5);
+      mitten(k, hx + (k.busy ? 5 : 4), hy + 11, 5);
     },
   },
   {
@@ -546,6 +579,30 @@ function tray(k: CostumeKit, x: number, y: number) {
   ctx.restore();
 }
 
+function writing(k: CostumeKit, x: number, y: number) {
+  const { ctx } = k;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.14);
+  ctx.fillStyle = "#fbf8f1";
+  ctx.fillRect(-12, -8, 23, 17);
+  ctx.fillStyle = "#8a93a3";
+  ctx.fillRect(-8, -4, 12, 1.2);
+  ctx.fillRect(-8, 0, 9, 1.2);
+  const stroke = Math.sin(k.workTime * 9);
+  ctx.fillRect(-8, 4, 7 + 3 * stroke, 1.2);
+  const pen = 3 * stroke;
+  mitten(k, pen + 9, -3, 4);
+  ctx.strokeStyle = "#24304f";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(pen + 1, 5);
+  ctx.lineTo(pen + 10, -8);
+  ctx.stroke();
+  ctx.restore();
+}
+
 const narrator: [Look, Look] = [
   {
     id: 1,
@@ -566,8 +623,13 @@ const narrator: [Look, Look] = [
       }
       bowTie(k, 20, "#14161c", 8.5);
       const hx = k.half(4) + 6;
-      tray(k, hx + 4, -4);
-      mitten(k, hx + 4, 1, 5);
+      if (k.busy) {
+        mitten(k, k.fx - 10, k.fy + 26, 4);
+        writing(k, k.fx + 3, k.fy + 23);
+      } else {
+        tray(k, hx + 4, -4);
+        mitten(k, hx + 4, 1, 5);
+      }
     },
   },
   {

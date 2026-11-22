@@ -10,6 +10,7 @@ import { useWaitingTitle } from "../../agent-ui/hooks";
 import { agentApi, settling, type ActivityRecord, type AgentHealth, type ProposalView, type RunSummary } from "../../lib/agent";
 import { useAgentDemo } from "../../lib/agentDemo";
 import type { RunView } from "../../lib/store";
+import { avatarCues, WORK_CUE_MS, type AvatarCues } from "../../village/avatars/state";
 
 export interface AgentState {
   scope: string | null;
@@ -18,6 +19,7 @@ export interface AgentState {
   records: ActivityRecord[];
   proposals: ProposalView[];
   runs: RunSummary[];
+  avatars: AvatarCues;
   /** proposals waiting for a person's decision (the sidebar and the tab title count them) */
   waiting: number;
   /** re-read proposals and runs now (after a decision) */
@@ -26,7 +28,8 @@ export interface AgentState {
   put: (p: ProposalView) => void;
 }
 
-const EMPTY: AgentState = { scope: null, enabled: false, health: null, records: [], proposals: [], runs: [], waiting: 0, refresh: () => undefined, put: () => undefined };
+const EMPTY: AgentState = { scope: null, enabled: false, health: null, records: [], proposals: [], runs: [], avatars: {}, waiting: 0, refresh: () => undefined, put: () => undefined };
+const EMPTY_ACTIVITY = { records: [] as ActivityRecord[], until: new Map<number, number>() };
 const Ctx = createContext<AgentState>(EMPTY);
 
 export function useAgent(): AgentState {
@@ -52,7 +55,8 @@ const KEEP = 600;
 
 export function AgentProvider({ stream, children }: { stream: string | null; children: ReactNode }) {
   const [health, setHealth] = useState<AgentHealth | null>(null);
-  const [records, setRecords] = useState<ActivityRecord[]>([]);
+  const [activity, setActivity] = useState(EMPTY_ACTIVITY);
+  const [avatarClock, setAvatarClock] = useState(0);
   const [proposals, setProposals] = useState<ProposalView[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [tick, setTick] = useState(0);
@@ -66,7 +70,7 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
   const [dataScope, setDataScope] = useState(scope);
   if (dataScope !== scope) {
     setDataScope(scope);
-    setRecords([]);
+    setActivity(EMPTY_ACTIVITY);
     setProposals([]);
     setRuns([]);
   }
@@ -95,10 +99,19 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
           const fresh = res.stream !== cursor.stream;
           if (fresh && cursor.seq > 0) res = await agentApi.activity(0);
           if (!live || activeScope.current !== scope) return;
+          const previousSeq = cursor.seq;
           const last = res.records[res.records.length - 1]?.seq;
           cursor = { stream: res.stream, seq: last ?? (fresh ? 0 : cursor.seq) };
-          if (fresh) setRecords(res.records.slice(-KEEP));
-          else if (res.records.length) setRecords((r) => [...r, ...res.records.filter((x) => !r.some((y) => y.seq === x.seq))].slice(-KEEP));
+          if (fresh) setActivity({ records: res.records.slice(-KEEP), until: new Map() });
+          else if (res.records.length) {
+            const added = res.records.filter((record) => record.seq > previousSeq);
+            const now = Date.now();
+            setActivity((current) => {
+              const until = new Map([...current.until].filter(([, deadline]) => deadline > now));
+              for (const record of added) until.set(record.seq, now + WORK_CUE_MS);
+              return { records: [...current.records, ...added].slice(-KEEP), until };
+            });
+          }
         } catch {
           /* the next pull tries again */
         }
@@ -142,9 +155,18 @@ export function AgentProvider({ stream, children }: { stream: string | null; chi
 
   const waiting = enabled ? pendingProposals(proposals).length : 0;
   useWaitingTitle(waiting);
+  const { roles: avatars, nextExpiry } = useMemo(
+    () => avatarCues(activity.records, proposals, runs, activity.until, Math.max(avatarClock, Date.now())),
+    [activity, avatarClock, proposals, runs],
+  );
+  useEffect(() => {
+    if (!Number.isFinite(nextExpiry)) return;
+    const timer = window.setTimeout(() => setAvatarClock(Date.now()), Math.max(1, nextExpiry - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [nextExpiry, avatarClock]);
   const value = useMemo<AgentState>(
-    () => ({ scope, enabled, health, records, proposals, runs, waiting, refresh, put }),
-    [scope, enabled, health, records, proposals, runs, waiting, refresh, put],
+    () => ({ scope, enabled, health, records: activity.records, proposals, runs, avatars, waiting, refresh, put }),
+    [scope, enabled, health, activity.records, proposals, runs, avatars, waiting, refresh, put],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

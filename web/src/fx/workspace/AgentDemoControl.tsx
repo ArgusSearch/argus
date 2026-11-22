@@ -8,6 +8,7 @@ import { agentDemoAvailable, controlAgentDemo, joinAgentDemo, leaveAgentDemo, st
 import { dayLabel, hhmm } from "../../lib/format";
 import { go } from "../nav";
 import { Pill } from "./ui";
+import { AgentTeam } from "./AvatarSlot";
 import type { Tone } from "./plain";
 
 const STATUS: Record<AgentDemoStatus, { word: string; tone: Tone }> = {
@@ -20,7 +21,17 @@ const STATUS: Record<AgentDemoStatus, { word: string; tone: Tone }> = {
 
 let autostarted = false;
 
+// Workspace mounts this in the sidebar above its counters.
 export function AgentDemoControl() {
+  return (
+    <>
+      <AgentTeam compact />
+      <DemoControl />
+    </>
+  );
+}
+
+function DemoControl() {
   const demo = useAgentDemo();
   const [available, setAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);

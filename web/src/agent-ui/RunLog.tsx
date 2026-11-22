@@ -6,10 +6,12 @@
 import "./agent-ui.css";
 import { memo } from "react";
 import { AgentReceiptChips } from "../components/Receipts";
-import { roleOf, type ActivityKind, type ActivityRecord, type ProposalView } from "../lib/agent";
+import type { ActivityKind, ActivityRecord, ProposalView } from "../lib/agent";
 import { hhmm, humanize } from "../lib/format";
 import { Proposal } from "../fx/workspace/ActionCard";
 import { AvatarSlot } from "../fx/workspace/AvatarSlot";
+import { useAgent } from "../fx/workspace/agent";
+import { activityAvatarRole } from "../village/avatars/state";
 import { VERDICT, type Tone } from "../fx/workspace/plain";
 import { Pill } from "../fx/workspace/ui";
 import { openIncidentPage } from "../fx/nav";
@@ -78,6 +80,7 @@ function ModelCost({ r }: { r: ActivityRecord }) {
 
 /** A check and its result as one row: what was suspected, what would follow, what came back. */
 export const CheckRow = memo(function CheckRow({ check, time = true }: { check: CheckStep; time?: boolean }) {
+  const avatars = useAgent().avatars;
   const { call, result } = check;
   const o = call?.observation ?? result?.observation ?? null;
   const outcome = result?.observation?.outcome ?? null;
@@ -87,7 +90,13 @@ export const CheckRow = memo(function CheckRow({ check, time = true }: { check: 
   return (
     <li className={`au-step au-check${running ? " running" : ""}`}>
       {time && <span className="ag-time mono">{hhmm(at.sim_ts)}</span>}
-      <AvatarSlot role={check.role} size="md" nameplate status={running ? "working" : undefined} />
+      <AvatarSlot
+        role={check.role}
+        size="md"
+        nameplate
+        cue={avatars[check.role]?.key === at.seq ? avatars[check.role] : undefined}
+        paused={avatars[check.role]?.key !== at.seq}
+      />
       <div className="ag-body">
         <span className="ag-kind">
           <Pill tone="probe">Check</Pill>
@@ -125,12 +134,15 @@ export const CheckRow = memo(function CheckRow({ check, time = true }: { check: 
 
 /** Any other step: what the model said, what the gate did, what was proposed or decided. */
 function RecordRow({ r, proposal }: { r: ActivityRecord; proposal: ProposalView | null }) {
+  const role = activityAvatarRole(r);
+  const current = useAgent().avatars[role];
+  const cue = current?.key === r.seq ? current : undefined;
   const k = KIND[r.kind];
   if (r.kind === "action_proposed" && proposal) return <ApprovalRow proposal={proposal} at={r.sim_ts} />;
   return (
     <li className={`au-step k-${r.kind}`}>
       <span className="ag-time mono">{hhmm(r.sim_ts)}</span>
-      <AvatarSlot role={roleOf(r)} size="md" nameplate status={r.kind === "rejected" || r.kind === "fallback" ? "alarm" : undefined} />
+      <AvatarSlot role={role} size="md" nameplate cue={cue} paused={!cue} />
       <div className="ag-body">
         <span className="ag-kind">
           <Who actor={r.actor} />
@@ -181,11 +193,12 @@ function StepRow({ step, proposals }: { step: Step; proposals: ProposalView[] })
 
 /** The faces of the roles that worked on a run, overlapping like a group chat's avatars. */
 function Faces({ group, live }: { group: RunGroup; live: boolean }) {
+  const { avatars } = useAgent();
   const roles = group.roles.slice(0, 4);
   return (
     <span className="au-faces" aria-hidden="true">
-      {roles.map((role, i) => (
-        <AvatarSlot key={role} role={role} size="sm" status={live && i === roles.length - 1 ? "working" : undefined} />
+      {roles.map((role) => (
+        <AvatarSlot key={role} role={role} size="sm" cue={live && avatars[role]?.runId === group.runId ? avatars[role] : undefined} paused={!live} />
       ))}
     </span>
   );
@@ -194,9 +207,11 @@ function Faces({ group, live }: { group: RunGroup; live: boolean }) {
 /** What the live run is doing now, shimmering, with how long it has worked. */
 function LiveRow({ group, clockId }: { group: RunGroup; clockId: string }) {
   const now = liveLine(group);
+  const role = activityAvatarRole(group.records[group.records.length - 1]);
+  const current = useAgent().avatars[role];
   return (
     <div className="au-live" aria-live="polite">
-      <AvatarSlot role={now.role} size="md" nameplate status="working" />
+      <AvatarSlot role={role} size="md" nameplate cue={current?.runId === group.runId ? current : undefined} />
       <span className="au-live-text">
         <b className="au-shine">{now.verb}</b>
         {now.text && <span>{now.text}</span>}
