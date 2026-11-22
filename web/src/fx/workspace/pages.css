@@ -1597,6 +1597,26 @@
 
 /* track record: Argus in its colors; its references (Stage 1 alone, the threshold alarm) are labelled
    comparisons, so their numbers stay neutral instead of reading as Argus failures */
+:root[data-fx] .vw.sc {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:root[data-fx] .sc-head {
+  flex-wrap: wrap;
+}
+
+:root[data-fx] .sc-agents {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+}
+
+:root[data-fx] .sc-agent-head {
+  flex-wrap: wrap;
+}
+
+:root[data-fx] .sc-page {
+  overflow-wrap: anywhere;
+}
+
 :root[data-fx] .sc-agent:not(.a-argus) .sc-metric .sc-metric-value {
   color: var(--fx-ink-2);
 }
@@ -1669,7 +1689,7 @@
   opacity: 0.8;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   :root[data-fx] .fx-side-ask {
     justify-content: center;
     padding: 0;
@@ -2167,13 +2187,6 @@
   background: linear-gradient(0deg, var(--ok), var(--probe));
 }
 
-:root[data-fx] .fx-side-main {
-  display: grid;
-  align-content: start;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 :root[data-fx] .ws-act-claim {
   display: flex;
   flex-wrap: wrap;
@@ -2182,12 +2195,9 @@
 }
 
 /* the agent presentation's control, above the sidebar's foot */
-:root[data-fx] .fx-side {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-}
-
 :root[data-fx] .fx-demo {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--fx-space-2);
   margin: var(--fx-space-2) 0 var(--fx-space-3);
   padding: var(--fx-space-3);
@@ -2220,10 +2230,15 @@
 }
 
 :root[data-fx] .fx-demo .btn {
-  padding-inline: 8px;
+  min-height: 28px;
+  height: auto;
+  padding: 5px 8px;
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   :root[data-fx] .fx-demo {
     display: none;
   }
@@ -2249,10 +2264,6 @@
   font: var(--fx-weight-medium) var(--fx-text-2xs) / 1.2 var(--fx-font-mono);
   letter-spacing: var(--fx-tracking-hud);
   text-transform: uppercase;
-}
-
-:root[data-fx] .fx-side {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 :root[data-fx] .fx-demo .ws-pill {
