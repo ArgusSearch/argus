@@ -316,5 +316,7 @@ def test_e26_replay_reports_exact_cost_without_spend(world_case, tmp_path):
     board = build_board(replay_journal.records, replayed.findings, summary)
     billed = sum(Decimal(str(u.usd)) for u in replay_journal.usage if u.usd is not None)
     assert Decimal(str(board.cost.usd)) == billed > 0
+    recorded_board = build_board(replay_journal.records, replayed.findings, None)
+    assert Decimal(str(recorded_board.cost.usd)) == billed
     assert board.cost.replayed
     assert not replay_path.exists() or replay_path.read_bytes() == b""
