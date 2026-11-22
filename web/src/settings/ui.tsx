@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import type { AgentRole } from "../lib/agent";
 import type { Level } from "./model";
+import { useText } from "./language";
 
 const AgentAvatar = lazy(() => import("../village/avatars").then(({ AgentAvatar }) => ({ default: AgentAvatar })));
 
@@ -32,13 +33,14 @@ export function PageHead({ title, lead, actions, children }: { title: string; le
 }
 
 export function Card({ title, desc, action, children, className, flush }: { title?: ReactNode; desc?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; flush?: boolean }) {
+  const tr = useText();
   return (
     <section className={`cs-card${flush ? " flush" : ""}${className ? ` ${className}` : ""}`}>
       {(title || action) && (
         <header className="cs-card-head">
           <div>
-            {title && <h2>{title}</h2>}
-            {desc && <p>{desc}</p>}
+            {title && <h2>{typeof title === "string" ? tr(title) : title}</h2>}
+            {desc && <p>{typeof desc === "string" ? tr(desc) : desc}</p>}
           </div>
           {action && <div className="cs-card-action">{action}</div>}
         </header>
@@ -49,12 +51,13 @@ export function Card({ title, desc, action, children, className, flush }: { titl
 }
 
 export function Row({ label, help, children, lead }: { label: ReactNode; help?: ReactNode; children?: ReactNode; lead?: ReactNode }) {
+  const tr = useText();
   return (
     <div className="cs-row">
       {lead && <div className="cs-row-lead">{lead}</div>}
       <div className="cs-row-text">
-        <span className="cs-row-label">{label}</span>
-        {help && <span className="cs-row-help">{help}</span>}
+        <span className="cs-row-label">{typeof label === "string" ? tr(label) : label}</span>
+        {help && <span className="cs-row-help">{typeof help === "string" ? tr(help) : help}</span>}
       </div>
       {children !== undefined && <div className="cs-row-control">{children}</div>}
     </div>
@@ -70,26 +73,17 @@ export function Badge({ tone = "muted", children, title, dot }: { tone?: Tone; c
   );
 }
 
-/** Label for settings that have no runtime effect. */
-export function Preview() {
-  return (
-    <span className="cs-preview" title="Shown so you can see where it goes. Changing it would not change what Argus does.">
-      Not configured
-    </span>
-  );
-}
-
 /** Where a value comes from: an API route or a source file. */
 export function Source({ children }: { children: ReactNode }) {
   return <code className="cs-source">{children}</code>;
 }
 
-/** A switch that shows a state but cannot be flipped here. */
-export function Switch({ on, label }: { on: boolean; label: string }) {
+export function Switch({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => void }) {
+  const tr = useText();
   return (
-    <span className={`cs-switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-disabled="true" aria-label={label} title="Read-only">
+    <button type="button" className={`cs-switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-label={tr(label)} onClick={() => onChange(!on)}>
       <i aria-hidden="true" />
-    </span>
+    </button>
   );
 }
 
@@ -99,17 +93,26 @@ const LEVELS: { id: Level; label: string }[] = [
   { id: "off", label: "Off" },
 ];
 
-/** The level picker of one rule: alone, asks first or off; read-only, the level comes from GET /autonomy. */
-export function LevelPicker({ level, label }: { level: Level; label: string }) {
+export function LevelPicker({ level, allowed, label, onChange }: { level: Level; allowed: Level; label: string; onChange: (level: Level) => void }) {
+  const tr = useText();
   return (
-    <span className="cs-seg" role="radiogroup" aria-label={label} aria-readonly="true">
-      {LEVELS.map((l) => (
-        <span key={l.id} role="radio" aria-checked={l.id === level} aria-disabled="true" className={l.id === level ? `on l-${l.id}` : undefined}>
-          {l.label}
-        </span>
+    <span className="cs-seg" role="group" aria-label={label}>
+      {LEVELS.map((choice) => (
+        <button key={choice.id} type="button" aria-pressed={choice.id === level} disabled={choice.id !== "off" && choice.id !== allowed}
+          className={choice.id === level ? `on l-${choice.id}` : undefined} onClick={() => onChange(choice.id)}>
+          {tr(choice.label)}
+        </button>
       ))}
     </span>
   );
+}
+
+export function NumberInput({ label, value, step = 1, min = 0, max, onChange }: {
+  label: string; value: number | null; step?: number; min?: number; max?: number; onChange: (value: number | null) => void;
+}) {
+  const tr = useText();
+  return <input className="cs-input cs-number-input" type="number" aria-label={tr(label)} value={value ?? ""}
+    min={min} max={max} step={step} onChange={(event) => onChange(event.target.value === "" ? null : event.target.valueAsNumber)} />;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -117,9 +120,9 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 /** A plain button in the page's style. */
-export function Btn({ children, onClick, title }: { children: ReactNode; onClick: () => void; title?: string }) {
+export function Btn({ children, onClick, title, disabled }: { children: ReactNode; onClick: () => void; title?: string; disabled?: boolean }) {
   return (
-    <button type="button" className="cs-btn" aria-label={title} onClick={onClick} title={title}>
+    <button type="button" className="cs-btn" disabled={disabled} aria-label={title} onClick={onClick} title={title}>
       {children}
     </button>
   );

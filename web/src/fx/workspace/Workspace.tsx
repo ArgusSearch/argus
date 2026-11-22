@@ -12,7 +12,7 @@ import { investigations } from "../../views/model";
 import { EntryGate } from "../entry/EntryGate";
 import { fxOn } from "../flag";
 import { go, useLocation, watchHost, type Section } from "../nav";
-import { AgentDemoControl } from "./AgentDemoControl";
+import { useText } from "../../settings/language";
 import { AgentPage } from "./AgentPage";
 import { AgentProvider, useAgent, useHumanActions } from "./agent";
 import { AskPanel, setAskOpen, useAskOpen } from "./AskPanel";
@@ -230,6 +230,7 @@ const NAV: NavItem[] = [
 
 function Sidebar({ section, view, recorded = false }: { section: Section; view: RunView; recorded?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const tr = useText();
   const counts = autonomyCounts(view);
   const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
   const running = investigations(view).some((inv) => !view.steps.some((s) => s.anomalyId === inv.anomalyId && s.step.kind === "verdict"));
@@ -289,18 +290,18 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2zM5.5 6.5h5M5.5 8.5h3" />
           </svg>
-          <span>Ask Argus</span>
+          <span>{tr("Ask Argus")}</span>
           <kbd>/</kbd>
         </button>
       )}
       <ul className="fx-side-nav">
         {items.map((item, i) => (
           <li key={item.id}>
-            {item.group !== items[i - 1]?.group && <span className="fx-side-group">{item.group}</span>}
+            {item.group !== items[i - 1]?.group && <span className="fx-side-group">{tr(item.group)}</span>}
             <button
               className={`fx-side-item${current === item.id ? " on" : ""}`}
               aria-current={current === item.id ? "page" : undefined}
-              aria-label={item.label}
+              aria-label={tr(item.label)}
               title={item.hint}
               onClick={(event) => {
                 if (menuOpen) event.currentTarget.closest("nav")?.querySelector<HTMLButtonElement>(".fx-side-menu")?.focus();
@@ -311,7 +312,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 {item.icon}
               </svg>
-              <span>{item.label}</span>
+              <span>{tr(item.label)}</span>
               {item.id === "investigation" && running && <i className="fx-side-live" aria-label="investigation running" />}
               {item.id === "agent" && agent.waiting > 0 && (
                 <em className="fx-side-badge" title="Proposals waiting for your approval" aria-label={`${agent.waiting} waiting for your approval`}>
@@ -331,12 +332,11 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3.5 2.5h9v11h-9zM5.5 8l1.5 1.5 3.5-3.5" />
             </svg>
-            <span>Sealed result</span>
+            <span>{tr("Sealed result")}</span>
           </button>
         </li>
       </ul>
       </div>
-      {!recorded && <AgentDemoControl />}
       {!recorded && (
       <div className="fx-side-foot">
         <span className="fx-hud">On its own</span>

@@ -1,5 +1,6 @@
 // The Mission Control entry card identifies the operator and shows the latest check from GET /health.
 
+import { useOperatorSettings } from "../../settings/operator";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { staticReplay } from "../../lib/deployment";
@@ -23,6 +24,8 @@ const PASS_THROUGH = new Set(["Tab", "Enter", " ", "Escape", "Shift"]);
 /** The entry screen itself; EntryGate.tsx decides when it shows and loads this module only then. */
 export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEnter: () => void }) {
   const { phase } = useFx();
+  const { snapshot } = useOperatorSettings();
+  const name = snapshot?.settings.account.name.trim() || "Batu";
   const [health, setHealth] = useState<Health | null>();
   const dialog = useRef<HTMLDivElement>(null);
 
@@ -106,9 +109,9 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
               <dt>You enter as</dt>
               <dd>
                 <span className="fx-entry-monogram" aria-hidden="true">
-                  B
+                  {Array.from(name)[0]?.toUpperCase()}
                 </span>
-                <span>Batu</span>
+                <span>{name}</span>
               </dd>
             </div>
             <div>
@@ -128,7 +131,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
           </dl>
 
           <button type="button" className="fx-entry-go" onClick={onEnter} disabled={leaving}>
-            <span>{staticReplay ? "Open the sealed result" : "Sign in as Batu"}</span>
+            <span>{staticReplay ? "Open the sealed result" : `Sign in as ${name}`}</span>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h9.5M8.5 4l4 4-4 4" />
             </svg>

@@ -7,7 +7,8 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./tokens.css";
 import "./base.css";
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { emitIntro, FX_SCENE_READY, markStageReady, onStageReady, whenStageReady } from "./events";
+import { useOperatorSettings } from "../settings/operator";
+import { emitIntro, FX_SCENE_READY, FX_THEME, markStageReady, onStageReady, whenStageReady } from "./events";
 import { fxFlags, type FxFlags, type FxTheme } from "./flag";
 import { preloadScene, sceneAvailable } from "./GraphStage";
 import { timeline, tokenMs } from "./motion";
@@ -68,9 +69,22 @@ function loadFonts(): Promise<unknown> {
 }
 
 function FxShell({ flags, children }: { flags: FxFlags; children: ReactNode }) {
+  const { snapshot } = useOperatorSettings();
+  const appearance = snapshot?.settings.appearance;
+  const theme = appearance?.theme === "dark" ? "night" : appearance?.theme === "light" ? "ice" : flags.theme;
   const [phase, setPhase] = useState<FxPhase>("boot");
   const [loader, setLoader] = useState<"shown" | "leaving" | "gone">(flags.intro ? "shown" : "gone");
   const phaseRef = useRef(phase);
+
+  useLayoutEffect(() => {
+    if (!theme) return;
+    const root = document.documentElement;
+    if (root.dataset.fx !== theme) {
+      root.dataset.fx = theme;
+      window.dispatchEvent(new Event(FX_THEME));
+    }
+    root.lang = appearance?.language ?? "en";
+  }, [theme, appearance?.language]);
 
   useLayoutEffect(() => {
     phaseRef.current = phase;
@@ -119,7 +133,7 @@ function FxShell({ flags, children }: { flags: FxFlags; children: ReactNode }) {
   }, [flags.intro]);
 
   return (
-    <FxContext.Provider value={{ ...flags, on: true, phase }}>
+    <FxContext.Provider value={{ ...flags, theme, on: true, phase }}>
       <div id="fx-stage" aria-hidden="true" />
       {children}
       {flags.debug && <FxDebug />}

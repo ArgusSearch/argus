@@ -16,6 +16,7 @@ import { pollEvents } from "./lib/deployment";
 import { api, follow, type ConnectionState } from "./lib/api";
 import { checkingNode, emptyView, foldAll, recount, type RunView } from "./lib/store";
 import type { Graph, Health } from "./lib/types";
+import { useOperatorSettings } from "./settings/operator";
 import { OfflineBanner, Skeleton } from "./ui";
 import { ViewHost } from "./views";
 
@@ -77,6 +78,9 @@ export function App() {
   const [digestOpen, setDigestOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
+  const { snapshot: operator } = useOperatorSettings();
+  const liveNotices = operator?.settings.channels.in_app ?? true;
+  const reviewAmbiguous = operator?.settings.autonomy.review_ambiguous_cause !== "off";
   const demo = useAgentDemo();
   const demoRun = demo?.runId;
   const scopedGraph = presentationGraph?.runId === demoRun ? presentationGraph : null;
@@ -151,13 +155,13 @@ export function App() {
 
   // announce verdicts and the end of the run once per stream
   useEffect(() => {
-    if (demoRun) {
+    if (demoRun || !liveNotices) {
       setToast(null);
       return;
     }
     for (const inc of Object.values(view.incidents)) {
       const key = `${inc.id}:explained`;
-      if (inc.verdict !== "UNEXPLAINED" && !announced.current.has(key)) {
+      if (inc.verdict !== "UNEXPLAINED" && (reviewAmbiguous || inc.verdict !== "HYPOTHESIS") && !announced.current.has(key)) {
         announced.current.add(key);
         setToast({ text: `${inc.id} explained: ${inc.title}`, incident: inc.id });
       }
@@ -166,7 +170,7 @@ export function App() {
       announced.current.add("end");
       setToast({ text: "Run complete. Argus handled it alone.", digest: true });
     }
-  }, [demoRun, view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
+  }, [demoRun, liveNotices, reviewAmbiguous, view.incidents, view.lastSeq, health?.run.finished, health?.last_seq]);
 
   useEffect(() => {
     if (!toast) return;
