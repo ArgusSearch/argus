@@ -72,6 +72,9 @@ export interface StreamHeader {
 
 export type ConnectionState = "connecting" | "open" | "offline";
 
+/** How long to wait before reopening a stream the browser closed for good (it never retries those itself). */
+export const RETRY_CLOSED_MS = 2000;
+
 /** How long the stream may fail to reconnect before the page says the API is offline. */
 export const OFFLINE_AFTER_MS = 4000;
 const RECONNECT_AFTER_MS = 1500;
@@ -118,7 +121,7 @@ export function follow(handlers: {
       const disconnected = es.readyState === EventSource.CLOSED;
       es.close();
       source = null;
-      retry = setTimeout(open, RECONNECT_AFTER_MS);
+      retry = setTimeout(open, disconnected ? RETRY_CLOSED_MS : RECONNECT_AFTER_MS);
       if (offline) return;
       if (disconnected) {
         clearTimeout(offlineTimer);

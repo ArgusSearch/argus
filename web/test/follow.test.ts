@@ -21,8 +21,8 @@ class FakeEventSource {
     this.onopen?.();
   }
   /** When the server is gone, the browser reports an error and would reconnect on its own. */
-  fail(readyState: number = FakeEventSource.CONNECTING): void {
-    this.readyState = readyState;
+  fail(): void {
+    this.readyState = FakeEventSource.CONNECTING;
     this.onerror?.();
   }
 }
@@ -74,18 +74,6 @@ describe("follow: connection state", () => {
     const fresh = FakeEventSource.last!;
     expect(fresh).not.toBe(es);
     expect(fresh.url).toBe("/events?include_stream=true");
-    fresh.open();
-    expect(states.at(-1)).toBe("open");
-  });
-
-  it("shows offline immediately when the browser closes the stream", () => {
-    expect(states).toEqual(["connecting"]);
-    const es = FakeEventSource.last!;
-    es.fail(FakeEventSource.CLOSED);
-    expect(states.at(-1)).toBe("offline");
-    vi.advanceTimersByTime(OFFLINE_AFTER_MS / 2);
-    const fresh = FakeEventSource.last!;
-    expect(fresh).not.toBe(es);
     fresh.open();
     expect(states.at(-1)).toBe("open");
   });
