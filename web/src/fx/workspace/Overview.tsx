@@ -3,8 +3,10 @@
 // button), the key metrics in words, the 3D preview of an incident's path and the track record.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { count, eur, dayLabel, hhmm } from "../../lib/format";
+import { useAppState } from "../../lib/AppState";
 import { publicApi } from "../../lib/deployment";
+import { count, dayLabel, eur, hhmm, monitoringText } from "../../lib/format";
+import type { MonitorState } from "../../lib/monitor";
 import type { RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { useText } from "../../settings/language";
@@ -34,15 +36,19 @@ const connections = Object.values(import.meta.glob<{ listConnections: () => Prom
   "../../settings/connections/api.ts",
 )).at(0);
 
-function headline(view: RunView, h: Health): string {
-  const open = Object.values(view.incidents).filter((i) => i.state !== "resolved");
+function headline(monitor: MonitorState, h: Health): string {
+  const open = monitor.openIncidents;
+  if (monitor.connection === "offline") return "Shop data unavailable";
   if (open.length) return open.length === 1 ? "One incident needs your attention" : `${open.length} incidents need your attention`;
-  if (!view.simTs) return "Waiting for the first hour of data";
+  if (!monitor.time) return "Waiting for the first hour of data";
+  if (monitor.activeInvestigation) return "Argus is investigating a metric change";
+  if (monitor.avatars.operator?.status === "waiting") return "An action needs your approval";
   if (h.score !== null && h.score < 100) return "Running, with something to keep an eye on";
   return "All clear: nothing needs you right now";
 }
 
 export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
+  const { monitor } = useAppState();
   const h = health(view, graph);
   const subject = affectedPath(view);
   const { incidents } = useIncidents(view);
@@ -79,7 +85,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
   return (
     <main ref={page} className="fx-dash ws-page ws-overview" aria-label="overview">
       <header className="ws-head">
-        <span className="fx-hud ws-kicker">Overview{view.simTs ? ` · ${dayLabel(view.simTs)} ${hhmm(view.simTs)}` : ""}</span>
+        <span className="fx-hud ws-kicker">Overview{monitor.timeLabel ? ` · ${monitor.timeLabel}` : ""}</span>
         <div>
           {sources.size > 0 ? <select className="btn" aria-label={tr("Dashboard source")}
             value={sourceMetrics ? selectedSource : ""} onChange={(event) => setSelectedSource(event.target.value)}>
@@ -92,7 +98,7 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
           </select> : <p>{tr("Example shop")}</p>}
         </div>
         {!sourceMetrics && <>
-        <h1>{headline(view, h)}</h1>
+        <h1>{headline(monitor, h)}</h1>
         <p>Argus checks the shop's key numbers every hour, investigates anomalies, and asks for approval before acting.</p>
         {limits?.daily_usd !== undefined && <p className="fx-card-note">
           {limits.session_hour} live investigations per session per hour · {limits.ip_hour} per IP per hour · ${limits.spent_today_usd?.toFixed(2)} of ${limits.daily_usd.toFixed(2)} today (UTC)
@@ -102,10 +108,10 @@ export function Overview({ graph, view, onSelectNode }: WorkspaceProps) {
       </header>
       {sourceMetrics ? <MetricsCard graph={graph} view={view} onSelectNode={onSelectNode} ids={sourceMetrics} /> : <>
       {stored && <Card light title={`Stored investigation from ${new Date(stored.stored_at).toLocaleDateString(undefined, { timeZone: "UTC", dateStyle: "medium" })}`}>
-        <p>{stored.title}</p>
+        <p>{monitoringText(stored.title)}</p>
         {stored.report && <details>
           <summary>Read investigation</summary>
-          <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{stored.report}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{monitoringText(stored.report)}</pre>
         </details>}
       </Card>}
       <section className="ws-tiles" aria-label="key figures">
@@ -323,7 +329,7 @@ function TasksCard({ todo, view }: { todo: Task[]; view: RunView }) {
 /** The agent at a glance: what it is doing now, its last steps, and the way to the full activity. */
 function AgentCard() {
   const agent = useAgent();
-  const running = agent.runs.find((r) => r.status === "running");
+  const { monitor } = useAppState();
   const lines = agent.records.filter((r) => r.kind !== "watch").slice(-4);
   return (
     <Card
@@ -337,21 +343,21 @@ function AgentCard() {
       }
     >
       <p className="ws-agent-now">
-        <i className={running ? "on" : undefined} aria-hidden="true" />
-        {running ? `Working: ${running.kind === "ask" ? "answering a question" : running.kind === "verify_effect" ? "checking an action's effect" : "investigating"}` : "Watching. Quiet hours need no model call."}
+        <i className={monitor.activityRole ? "on" : undefined} aria-hidden="true" />
+        {monitor.activity}
       </p>
       <AgentTeam />
       {lines.length > 0 && (
         <ol className="ws-agent-lines">
           {lines.map((r) => {
             const role = activityAvatarRole(r);
-            const current = agent.avatars[role];
+            const current = monitor.avatars[role];
             const cue = current?.key === r.seq ? current : undefined;
             return (
               <li key={r.seq}>
                 <AvatarSlot role={role} cue={cue} paused={!cue} />
                 <span className="mono">{hhmm(r.sim_ts)}</span>
-                <span>{r.text || r.observation?.summary || r.kind.replace(/_/g, " ")}</span>
+                <span>{monitoringText(r.text || r.observation?.summary || r.kind.replace(/_/g, " "))}</span>
               </li>
             );
           })}

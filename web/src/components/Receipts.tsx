@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { agentApi, type AgentReceipt, type ReceiptLink } from "../lib/agent";
 import { demoRunId } from "../lib/agentDemo";
 import { api } from "../lib/api";
-import { hhmm, dayLabel, quantity } from "../lib/format";
+import { hhmm, dayLabel, monitoringText, quantity } from "../lib/format";
 import type { Quantity, RerunResult } from "../lib/types";
 import { ErrorState, explainError, Skeleton } from "../ui";
 
@@ -35,7 +35,7 @@ export function ReceiptChips({ ids, max = 4 }: { ids: string[]; max?: number }) 
   const shown = ids.slice(0, max);
   return (
     <span className="receipts">
-      {shown.map((id) => (
+      {shown.map((id, i) => (
         <button
           key={id}
           className="rcpt"
@@ -45,7 +45,7 @@ export function ReceiptChips({ ids, max = 4 }: { ids: string[]; max?: number }) 
             openReceipt(id);
           }}
         >
-          {id}
+          {shown.length > 1 ? `Query ${i + 1}` : "View query"}
         </button>
       ))}
       {ids.length > max && <span className="muted mono">+{ids.length - max}</span>}
@@ -62,17 +62,17 @@ export function AgentReceiptChips({ links, max = 4 }: { links: ReceiptLink[]; ma
   const shown = links.slice(0, max);
   return (
     <span className="receipts">
-      {shown.map((l) => (
+      {shown.map((l, i) => (
         <button
           key={linkKey(l)}
           className="rcpt"
-          title={`Open the query behind this number (${l.run_id}, ${l.world_revision})`}
+          title="Open the query behind this number"
           onClick={(e) => {
             e.stopPropagation();
             openReceipt(l);
           }}
         >
-          {l.receipt_id}
+          {shown.length > 1 ? `Query ${i + 1}` : "View query"}
         </button>
       ))}
       {links.length > max && <span className="muted mono">+{links.length - max}</span>}
@@ -95,7 +95,7 @@ export function Num({ q, signed = false, text }: { q: Quantity; signed?: boolean
   return (
     <button
       className="num"
-      title={`receipt ${id}: click for SQL and re-run`}
+      title="Open the query behind this number"
       onClick={(e) => {
         e.stopPropagation();
         openReceipt(id);
@@ -189,18 +189,11 @@ function ReceiptDrawer({ target, onClose, rerunAvailable }: { target: ReceiptTar
   return (
     <>
       <div className="scrim top" onClick={onClose} />
-      <div className="modal" role="dialog" aria-label={`Receipt ${id}`}>
+      <div className="modal" role="dialog" aria-label="Evidence query">
         <div className="modal-head">
           <div style={{ flex: 1 }}>
-            <h2>
-              Receipt <span className="mono">{id}</span>
-            </h2>
-            <p>{receipt?.purpose || "The query behind this number, pinned to the data as it was at as_of."}</p>
-            {agent && (
-              <p className="mono muted">
-                agent run {agent.run_id} · world {agent.world_revision}
-              </p>
-            )}
+            <h2>Evidence query</h2>
+            <p>{receipt?.purpose ? monitoringText(receipt.purpose) : "The query and data behind this number."}</p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕

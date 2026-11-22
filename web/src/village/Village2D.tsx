@@ -74,8 +74,8 @@ export function Village2D({ player, state, avatars, anchors, onSelect }: { playe
         who = slot.from;
         pin("file", [p[0] + s * 0.2, p[1] - s * 0.6]);
         if (file) file.style.opacity = "1";
-      } else if (slot?.beat.caseId) {
-        const r = ROLE[slot.beat.role];
+      } else if (state.beat?.caseId) {
+        const r = ROLE[state.beat.role];
         pin("file", at(box, r.x - 0.8, r.z, 1.4));
         if (file) file.style.opacity = "1";
       } else if (file) file.style.opacity = "0";
@@ -83,7 +83,7 @@ export function Village2D({ player, state, avatars, anchors, onSelect }: { playe
     };
     loop();
     return () => cancelAnimationFrame(frame);
-  }, [box, player, anchors, state.gate]);
+  }, [box, player, anchors, state.beat, state.gate]);
 
   const s = Math.min(box.w / 30, box.h / 22.5);
   const plaza = at(box, 0, 0.2);

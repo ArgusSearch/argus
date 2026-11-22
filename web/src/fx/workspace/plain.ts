@@ -3,6 +3,7 @@
 // Pure: no React, no DOM, so the wording is tested once and reused by every page.
 
 import type { Graph, Incident, IncidentState, Segment, Verdict } from "../../lib/types";
+import { monitoringText } from "../../lib/format";
 
 /** Where something happens: a segment's single values, or a scope's lists (country: ["DE", "FR"]). */
 export type Where = Segment | Record<string, string | string[]>;
@@ -133,7 +134,7 @@ export function storyHeadline(graph: Graph | null, node: string, changePct: numb
  * plain names. Numbers are kept as they are.
  */
 export function plainWords(text: string, graph: Graph | null = null): string {
-  return text
+  return monitoringText(text)
     .replace(/\|z\| between ([\d.]+) and ([\d.]+), below the alarm line/g, "moves noticed but below the alarm threshold")
     .replace(/\b([a-z][a-z_]*[a-z]) \|z\| [\d.]+/g, (_, id: string) => `${metricName(graph, id)} far off its usual level`)
     .replace(/(\d[\d,]*) series-hours?/g, "$1 metric checks")

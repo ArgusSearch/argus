@@ -1,9 +1,9 @@
 # Argus Village (lane G)
 
-Seven Argus agents at work, one ice igloo each, cut open so you can watch them.
-A case travels as a glowing file from igloo to igloo, carried over the snow by the agent that hands it on.
-Big bubbles say who is WORKING (with a clock), who NEEDS YOU (the Operator, at an approval) and who is FINISHED.
-Click an igloo or a name plate for that agent's tool log.
+The Village shows the current shop time and incident state from the same event snapshot as Overview.
+During a quiet hour the Watcher keeps watch and the other agents rest. Work bubbles and case handoffs
+follow investigation events and the agent activity log. Click an igloo or name plate to see that role's
+recent checks and their evidence. The Operator uses the same pending proposal and decision route as the incident page.
 
 ## Where it shows
 
@@ -12,7 +12,7 @@ Click an igloo or a name plate for that agent's tool log.
 - Standalone, for development and captures: `npm run dev`, then `/src/village/lab/index.html`.
 - The avatar sheet and the brand-kit exporter: `/src/village/avatars/sheet/index.html`.
 
-## Sources
+## Lab sources
 
 | Source | What plays |
 | --- | --- |
@@ -33,10 +33,11 @@ With a real agent proposal in Live, Approve and Deny call `POST /agent/actions/{
 
 ## URL options
 
-`?village=s1|s2|metric|s4|s4-agent|s5|live`, `?village2d=1` (the 2D stage), `?vspeed=0.5|1|2|4`, `?vat=<seconds>` (start there), `fxq=low|mid|high`.
-`window.__villagePlayer` is the clock (`seek`, `setPlaying`, `setSpeed`) for headless captures.
-In the 3D scene, `window.__village.step(seconds)` advances the scene and playback clocks by one frame for recording.
-`window.__village.release()` returns both clocks to browser playback.
+Both surfaces support `?village2d=1` (the 2D stage) and `fxq=low|mid|high`.
+The standalone lab also supports `?village=s1|s2|metric|s4|s4-agent|s5|live`, `?vspeed=0.5|1|2|4` and
+`?vat=<seconds>` (start there). Lab captures can control playhead time through `window.__villagePlayer`.
+In the 3D lab, `window.__village.step(seconds)` advances the scene and playback by one frame and
+`window.__village.release()` returns control to the browser.
 
 ## Roles
 

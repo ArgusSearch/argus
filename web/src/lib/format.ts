@@ -4,7 +4,11 @@ const DAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit",
 
 /** Simulated timestamps are naive UTC ("2026-11-21T18:00:00"); never shift them into the viewer's zone. */
 function parse(ts: string): Date {
-  return new Date(ts.endsWith("Z") ? ts : `${ts}Z`);
+  return new Date(/(?:Z|[+-]\d\d:\d\d)$/i.test(ts) ? ts : `${ts}Z`);
+}
+
+export function timestamp(ts: string | null): number {
+  return ts ? parse(ts).valueOf() : NaN;
 }
 
 export function hhmm(ts: string | null | undefined): string {
@@ -68,6 +72,11 @@ export function segmentLabel(segment: Segment): string {
 
 export function humanize(id: string): string {
   return id.replace(/_/g, " ");
+}
+
+/** Translate identifiers embedded in monitoring prose. Keep the original keys for links and lookups. */
+export function monitoringText(text: string): string {
+  return text.replace(/\ban_\d+\b/gi, "the metric alert").replace(/\br\d+\b/g, "the evidence query");
 }
 
 /**

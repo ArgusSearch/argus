@@ -3,6 +3,7 @@
 // the caption line. Text stays DOM so it is crisp in the video and selectable.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AgentReceiptChips, ReceiptChips } from "../components/Receipts";
 import { hhmm } from "../lib/format";
 import { AgentAvatar } from "./avatars/AgentAvatar";
 import { agentName, PERSONAS } from "./avatars/personas";
@@ -239,7 +240,7 @@ export function RolePanel({ role, state, cue = IDLE_AVATAR, onClose }: { role: R
       </header>
       <p className="vl-job">{ROLE[role].job}</p>
       <div className={`vl-now ${status}`}>
-        <span>{status === "working" ? "Now" : status === "waiting" ? "Needs you" : r.beats ? "Last" : "Idle"}</span>
+        <span>{status === "working" ? "Now" : status === "waiting" ? "Needs you" : status === "sleeping" ? "Resting" : r.beats ? "Last" : "Idle"}</span>
         <b>{cue.text ?? r.bubble}</b>
       </div>
       <h3>
@@ -270,14 +271,15 @@ function LogRow({ entry }: { entry: LogEntry }) {
       <b>{entry.title}</b>
       {entry.hypothesis && <p className="vl-hyp">{entry.hypothesis}</p>}
       {entry.detail && <p>{entry.detail}</p>}
-      {entry.receipts.length > 0 && (
+      {(entry.receipts.length > 0 || entry.agentReceipts?.length) ? (
         <div className="vl-receipts">
-          {entry.receipts.slice(0, 6).map((r) => (
-            <span key={r}>{r}</span>
-          ))}
-          {entry.receipts.length > 6 && <span>+{entry.receipts.length - 6}</span>}
+          {entry.agentReceipts?.length
+            ? <AgentReceiptChips links={entry.agentReceipts} max={6} />
+            : entry.linkedReceipts
+              ? <ReceiptChips ids={entry.receipts} max={6} />
+              : <span>{entry.receipts.length} evidence {entry.receipts.length === 1 ? "query" : "queries"}</span>}
         </div>
-      )}
+      ) : null}
     </li>
   );
 }
@@ -360,7 +362,7 @@ export function Caption({ state, avatars }: { state: VillageState; avatars: Avat
   const r = state.roles[beat.role];
   const cue = avatars[beat.role] ?? IDLE_AVATAR;
   return (
-    <div key={state.index} className="vl-caption" style={{ ["--role" as string]: PERSONAS[beat.role].glow }}>
+    <div key={beat.key} className="vl-caption" style={{ ["--role" as string]: PERSONAS[beat.role].glow }}>
       <AgentAvatar role={beat.role} size={30} status={cue.status} motionKey={cue.key} badge={false} />
       <b>{agentName(beat.role)}</b>
       <span>{r.bubble}</span>

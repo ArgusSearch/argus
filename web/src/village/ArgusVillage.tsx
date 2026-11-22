@@ -6,7 +6,7 @@
 // URL options: ?village=s1|s2|s4|s5|live (the source), ?village2d=1 (the 2D stage), ?vspeed=2 (start speed),
 // ?vat=<seconds> (start at a time, for captures), fxq=low|mid|high (fixed quality).
 
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { staticReplay } from "../lib/deployment";
 import { dayLabel, hhmm } from "../lib/format";
 import { buildBeats } from "./beats";
@@ -17,40 +17,10 @@ import { decideLive, followLive, initialSource, loadTape, SOURCES, type SourceId
 import { marketVerdict, watchSeries } from "./telemetry";
 import { idleBubbles, timeline, villageAt, type VillageState } from "./timeline";
 import type { Decision, VillageTape } from "./types";
-import { Village2D } from "./Village2D";
+import { VillageHeader, VillageStage } from "./VillageStage";
 import type { AvatarCues } from "./avatars/state";
-import "./village.css";
-
-const VillageScene = lazy(() => import("./scene/VillageScene"));
 const IDLE = idleBubbles(ROLES);
 const sourceOptions = staticReplay ? SOURCES.filter((source) => source.id !== "live") : SOURCES;
-
-let webgl2: boolean | null = null;
-function hasWebGL2(): boolean {
-  if (webgl2 === null) {
-    try {
-      const gl = document.createElement("canvas").getContext("webgl2");
-      webgl2 = gl !== null;
-      gl?.getExtension("WEBGL_lose_context")?.loseContext();
-    } catch {
-      webgl2 = false;
-    }
-  }
-  return webgl2;
-}
-
-class SceneBoundary extends Component<{ onFail: (e: Error) => void; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch(error: Error, _info: ErrorInfo) {
-    this.props.onFail(error);
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
 
 export interface ArgusVillageProps {
   /** opens the existing metric map (the shell's visualization page); the tab is hidden without it */
@@ -78,7 +48,6 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
   const [selected, setSelected] = useState<RoleId | null>(null);
   const [approval, setApproval] = useState(false);
   const [deciding, setDeciding] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
-  const [stage, setStage] = useState<"3d" | "2d">(() => (params.get("village2d") === "1" || !hasWebGL2() ? "2d" : "3d"));
   const anchors = useMemo(() => new Map<string, HTMLElement>(), []);
   const player = useMemo(() => {
     const p = new Player();
@@ -175,63 +144,18 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
     [state.gate, source, onLiveDecision],
   );
 
-  const onFail = useCallback((e: Error) => {
-    console.warn("village: 3D stage unavailable, using the 2D stage", e);
-    setStage("2d");
-  }, []);
-
-  // fill the window below wherever the shell puts the page (the lab page starts at the top)
-  const root = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    const fit = () => {
-      const top = Math.max(0, el.getBoundingClientRect().top + window.scrollY);
-      const bottom = top > 0 ? 16 : 0;
-      el.style.height = `${Math.max(520, window.innerHeight - top - bottom)}px`;
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    const ro = new ResizeObserver(fit);
-    if (el.parentElement) ro.observe(el.parentElement);
-    return () => {
-      window.removeEventListener("resize", fit);
-      ro.disconnect();
-    };
-  }, []);
-
   const total = player.timeline.total;
   const progress = total ? Math.min(1, player.time / total) : 0;
   const caseId = state.beat?.caseId ?? null;
 
   return (
-    <section ref={root} className={`vl-root vl-${stage}`} aria-label="Argus village">
-      <div className="vl-stage">
-        {stage === "3d" ? (
-          <SceneBoundary onFail={onFail}>
-            <Suspense fallback={<div className="vl-loading">Building the village…</div>}>
-              <VillageScene player={player} state={state} avatars={avatars} telemetry={telemetry} anchors={anchors} onSelect={setSelected} onHover={() => undefined} onFail={onFail} />
-            </Suspense>
-          </SceneBoundary>
-        ) : (
-          <Village2D player={player} state={state} avatars={avatars} anchors={anchors} onSelect={setSelected} />
-        )}
+    <VillageStage player={player} state={state} avatars={avatars} telemetry={telemetry} anchors={anchors} onSelect={setSelected}
+      pins={<>
         <Bubbles views={views} anchors={anchors} player={player} onNeed={() => setApproval(true)} onSelect={setSelected} selected={selected} />
         <FileTag anchors={anchors} caseId={caseId} waiting={Boolean(state.gate)} />
-      </div>
-
-      <header className="vl-hud vl-hud-tl" data-no-pick>
-        <span className="vl-kicker">// Argus village</span>
-        <h1>Seven agents, one igloo each</h1>
-        {onMetricMap && (
-          <nav className="vl-seg" aria-label="sub-view">
-            <button className="on" aria-current="page">
-              Village
-            </button>
-            <button onClick={onMetricMap}>Metric map</button>
-          </nav>
-        )}
-      </header>
+      </>}
+    >
+      <VillageHeader onMetricMap={onMetricMap} />
 
       <div className="vl-hud vl-hud-tr" data-no-pick>
         <nav className="vl-seg" aria-label="source">
@@ -297,6 +221,6 @@ export function ArgusVillage({ onMetricMap, initial, liveAvatars, onLiveDecision
       {approval && state.gate && (
         <ApprovalCard gate={state.gate} live={source === "live"} busy={deciding.busy} error={deciding.error} onDecide={decide} onClose={() => setApproval(false)} />
       )}
-    </section>
+    </VillageStage>
   );
 }

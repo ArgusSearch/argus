@@ -924,6 +924,10 @@
   .vl-hud-tl h1 {
     font-size: 20px;
   }
+  /* The workspace header already shows the same shop time on narrow screens. */
+  .vl-meta .vl-shop-time {
+    display: none;
+  }
   .vl-hud-bc {
     display: none;
   }

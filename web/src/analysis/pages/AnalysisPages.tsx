@@ -214,7 +214,7 @@ function IncidentFindings({ graph, query, incidents, window, openIncident, detai
               <li key={id} className="analysis-incident">
                 <div><strong>{metricName(graph, root.node)}</strong><span>{segmentLabel(root.segment)}</span></div>
                 <span><strong>{pct(root.change_pct.value)}</strong> vs expected</span>
-                {href && <a href={href} onClick={(event) => followLink(event, () => navigateWorkspaceURL(href))}>Receipt {receipt}</a>}
+                {href && <a href={href} onClick={(event) => followLink(event, () => navigateWorkspaceURL(href))}>View query</a>}
                 <IncidentLink id={id} openIncident={openIncident} />
               </li>
             );

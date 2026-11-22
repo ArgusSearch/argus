@@ -1,6 +1,7 @@
 // The incident list (everything Argus filed, and the alerts it held back on purpose) and the glossary page.
 
-import { eur, dayLabel, hhmm } from "../../lib/format";
+import { useAppState } from "../../lib/AppState";
+import { eur, dayLabel, hhmm, monitoringText } from "../../lib/format";
 import type { RunView } from "../../lib/store";
 import type { Graph, Note } from "../../lib/types";
 import { openIncidentPage } from "../nav";
@@ -14,6 +15,7 @@ const HELD: Record<Note["kind"], { label: string; help: string }> = {
 };
 
 function heldReason(graph: Graph | null, { node, reason }: Note): string {
+  reason = monitoringText(reason);
   if (!node) return reason;
   const name = metricName(graph, node);
   const label = graph?.nodes.find((metric) => metric.id === node)?.label ?? name;
@@ -22,14 +24,17 @@ function heldReason(graph: Graph | null, { node, reason }: Note): string {
 
 export function IncidentsPage({ graph, view, onOpenIncident }: { graph: Graph | null; view: RunView; onOpenIncident: (id: string) => void }) {
   const { incidents } = useIncidents(view);
-  const rows = Object.values(view.incidents).sort((a, b) => b.firstSeq - a.firstSeq);
+  const { monitor } = useAppState();
+  const rows = monitor.incidents;
   const full = new Map(incidents.map((i) => [i.id, i]));
   const held = [...view.notes].reverse();
   return (
     <main className="fx-dash ws-page ws-incidents" aria-label="incidents">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Incidents</span>
-        <h1>{rows.length ? `${rows.length} incident${rows.length === 1 ? "" : "s"} this run, ${held.length} alert${held.length === 1 ? "" : "s"} held back` : "No incidents yet"}</h1>
+        <h1>{rows.length ? `${monitor.openIncidents.length} open, ${rows.length - monitor.openIncidents.length} resolved`
+          : monitor.activeInvestigation ? "Investigating a metric change"
+          : !monitor.time ? "Waiting for shop data" : "No incidents yet"}</h1>
         <p>An incident is filed only when a key metric crosses the alarm threshold and Argus has checked why. Everything else is logged, not paged.</p>
       </header>
       <Card title="Filed incidents" className="ws-inc-card">

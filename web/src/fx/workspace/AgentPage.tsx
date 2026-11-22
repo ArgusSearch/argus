@@ -5,14 +5,15 @@
 // the model.
 
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { groupRuns, isLive } from "../../agent-ui/activity";
+import { groupRuns } from "../../agent-ui/activity";
 import { runClock } from "../../agent-ui/clock";
 import { JumpToLatest, useFollowTail } from "../../agent-ui/hooks";
 import { RunGroupView, usd } from "../../agent-ui/RunLog";
 import { DEFAULT_QUERY } from "../../analysis/shell/query";
 import { analysisHref, followLink, navigateWorkspaceURL } from "../../analysis/shell/location";
 import { type RunSummary } from "../../lib/agent";
-import { dayLabel, hhmm, humanize } from "../../lib/format";
+import { useAppState } from "../../lib/AppState";
+import { dayLabel, hhmm, humanize, monitoringText } from "../../lib/format";
 import { openIncidentPage } from "../nav";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { useAgent, type AgentState } from "./agent";
@@ -44,7 +45,7 @@ function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => vo
       <span className="ag-run-head">
         <b>{RUN_KIND[run.kind]}</b>
         <button className="ag-link mono" title="Show this run's steps" onClick={() => onShow(run.run_id)}>
-          {run.run_id}
+          View checks
         </button>
         <Pill tone={s.tone}>{s.word}</Pill>
       </span>
@@ -60,7 +61,7 @@ function RunCard({ run, onShow }: { run: RunSummary; onShow: (key: string) => vo
       {run.fallback && <span className="ag-run-line ag-fallback">{run.fallback}</span>}
       {run.incident_id && (
         <button className="ag-link" onClick={() => openIncidentPage(run.incident_id as string)}>
-          Open {run.incident_id}
+          Open incident
         </button>
       )}
       <a className="ag-link" href={liveFixHref} onClick={(event) => followLink(event, () => navigateWorkspaceURL(liveFixHref))}>Open Live Fix</a>
@@ -76,15 +77,19 @@ export function AgentPage() {
 function AgentActivity({ agent }: { agent: AgentState }) {
   // the sealed presentation is a recorded model run, whatever mode the server's own agent is in
   const presenting = useAgentDemo() !== null;
+  const { monitor } = useAppState();
   const [quiet, setQuiet] = useState(false);
   // Explicit choices take precedence over the default, which expands live runs.
   const [folds, setFolds] = useState<ReadonlyMap<string, boolean>>(new Map());
   const records = useMemo(() => agent.records.filter((r) => quiet || r.kind !== "watch"), [agent.records, quiet]);
   const groups = useMemo(() => groupRuns(records, agent.runs), [records, agent.runs]);
-  const live = useMemo(() => new Set(groups.filter((g) => isLive(g, presenting)).map((g) => g.key)), [groups, presenting]);
+  const live = useMemo(() => {
+    const runningIds = new Set(monitor.runningRuns.map((run) => run.run_id));
+    return new Set(groups.filter((group) => group.runId && runningIds.has(group.runId)).map((group) => group.key));
+  }, [groups, monitor.runningRuns]);
   const tail = useFollowTail(records.length);
   const spent = agent.runs.reduce((s, r) => s + r.usd, 0);
-  const running = agent.runs.find((r) => r.status === "running");
+  const running = monitor.runningRun;
   const waiting = agent.waiting;
   const newest = groups[groups.length - 1]?.key;
 
@@ -114,7 +119,7 @@ function AgentActivity({ agent }: { agent: AgentState }) {
     <main className="fx-dash ws-page ws-agent" aria-label="agent activity">
       <header className="ws-head">
         <span className="fx-hud ws-kicker">Agent activity{presenting ? " · history" : agent.health?.mode === "live" ? " · live" : ""}</span>
-        <h1>{running ? `Argus is on it: ${RUN_KIND[running.kind].toLowerCase()} ${running.run_id}` : "What the Argus agent did on its own"}</h1>
+        <h1>{running ? monitor.activity : "What the Argus agent did on its own"}</h1>
         <p>
           Each run folds to one line once it is done; open it for every step: what the AI said before a check, the check and its prediction, what came back,
           and what the verdict gate let through. Every number comes from a receipt; the model never types one.
@@ -122,7 +127,7 @@ function AgentActivity({ agent }: { agent: AgentState }) {
       </header>
       {!agent.enabled && (
         <p className="fx-empty">
-          {agent.health?.reason ?? "The agent is off for this run (no agent routes on the API)"}. Argus investigated with its fixed checklist; the bench runs it too.
+          {agent.health?.reason ? monitoringText(agent.health.reason) : "The agent is unavailable. Argus checks metrics and investigates with its standard checklist."}
         </p>
       )}
       {agent.enabled && (

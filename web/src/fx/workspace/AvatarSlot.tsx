@@ -4,6 +4,7 @@
 // placeholder, the role's initial in a circle of its color with the role's short name.
 
 import { lazy, Suspense, type ComponentType } from "react";
+import { useAppState } from "../../lib/AppState";
 import { AGENT_ROLES, type AgentRole } from "../../lib/agent";
 import type { AgentAvatarProps } from "../../village/avatars/AgentAvatar";
 import type { AvatarCue } from "../../village/avatars/state";
@@ -82,13 +83,14 @@ export function AvatarSlot(props: AvatarProps) {
 }
 
 export function AgentTeam({ compact = false }: { compact?: boolean }) {
-  const { enabled, avatars } = useAgent();
+  const { enabled } = useAgent();
+  const { monitor } = useAppState();
   if (!enabled) return null;
   return (
     <div className={compact ? "fx-demo ws-side-team" : "ws-agent-team"} role="group" aria-label="Agent team">
       <div className="ws-agent-team-faces">
         {AGENT_ROLES.map((role) => (
-          <AvatarSlot key={role} role={role} size={compact ? "sm" : "lg"} cue={avatars[role]} showThought />
+          <AvatarSlot key={role} role={role} size={compact ? "sm" : "lg"} cue={monitor.avatars[role]} showThought />
         ))}
       </div>
     </div>
