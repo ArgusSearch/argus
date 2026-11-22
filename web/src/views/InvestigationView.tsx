@@ -96,11 +96,18 @@ export function InvestigationView({ graph, view, onSelectNode, onOpenIncident }:
   const latestSeq = steps.length ? steps[steps.length - 1].seq : -1;
   const end = useRef<HTMLDivElement>(null);
   const following = picked === null;
+  // the newest step already shown; null until the first steps arrive (the page catches up on the run when it loads)
+  const seenSeq = useRef<number | null>(null);
 
-  // a running investigation keeps its newest step in view
+  // a running investigation keeps its newest step in view; one that is already decided when its steps first
+  // arrive opens at its first chapter, so the story reads from the start
   useEffect(() => {
+    if (latestSeq < 0 || latestSeq === seenSeq.current) return;
+    const firstLook = seenSeq.current === null;
+    seenSeq.current = latestSeq;
+    if (firstLook && verdict) return;
     if (following) end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [latestSeq, following]);
+  }, [latestSeq, following, verdict]);
 
   if (!current || !anomaly) {
     return (
