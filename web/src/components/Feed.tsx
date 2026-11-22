@@ -5,8 +5,16 @@ import { eur, hhmm, impactNoun, segmentEntries, verdictLabel } from "../lib/form
 import { type EdgeChange, type FeedItem, type IncidentView, type RunView } from "../lib/store";
 import type { Graph, Note } from "../lib/types";
 import { Num, ReceiptChips } from "./Receipts";
+import { EmptyState } from "../ui";
 
 type Tab = "all" | "incidents" | "quiet" | "graph";
+
+const EMPTY: Record<Tab, [string, string]> = {
+  all: ["Nothing yet. Argus is watching.", "Incidents, notes and graph changes appear here the moment Argus files them."],
+  incidents: ["No incidents. Argus is watching every metric.", "An incident opens only when a change crosses the alarm line."],
+  quiet: ["No \"didn't wake you\" notes yet.", "When Argus sees a change and decides it is not worth waking you, it says why here."],
+  graph: ["No graph changes yet.", "Every edge test and every new metric shows up here."],
+};
 
 export function Segments({ segment }: { segment: Record<string, string> }) {
   const entries = segmentEntries(segment);
@@ -222,7 +230,10 @@ export function Feed({
             />
           ))
         ) : (
-          <div className="feed-empty">Nothing here yet.</div>
+          <EmptyState
+            title={tab === "incidents" && graph ? `No incidents. Argus is watching ${graph.nodes.length} metrics.` : EMPTY[tab][0]}
+            detail={EMPTY[tab][1]}
+          />
         )}
       </div>
     </aside>
