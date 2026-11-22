@@ -3,6 +3,7 @@
 import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
 import { go } from "../fx/nav";
+import { staticReplay } from "../lib/deployment";
 import { ArgusVillage } from "./ArgusVillage";
 
 export interface VillageProps {
@@ -12,7 +13,7 @@ export interface VillageProps {
 }
 
 export default function Village(_props: VillageProps) {
-  return <ArgusVillage onMetricMap={() => go("graph")} />;
+  return <ArgusVillage onMetricMap={staticReplay ? undefined : () => go("graph")} />;
 }
 
 export { Village };

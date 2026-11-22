@@ -140,7 +140,10 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
             </svg>
           </button>
           {staticReplay ? (
-            <a className="fx-entry-alt" href="/?view=settings&tab=quiet-hours">Settings</a>
+            <>
+              <a className="fx-entry-alt" href="/?view=village">Village replay</a>
+              <a className="fx-entry-alt" href="/?view=settings&tab=quiet-hours">Settings</a>
+            </>
           ) : (
             <>
               <a className="fx-entry-alt" href="/?demo=1&captions=1&fx=1">

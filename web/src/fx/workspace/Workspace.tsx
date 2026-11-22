@@ -72,14 +72,29 @@ export function StaticWorkspace() {
     return () => { delete root.dataset.fxSection; };
   }, [section]);
 
-  if (section !== "settings" && section !== "calendar") return <EntryGate />;
+  if (section !== "settings" && section !== "calendar" && section !== "village") return <EntryGate />;
   return (
     <div className="app">
       <Sidebar section={section} view={view} recorded />
-      <Suspense fallback={null}>
-        <SettingsSurface key={section} section={section} graph={null} view={view} />
-      </Suspense>
+      {section === "village" ? (
+        <VillageSurface graph={null} view={view} onSelectNode={() => undefined} />
+      ) : (
+        <Suspense fallback={null}>
+          <SettingsSurface key={section} section={section} graph={null} view={view} />
+        </Suspense>
+      )}
     </div>
+  );
+}
+
+function VillageSurface(props: VillageProps) {
+  if (!Village) return null;
+  return (
+    <main className="fx-dash ws-page ws-village" aria-label="village">
+      <Suspense fallback={<p className="fx-empty">Loading the village…</p>}>
+        <Village {...props} />
+      </Suspense>
+    </main>
   );
 }
 
@@ -99,13 +114,7 @@ function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps
       {section === "incident" && incident && <IncidentPage key={incident} id={incident} graph={graph} view={view} onSelectNode={onSelectNode} />}
       {section === "glossary" && <GlossaryPage />}
       {section === "agent" && <AgentPage />}
-      {section === "village" && Village && (
-        <main className="fx-dash ws-page ws-village" aria-label="village">
-          <Suspense fallback={<p className="fx-empty">Loading the village…</p>}>
-            <Village graph={graph} view={view} onSelectNode={onSelectNode} />
-          </Suspense>
-        </main>
-      )}
+      {section === "village" && <VillageSurface graph={graph} view={view} onSelectNode={onSelectNode} />}
       {section === "graph" && <StoryPanel graph={graph} view={view} />}
       {(section === "settings" || section === "calendar") && (
         <Suspense fallback={null}>
@@ -230,7 +239,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
   const asking = useAskOpen();
   const humans = useHumanActions(view);
   const items = recorded
-    ? NAV.filter((item) => item.id === "dashboard" || item.id === "settings" || item.id === "calendar").map((item) =>
+    ? NAV.filter((item) => item.id === "dashboard" || item.id === "settings" || item.id === "calendar" || (item.id === "village" && Village)).map((item) =>
       item.id === "dashboard" ? { ...item, label: "Recorded demo", hint: "Return to the recorded demo" } : item,
     )
     : NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
