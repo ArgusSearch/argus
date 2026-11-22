@@ -52,11 +52,11 @@ class AgentService:
     store: EvidenceStore | None = None
     asker: AskRunner | None = None
     recording: Path | None = None
+    settings_caps: Callable[[], dict[str, Any]] | None = field(default=None, kw_only=True)
+    settings_models: dict[str, str] | None = field(default=None, kw_only=True)
     conversations: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
     profile: Profile = V1
-    settings_caps: Callable[[], dict[str, Any]] | None = None
-    settings_models: dict[str, str] | None = None
 
     @property
     def enabled(self) -> bool:

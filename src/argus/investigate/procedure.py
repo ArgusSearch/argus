@@ -1209,6 +1209,7 @@ def investigate(
     on_step: Callable[[TrailStep], None] | None = None,
     planner: Planner | None = None,
     selector: EvidenceSelector | None = None,
+    settings: Settings | None = None,
 ) -> Findings:
     """Drop-in replacement for `argus.investigator.procedure.investigate` with the Stage-2 layer."""
-    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector).run()
+    return StageTwoInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector, settings).run()
