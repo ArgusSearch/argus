@@ -23,7 +23,14 @@
 
 :root[data-fx] .fx-entry .fx-corners {
   opacity: 0;
+  font: 500 12px / 1.3 var(--fx-font-sans);
+  letter-spacing: 0;
+  text-transform: none;
   transition: opacity var(--fx-dur-reveal) var(--fx-ease-linear);
+}
+
+:root[data-fx] .fx-entry .fx-corners .fx-hud::before {
+  content: none;
 }
 
 :root[data-fx] .fx-entry.shown .fx-corners {
