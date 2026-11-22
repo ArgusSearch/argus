@@ -184,10 +184,18 @@
   }
 
   :root[data-fx] .ws-tip {
-    position: fixed;
-    inset: auto auto var(--fx-space-3) var(--fx-space-3);
-    width: min(360px, calc(100dvw - 2 * var(--fx-space-3)));
-    max-width: none;
+    position: static;
+    width: auto;
+    max-width: 100%;
+  }
+
+  :root[data-fx] .ws-term:not(:hover, :focus) .ws-tip {
+    display: none;
+  }
+
+  :root[data-fx] .ws-term:is(:hover, :focus) .ws-tip {
+    opacity: 1;
+    transform: none;
   }
 }
 
