@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -21,7 +20,7 @@ from typing import Any
 from argus.agent import prompts
 from argus.agent.journal import Journal
 from argus.agent.numbers import FactBook, check, scrub
-from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
+from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, call_model
 from argus.agent.types import (
     AgentMode,
     ClaimDraft,
@@ -299,9 +298,7 @@ class AskRunner:
                 max_tokens=1500,
                 key=f"ask:{ctx.run_id}:{round_}",
             )
-            t0 = time.monotonic()
-            response = self.client.create(request)
-            self.journal.add_usage(usage_record(ctx.run_id, round_, response, int((time.monotonic() - t0) * 1000)))
+            response, _ = call_model(self.client, request, self.journal, ctx.run_id, round_)
             if response.stop_reason == "refusal":
                 return AskResult(status="refused", run_id=ctx.run_id, reason="the model declined the question")
             messages.append({"role": "assistant", "content": response.content})

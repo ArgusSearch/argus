@@ -13,7 +13,7 @@ from argus.agent.fake import FakeLlmClient
 from argus.agent.investigate import AgentSelector, Case
 from argus.agent.journal import Journal
 from argus.agent.profile import V1, Profile
-from argus.agent.provider import ProviderUnavailable
+from argus.agent.provider import OPENAI_SOL, ProviderUnavailable
 from argus.agent.types import Challenge, LlmRequest, LlmResponse
 from argus.contracts.findings import Anomaly, EvidenceRef, Findings, Verdict, Window
 from argus.contracts.graph import Graph
@@ -202,6 +202,23 @@ def critic_line(journal: Journal) -> dict[str, Any]:
     lines = [r for r in journal.records if r.kind == "critic"]
     assert len(lines) == 1 and lines[0].role == "skeptic"
     return lines[0].args or {}
+
+
+@pytest.mark.e2e
+def test_openai_sol_critic_has_a_fresh_context(case: Any, s1_world: WorldPaths) -> None:
+    def respond(request: LlmRequest) -> LlmResponse:
+        assert request.model == OPENAI_SOL
+        if request.key.startswith("critic:"):
+            assert len(request.messages) == 1
+            assert SECRET not in request.messages[0]["content"]
+            return reply(1, "submit_challenge", {"opinion": "upheld", "summary": "it held"}, model=OPENAI_SOL)
+        return detective(request).model_copy(update={"model": OPENAI_SOL})
+
+    findings, journal = run(
+        case, s1_world, FakeLlmClient(responder=respond), model=OPENAI_SOL, critic_model=OPENAI_SOL
+    )
+    assert findings.verdict == "SUPPORTED_CAUSE"
+    assert critic_line(journal)["verdict"] == "upheld"
 
 
 @pytest.mark.e2e

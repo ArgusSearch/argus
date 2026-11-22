@@ -46,7 +46,7 @@ from pydantic import ValidationError
 from argus.agent import prompts
 from argus.agent.numbers import FactBook, scrub
 from argus.agent.profile import V2, Profile
-from argus.agent.provider import ProviderUnavailable, usage_record
+from argus.agent.provider import CRITIC_MODEL, ProviderUnavailable, call_model
 from argus.agent.tools import c6_schema, naive_utc, rounded
 from argus.agent.types import Challenge, LlmClient, LlmRequest, Observation, ReceiptLink, SqlCheckRunner
 from argus.contracts.findings import EvidenceRef
@@ -59,7 +59,6 @@ if TYPE_CHECKING:
     from argus.investigate.procedure import StageTwoInvestigation
 
 CRITIC_SOURCE = "critic"
-CRITIC_MODEL = os.environ.get("ARGUS_AGENT_CRITIC_MODEL", "claude-opus-5-5")
 EVENT_BEFORE = timedelta(hours=3)
 EVENT_AFTER = timedelta(hours=1)
 MAX_RESULT_CHARS = 5000
@@ -255,6 +254,7 @@ class LlmCritic:
         sql_runner: SqlCheckRunner | None = None,
         rules: frozenset[str] | None = None,
         detective_model: str | None = None,
+        allow_same_model: bool = False,
     ) -> None:
         self.client = client
         self.journal = journal
@@ -262,6 +262,7 @@ class LlmCritic:
         self.budget = budget or CriticBudget()
         self.model = model
         self.detective_model = detective_model
+        self.allow_same_model = allow_same_model
         self.world_revision = world_revision
         self.sql_runner = sql_runner if sql_runner is not None else (load_sql_check() if profile.on("sql") else None)
         self.rules = rules if rules is not None else configured_rules()
@@ -273,7 +274,7 @@ class LlmCritic:
         run = _CriticRun(self, inv, case, selection, supported)
         error = ""
         try:
-            if self.model == self.detective_model:
+            if self.model == self.detective_model and not self.allow_same_model:
                 raise ProviderUnavailable("the critic needs a different model from the detective")
             run.loop()
         except CriticStop as exc:
@@ -434,11 +435,8 @@ class _CriticRun:
                 max_tokens=self.o.budget.tokens_per_call,
                 key=f"critic:{self.case.anomaly.id}:{self.requests}",
             )
-            t0 = time.monotonic()
-            response = self.o.client.create(request)
             index = self.first_usage + len(self._usage()) + 1
-            usage = usage_record(self.run_id, index, response, int((time.monotonic() - t0) * 1000))
-            self.o.journal.add_usage(usage)
+            response, usage = call_model(self.o.client, request, self.o.journal, self.run_id, index)
             self.inv.llm_calls += 1
             if response.stop_reason == "refusal":
                 raise ProviderUnavailable("the critic declined")

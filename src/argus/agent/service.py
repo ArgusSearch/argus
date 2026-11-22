@@ -1,6 +1,6 @@
 """The agent inside the API process: one journal, the pre-verdict selector for the runtime, Ask, and health.
 
-`build(mode)` is called by `LiveSource`. Live and record modes need `ANTHROPIC_API_KEY`; without it, or with
+`build(mode)` is called by `LiveSource`. Live and record modes need a provider key. Without one, or with
 mode `off`, the runtime runs Stage 2 alone and `/agent/health` says why. Replay mode is served by the demo
 playback (lane F); this service then only reports itself as off for live work. The agent profile (`v1`, or
 `v2` with its features) comes from `ARGUS_AGENT_PROFILE` and `ARGUS_AGENT_FEATURES` (`argus.agent.profile`).
@@ -19,17 +19,17 @@ from argus.agent.investigate import AgentSelector, Budget
 from argus.agent.journal import Journal
 from argus.agent.profile import V1, Profile
 from argus.agent.provider import (
-    LOOP_MODEL,
-    SYNTHESIS_MODEL,
-    AnthropicClient,
+    ANTHROPIC_MODELS,
+    AgentModels,
     Cassette,
     ProviderUnavailable,
     RecordingClient,
     SpendLedger,
+    live_client,
 )
 from argus.agent.types import BOARD_VERSION, INTERFACE_VERSION, AgentMode, LlmClient
 from argus.evidence import EvidenceStore
-from argus.skeptic.critic import CRITIC_MODEL, CriticBudget
+from argus.skeptic.critic import CriticBudget
 
 MODES: tuple[AgentMode, ...] = ("live", "record", "off")
 
@@ -54,6 +54,7 @@ class AgentService:
     conversations: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
     profile: Profile = V1
+    models: AgentModels = ANTHROPIC_MODELS
 
     @property
     def enabled(self) -> bool:
@@ -67,7 +68,7 @@ class AgentService:
             "mode": self.mode,
             "reason": self.reason,
             "interface_version": INTERFACE_VERSION,
-            "models": {"loop": LOOP_MODEL, "synthesis": SYNTHESIS_MODEL},
+            "models": {"loop": self.models.loop, "synthesis": self.models.synthesis},
             "caps": {
                 "requests": budget.requests,
                 "tool_calls": budget.tool_calls,
@@ -84,7 +85,7 @@ class AgentService:
         }
         if self.profile.on("critic"):
             critic = CriticBudget()
-            health["models"]["critic"] = CRITIC_MODEL
+            health["models"]["critic"] = self.models.critic
             health["caps"]["critic"] = {
                 "requests": critic.requests,
                 "tool_calls": critic.tool_calls,
@@ -128,18 +129,20 @@ def build(
         return AgentService(
             mode,
             journal,
-            reason="The agent is off: start the API with --agent live (needs ANTHROPIC_API_KEY).",
+            reason="The agent is off: start the API with --agent live and a provider key.",
             profile=profile,
         )
     try:
-        live: LlmClient = AnthropicClient()
+        live, models = live_client(critic=profile.on("critic"))
     except ProviderUnavailable as exc:
         return AgentService("off", journal, reason=f"The agent is off: {exc}.", profile=profile)
     client: LlmClient = RecordingClient(live, Cassette()) if mode == "record" else live
     spend = SpendLedger()
     store = EvidenceStore()
-    selector = AgentSelector(client, journal, mode=mode, spend=spend, profile=profile)
-    asker = AskRunner(client, journal, store, mode=mode, spend=spend)
+    selector = AgentSelector(
+        client, journal, mode=mode, spend=spend, profile=profile, model=models.loop, critic_model=models.critic
+    )
+    asker = AskRunner(client, journal, store, mode=mode, spend=spend, model=models.loop)
     return AgentService(
         mode,
         journal,
@@ -149,4 +152,5 @@ def build(
         asker=asker,
         recording=recording,
         profile=profile,
+        models=models,
     )

@@ -51,12 +51,16 @@ Rules every implementation keeps:
 
 | Mode | Provider | Used by |
 | --- | --- | --- |
-| `live` | Anthropic Messages API: `claude-sonnet-5-5` chooses the checks and answers questions; the verdict is deterministic code, so no Opus call is needed (`ARGUS_AGENT_SYNTHESIS_MODEL` is reserved) | `ARGUS_AGENT=live` with `ANTHROPIC_API_KEY` |
+| `live` | OpenAI Responses (GPT‑6.2 Sol) or Anthropic Messages (Claude Sonnet) chooses checks and answers questions. The verdict comes from the evidence gate. | `ARGUS_AGENT=live` with a provider key |
 | `record` | live, plus the recording | re-recording fixtures (needs the key, appends to the spend ledger) |
 | `replay` | none is constructed | the demo, CI, evals |
 | `off` | none | default without a key; Stage 2 only |
 
-Cost: every provider call becomes a `UsageRecord` priced from one tariff table (cache tiers included); each finished run appends one line per model to the JSONL ledger named by `ARGUS_SPEND_LEDGER` as `{"provider": "anthropic", "model": ..., "usd": ...}`; a replay appends nothing.
+Set `ARGUS_PROVIDER=openai` or `ARGUS_PROVIDER=anthropic` to select a provider explicitly. With the setting omitted, the live agent tries `OPENAI_API_KEY` first, then `ANTHROPIC_API_KEY`. Both keys can come from the process environment or the repository's git-ignored `.env`. If the selected provider has no configured key, `/agent/health` reports why the agent is disabled.
+
+For the OpenAI v2 critic, Argus checks the provider's model listing and uses GPT‑6.2 Astra when available. Otherwise the critic starts a fresh GPT‑6.2 Sol session with the critic prompt and evidence packet. The session recording stores the critic choice so strict replay can use it offline. The Anthropic synthesis model setting is reserved.
+
+Metered calls produce a `UsageRecord`. OpenAI costs use Standard rates for [GPT‑6.2 Sol](https://developers.openai.com/api/docs/models/gpt-6.2-sol) and [GPT‑6.2 Astra](https://developers.openai.com/api/docs/models/gpt-6.2-astra), including cached reads and 30-minute cache writes. Each finished live run appends one line per model to `ARGUS_SPEND_LEDGER` with its provider, token counts and cost. Replay computes costs from the recorded usage and leaves the spend ledger alone.
 
 ## Routes
 
@@ -92,7 +96,7 @@ For example, the sealed S1 board names PayCo as supported and the Android releas
 
 | Command | What it does |
 | --- | --- |
-| `uv run argus api --world runs/s4-1/world.duckdb --agent live` | live run with the agent (needs `ANTHROPIC_API_KEY`); the clock holds while an action waits for the operator |
+| `uv run argus api --world runs/s4-1/world.duckdb --agent live` | live run with the agent and its configured provider. The clock holds while an action waits for the operator. |
 | `uv run argus agent record --world W --out DIR [--decide approve\|deny\|none] [--ask 'YYYY-MM-DDTHH:MM\|question' ...] [--incident ID]` | a live session over a world, recorded: `turns.jsonl` (lane D's line format), `activity.jsonl`, `events.jsonl`, `runs.json`, `usage.jsonl`, `incidents.json`, `ask.jsonl`, `session.json` |
 | `uv run argus agent replay --world W --recording DIR` | the same session again from its turns, no provider constructed; prints the first difference, exit 1 on any |
 

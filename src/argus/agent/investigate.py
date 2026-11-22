@@ -38,7 +38,7 @@ from argus.agent.hypotheses import PROPOSE, Declined, HypothesisBook, hypothesis
 from argus.agent.journal import Journal
 from argus.agent.numbers import FactBook, scrub
 from argus.agent.profile import V1, Profile
-from argus.agent.provider import LOOP_MODEL, ProviderUnavailable, SpendLedger, usage_record
+from argus.agent.provider import CRITIC_MODEL, LOOP_MODEL, OPENAI_SOL, ProviderUnavailable, SpendLedger, call_model
 from argus.agent.tools import c6_schema, naive_utc, rounded
 from argus.agent.types import (
     AgentMode,
@@ -211,6 +211,7 @@ class AgentSelector:
         profile: Profile = V1,
         critic: Critic | None = None,
         memory: CaseMemory | None = None,
+        critic_model: str = CRITIC_MODEL,
     ) -> None:
         self.client = client
         self.journal = journal
@@ -222,7 +223,15 @@ class AgentSelector:
         self.through_seq = through_seq  # callable returning the last C5 seq, or None
         self.profile = profile
         if critic is None and profile.on("critic"):
-            critic = LlmCritic(client, journal, profile=profile, world_revision=world_revision, detective_model=model)
+            critic = LlmCritic(
+                client,
+                journal,
+                profile=profile,
+                world_revision=world_revision,
+                detective_model=model,
+                model=critic_model,
+                allow_same_model=model == OPENAI_SOL,
+            )
         self.critic = critic if profile.on("critic") else None
         self.memory = memory if profile.on("memory") else None
         self.sql_check = load_sql_check() if profile.on("sql") else None
@@ -482,10 +491,7 @@ class _Run:
                 max_tokens=self.o.budget.tokens_per_call,
                 key=f"investigate:{self.case.anomaly.id}:{self.requests}",
             )
-            t0 = time.monotonic()
-            response = self.o.client.create(request)
-            usage = usage_record(self.ctx.run_id, self.requests, response, int((time.monotonic() - t0) * 1000))
-            self.o.journal.add_usage(usage)
+            response, usage = call_model(self.o.client, request, self.o.journal, self.ctx.run_id, self.requests)
             self.inv.llm_calls += 1
             if response.stop_reason == "refusal":
                 raise ProviderUnavailable("the model declined")
