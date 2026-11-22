@@ -324,7 +324,7 @@ function Sidebar({ section, view, recorded = false }: { section: Section; view: 
         {menuOpen ? "Close menu" : "Menu"}
       </button>
       <div id="fx-side-main" className="fx-side-main">
-      {agent.enabled && (
+      {!recorded && (
         <button
           className={`fx-side-ask${asking ? " on" : ""}`}
           onClick={() => {

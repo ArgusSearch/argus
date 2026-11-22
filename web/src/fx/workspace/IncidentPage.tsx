@@ -116,7 +116,7 @@ export function IncidentPage({ id, graph, view, onSelectNode, liveFixHref }: {
   // Escape returns to the page the incident was opened from (demo mode closes it the same way)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || document.querySelector(".modal, .sheet, .ws-ask")) return;
+      if (e.key !== "Escape" || document.querySelector(".modal, .sheet, .cw")) return;
       back();
     };
     window.addEventListener("keydown", onKey);
