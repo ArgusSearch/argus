@@ -6,8 +6,8 @@ each technique behind one feature name so a single technique can be cut without 
 
 | feature          | what it switches on                                                             |
 |------------------|---------------------------------------------------------------------------------|
-| `critic`         | a second model in a fresh context tries to falsify a supported cause (R1-R4)    |
-| `sql`            | `sql_check` for the critic (rule R4), when the SQL gate is installed            |
+| `critic`         | a second model in a fresh context tries to falsify a supported cause           |
+| `sql`            | `sql_check` for both models when the SQL gate is installed                     |
 | `hypotheses`     | `propose_hypotheses`: 2-5 competing hypotheses before the first causal check    |
 | `memory`         | the case packet's `experience` block (advice, never evidence)                   |
 | `second_opinion` | the STL second opinion (advisory)                                               |

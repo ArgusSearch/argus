@@ -191,19 +191,42 @@ def record(
     return result
 
 
-def _stable(record: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in record.items() if k != "wall_ms"}
+def _replay_investigation(world: Path, client: ReplayClient, profile: Profile) -> SessionResult:
+    """Reproduce a sealed investigation capture, which has no operator or Ask service."""
+    from argus.runtime.loop import Runtime
+
+    journal = Journal()
+    runtime: Runtime
+    selector = AgentSelector(
+        client, journal, mode="replay", profile=profile, through_seq=lambda: runtime.bus.history[-1].seq
+    )
+    runtime = Runtime(world, selector=selector)
+    try:
+        runtime.run()
+        return SessionResult(
+            journal,
+            [event.model_dump(mode="json") for event in runtime.bus.history],
+            [incident.model_dump(mode="json") for incident in runtime.book.incidents.values()],
+            [],
+        )
+    finally:
+        runtime.runner.close()
 
 
 def replay(world: Path, recording: Path, strict: bool = True) -> list[str]:
     """Re-run the world on the recorded turns; returns the differences (empty: identical)."""
     client = ReplayClient(Cassette.load(recording / TURNS), strict=strict)
     meta = recording / "session.json"
-    session = json.loads(meta.read_text()) if meta.exists() else {}
-    decide: Decide = session.get("decide", "none")
+    manifest = recording / "manifest.json"
+    investigation_only = not meta.exists() and manifest.exists() and not (recording / "actions.json").exists()
+    settings = manifest if investigation_only else meta
+    session = json.loads(settings.read_text()) if settings.exists() else {}
+    profile = Profile.of(session.get("profile") or "v1", session.get("features"))
     asks = [AskPlan.from_json(a) for a in session.get("asks", [])]
-    profile = Profile.of(session.get("profile", "v1"), session.get("features"))
-    result = run_world(world, client, "replay", decide=decide, asks=asks, profile=profile)
+    if investigation_only:
+        result = _replay_investigation(world, client, profile)
+    else:
+        result = run_world(world, client, "replay", decide=session.get("decide", "none"), asks=asks, profile=profile)
     problems: list[str] = []
     recorded_activity = [json.loads(line) for line in (recording / ACTIVITY).read_text().splitlines() if line]
     produced = [r.model_dump(mode="json") for r in result.journal.records]

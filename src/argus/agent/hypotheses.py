@@ -38,7 +38,7 @@ from argus.contracts.findings import EvidenceRef, RuledOut
 
 PROPOSE = "propose_hypotheses"
 MIN_CARDS, MAX_CARDS = 2, 5
-CARD_ID = re.compile(r"^H[1-9]$")
+CARD_ID = re.compile(r"^H[1-5]$")
 DIGIT = re.compile(r"\d")
 
 # static cost of one check (cheapest decisive check), and the tools that can flip a card of each kind
@@ -128,12 +128,18 @@ def parse(raw: dict[str, Any]) -> list[DeclaredHypothesis]:
             card = DeclaredHypothesis.model_validate(item)
         except ValidationError as exc:
             raise Declined(f"invalid hypothesis: {exc.errors()[0].get('msg', 'invalid')}") from exc
-        if not CARD_ID.match(card.id):
+        if not CARD_ID.fullmatch(card.id):
             raise Declined(f"hypothesis ids are 'H1' to 'H5', not {card.id!r}")
         if DIGIT.search(card.statement) or DIGIT.search(card.why_cheapest):
             raise Declined(f"{card.id}: write the statement and why_cheapest in words, without digits")
         if card.decisive_check not in COST:
             raise Declined(f"{card.id}: decisive_check must be one of {sorted(COST)}")
+        decisive = DECISIVE.get(card.kind)
+        if decisive:
+            lowest = min(COST[tool] for tool in decisive)
+            cheapest = [tool for tool in decisive if COST[tool] == lowest]
+            if card.decisive_check not in cheapest:
+                raise Declined(f"{card.id}: cheapest decisive_check for {card.kind} must be one of {cheapest}")
         cards.append(card)
     ids = [c.id for c in cards]
     if len(set(ids)) != len(ids):

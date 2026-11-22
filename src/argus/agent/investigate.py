@@ -57,6 +57,7 @@ from argus.contracts.findings import Anomaly, EvidenceRef, RuledOut, Segment, Wi
 from argus.contracts.tools import TOOL_MODELS, ToolOutput
 from argus.investigate.ledger import OUTCOMES, TRAIL_KIND, Hypothesis, LedgerEntry, judge
 from argus.market import check_control_group
+from argus.skeptic.critic import SQL, load_sql_check, sql_check_spec
 
 if TYPE_CHECKING:
     from argus.investigate.procedure import StageTwoInvestigation
@@ -126,8 +127,10 @@ class Selection:
 
 def tool_specs(profile: Profile = V1) -> list[dict[str, Any]]:
     """The detective's tools. v1 is frozen (its hash pins the sealed recordings); v2 with `hypotheses` adds
-    `propose_hypotheses` and an optional `hypothesis_id` on every check."""
+    `propose_hypotheses` and an optional `hypothesis_id` on every check. The `sql` feature adds a judged check."""
     specs = _v1_specs()
+    if profile.on("sql") and load_sql_check() is not None:
+        specs.insert(-1, sql_check_spec())
     if not profile.on("hypotheses"):
         return specs
     for spec in specs:
@@ -224,6 +227,7 @@ class AgentSelector:
             critic = LlmCritic(client, journal, profile=profile, world_revision=world_revision)
         self.critic = critic if profile.on("critic") else None
         self.memory = memory if profile.on("memory") else None
+        self.sql_check = load_sql_check() if profile.on("sql") else None
         self._tools = tool_specs(profile)
 
     @property
@@ -540,6 +544,9 @@ class _Run:
             )
             return json.dumps({"status": "submitted; the gate decides"}), False
         hypothesis_id: str | None = None
+        if self.calls >= self.o.budget.tool_calls:
+            return json.dumps({"error": f"tool budget spent: call {SUBMIT}"}), True
+        self.calls += 1
         if self.book is not None:
             if name == PROPOSE:
                 return self._declare(raw)
@@ -547,9 +554,6 @@ class _Run:
                 self.repaired = True
                 return self._reject(name, f"declare hypotheses first: call {PROPOSE}, then test them")
             hypothesis_id = str(raw.pop("hypothesis_id")) if raw.get("hypothesis_id") is not None else None
-        if self.calls >= self.o.budget.tool_calls:
-            return json.dumps({"error": f"tool budget spent: call {SUBMIT}"}), True
-        self.calls += 1
         call_id = f"{self.ctx.run_id}:{self.calls}"
         meta = {k: str(raw[k]) for k in ("hypothesis", "prediction", "expect") if raw.get(k) is not None}
         args = naive_utc({k: v for k, v in raw.items() if k not in meta})
@@ -641,6 +645,11 @@ class _Run:
         card = self.book.resolve(hypothesis_id, obs.tool, event_ref)
         if card is None:
             return
+        if obs.tool == SQL:
+            sql_move = self.book.observe_sql(card, obs.call_id, obs.outcome, obs.summary)
+            if sql_move is not None:
+                self._moved([sql_move])
+            return
         node, segment = obs.args.get("node"), obs.args.get("segment")
         on_case = node is None or (node == self.case.focus and (segment or {}) == self.case.segment)
         move = self.book.observe(
@@ -685,6 +694,8 @@ class _Run:
         try:
             if name == MARKET:
                 return self._market(call_id, meta)
+            if name == SQL and self.o.sql_check is not None:
+                return self._sql(call_id, args, meta)
             if name not in TOOL_MODELS or name not in (*JUDGED, *OBSERVED):
                 return self._obs(call_id, name, args, meta, summary=f"unknown tool {name}", availability="rejected")
             if name == "holdout_check":
@@ -770,6 +781,39 @@ class _Run:
             return self._obs(
                 call_id, name, args, meta, summary=f"{type(exc).__name__}: {detail}"[:300], availability="rejected"
             )
+
+    def _sql(self, call_id: str, args: dict[str, Any], meta: dict[str, str]) -> Observation:
+        assert self.o.sql_check is not None
+        sql, predict = args.get("sql"), args.get("predict")
+        if not isinstance(sql, str) or not isinstance(predict, dict):
+            return self._obs(call_id, SQL, args, meta, summary="sql and predict are required", availability="rejected")
+        inv = self.inv
+        result = self.o.sql_check(inv.runner, sql, inv.as_of, predict, "detective")
+        if not result.accepted:
+            return self._obs(
+                call_id, SQL, args, meta, summary=f"rejected by the SQL gate: {result.rule}", availability="rejected"
+            )
+        receipts = [result.receipt_id] if result.receipt_id else []
+        inv.step(
+            "holdout",
+            SQL,
+            result.summary,
+            f"self-written check: {result.outcome or 'inconclusive'}",
+            hypothesis=meta.get("hypothesis"),
+            prediction=meta.get("prediction"),
+            receipts=receipts,
+            data={**self._agent_data(call_id), "sql": sql, "predict": predict, "outcome": result.outcome},
+        )
+        return self._obs(
+            call_id,
+            SQL,
+            args,
+            meta,
+            summary=result.summary,
+            outcome=result.outcome,
+            data=dict(rounded({"rows": result.rows[:20]})),
+            receipt_refs=self._links(receipts),
+        )
 
     def _market(self, call_id: str, meta: dict[str, str]) -> Observation:
         inv = self.inv

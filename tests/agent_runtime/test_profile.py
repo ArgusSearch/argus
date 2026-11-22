@@ -55,7 +55,7 @@ def test_profiles_from_names_and_environment(monkeypatch: pytest.MonkeyPatch) ->
 def test_v2_tools_add_the_declaration_and_card_ids_only_with_hypotheses() -> None:
     v1 = tool_specs(V1)
     assert tool_specs(Profile.of("v2", "critic")) == v1  # the critic does not change the detective
-    v2 = tool_specs(V2)
+    v2 = tool_specs(Profile.of("v2", "hypotheses"))
     names = [t["name"] for t in v2]
     assert names == [*(t["name"] for t in v1[:-1]), "propose_hypotheses", "submit_findings"]
     for spec in v2:

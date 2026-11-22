@@ -13,11 +13,12 @@ The model's opinion decides nothing. Deterministic rules read the outcomes of it
 |------|-----------------------------------------------------------------------------------|---------|
 | R1   | a holdout of the supported event on the case's node and segment comes back refuted | refuted |
 | R2   | a placebo on the case's node and segment comes back recurring                      | refuted |
-| R3   | a different event aligned with the onset, at least as specific in scope, has a     | weakened|
-|      | consistent holdout on the case's node and segment                                  |         |
+| R3   | a distinct event near the onset, with equal or narrower scope, has a consistent    | weakened|
+|      | holdout on the case's node and segment; simultaneous events are inconclusive       |         |
 | R4   | a `sql_check` whose prediction states what the cause implies fails (feature `sql`) | weakened|
 
-`ARGUS_AGENT_CRITIC_RULES` (default `R1,R2,R3,R4`) narrows the rules, so R3 can be cut on its own.
+`ARGUS_AGENT_CRITIC_RULES` (default `R1,R2,R3`) narrows the rules, so each rule can be cut on its own.
+R4 is opt-in until the relevance of a model-written prediction can be established.
 | -    | no rule fired                                                                     | upheld  |
 
 Any rule that fires downgrades the verdict; nothing the critic does can grant one (monotone safety). If
@@ -70,7 +71,7 @@ RULES = ("R1", "R2", "R3", "R4")
 
 def configured_rules() -> frozenset[str]:
     raw = os.environ.get("ARGUS_AGENT_CRITIC_RULES")
-    chosen = {r.strip().upper() for r in raw.split(",") if r.strip()} if raw is not None else set(RULES)
+    chosen = {r.strip().upper() for r in raw.split(",") if r.strip()} if raw is not None else {"R1", "R2", "R3"}
     unknown = sorted(chosen - set(RULES))
     if unknown:
         raise ValueError(f"unknown critic rule(s) {unknown}; known: {list(RULES)}")
@@ -96,6 +97,37 @@ class CriticStop(RuntimeError):
     pass
 
 
+def sql_check_spec() -> dict[str, Any]:
+    return {
+        "name": SQL,
+        "description": "One read-only SELECT over the as-of views (fact_*, log_*, dim_advertiser), with a "
+        "prediction the host judges on the rows: the mean of `value` in group `a` against group `b`.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sql": {"type": "string", "description": "one SELECT, no comments, at most 2000 characters"},
+                "hypothesis": {"type": "string"},
+                "prediction": {"type": "string", "description": "what the rows show if the cause holds"},
+                "predict": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "string"},
+                        "group": {"type": "string"},
+                        "a": {"type": "array", "items": {"type": "string"}},
+                        "b": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"const": "rest"}]},
+                        "relation": {"type": "string", "enum": ["a_lt_b", "a_gt_b", "a_eq_b"]},
+                        "min_gap": {"type": "number"},
+                    },
+                    "required": ["value", "group", "a", "b", "relation", "min_gap"],
+                    "additionalProperties": False,
+                },
+            },
+            "required": ["sql", "hypothesis", "prediction", "predict"],
+            "additionalProperties": False,
+        },
+    }
+
+
 def critic_specs(sql: bool = False) -> list[dict[str, Any]]:
     descriptions = {
         "list_events": "Log entries (deploys, provider status, budgets, calendar) in a time range, optionally only "
@@ -115,36 +147,7 @@ def critic_specs(sql: bool = False) -> list[dict[str, Any]]:
             }
         )
     if sql:
-        specs.append(
-            {
-                "name": SQL,
-                "description": "One read-only SELECT over the as-of views (fact_*, log_*, dim_advertiser), with a "
-                "prediction the host judges on the rows: the mean of `value` in group `a` against group `b`.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "sql": {"type": "string", "description": "one SELECT, no comments, at most 2000 characters"},
-                        "hypothesis": {"type": "string"},
-                        "prediction": {"type": "string", "description": "what the rows show if the cause holds"},
-                        "predict": {
-                            "type": "object",
-                            "properties": {
-                                "value": {"type": "string"},
-                                "group": {"type": "string"},
-                                "a": {"type": "array", "items": {"type": "string"}},
-                                "b": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"const": "rest"}]},
-                                "relation": {"type": "string", "enum": ["a_lt_b", "a_gt_b", "a_eq_b"]},
-                                "min_gap": {"type": "number"},
-                            },
-                            "required": ["value", "group", "a", "b", "relation", "min_gap"],
-                            "additionalProperties": False,
-                        },
-                    },
-                    "required": ["sql", "hypothesis", "prediction", "predict"],
-                    "additionalProperties": False,
-                },
-            }
-        )
+        specs.append(sql_check_spec())
     specs.append(
         {
             "name": SUBMIT,
@@ -221,7 +224,11 @@ def counter_verdict(
             ev = c.event
             if not (on_case(c) and c.tool == "holdout_check" and ev is not None and c.outcome == "consistent"):
                 continue
-            if (ev.log, ev.ref) != same and start <= ev.ts <= end and len(ev.scope) >= len(supported.scope):
+            # A holdout cannot distinguish simultaneous changes within the same scope. In S4, the
+            # deployment and per-advertiser budget log entries record the same pacing change.
+            if (ev.log, ev.ref) == same or ev.ts == supported.ts or not start <= ev.ts <= end:
+                continue
+            if all(key in ev.scope and set(ev.scope[key]) <= set(values) for key, values in supported.scope.items()):
                 return Ruling(
                     "weakened",
                     "R3",
@@ -254,7 +261,7 @@ class LlmCritic:
         self.budget = budget or CriticBudget()
         self.model = model
         self.world_revision = world_revision
-        self.sql_runner = sql_runner if sql_runner is not None else (_sql_runner() if profile.on("sql") else None)
+        self.sql_runner = sql_runner if sql_runner is not None else (load_sql_check() if profile.on("sql") else None)
         self.rules = rules if rules is not None else configured_rules()
         self._tools = critic_specs(sql=self.sql_runner is not None)
 
@@ -271,7 +278,7 @@ class LlmCritic:
             error = f"{type(exc).__name__}: {exc}"[:300]
         ruling = counter_verdict(run.checks, case, supported, self.rules)
         checks = [c.to_json() for c in run.checks]
-        if ruling.rule is None and (error or not (run.calls or run.submitted)):
+        if error or (ruling.rule is None and not (run.checks or run.submitted)):
             why = error or run.stop or "no check ran"
             challenge = Challenge(
                 verdict="unavailable", downgrade=False, reason=f"counter-check unavailable: {why}", checks=checks
@@ -304,7 +311,7 @@ class LlmCritic:
         return challenge
 
 
-def _sql_runner() -> SqlCheckRunner | None:
+def load_sql_check() -> SqlCheckRunner | None:
     """`argus.evidence.sqlgate.run_check` when the SQL gate is installed, else None (no `sql_check` tool)."""
     try:
         sqlgate = importlib.import_module("argus.evidence.sqlgate")

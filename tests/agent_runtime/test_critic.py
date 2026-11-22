@@ -61,7 +61,7 @@ def check(tool: str, outcome: str | None, event: EvidenceRef | None = None, **kw
 
 def test_rules_r1_to_r4_and_their_order() -> None:
     case, cause = fake_case(), ev("ps_payco", {"country": ["DE"], "provider": ["PayCo"]})
-    rival = ev("dep_rival", {"country": ["DE"], "platform": ["android"]}, ONSET - timedelta(hours=1))
+    rival = ev("dep_rival", {"country": ["DE"], "provider": ["PayCo"]}, ONSET - timedelta(hours=1))
     assert counter_verdict([], case, cause).verdict == "upheld"
     assert counter_verdict([check("holdout_check", "consistent", cause)], case, cause).rule is None
     r1 = counter_verdict([check("placebo_test", "recurring"), check("holdout_check", "refuted", cause)], case, cause)
@@ -86,9 +86,21 @@ def test_rules_ignore_checks_off_the_case_and_weaker_rivals() -> None:
 
 def test_rules_can_be_cut_one_by_one() -> None:
     case, cause = fake_case(), ev("ps_payco")
-    rival = check("holdout_check", "consistent", ev("dep_rival"))
+    rival = check("holdout_check", "consistent", ev("dep_rival", ts=ONSET - timedelta(minutes=1)))
     assert counter_verdict([rival], case, cause).rule == "R3"
     assert counter_verdict([rival], case, cause, frozenset(set(RULES) - {"R3"})).rule is None
+
+
+def test_r3_requires_distinct_timing_and_a_contained_scope() -> None:
+    case, cause = fake_case(), ev("dep_pacer", {"country": ["DE", "FR"]})
+    earlier = ONSET - timedelta(minutes=5)
+    scope = {"country": ["DE", "FR"], "advertiser_id": ["adv_a"]}
+    same_change = ev("pacer_adv_a", scope, ts=ONSET)
+    wider_change = ev("dep_wider", {"country": ["DE", "PL"], "advertiser_id": ["adv_a"]}, ts=earlier)
+    for event in (same_change, wider_change):
+        assert counter_verdict([check("holdout_check", "consistent", event)], case, cause).verdict == "upheld"
+    independent = ev("dep_independent", scope, ts=earlier)
+    assert counter_verdict([check("holdout_check", "consistent", independent)], case, cause).rule == "R3"
 
 
 # ---------------------------------------------------------------------------------------------- on S1

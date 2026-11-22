@@ -30,7 +30,7 @@ def card(id: str, kind: str = "event", **extra: Any) -> dict[str, Any]:
         "id": id,
         "statement": f"the {kind} explains it",
         "kind": kind,
-        "decisive_check": "holdout_check" if kind == "event" else "placebo_test",
+        "decisive_check": {"event": "holdout_check", "mix": "mix_rate_split"}.get(kind, "placebo_test"),
         "why_cheapest": "one query decides it",
         **extra,
     }
@@ -52,6 +52,7 @@ def event(ref: str) -> EvidenceRef:
         ({"hypotheses": [card("H1"), card("A2")]}, "'H1' to 'H5'"),
         ({"hypotheses": [card("H1"), card("H2", statement="release 8.3.0 broke it")]}, "without digits"),
         ({"hypotheses": [card("H1"), card("H2", decisive_check="read_minds")]}, "decisive_check must be"),
+        ({"hypotheses": [card("H1"), card("H2", decisive_check="get_series")]}, "cheapest decisive_check"),
         ({"hypotheses": [card("H1"), card("H2", parent="H9")]}, "not another"),
         ({"hypotheses": [card("H1"), card("H2", parent="H1"), card("H3", parent="H2")]}, "two levels"),
         ({"hypotheses": [card("H1"), card("H2", kind="astrology")]}, "invalid"),
