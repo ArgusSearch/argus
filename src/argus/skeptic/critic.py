@@ -576,6 +576,7 @@ class _CriticRun:
                 )
                 points = series.model_dump(mode="json", exclude={"summary", "receipts"})
                 points["points"] = points.get("points", [])[-24:]
+                receipts = list(series.receipts)
                 return (
                     self._obs(
                         call_id,
@@ -584,9 +585,18 @@ class _CriticRun:
                         meta,
                         summary=series.summary,
                         data=dict(rounded(points)),
-                        receipt_refs=self.links(list(series.receipts)),
+                        receipt_refs=self.links(receipts),
                     ),
-                    None,
+                    CriticCheck(
+                        call_id=call_id,
+                        tool=name,
+                        node=args.get("node"),
+                        segment=dict(args.get("segment") or {}),
+                        event=None,
+                        outcome=None,
+                        summary=series.summary,
+                        receipts=receipts,
+                    ),
                 )
             # the ledger's usual framing, so the trail reads like Stage 2's; the rules read outcomes, not this
             expect = {"holdout_check": "consistent", "placebo_test": "unusual", "list_events": "found"}[name]
