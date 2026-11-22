@@ -98,10 +98,6 @@ for ((attempt=0; attempt<30; attempt++)); do
   sleep 1
 done
 health "$loopback" || fail "Argus API did not come up."
-pace_shop() {
-  curl -fsS --max-time 5 -H 'Content-Type: application/json' -d "{\"speed\":$1}" "$loopback/replay" >/dev/null
-}
-pace_shop 8
 
 env -i HOME="$state/tunnel-home" PATH="$PATH" cloudflared tunnel --no-autoupdate --url "$loopback" > "$state/tunnel.log" 2>&1 &
 tunnel_pid=$!
@@ -125,15 +121,6 @@ rg --files-with-matches --hidden --no-ignore -e \
   'sk-ant-[A-Za-z0-9_-]{16,}|sk-(proj-|svcacct-)?[A-Za-z0-9_-]{32,}|(ANTHROPIC|OPENAI)_API_KEY[[:blank:]]*[:=][[:blank:]"\x27]*[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' \
   "$dist" || scan=$?
 [ "$scan" -eq 1 ] || fail "Static asset secret scan failed."
-incident_ready() {
-  curl -fsS --max-time 5 "$loopback/incidents" | jq -e 'length > 0' >/dev/null
-}
-for ((attempt=0; attempt<45; attempt++)); do
-  if incident_ready; then break; fi
-  sleep 2
-done
-incident_ready || fail "The live Shop did not file its S1 incident."
-pace_shop 1
 health "$api" || fail "Quick Tunnel stopped answering before publish."
 
 CI=1 WRANGLER_LOG_PATH="$state/wrangler.log" CLOUDFLARE_ACCOUNT_ID=c452dd4753dd99c4d03eec47380d0470 \
