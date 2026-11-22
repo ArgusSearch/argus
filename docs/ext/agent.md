@@ -64,9 +64,11 @@ All routes sit outside the C5 `ROUTES` tuple, mounted like the narrator and demo
 
 | Route | Returns |
 | --- | --- |
-| `GET /agent/health` | `{enabled, mode, reason, interface_version, models, caps, runs, usd}`; the web's feature probe |
+| `GET /agent/health` | `{enabled, mode, reason, interface_version, models, caps, runs, usd, profile, features, board_version}` |
 | `GET /agent/activity?since=<seq>` | `{stream, mode, records: [ActivityRecord], next_cursor}`, ordered by `seq` |
 | `GET /agent/runs` | `[RunSummary]` |
+| `GET /agent/boards?since=<seq>` | `{boards: [Board], next_cursor}` with a snapshot of every visible agent investigation |
+| `GET /agent/boards/incident/{incident_id}` | The incident's `Board`, including Stage 2 when the agent is off. Returns 404 until the incident is visible. |
 | `POST /agent/ask` | `{question, incident_id?, conversation_id?}` -> `{status, run_id, conversation_id, answer, claims, receipt_links, reason, usd, activity_cursor}`; 404 for an unknown conversation, 409 when the agent is off |
 | `GET /agent/receipts/{run_id}/{world_revision}/{receipt_id}` | the receipt behind a `ReceiptLink`; only in the run and revision that minted or cited it |
 | `POST /agent/operator/session` | lane C: `{principal, csrf_token}` plus a session cookie; local clients only |
@@ -77,6 +79,14 @@ Ask runs with its own `RunContext`, a read-only runner with its own receipt name
 The model finishes with prose without digits plus claims that cite fact handles; the host verifies every claim and renders its figure with its receipt.
 A follow-up with the same `conversation_id` keeps the incident scope and sees the earlier turns as context, never as evidence.
 After an approved action is applied, the run, its investigations and Ask read the treated branch (`world_revision` `<action id>-treated`).
+
+## Investigation board
+
+`agent-board/1` derives the hypotheses, step groups, discarded paths, cause chain and cost from the activity and findings already available. The board runs without a provider or a recording step. Profile `stage2` uses the incident's findings. Profile `v1` also works with the sealed S1 and S4 presentations. Activity emitted by profile `v2` can supply declared hypotheses, critic results and precedents. Clients should display unfamiliar activity kinds as plain activity lines.
+
+Pass `run_id=<playback>` to read either board route at the presentation's current position. The list returns full snapshots, including when `since` equals `next_cursor`, because findings can become visible independently of activity. `next_cursor` is the greatest board activity sequence or the supplied `since`, whichever is greater. `through_seq` identifies the final activity record included in an individual board and is zero for a Stage-2-only board.
+
+For example, the sealed S1 board names PayCo as supported and the Android release as ruled out. The release card's `holdout_check` cites `run_0001/factual/r240` through `/agent/receipts`. Step groups expand to activity by their `first_seq` and `last_seq`, and `cost.replayed` marks spend from the recording. Cause chains cite the admitted event, localisation, formula steps and impact. When an incident lists a silenced symptom without a symptom-specific check, the link is `untested` and cites the supporting root evidence.
 
 ## Running it
 

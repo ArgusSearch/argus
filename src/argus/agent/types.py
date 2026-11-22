@@ -13,6 +13,13 @@ Ownership of the types (implementations live with their owner):
 | VerifiedClaim, Rejection, Dispatcher, Verifier               |       |                            |
 | ProposalView, SuccessRule, EffectResult, Decision,           | C     | src/argus/remediation/     |
 | ProposalService                                              |       |                            |
+| Board and its parts (HypothesisCard, CheckRef, StepGroup,    | Q1    | src/argus/agent/board.py,  |
+| Discarded, CauseChain, ChainLink, CostView, CostLine,        |       | src/argus/agent/chain.py   |
+| CriticView, Precedent, SecondOpinion), DeclaredHypothesis,   |       |                            |
+| HypothesisMove                                               |       |                            |
+| Challenge, Critic                                            | Q2    | src/argus/skeptic/critic.py|
+| SqlJudgement, SqlValidator, SqlCheckRunner                   | Q3    | src/argus/evidence/sqlgate |
+| CaseNote, CaseMemory, ProposalPolicy                         | Q3    | src/argus/agent/memory.py  |
 
 Rules every lane relies on:
 
@@ -25,6 +32,7 @@ Rules every lane relies on:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Literal, Protocol
 
@@ -34,6 +42,14 @@ from argus.contracts.findings import Segment, Window
 from argus.investigate.ledger import LedgerEntry
 
 INTERFACE_VERSION = "agent-types/1"
+BOARD_VERSION: Literal["agent-board/1"] = "agent-board/1"
+"""Version of the derived read model (`Board`), independent of the frozen record types above."""
+
+ProfileName = Literal["v1", "v2"]
+"""v1: the recorded behaviour, byte-identical forever; v2: the techniques below, each behind one `Feature`."""
+
+Feature = Literal["critic", "sql", "hypotheses", "memory", "second_opinion"]
+FEATURES: tuple[Feature, ...] = ("critic", "sql", "hypotheses", "memory", "second_opinion")
 
 
 class _Strict(BaseModel):
@@ -239,6 +255,11 @@ ActivityKind = Literal[
     "chat_answer",
     "watch",  # a quiet hour: no model call
     "run_finished",
+    # profile v2 only (new values, never new fields: v1 recordings keep their bytes). Readers render unknown kinds
+    # as a plain line. The structured payload rides in `args`, see "v2 activity payloads" below.
+    "hypothesis",  # declared hypotheses (args: {"declared": [DeclaredHypothesis]}) or a move ({"move": ...})
+    "critic",  # the counter-check's outcome (args: Challenge plus "model")
+    "memory",  # a precedent from case memory changed or annotated a proposal (args: Precedent)
 ]
 
 Role = Literal["watcher", "detective", "skeptic", "market", "narrator", "operator", "cartographer"]
@@ -375,3 +396,275 @@ class ProposalService(Protocol):
     def get(self, proposal_id: str) -> ProposalView | None: ...
 
     def decide(self, proposal_id: str, digest: str, decision: Decision, idempotency_key: str) -> ProposalView: ...
+
+
+# ---------------------------------------------------------------------------------------------- Q1: derived board
+#
+# A read model, never recorded: `argus.agent.board.build_board` derives it from activity records and C4 findings
+# (pure function, same input -> same JSON). Served by `GET /agent/boards` (docs/ext/agent.md).
+
+HypothesisStatus = Literal["open", "supported", "ruled_out", "inconclusive", "not_tested"]
+HYPOTHESIS_STATUSES: tuple[HypothesisStatus, ...] = ("open", "supported", "ruled_out", "inconclusive", "not_tested")
+HypothesisKind = Literal["event", "data", "planned", "market", "mix", "recurring", "segment", "other"]
+CheckStatus = Literal["validated", "refuted", "inconclusive", "observed", "rejected"]
+
+
+class CheckRef(_Strict):
+    """One check behind a card, a critic verdict or a discarded path."""
+
+    seq: int | None = Field(description="activity seq of the tool_result, None for trail-only steps")
+    call_id: str | None = Field(description="'<run_id>:<n>' detective, '<run_id>:c<n>' critic, None for the host")
+    step: int | None = Field(description="C4 trail step number, None when the check is not in the trail")
+    tool: str
+    by: Literal["host", "detective", "critic"]
+    status: CheckStatus
+    outcome: str | None = Field(description="ledger outcome label (consistent, refuted, unusual, ...)")
+    summary: str = Field(description="host-rendered, numbers only with receipt tags")
+    receipts: list[ReceiptLink]
+
+
+class HypothesisCard(_Strict):
+    id: str = Field(description="'H1', ... in order of first appearance; stable while the run advances")
+    parent: str | None = None
+    statement: str = Field(description="no digits")
+    kind: HypothesisKind
+    subject: str | None = Field(description="event ref or node id")
+    source: Literal["host", "model", "critic"]
+    status: HypothesisStatus
+    reason: str = Field(description="one line: why it has this status")
+    decisive_check: str | None = None
+    checks: list[CheckRef]
+
+
+StepPhase = Literal["opening", "hypotheses", "checks", "critic", "verdict", "report", "action", "effect", "ask"]
+
+
+class StepGroup(_Strict):
+    """Consecutive activity records of one phase, for a collapsed run log."""
+
+    id: str = Field(description="'<run_id>:g<n>'")
+    title: str = Field(description="'Opening checks', 'Candidates', 'Counter-check', 'Verdict', 'Action', 'Effect'")
+    phase: StepPhase
+    role: Role
+    first_seq: int
+    last_seq: int
+    status: Literal["running", "done", "failed", "skipped"]
+    steps: int
+    tool_calls: int
+    usd: float
+    summary: str
+
+
+class Discarded(_Strict):
+    """A path not taken, with why."""
+
+    kind: Literal["ruled_out", "rejected_call", "gate_rejection", "backfilled", "critic_downgrade", "not_tested"]
+    text: str
+    seq: int | None
+    receipts: list[ReceiptLink]
+
+
+class ChainLink(_Strict):
+    kind: Literal["event", "root", "formula", "impact", "symptom"]
+    source: str = Field(description="event ref or node id")
+    target: str = Field(description="node id or 'eur'")
+    label: str
+    share: float | None = Field(description="explained share where it applies (LMDI share of the target's change)")
+    status: Literal["tested", "untested"]
+    receipts: list[ReceiptLink]
+
+
+class CauseChain(_Strict):
+    """Event -> root node in its segment -> formula hops -> EUR, for one supported incident."""
+
+    incident_id: str
+    links: list[ChainLink]
+    text: str = Field(description="host-rendered one-liner")
+
+
+class CostLine(_Strict):
+    phase: Literal["detective", "critic", "ask"]
+    model: str
+    llm_calls: int
+    input_tokens: int
+    output_tokens: int
+    usd: float
+
+
+class CostView(_Strict):
+    usd: float
+    cap_usd: float
+    llm_calls: int
+    tool_calls: int
+    cap_tool_calls: int
+    replayed: bool = Field(description="true: recorded cost, nothing was spent now")
+    lines: list[CostLine]
+
+
+class CriticView(_Strict):
+    result: Literal["upheld", "weakened", "refuted", "unavailable", "skipped"]
+    model: str | None
+    attempts: int
+    reason: str
+    checks: list[CheckRef]
+
+
+PolicyName = Literal["propose", "propose_with_precedent", "suppress_denied", "suppress_no_effect"]
+
+
+class Precedent(_Strict):
+    """A remembered case that changed or annotated a proposal."""
+
+    case_id: str
+    sim_ts: datetime
+    cause: str
+    playbook_id: str | None
+    decision: Literal["approve", "deny", "expired", "none"]
+    effect: str | None
+    policy: PolicyName
+    note: str
+
+
+class SecondOpinion(_Strict):
+    """Only when the STL block ships (advisory, never changes a verdict)."""
+
+    method: str = Field(description="'STL residual (statsmodels)'")
+    z: float
+    agrees: bool
+    receipts: list[ReceiptLink]
+
+
+class Board(_Strict):
+    """Everything the UI shows about one investigation: competing hypotheses, grouped log, paths not taken,
+    the cause chain, the counter-check, precedents and cost."""
+
+    version: Literal["agent-board/1"]
+    agent_run: str | None = Field(description="None for a Stage-2-only incident")
+    incident_id: str | None
+    anomaly_id: str | None
+    through_seq: int = Field(description="last activity seq reflected (0 without agent records)")
+    state: Literal["running", "done", "fallback", "budget"]
+    profile: Literal["stage2", "v1", "v2"]
+    hypotheses: list[HypothesisCard]
+    counts: dict[HypothesisStatus, int] = Field(description="every status, summing to len(hypotheses)")
+    groups: list[StepGroup]
+    discarded: list[Discarded]
+    chain: CauseChain | None
+    critic: CriticView | None
+    precedents: list[Precedent]
+    second_opinion: SecondOpinion | None
+    cost: CostView
+
+
+# ---------------------------------------------------------------------------------------------- v2 activity payloads
+#
+# v2 records carry their structure in `ActivityRecord.args` (no new fields):
+#
+# * kind "hypothesis", tool "propose_hypotheses": {"declared": [DeclaredHypothesis, ...]} once per declaration;
+#   kind "hypothesis": {"move": HypothesisMove} whenever the host's book moves a card;
+# * every later detective "tool_call" record carries args["hypothesis_id"] naming the card it tests;
+# * critic tool calls reuse "tool_call"/"tool_result" with role "skeptic" and call ids '<run_id>:c<n>';
+#   kind "critic": Challenge fields plus "model" once the counter-check decided (or could not run);
+# * kind "memory": a Precedent.
+
+
+class DeclaredHypothesis(_Strict):
+    """One competing hypothesis the v2 detective declared before its first causal check."""
+
+    id: str = Field(description="'H1', ... as the model named it; the board keeps it")
+    statement: str = Field(description="no digits")
+    kind: HypothesisKind
+    event_ref: str | None = None
+    parent: str | None = Field(default=None, description="refines another hypothesis (tree depth at most 2)")
+    decisive_check: str = Field(description="tool name of the cheapest check that could flip it")
+    why_cheapest: str = ""
+
+
+class HypothesisMove(_Strict):
+    """The host's hypothesis book moved a card on a judged outcome (never on the model's word)."""
+
+    id: str
+    status: HypothesisStatus
+    reason: str
+    call_id: str | None = None
+
+
+# ---------------------------------------------------------------------------------------------- Q2: critic
+
+
+class Challenge(_Strict):
+    """The counter-check's result. Deterministic rules over its receipts decide `downgrade`, never the model."""
+
+    verdict: Literal["upheld", "weakened", "refuted", "unavailable"]
+    downgrade: bool
+    reason: str
+    checks: list[dict[str, Any]] = Field(default_factory=list, description="goes into SkepticResult.checks")
+
+
+class Critic(Protocol):
+    """Q2 implements in src/argus/skeptic/critic.py. Called only when the rules would admit SUPPORTED_CAUSE."""
+
+    def challenge(self, inv: Any, case: Any, selection: Any, supported: Any) -> Challenge: ...
+
+
+# ---------------------------------------------------------------------------------------------- Q3: self-written SQL
+
+
+class SqlJudgement(_Strict):
+    accepted: bool
+    rule: str | None = Field(default=None, description="first violated rule when rejected")
+    outcome: Literal["holds", "fails"] | None = Field(default=None, description="None: not run or inconclusive")
+    summary: str
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    receipt_id: str | None = None
+
+
+class SqlValidator(Protocol):
+    """`argus.evidence.sqlgate.validate`: never raises, never executes."""
+
+    def __call__(self, sql: str) -> SqlJudgement: ...
+
+
+class SqlCheckRunner(Protocol):
+    """`argus.evidence.sqlgate.run_check(runner, sql, as_of, predict, purpose)`: validates, runs through the
+    investigation's read-only `Runner` (an ordinary receipt), judges `predict` on the rows."""
+
+    def __call__(
+        self, runner: Any, sql: str, as_of: datetime, predict: dict[str, Any], purpose: str
+    ) -> SqlJudgement: ...
+
+
+# ---------------------------------------------------------------------------------------------- Q3: case memory
+
+
+class CaseNote(_Strict):
+    """A numbers-free note per decided case (advice, never evidence)."""
+
+    case_id: str
+    sim_ts: datetime
+    fingerprint: str
+    root_node: str
+    segment_dims: list[str]
+    verdict: str
+    cause_kind: str | None = Field(default=None, description="e.g. 'deploy:ad-pacer'")
+    cause_ref: str | None = Field(default=None, description="e.g. 'dep_ad-pacer_1.7.0'")
+    deciding_checks: list[str] = Field(default_factory=list, description="tool names")
+    playbook_id: str | None = None
+    decision: Literal["approve", "deny", "expired", "none"] = "none"
+    effect: Literal["VERIFIED", "NO_EFFECT", "INCONCLUSIVE"] | None = None
+
+
+class CaseMemory(Protocol):
+    """Q3 implements in src/argus/agent/memory.py."""
+
+    def remember(self, note: CaseNote) -> None: ...
+
+    def recall(
+        self, *, root_node: str, segment: dict[str, str], cause_kind: str | None, as_of: datetime, limit: int = 3
+    ) -> list[CaseNote]: ...
+
+
+class ProposalPolicy(Protocol):
+    """`argus.agent.memory.proposal_policy(notes, playbook_id, cause_ref)`: deterministic, host-side."""
+
+    def __call__(self, notes: Sequence[CaseNote], playbook_id: str, cause_ref: str | None) -> PolicyName: ...
