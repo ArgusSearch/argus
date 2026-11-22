@@ -1,0 +1,8 @@
+# Demo pack, metric 3 of 5. Expected: EXACT, revenue_per_conversion = cpa * roas by lineage.
+name: revenue_per_conversion
+description: Attributed GMV per ad conversion in EUR, per advertiser, country and platform
+sql: |
+  SELECT ts, advertiser_id, country, platform,
+         SUM(attributed_gmv)::DOUBLE / NULLIF(SUM(ad_conversions), 0) AS value
+  FROM fact_ads_hourly
+  GROUP BY ALL

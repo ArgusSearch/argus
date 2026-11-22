@@ -8,7 +8,7 @@ from datetime import datetime
 from argus.contracts.findings import Anomaly, Findings, TrailStep, Verdict
 from argus.contracts.graph import Graph
 from argus.investigate.planner import Planner
-from argus.investigate.procedure import StageTwoInvestigation
+from argus.investigate.procedure import EvidenceSelector, StageTwoInvestigation
 from argus.market import check_control_group
 from argus.semantic.runner import Runner
 
@@ -40,5 +40,6 @@ def investigate(
     as_of: datetime,
     on_step: Callable[[TrailStep], None] | None = None,
     planner: Planner | None = None,
+    selector: EvidenceSelector | None = None,
 ) -> Findings:
-    return MarketInvestigation(graph, runner, anomaly, as_of, on_step, planner).run()
+    return MarketInvestigation(graph, runner, anomaly, as_of, on_step, planner, selector).run()

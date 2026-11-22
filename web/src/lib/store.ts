@@ -18,11 +18,28 @@ import type {
 /** The watcher's lines until /health reports them (argus.watcher.detect: Z_OPEN, Z_PAIR, Z_ONSET). */
 export const DEFAULT_THRESHOLDS: Thresholds = { alarm_z: 5, pair_z: 3.5, wiggle_z: 2 };
 const HISTORY = 36;
+/** hours of run history the dashboard's charts keep (three simulated days) */
+const HOURS = 72;
+
+/** One scored hour as the dashboard charts it: how far each metric was off, what was open, what it had cost. */
+export interface HourStat {
+  hour: string;
+  /** |z| of every metric scored this hour */
+  z: number[];
+  /** incidents open at this tick, as the watcher reported it */
+  open: number;
+  /** the EUR impact of every incident filed so far (sum of their severities at this tick) */
+  eur: number;
+  /** the lowest completeness among the source tables for the hour being scored (1 = all delivered) */
+  completeness: number;
+}
 
 export interface Focus {
   nodes: string[];
   edges: string[];
   logs: string[];
+  /** short words to show on a touched block instead of "checking" (the visualization's story: "-€102,376") */
+  tags?: Record<string, string>;
 }
 
 export interface StepView {
@@ -69,6 +86,8 @@ export interface RunView {
   /** every scored |z| so far, in buckets of 0.1 (bucket 37 holds 3.7 <= |z| < 3.8) */
   zBuckets: Record<number, number>;
   zHistory: Record<string, number[]>;
+  /** the last HOURS scored hours, oldest first */
+  hours: HourStat[];
   attention: Record<string, number>;
   edges: Record<string, { status: EdgeStatus; result: EdgeTestResult }>;
   edgeChanges: EdgeChange[];
@@ -100,6 +119,7 @@ export function emptyView(
     alarms: 0,
     zBuckets: {},
     zHistory: {},
+    hours: [],
     attention: {},
     edges: {},
     edgeChanges: [],
@@ -118,6 +138,14 @@ export function isRuledOut(decision: string): boolean {
 }
 
 const unique = (xs: string[]) => [...new Set(xs)];
+
+/** The metric the investigation is checking right now, or null once the latest anomaly has its verdict. */
+export function checkingNode(view: RunView): string | null {
+  const latest = view.anomalies[view.anomalies.length - 1];
+  if (!latest || !view.focus) return null;
+  const decided = view.steps.some((s) => s.anomalyId === latest.id && s.step.kind === "verdict");
+  return decided ? null : latest.node;
+}
 
 /**
  * What a step touches on the graph. A step may say so itself (`data.focus`); otherwise it is read from
@@ -178,10 +206,18 @@ export function fold(view: RunView, event: ArgusEvent): RunView {
         const bucket = Math.floor(z * 10 + 1e-9);
         zBuckets[bucket] = (zBuckets[bucket] ?? 0) + 1;
       }
+      const hour: HourStat = {
+        hour: p.hour,
+        z: p.scored_nodes.map((node) => Math.abs(p.max_abs_z[node] ?? 0)),
+        open: p.open_incidents,
+        eur: Object.values(v.incidents).reduce((sum, inc) => sum + Math.abs(inc.severity_eur), 0),
+        completeness: p.freshness.length ? Math.min(...p.freshness.map((f) => f.completeness)) : 1,
+      };
       return {
         ...v,
         tick: p,
         ticks: v.ticks + 1,
+        hours: [...v.hours, hour].slice(-HOURS),
         firstHour: v.firstHour ?? p.hour,
         scoredSeries: v.scoredSeries + p.scored_nodes.length,
         ...recount(zBuckets, v.thresholds),

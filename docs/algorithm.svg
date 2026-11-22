@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1044" width="1200" height="1044" role="img" aria-labelledby="t d">
+<title id="t">How Argus decides</title>
+<desc id="d">The decision pipeline: what Argus watches, which edges it follows, which groups it checks and when evidence is enough, with the early exits for late data, plans and mix shifts.</desc>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d7891"/></marker><marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#4ac499"/></marker><linearGradient id="arc" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#3a2760"/><stop offset=".18" stop-color="#8d67c4"/><stop offset=".34" stop-color="#dda6f3"/><stop offset=".5" stop-color="#fff5ff"/><stop offset=".66" stop-color="#b7ccc3"/><stop offset=".82" stop-color="#4ac499"/><stop offset="1" stop-color="#1a553f"/></linearGradient></defs>
+<rect width="1200" height="1044" rx="18" fill="#05040a"/>
+<rect x="0" y="0" width="1200" height="3" fill="url(#arc)" opacity=".9"/>
+<text x="40" y="62" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="34" font-weight="500" fill="#ffffff" letter-spacing="-0.6">How Argus decides</text>
+<text x="40" y="92" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#b9b4c9">Every step is code with a fixed rule. Every number comes from a SQL query with a receipt.</text>
+<rect x="40" y="118" width="3" height="70" rx="1.5" fill="#9b7cf0" opacity=".9"/>
+<text x="58" y="140" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="14" font-weight="500" fill="#9b7cf0">01</text>
+<text x="58" y="162" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">What it watches</text>
+<rect x="40" y="210" width="3" height="126" rx="1.5" fill="#7d7891" opacity=".9"/>
+<text x="58" y="232" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#b9b4c9">Before any edge</text>
+<rect x="40" y="358" width="3" height="144" rx="1.5" fill="#9b7cf0" opacity=".9"/>
+<text x="58" y="380" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="14" font-weight="500" fill="#9b7cf0">02</text>
+<text x="58" y="402" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">Which edges</text>
+<text x="58" y="424" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">it follows</text>
+<rect x="40" y="524" width="3" height="162" rx="1.5" fill="#9b7cf0" opacity=".9"/>
+<text x="58" y="546" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="14" font-weight="500" fill="#9b7cf0">03</text>
+<text x="58" y="568" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">Which groups</text>
+<text x="58" y="590" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">it checks</text>
+<rect x="40" y="708" width="3" height="162" rx="1.5" fill="#9b7cf0" opacity=".9"/>
+<text x="58" y="730" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="14" font-weight="500" fill="#9b7cf0">04</text>
+<text x="58" y="752" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">When evidence</text>
+<text x="58" y="774" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#ffffff">is enough</text>
+<rect x="40" y="892" width="3" height="52" rx="1.5" fill="#7d7891" opacity=".9"/>
+<text x="58" y="914" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="500" fill="#b9b4c9">Then</text>
+<rect x="262" y="118" width="600" height="70" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="142" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Score the 7 north-star metrics every simulated hour</text>
+<text x="280" y="162" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">robust z against the same hour of 4 earlier weeks; planned changes add a look at</text>
+<text x="280" y="180" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">the segment they name for 24 h. Opens on |z| &gt; 5, or |z| &gt; 3.5 in 2 of 3 hours</text>
+<line x1="562" y1="190" x2="562" y2="207" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="210" width="600" height="52" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="234" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Data before business</text>
+<text x="280" y="254" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">every source table complete for the hour, cross-table identities hold</text>
+<line x1="562" y1="264" x2="562" y2="281" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<line x1="864" y1="236" x2="908" y2="236" stroke="#4ac499" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#o)"/>
+<rect x="912" y="219" width="256" height="34" rx="17" fill="none" stroke="#4ac499" stroke-width="1.2"/>
+<text x="1040" y="241" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="500" fill="#4ac499">DATA_ISSUE note</text>
+<rect x="262" y="284" width="600" height="52" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="308" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Plans and the market</text>
+<text x="280" y="328" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">a budget or calendar plan in force, or an outside market index (traffic metrics), explains it</text>
+<line x1="562" y1="338" x2="562" y2="355" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<line x1="864" y1="310" x2="908" y2="310" stroke="#4ac499" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#o)"/>
+<rect x="912" y="293" width="256" height="34" rx="17" fill="none" stroke="#4ac499" stroke-width="1.2"/>
+<text x="1040" y="315" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="500" fill="#4ac499">EXPECTED note: plan, market</text>
+<rect x="262" y="358" width="600" height="70" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="382" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Walk the formula edges, split exactly (LMDI)</text>
+<text x="280" y="402" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">follow the factor that moved beyond its weekly spread (|z| &gt;= 3),</text>
+<text x="280" y="420" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">not just the largest share: gmv -&gt; orders -&gt; cvr -&gt; payment_success_rate</text>
+<line x1="562" y1="430" x2="562" y2="447" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="450" width="600" height="52" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="474" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Mix or rate?</text>
+<text x="280" y="494" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">for a ratio: a shift in mix while every group&#x27;s own rate is flat</text>
+<line x1="562" y1="504" x2="562" y2="521" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<line x1="864" y1="476" x2="908" y2="476" stroke="#4ac499" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#o)"/>
+<rect x="912" y="459" width="256" height="34" rx="17" fill="none" stroke="#4ac499" stroke-width="1.2"/>
+<text x="1040" y="481" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="500" fill="#4ac499">EXPECTED note: mix shift</text>
+<rect x="262" y="524" width="600" height="70" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="548" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Segment search over the breakdown dimensions</text>
+<text x="280" y="568" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">smallest set of at most 3 values explaining &gt;= 67%; descend into one value</text>
+<text x="280" y="586" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">while it carries 25 points more than its volume share and |z| &gt;= 3</text>
+<line x1="562" y1="596" x2="562" y2="613" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="616" width="600" height="70" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="640" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Suspects from the evidence edges</text>
+<text x="280" y="660" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">log entries from 3 h before to 1 h after the segment&#x27;s own onset</text>
+<text x="280" y="678" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">whose scope covers the segment (deploys, provider status, budgets)</text>
+<line x1="562" y1="688" x2="562" y2="705" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="708" width="600" height="70" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="732" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Hypothesis ledger: prediction first, then the check</text>
+<text x="280" y="752" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">holdout (the event&#x27;s scope outside the segment) or control group; placebo</text>
+<text x="280" y="770" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">over 8 earlier weeks; at most 12 checks; more only while &lt; 80% explained</text>
+<line x1="562" y1="780" x2="562" y2="797" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="800" width="600" height="70" rx="12" fill="#120f1d" stroke="#9b7cf0" stroke-width="1.6"/>
+<text x="280" y="824" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">Verdict</text>
+<text x="280" y="844" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">Supported cause (evidenced) | Hypothesis | Unexplained,</text>
+<text x="280" y="862" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">always with the share it does not explain</text>
+<line x1="562" y1="872" x2="562" y2="889" stroke="#7d7891" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="262" y="892" width="600" height="52" rx="12" fill="#120f1d" stroke="#3a3550" stroke-width="1"/>
+<text x="280" y="916" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#ffffff">One incident, monitored until it resolves</text>
+<text x="280" y="936" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#b9b4c9">fingerprint, symptoms silenced, closed after 3 normal hours</text>
+<line x1="864" y1="918" x2="908" y2="918" stroke="#9b7cf0" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<rect x="912" y="901" width="256" height="34" rx="17" fill="none" stroke="#9b7cf0" stroke-width="1.2"/>
+<text x="1040" y="923" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="500" fill="#9b7cf0">Action: waits for a human</text>
+<text x="912" y="728" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="500" fill="#ffffff">Who picks the next check</text>
+<text x="912" y="748" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#b9b4c9">Stage 2: a fixed order.</text>
+<text x="912" y="765" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#b9b4c9">A language model may only</text>
+<text x="912" y="782" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#b9b4c9">propose a typed check; the</text>
+<text x="912" y="799" font-family="Outfit, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#b9b4c9">ledger judges the result.</text>
+<line x1="908" y1="738" x2="866" y2="738" stroke="#7d7891" stroke-width="1.2" stroke-dasharray="3 4"/>
+<text x="40" y="1000" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12.5" fill="#7d7891">Rules from src/argus/watcher/detect.py, src/argus/investigate/{walk,procedure,ledger}.py, src/argus/decompose/segments.py</text>
+<text x="40" y="1020" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12.5" fill="#7d7891">Verdict, holdout and placebo are deterministic code; no model computes a number or decides a verdict.</text>
+</svg>
