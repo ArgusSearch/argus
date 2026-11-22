@@ -1,0 +1,58 @@
+[
+  {
+    "shot": "watch",
+    "start": 0,
+    "captions": [
+      [0, "Argus watches business metrics while the team is away."],
+      [6, "Ad spend moves out of range. Argus opens an investigation."]
+    ]
+  },
+  {
+    "shot": "activity",
+    "start": 12,
+    "captions": [
+      [0, "The agent chooses a check and records what it expects to find."],
+      [6, "The check returns evidence. Argus uses it to decide what to test next."]
+    ]
+  },
+  {
+    "shot": "receipt",
+    "start": 24,
+    "captions": [
+      [0, "Open the evidence receipt to see the query, its time and result hash."],
+      [5, "The recorded result was verified against its source."]
+    ]
+  },
+  {
+    "shot": "ask",
+    "start": 34,
+    "captions": [
+      [0, "Could higher traffic explain the spend?"],
+      [7, "Ask Argus answers from the case evidence and links the supporting receipt."]
+    ]
+  },
+  {
+    "shot": "approve",
+    "start": 50,
+    "captions": [
+      [0, "Argus proposes rolling back the ad pacer for Germany and France."],
+      [7, "The clock waits here for an operator decision."],
+      [13, "I approve the rollback. Argus records the decision and applies it in the simulator."]
+    ]
+  },
+  {
+    "shot": "effect",
+    "start": 70,
+    "captions": [
+      [0, "Argus compares pacing after the rollback with the same simulation left untouched."],
+      [7, "The effect check passes and links to the evidence from both worlds."]
+    ]
+  },
+  {
+    "shot": "report",
+    "start": 84,
+    "captions": [
+      [0, "The morning report closes the loop with a record of what changed."]
+    ]
+  }
+]

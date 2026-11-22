@@ -2,17 +2,17 @@
   {
     "id": "INC-0001",
     "fingerprint": "861e44ed8c09",
-    "title": "Payment success rate -47.5% in DE / android / PayCo: Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany",
+    "title": "Payment success rate -48.4% in android / DE / PayCo: Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany",
     "verdict": "SUPPORTED_CAUSE",
     "state": "resolved",
     "root_node": "payment_success_rate",
     "segment": {
-      "country": "DE",
       "platform": "android",
+      "country": "DE",
       "provider": "PayCo"
     },
     "direction": "down",
-    "severity_eur": 134480.44,
+    "severity_eur": 133375.93,
     "opened_at": "2026-11-21T15:00:00",
     "updated_at": "2026-11-22T00:00:00",
     "resolved_at": "2026-11-22T00:00:00",
@@ -49,7 +49,7 @@
         "sim_ts": "2026-11-21T22:00:00",
         "from_state": "explained",
         "to_state": "monitoring",
-        "reason": "root segment z -1.7 at 2026-11-21 22:00"
+        "reason": "root segment z +0.9 at 2026-11-21 22:00"
       },
       {
         "sim_ts": "2026-11-22T00:00:00",
@@ -62,7 +62,7 @@
       "anomaly_id": "an_0004",
       "incident_id": "INC-0001",
       "verdict": "SUPPORTED_CAUSE",
-      "headline": "Payment success rate -47.5% in DE / android / PayCo: Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany",
+      "headline": "Payment success rate -48.4% in android / DE / PayCo: Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany",
       "as_of": "2026-11-21T17:00:00",
       "window": {
         "start": "2026-11-21T15:00:00",
@@ -72,17 +72,17 @@
         "node": "payment_success_rate",
         "segment": {},
         "observed": {
-          "value": 0.917697,
+          "value": 0.914018,
           "unit": "value",
           "receipt": "r243"
         },
         "expected": {
-          "value": 0.948562,
+          "value": 0.946161,
           "unit": "value",
           "receipt": "r243"
         },
         "change_pct": {
-          "value": -3.25,
+          "value": -3.4,
           "unit": "pct",
           "receipt": "r243"
         }
@@ -90,8 +90,8 @@
       "root": {
         "node": "payment_success_rate",
         "segment": {
-          "country": "DE",
           "platform": "android",
+          "country": "DE",
           "provider": "PayCo"
         },
         "direction": "down",
@@ -114,7 +114,7 @@
           }
         },
         "change_pct": {
-          "value": -47.51,
+          "value": -48.41,
           "unit": "pct",
           "receipt": "r254"
         }
@@ -122,62 +122,62 @@
       "decomposition": [
         {
           "node": "sessions",
-          "share": 0.5873,
-          "value": -463.6888,
+          "share": 0.5151,
+          "value": -450.4269,
           "receipt": "r261"
         },
         {
           "node": "payment_success_rate",
-          "share": 0.4481,
-          "value": -353.7445,
+          "share": 0.4142,
+          "value": -362.1926,
           "receipt": "r262"
         },
         {
-          "node": "checkout_rate",
-          "share": -0.0189,
-          "value": 14.9068,
-          "receipt": "r261"
-        },
-        {
           "node": "cart_rate",
-          "share": -0.0086,
-          "value": 6.7822,
+          "share": 0.0692,
+          "value": -60.528,
           "receipt": "r261"
         },
         {
-          "node": "view_rate",
-          "share": -0.008,
-          "value": 6.2882,
+          "node": "checkout_rate",
+          "share": -0.0087,
+          "value": 7.6298,
           "receipt": "r261"
         },
         {
           "node": "attempt_rate",
-          "share": 0.0001,
-          "value": -0.044,
+          "share": 0.0078,
+          "value": -6.8235,
           "receipt": "r262"
+        },
+        {
+          "node": "view_rate",
+          "share": 0.0025,
+          "value": -2.1588,
+          "receipt": "r261"
         }
       ],
       "decomposed_node": "orders",
       "impact": {
         "node": "orders",
         "segment": {
-          "country": "DE",
           "platform": "android",
+          "country": "DE",
           "provider": "PayCo"
         },
         "hours": 1,
         "per_hour": {
-          "value": -303.2,
+          "value": -293.7,
           "unit": "count",
           "receipt": "r254"
         },
         "gmv_eur_per_hour": {
-          "value": -21516.0,
+          "value": -20748.0,
           "unit": "eur",
           "receipt": "r263"
         },
         "eur_so_far": {
-          "value": -21516.0,
+          "value": -20748.0,
           "unit": "eur",
           "receipt": "r263"
         }
@@ -185,9 +185,9 @@
       "ruled_out": [
         {
           "hypothesis": "recommendations 1.1.5 (all users)",
-          "prediction": "everything in the event's scope moves, not only DE / android / PayCo",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
           "result": "refuted",
-          "reason": "holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside",
+          "reason": "holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside",
           "evidence": {
             "log": "log_deploys",
             "ref": "dep_recommendations_1.1.5",
@@ -201,9 +201,11 @@
           ]
         }
       ],
-      "uncertain": [],
-      "explained_share": 1.0,
-      "unexplained_share": 0.0,
+      "uncertain": [
+        "3% of the deviation is outside the root segment."
+      ],
+      "explained_share": 0.9713,
+      "unexplained_share": 0.0287,
       "trail": [
         {
           "step": 1,
@@ -329,7 +331,7 @@
           "tool": "mix_rate_split",
           "hypothesis": null,
           "prediction": null,
-          "result": "country: mix -0.00045, rate -0.03042; platform: mix +0.00026, rate -0.03112; provider: mix -0.00017, rate -0.03070",
+          "result": "country: mix -0.00029, rate -0.03185; platform: mix +0.00022, rate -0.03236; provider: mix -0.00015, rate -0.03199",
           "decision": "rate effect: localise the rate",
           "why": "a blended rate can move while every segment's own rate stays flat (Simpson's paradox)",
           "receipts": [
@@ -339,33 +341,33 @@
           ],
           "data": {
             "country": {
-              "summary": "payment_success_rate by country: change -0.03086 = mix -0.00045 + rate -0.03042; DE rate moved (z -21.9)",
+              "summary": "payment_success_rate by country: change -0.03214 = mix -0.00029 + rate -0.03185; DE rate moved (z -20.4)",
               "receipts": [
                 "r248"
               ],
-              "change": -0.030864812688961463,
-              "mix": -0.00044702775479421933,
-              "rate": -0.030417784934167195,
+              "change": -0.032142555756839664,
+              "mix": -0.00028795623054755394,
+              "rate": -0.03185459952629221,
               "rates_flat": false
             },
             "platform": {
-              "summary": "payment_success_rate by platform: change -0.03086 = mix +0.00026 + rate -0.03112; android rate moved (z -18.1)",
+              "summary": "payment_success_rate by platform: change -0.03214 = mix +0.00022 + rate -0.03236; android rate moved (z -20.9)",
               "receipts": [
                 "r249"
               ],
-              "change": -0.030864812688961463,
-              "mix": 0.0002561738933829347,
-              "rate": -0.031120986582344298,
+              "change": -0.032142555756839664,
+              "mix": 0.00021757069139675066,
+              "rate": -0.03236012644823656,
               "rates_flat": false
             },
             "provider": {
-              "summary": "payment_success_rate by provider: change -0.03086 = mix -0.00017 + rate -0.03070; PayCo rate moved (z -19.1)",
+              "summary": "payment_success_rate by provider: change -0.03214 = mix -0.00015 + rate -0.03199; PayCo rate moved (z -18.8)",
               "receipts": [
                 "r250"
               ],
-              "change": -0.030864812688961463,
-              "mix": -0.00016612235977704962,
-              "rate": -0.030698690329184337,
+              "change": -0.032142555756839664,
+              "mix": -0.00015422684026215622,
+              "rate": -0.031988328916577505,
               "rates_flat": false
             },
             "playbook": {
@@ -385,8 +387,8 @@
           "tool": "segment_search",
           "hypothesis": null,
           "prediction": null,
-          "result": "country=DE AND platform=android AND provider=PayCo explains 100% of the deviation (-47.5%)",
-          "decision": "root segment DE / android / PayCo",
+          "result": "platform=android AND country=DE AND provider=PayCo explains 97% of the deviation (-48.4%)",
+          "decision": "root segment android / DE / PayCo",
           "why": "",
           "receipts": [
             "r251",
@@ -401,30 +403,30 @@
             "path": [
               {
                 "segment": {
-                  "country": "DE"
-                },
-                "ep": 1.0,
-                "volume_share": 0.344,
-                "rel_change": -0.0968
-              },
-              {
-                "segment": {
-                  "country": "DE",
                   "platform": "android"
                 },
-                "ep": 0.9977,
-                "volume_share": 0.4021,
-                "rel_change": -0.2353
+                "ep": 1.0,
+                "volume_share": 0.392,
+                "rel_change": -0.0869
               },
               {
                 "segment": {
-                  "country": "DE",
                   "platform": "android",
+                  "country": "DE"
+                },
+                "ep": 0.965,
+                "volume_share": 0.3379,
+                "rel_change": -0.2463
+              },
+              {
+                "segment": {
+                  "platform": "android",
+                  "country": "DE",
                   "provider": "PayCo"
                 },
-                "ep": 1.0,
-                "volume_share": 0.5056,
-                "rel_change": -0.4751
+                "ep": 0.9713,
+                "volume_share": 0.5096,
+                "rel_change": -0.4841
               }
             ],
             "start": {},
@@ -525,8 +527,8 @@
           "kind": "holdout",
           "tool": "holdout_check",
           "hypothesis": "Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany (dep_checkout-routing_retry-policy) caused the change",
-          "prediction": "the change is confined to DE / android / PayCo; where the event did not apply, payment_success_rate is normal",
-          "result": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.2% (z +0.4) vs -47.5% inside",
+          "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
+          "result": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.4% (z -0.8) vs -48.4% inside",
           "decision": "validated: keep as cause",
           "why": "expected 'consistent', the check says 'consistent' (graph)",
           "receipts": [
@@ -537,7 +539,7 @@
               "id": "h1",
               "hypothesis": {
                 "statement": "Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany (dep_checkout-routing_retry-policy) caused the change",
-                "prediction": "the change is confined to DE / android / PayCo; where the event did not apply, payment_success_rate is normal",
+                "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
                 "tool": "holdout_check",
                 "input": {
                   "event": {
@@ -560,8 +562,8 @@
                   },
                   "node": "payment_success_rate",
                   "segment": {
-                    "country": "DE",
                     "platform": "android",
+                    "country": "DE",
                     "provider": "PayCo"
                   },
                   "window": {
@@ -574,13 +576,13 @@
               },
               "status": "validated",
               "outcome": "consistent",
-              "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.2% (z +0.4) vs -47.5% inside",
+              "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.4% (z -0.8) vs -48.4% inside",
               "receipts": [
                 "r257"
               ]
             },
             "output": {
-              "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.2% (z +0.4) vs -47.5% inside",
+              "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.4% (z -0.8) vs -48.4% inside",
               "receipts": [
                 "r257"
               ],
@@ -589,8 +591,8 @@
                 "description": "the neighbouring segments the event did not touch",
                 "where": "(platform = 'android' AND provider = 'PayCo' AND country <> 'DE') OR (country = 'DE' AND provider = 'PayCo' AND platform <> 'android') OR (country = 'DE' AND platform = 'android' AND provider <> 'PayCo')"
               },
-              "rel_change": 0.0021,
-              "z": 0.44,
+              "rel_change": -0.0041,
+              "z": -0.84,
               "result": "consistent"
             },
             "event": {
@@ -627,8 +629,8 @@
           "kind": "holdout",
           "tool": "holdout_check",
           "hypothesis": "recommendations 1.1.5 (all users) (dep_recommendations_1.1.5) caused the change",
-          "prediction": "everything in the event's scope moves, not only DE / android / PayCo",
-          "result": "holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside",
+          "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
+          "result": "holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside",
           "decision": "refuted: ruled out",
           "why": "expected 'consistent', the check says 'refuted' (graph)",
           "receipts": [
@@ -639,7 +641,7 @@
               "id": "h2",
               "hypothesis": {
                 "statement": "recommendations 1.1.5 (all users) (dep_recommendations_1.1.5) caused the change",
-                "prediction": "everything in the event's scope moves, not only DE / android / PayCo",
+                "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
                 "tool": "holdout_check",
                 "input": {
                   "event": {
@@ -652,8 +654,8 @@
                   },
                   "node": "payment_success_rate",
                   "segment": {
-                    "country": "DE",
                     "platform": "android",
+                    "country": "DE",
                     "provider": "PayCo"
                   },
                   "window": {
@@ -666,27 +668,27 @@
               },
               "status": "refuted",
               "outcome": "refuted",
-              "summary": "holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside",
+              "summary": "holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside",
               "receipts": [
                 "r258"
               ]
             },
             "output": {
-              "summary": "holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside",
+              "summary": "holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside",
               "receipts": [
                 "r258"
               ],
               "holdout": {
                 "scope": {},
                 "minus": {
-                  "country": "DE",
                   "platform": "android",
+                  "country": "DE",
                   "provider": "PayCo"
                 },
                 "where": "(TRUE) AND NOT (country = 'DE' AND platform = 'android' AND provider = 'PayCo')"
               },
-              "rel_change": 0.0007,
-              "z": 0.27,
+              "rel_change": -0.001,
+              "z": -0.38,
               "result": "refuted"
             },
             "event": {
@@ -712,9 +714,9 @@
           "step": 11,
           "kind": "holdout",
           "tool": "placebo_test",
-          "hypothesis": "the deviation of payment_success_rate in DE / android / PayCo is unusual for these hours of the week",
+          "hypothesis": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
           "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
-          "result": "the real window: -47.4% (z -44.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+          "result": "the real window: -48.4% (z -52.5); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
           "decision": "validated: the deviation is unusual",
           "why": "expected 'unusual', the check says 'unusual' (graph)",
           "receipts": [
@@ -724,14 +726,14 @@
             "ledger": {
               "id": "h3",
               "hypothesis": {
-                "statement": "the deviation of payment_success_rate in DE / android / PayCo is unusual for these hours of the week",
+                "statement": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
                 "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
                 "tool": "placebo_test",
                 "input": {
                   "node": "payment_success_rate",
                   "segment": {
-                    "country": "DE",
                     "platform": "android",
+                    "country": "DE",
                     "provider": "PayCo"
                   },
                   "window": {
@@ -745,13 +747,13 @@
               },
               "status": "validated",
               "outcome": "unusual",
-              "summary": "the real window: -47.4% (z -44.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+              "summary": "the real window: -48.4% (z -52.5); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
               "receipts": [
                 "r259"
               ]
             },
             "output": {
-              "summary": "the real window: -47.4% (z -44.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+              "summary": "the real window: -48.4% (z -52.5); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
               "receipts": [
                 "r259"
               ],
@@ -760,35 +762,35 @@
             },
             "placebo": {
               "actual": {
-                "rel_change": -0.474,
-                "z": -44.23
+                "rel_change": -0.4837,
+                "z": -52.46
               },
               "threshold_z": 3.0,
               "weeks": [
                 {
                   "weeks_back": 1,
-                  "rel_change": 0.0227,
-                  "z": 2.42
+                  "rel_change": 0.0162,
+                  "z": 1.96
                 },
                 {
                   "weeks_back": 2,
-                  "rel_change": -0.0038,
-                  "z": -0.31
+                  "rel_change": 0.0021,
+                  "z": 0.23
                 },
                 {
                   "weeks_back": 3,
-                  "rel_change": 0.0004,
-                  "z": 0.03
+                  "rel_change": -0.01,
+                  "z": -1.31
                 },
                 {
                   "weeks_back": 4,
-                  "rel_change": -0.0073,
-                  "z": -0.62
+                  "rel_change": -0.0037,
+                  "z": -0.41
                 },
                 {
                   "weeks_back": 5,
-                  "rel_change": -0.011,
-                  "z": -1.01
+                  "rel_change": -0.0047,
+                  "z": -0.53
                 }
               ]
             },
@@ -809,7 +811,7 @@
           "tool": "decompose_formula",
           "hypothesis": null,
           "prediction": null,
-          "result": "orders -45.0% per hour: sessions carries 59% of the change",
+          "result": "orders -49.5% per hour: sessions carries 52% of the change",
           "decision": "where the change came from",
           "why": "",
           "receipts": [
@@ -818,7 +820,7 @@
           ],
           "data": {
             "node": "orders",
-            "residual": 3.410605131648481e-13,
+            "residual": 1.2505552149377763e-12,
             "playbook": {
               "id": "revenue_drop",
               "name": "Revenue drop playbook",
@@ -836,7 +838,7 @@
           "tool": "counterfactual_impact",
           "hypothesis": null,
           "prediction": null,
-          "result": "-303.2 payment_successes/h, EUR -21,516/h, EUR -21,516 so far",
+          "result": "-293.7 payment_successes/h, EUR -20,748/h, EUR -20,748 so far",
           "decision": "severity = cumulative EUR impact",
           "why": "",
           "receipts": [
@@ -862,13 +864,13 @@
           "hypothesis": null,
           "prediction": null,
           "result": "SUPPORTED_CAUSE",
-          "decision": "stop: explained 100% >= 80%",
+          "decision": "stop: explained 97% >= 80%",
           "why": "aligned event dep_checkout-routing_retry-policy validated by its holdout or control check; placebo did not recur",
           "receipts": [],
           "data": {
             "claims": [
               {
-                "text": "Payment success rate moved -3.25% against its expectation in all segments.",
+                "text": "Payment success rate moved -3.40% against its expectation in all segments.",
                 "label": "evidence",
                 "basis": "watcher: robust z against the same hours of 4 prior weeks",
                 "receipts": [
@@ -877,7 +879,7 @@
                 "upgrade": null
               },
               {
-                "text": "DE / android / PayCo explains 100% of the deviation of payment_success_rate (-47.5% inside, z -48.6).",
+                "text": "android / DE / PayCo explains 97% of the deviation of payment_success_rate (-48.4% inside, z -52.3).",
                 "label": "evidence",
                 "basis": "segment_search: descent while the deviation is concentrated",
                 "receipts": [
@@ -892,7 +894,7 @@
                 "upgrade": null
               },
               {
-                "text": "recommendations 1.1.5 (all users) (dep_recommendations_1.1.5) did not cause it: holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside.",
+                "text": "recommendations 1.1.5 (all users) (dep_recommendations_1.1.5) did not cause it: holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside.",
                 "label": "evidence",
                 "basis": "holdout_check: refuted",
                 "receipts": [
@@ -901,7 +903,7 @@
                 "upgrade": null
               },
               {
-                "text": "The scope of dep_checkout-routing_retry-policy (country DE / platform android / provider PayCo) carries 100% of the deviation of payment_success_rate with 7% of its volume.",
+                "text": "The scope of dep_checkout-routing_retry-policy (country DE / platform android / provider PayCo) carries 97% of the deviation of payment_success_rate with 7% of its volume.",
                 "label": "evidence",
                 "basis": "segment cells inside the event's scope",
                 "receipts": [
@@ -910,7 +912,7 @@
                 "upgrade": null
               },
               {
-                "text": "Placebo on payment_success_rate in DE / android / PayCo: the real window: -47.4% (z -44.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
+                "text": "Placebo on payment_success_rate in android / DE / PayCo: the real window: -48.4% (z -52.5); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way.",
                 "label": "evidence",
                 "basis": "placebo_test: unusual",
                 "receipts": [
@@ -919,7 +921,7 @@
                 "upgrade": null
               },
               {
-                "text": "Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany (dep_checkout-routing_retry-policy) caused it, logged at 2026-11-21 14:56 next to the onset: control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.2% (z +0.4) vs -47.5% inside.",
+                "text": "Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany (dep_checkout-routing_retry-policy) caused it, logged at 2026-11-21 14:56 next to the onset: control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.4% (z -0.8) vs -48.4% inside.",
                 "label": "evidence",
                 "basis": "holdout_check: consistent, aligned with the onset",
                 "receipts": [
@@ -928,13 +930,20 @@
                 "upgrade": null
               },
               {
-                "text": "Impact: -303.2 orders per hour, EUR -21,516 per hour.",
+                "text": "Impact: -293.7 orders per hour, EUR -20,748 per hour.",
                 "label": "evidence",
                 "basis": "counterfactual_impact: against the 4-week expectation",
                 "receipts": [
                   "r254",
                   "r263"
                 ],
+                "upgrade": null
+              },
+              {
+                "text": "3% of the deviation is outside the root segment.",
+                "label": "hypothesis",
+                "basis": "still uncertain",
+                "receipts": [],
                 "upgrade": null
               }
             ],
@@ -943,7 +952,7 @@
                 "id": "h1",
                 "hypothesis": {
                   "statement": "Checkout routing enabled a shorter retry timeout for PayCo on Android in Germany (dep_checkout-routing_retry-policy) caused the change",
-                  "prediction": "the change is confined to DE / android / PayCo; where the event did not apply, payment_success_rate is normal",
+                  "prediction": "the change is confined to android / DE / PayCo; where the event did not apply, payment_success_rate is normal",
                   "tool": "holdout_check",
                   "input": {
                     "event": {
@@ -966,8 +975,8 @@
                     },
                     "node": "payment_success_rate",
                     "segment": {
-                      "country": "DE",
                       "platform": "android",
+                      "country": "DE",
                       "provider": "PayCo"
                     },
                     "window": {
@@ -980,7 +989,7 @@
                 },
                 "status": "validated",
                 "outcome": "consistent",
-                "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch +0.2% (z +0.4) vs -47.5% inside",
+                "summary": "control normal, the change sits where the event applies: the neighbouring segments the event did not touch -0.4% (z -0.8) vs -48.4% inside",
                 "receipts": [
                   "r257"
                 ]
@@ -989,7 +998,7 @@
                 "id": "h2",
                 "hypothesis": {
                   "statement": "recommendations 1.1.5 (all users) (dep_recommendations_1.1.5) caused the change",
-                  "prediction": "everything in the event's scope moves, not only DE / android / PayCo",
+                  "prediction": "everything in the event's scope moves, not only android / DE / PayCo",
                   "tool": "holdout_check",
                   "input": {
                     "event": {
@@ -1002,8 +1011,8 @@
                     },
                     "node": "payment_success_rate",
                     "segment": {
-                      "country": "DE",
                       "platform": "android",
+                      "country": "DE",
                       "provider": "PayCo"
                     },
                     "window": {
@@ -1016,7 +1025,7 @@
                 },
                 "status": "refuted",
                 "outcome": "refuted",
-                "summary": "holdout normal: +0.1% (z +0.3) outside the segment vs -47.5% inside",
+                "summary": "holdout normal: -0.1% (z -0.4) outside the segment vs -48.4% inside",
                 "receipts": [
                   "r258"
                 ]
@@ -1024,14 +1033,14 @@
               {
                 "id": "h3",
                 "hypothesis": {
-                  "statement": "the deviation of payment_success_rate in DE / android / PayCo is unusual for these hours of the week",
+                  "statement": "the deviation of payment_success_rate in android / DE / PayCo is unusual for these hours of the week",
                   "prediction": "none of up to 8 earlier weeks deviates with |z| >= 3 in the same direction",
                   "tool": "placebo_test",
                   "input": {
                     "node": "payment_success_rate",
                     "segment": {
-                      "country": "DE",
                       "platform": "android",
+                      "country": "DE",
                       "provider": "PayCo"
                     },
                     "window": {
@@ -1045,17 +1054,17 @@
                 },
                 "status": "validated",
                 "outcome": "unusual",
-                "summary": "the real window: -47.4% (z -44.2); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
+                "summary": "the real window: -48.4% (z -52.5); 0 of 5 earlier weeks deviate as much (|z| >= 3.0) the same way",
                 "receipts": [
                   "r259"
                 ]
               }
             ],
-            "explained_share": 1.0,
+            "explained_share": 0.9713,
             "event_scope_share": {
-              "ep": 1.0,
-              "volume_share": 0.0699,
-              "excess": 0.9301,
+              "ep": 0.9713,
+              "volume_share": 0.0675,
+              "excess": 0.9038,
               "receipt": "r260"
             },
             "checks_used": 3,
@@ -1142,12 +1151,12 @@
       "skeptic": null,
       "cost": {
         "queries": 21,
-        "seconds": 0.105,
+        "seconds": 0.059,
         "llm_calls": 0,
         "eur": 0.0
       },
       "suggested_action": {
-        "text": "Roll back dep_checkout-routing_retry-policy for DE / android / PayCo and watch payment_success_rate.",
+        "text": "Roll back dep_checkout-routing_retry-policy for android / DE / PayCo and watch payment_success_rate.",
         "needs_approval": true
       }
     }

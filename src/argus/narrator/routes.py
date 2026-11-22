@@ -12,7 +12,7 @@ from argus.api.sources import LiveSource, Source
 from argus.contracts.findings import Findings, Incident
 from argus.contracts.graph import Graph
 from argus.narrator.autonomy import Autonomy, build_autonomy
-from argus.narrator.morning import MorningReport, build_morning_report
+from argus.narrator.morning import MorningProjection, MorningReport, build_morning_report
 from argus.narrator.run_queries import RunQueryResult, RunWindow, run_query
 
 
@@ -31,7 +31,7 @@ def _snapshot(source: Source) -> tuple[RunWindow, list[Incident], Graph]:
     return _window(source), source.incidents(), source.graph()
 
 
-def router(source: Source) -> APIRouter:
+def router(source: Source, agent_projection: MorningProjection | None = None) -> APIRouter:
     routes = APIRouter(tags=["narrator"])
     # C5 incident updates summarize C4. Retain the findings linked by issued reports so a later
     # verdict or lifecycle update cannot change the evidence behind an earlier report.
@@ -48,7 +48,7 @@ def router(source: Source) -> APIRouter:
             snapshot = await run_in_threadpool(_snapshot, source)
         else:
             snapshot = _snapshot(source)
-        report, evidence = await run_in_threadpool(build_morning_report, *snapshot, has_receipt)
+        report, evidence = await run_in_threadpool(build_morning_report, *snapshot, has_receipt, agent_projection)
         if report.stream == source.bus.stream:
             if report.stream != findings_stream:
                 published_findings.clear()

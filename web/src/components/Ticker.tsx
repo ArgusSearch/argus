@@ -31,7 +31,7 @@ export function Ticker({ view }: { view: RunView }) {
         <span className="funnel-arrow">›</span>
         <div className="funnel-step good">
           <b>{held}</b>
-          <span>held back</span>
+          <span>didn't wake you</span>
         </div>
         <span className="funnel-arrow">›</span>
         <div className={`funnel-step${view.anomalies.length ? " alarm" : ""}`}>

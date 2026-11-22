@@ -28,15 +28,15 @@ The complete [saved receipt](../../tests/counterfactual/fixtures/s4_receipt.json
 ```json
 {
   "factual_series": [
-    { "hour": "2026-11-20T00:00:00", "value": 3.016, "expected": 1.0 },
-    { "hour": "2026-11-20T16:00:00", "value": 0.378, "expected": 1.0 }
+    { "hour": "2026-11-20T00:00:00", "value": 3.030, "expected": 1.0 },
+    { "hour": "2026-11-20T16:00:00", "value": 0.379, "expected": 1.0 }
   ],
   "counterfactual_series": [
-    { "hour": "2026-11-20T00:00:00", "value": 1.007, "expected": 1.0 },
-    { "hour": "2026-11-20T16:00:00", "value": 0.955, "expected": 1.0 }
+    { "hour": "2026-11-20T00:00:00", "value": 0.933, "expected": 1.0 },
+    { "hour": "2026-11-20T16:00:00", "value": 1.004, "expected": 1.0 }
   ],
-  "explained_share": 0.982,
-  "gap": { "factual": 26.946, "counterfactual": 0.486, "removed": 26.461 },
+  "explained_share": 0.981,
+  "gap": { "factual": 26.910, "counterfactual": 0.512, "removed": 26.398 },
   "receipt": {
     "plan": {
       "version": "mockmart-paired-v1",
@@ -56,8 +56,8 @@ The complete [saved receipt](../../tests/counterfactual/fixtures/s4_receipt.json
       "window": { "start": "2026-11-19T18:00:00", "end": "2026-11-20T23:00:00" },
       "as_of": "2026-11-21T01:00:00"
     },
-    "factual": { "sql": "<compiled query>", "result_hash": "sha256:5a85068e6504a605", "rows": 30 },
-    "counterfactual": { "sql": "<compiled query>", "result_hash": "sha256:aa46489da7e619cb", "rows": 30 }
+    "factual": { "sql": "<compiled query>", "result_hash": "sha256:f73a31a6297cb821", "rows": 30 },
+    "counterfactual": { "sql": "<compiled query>", "result_hash": "sha256:643e39e50d1a50d7", "rows": 30 }
   }
 }
 ```

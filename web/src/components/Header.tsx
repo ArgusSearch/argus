@@ -41,7 +41,7 @@ export function Header({
         <span className="clock-time">
           {view.simTs ? `${dayLabel(view.simTs)} · ${hhmm(view.simTs)}` : "waiting for the first tick"}
         </span>
-        {view.tick && <span className="clock-sub">scoring data hour {hhmm(scoringHour(view))}</span>}
+        {view.tick && <span className="clock-sub">checking data up to {hhmm(scoringHour(view))}</span>}
       </div>
       <span className="spacer" />
       <span className={`mode ${mode}`} title={health?.source}>
