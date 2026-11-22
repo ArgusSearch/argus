@@ -19,7 +19,7 @@ export function NewMetricCard({ placement, onClose }: { placement: PlacementResu
         <span className="gx-kind">{view.kind}</span>
         <span className={`gx-verdict ${view.tone}`}>{verdictLabel(view.verdict)}</span>
         <span className="gx-when mono" title={`${placement.world}, data as of ${fmtTs(placement.as_of)}`}>
-          {placement.mode === "recorded" ? "recorded" : "live"} · {fmtTs(placement.as_of)}
+          {placement.mode === "recorded" ? "historical" : "live"} · {fmtTs(placement.as_of)}
         </span>
         {onClose && (
           <button className="gx-close" onClick={onClose} aria-label="Hide the placement card">
