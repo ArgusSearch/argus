@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Live Fix · Argus</title>
+    <style>
+      .lf-dev { position: relative; max-width: 1440px; margin: 0 auto; padding: 16px; }
+      .lf-dev .lf { height: calc(100dvh - 32px); }
+      @media (max-width: 540px) {
+        .lf-dev { padding: 8px; }
+        .lf-dev .lf { height: calc(100dvh - 16px); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./dev.tsx"></script>
+  </body>
+</html>
