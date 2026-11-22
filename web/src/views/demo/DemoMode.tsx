@@ -89,12 +89,20 @@ export function useDemo({ view, graph, health, setTab, onOpenIncident }: Args): 
     void api.replay(body).catch(() => undefined);
   }, [options.demo, options.speed, mode, stream, setTab]);
 
-  // a new stream (the restart, or a reconnect after one) starts the choreography over
+  // a new stream (the restart, or the replay looping) starts the choreography over: the report the old stream
+  // opened is closed too, or it would stay on screen and refetch an incident the new stream has not filed yet (#69)
   useEffect(() => {
     if (seen.current.stream === view.stream) return;
+    const looped = seen.current.stream !== null && seen.current.opened.size > 0;
     seen.current = { stream: view.stream, investigating: false, opened: new Set(), ended: false };
     clearTimers();
-  }, [view.stream, clearTimers]);
+    if (options.demo && looped) {
+      // the fx layer leaves its incident page when the tab changes; its Escape would also go "back" to the
+      // investigation and race this switch, so Escape only closes the classic sheet
+      if (!document.documentElement.hasAttribute("data-fx")) closeSheets();
+      setTab("graph");
+    }
+  }, [view.stream, clearTimers, options.demo, closeSheets, setTab]);
 
   // follow the run
   const finished = Boolean(health?.run.finished && view.lastSeq >= (health?.last_seq ?? Infinity));

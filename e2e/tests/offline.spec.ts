@@ -21,17 +21,19 @@ test("stopping the API shows the offline banner; starting it again recovers with
   test.setTimeout(90_000);
 
   api = await startApi(PORT);
-  await page.goto(BASE);
+  await page.goto(`${BASE}/?classic=1`);
   await expect(page.locator(".header .mode")).toHaveText("Example shop history", { timeout: 10_000 });
-  await expect(page.locator(".banner")).toHaveCount(0);
+  const banner = page.locator(".ui-offline");
+  await expect(banner).toHaveCount(0);
 
   await stopApi(api);
   api = null;
   expect(await isUp(BASE), `API on ${PORT} stopped`).toBe(false);
-  await expect(page.locator(".banner")).toContainText("The API is offline", { timeout: 15_000 });
+  // the status bar (web/src/ui/states.tsx) says the connection is gone and that it retries on its own
+  await expect(banner).toContainText(/Lost the connection to the API|The API is not running/, { timeout: 15_000 });
   await expect(page.locator(".header .mode")).toHaveText("API offline");
 
   api = await startApi(PORT);
-  await expect(page.locator(".banner")).toHaveCount(0, { timeout: 30_000 });
+  await expect(banner).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator(".header .mode")).toHaveText("Example shop history");
 });
