@@ -5,6 +5,7 @@
 //     enabled (GET /agent/health), its activity log (GET /agent/activity) and proposals (GET /agent/actions).
 
 import { api, follow, type ConnectionState } from "../lib/api";
+import { apiUrl } from "../lib/deployment";
 import type { ArgusEvent, Incident } from "../lib/types";
 import type { ActivityRecord, ProposalView, TapeIncident, TapePlacement, VillageTape } from "./types";
 
@@ -52,7 +53,7 @@ interface AgentHealth {
 
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(path);
+    const res = await fetch(apiUrl(path));
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
@@ -188,7 +189,7 @@ export function followLive(onTape: (tape: VillageTape) => void, onState: (state:
 /** Sends your decision on a real agent proposal. Resolves to the proposal's new state, or throws the API's reason. */
 export async function decideLive(proposal: ProposalView, decision: "approve" | "deny"): Promise<ProposalView> {
   const key = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-  const res = await fetch(`/agent/actions/${encodeURIComponent(proposal.id)}/${decision}`, {
+  const res = await fetch(apiUrl(`/agent/actions/${encodeURIComponent(proposal.id)}/${decision}`), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ digest: proposal.digest, idempotency_key: key }),

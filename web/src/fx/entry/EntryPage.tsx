@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
+import { staticReplay } from "../../lib/deployment";
 import { dayLabel, hhmm } from "../../lib/format";
 import type { Health } from "../../lib/types";
 import { AgentAvatar, type RoleId } from "../../village/avatars";
@@ -29,6 +30,7 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
   const dialog = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (staticReplay) return;
     let live = true;
     api.health().then(
       (h) => live && setHealth(h),
@@ -98,8 +100,9 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
         <section className="fx-entry-form">
           <h1 id="fx-entry-title">Welcome to Mission Control</h1>
           <p id="fx-entry-lede" className="fx-entry-lede">
-            Argus checks your shop's key numbers every hour, explains every change it finds, and asks you before it
-            acts.
+            {staticReplay
+              ? "See what Argus found in a sealed investigation of a simulated shop."
+              : "Argus checks your shop's key numbers every hour, explains every change it finds, and asks you before it acts."}
           </p>
 
           <dl className="fx-entry-who">
@@ -121,28 +124,33 @@ export default function EntryPage({ leaving, onEnter }: { leaving: boolean; onEn
               </dd>
             </div>
             <div>
-              <dt>Last check</dt>
+              <dt>{staticReplay ? "Mode" : "Last check"}</dt>
               <dd>
                 <i className={`fx-entry-dot${health ? " on" : ""}`} aria-hidden="true" />
-                <span>{lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
+                <span>{staticReplay ? "Recorded demo" : lastCheck ?? (health ? "Waiting for the first check" : checkStatus)}</span>
                 {health && <em>{recorded ? "recorded run" : "live"}</em>}
               </dd>
             </div>
           </dl>
 
           <button type="button" className="fx-entry-go" onClick={onEnter} disabled={leaving}>
-            <span>Enter Mission Control</span>
+            <span>{staticReplay ? "Open the sealed replay" : "Enter Mission Control"}</span>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h9.5M8.5 4l4 4-4 4" />
             </svg>
           </button>
-          <a className="fx-entry-alt" href="/?demo=1&captions=1&fx=1">
-            Or watch the guided demo: one incident, start to finish
-          </a>
-
-          <p className="fx-entry-foot">
-            This demo has no accounts or passwords. Approvals go through a local operator session on this machine.
-          </p>
+          {staticReplay ? (
+            <a className="fx-entry-alt" href="/?view=settings&tab=quiet-hours">Settings</a>
+          ) : (
+            <>
+              <a className="fx-entry-alt" href="/?demo=1&captions=1&fx=1">
+                Or watch the guided demo: one incident, start to finish
+              </a>
+              <p className="fx-entry-foot">
+                This demo has no accounts or passwords. Approvals go through a local operator session on this machine.
+              </p>
+            </>
+          )}
         </section>
       </div>
     </div>

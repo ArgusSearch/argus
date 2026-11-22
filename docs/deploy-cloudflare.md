@@ -1,0 +1,21 @@
+# Argus on Cloudflare
+
+Cloudflare Pages project `argus-eye` serves [the Argus Ice web app](https://argus.caniberk.dev). The Studio runs the API on `127.0.0.1:18080`. The locally managed named tunnel `argus-api` serves [the public API](https://argus-api.caniberk.dev/health). The temporary Pages-only build at [argus-eye.pages.dev](https://argus-eye.pages.dev) opens the sealed challenge result with its commitment check and links to Settings. Live settings report their availability without contacting the API.
+
+## Activate on the Studio
+
+1. A Cloudflare super administrator runs `cloudflared tunnel login` on the Studio and selects `caniberk.dev`. The command saves `~/.cloudflared/cert.pem`.
+2. Set `CLOUDFLARE_API_TOKEN` in the invoking shell, using a token scoped to the owning account with **Account → Cloudflare Pages → Edit**, and to `caniberk.dev` with **Zone → Zone → Read** and **Zone → DNS → Edit**. The script needs DNS listing as well as creation, and the Wrangler OAuth login alone returns HTTP 403 for listing. Use a shell secret prompt or password manager and keep the token out of the command history.
+3. From the checkout containing this package, run `./scripts/deploy_cloudflare.sh --go`. The script requires a successful push CI run for `origin/main`. If that revision predates the API URL hook, it applies the hook to a web build copy. The Studio needs `git`, `gh-axi`, `wrangler`, `cloudflared`, Node/npm, `uv`, `python3`, `curl`, `jq`, `rg`, and an active macOS GUI login. Confirm `gh-axi` and Wrangler are logged in as the deployment user.
+
+The script lists DNS at both exact names first and refuses conflicting records. It runs `cloudflared tunnel route dns argus-api argus-api.caniberk.dev` when the API record is absent. Pages registers `argus.caniberk.dev` on the project and creates its proxied CNAME to `argus-eye.pages.dev` if Pages did not add it automatically. To attach only that web name with the same scoped token, run `./scripts/deploy_cloudflare.sh --attach-web`.
+
+## Runtime and checks
+
+- `dev.caniberk.argus.api` runs Uvicorn from a clean, detached clone of the checked-out green SHA. It generates a separate MockMart world per release. The overview uses that live simulation. The guided demo and case-scoped Ask and approvals use the sealed presentation. Recorded approval sets the presentation's decision, and the checked-in live simulator executor targets the generated DuckDB world. No provider credentials or customer connections are configured.
+- `dev.caniberk.argus.tunnel` runs `cloudflared` with its own configuration and connector credentials. Its ingress is limited to `argus-api.caniberk.dev`. `dev.caniberk.argus.deploy` checks `origin/main` CI every five minutes and deploys a new SHA after successful CI. The deployment builds with `VITE_ARGUS_API_URL=https://argus-api.caniberk.dev`, scans assets for credential patterns, checks CORS and `/health`, reads `/graph`, and loads `/?demo=1`.
+- The public API accepts browser requests from `https://argus.caniberk.dev`, limits requests per client and across the process, caps request bodies at 128 KiB, and refuses user-supplied metric definitions. The operator cookie and CSRF token protect decisions within the shared demo run. `VITE_ARGUS_STATIC_REPLAY=1` selects the Pages-only mode, which can verify the sealed result offline. The timed playback, Ask, and approval require the API.
+
+## Stop or roll back
+
+The default deployment directory is `~/.firstmate-secondmate-hacklab/data/argus-deploy/production`, with per-service logs under `logs/`. The three LaunchAgent links in `~/Library/LaunchAgents` restore the services at login. Stop the redeployer with `launchctl bootout gui/$(id -u)/dev.caniberk.argus.deploy`. Run `./scripts/deploy_cloudflare.sh --rollback` to republish and restart the prior successful release, if present. Leave the watcher stopped until a green replacement is ready. Use `./scripts/deploy_cloudflare.sh --web-only` to publish the sealed static fallback from green main. To stop the public API, boot out `dev.caniberk.argus.tunnel` and `dev.caniberk.argus.api` in the same launchd domain. Create `production/replay-only` and restart the API to serve recorded data when troubleshooting the live world.

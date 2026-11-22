@@ -6,6 +6,7 @@
 
 import { useSyncExternalStore } from "react";
 import { ApiError } from "./api";
+import { apiUrl } from "./deployment";
 import type { ArgusEvent, Graph, Incident } from "./types";
 
 export type AgentDemoStatus = "idle" | "playing" | "paused" | "awaiting_approval" | "completed";
@@ -41,7 +42,7 @@ export interface AgentDemo {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(apiUrl(path), init);
   if (!res.ok) {
     let detail = res.statusText;
     try {

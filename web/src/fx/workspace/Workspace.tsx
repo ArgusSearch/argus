@@ -5,7 +5,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Mark } from "../../components/Header";
 import { useAgentDemo } from "../../lib/agentDemo";
-import type { RunView } from "../../lib/store";
+import { emptyView, type RunView } from "../../lib/store";
 import type { Graph } from "../../lib/types";
 import { autonomyCounts } from "../../views/autonomy";
 import { investigations } from "../../views/model";
@@ -60,6 +60,28 @@ const Village = importVillage
   : null;
 
 const SettingsSurface = lazy(() => import("../../settings"));
+
+export function StaticWorkspace() {
+  const { section } = useLocation();
+  const [view] = useState(() => emptyView(undefined, "replay"));
+  useEffect(() => watchHost(), []);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.fxSection = section;
+    return () => { delete root.dataset.fxSection; };
+  }, [section]);
+
+  if (section !== "settings" && section !== "calendar") return <EntryGate />;
+  return (
+    <div className="app">
+      <Sidebar section={section} view={view} recorded />
+      <Suspense fallback={null}>
+        <SettingsSurface key={section} section={section} graph={null} view={view} />
+      </Suspense>
+    </div>
+  );
+}
 
 function Workspace({ graph, view, onOpenIncident, onSelectNode }: WorkspaceProps) {
   const { section, incident } = useLocation();
@@ -197,7 +219,7 @@ const NAV: NavItem[] = [
   },
 ];
 
-function Sidebar({ section, view }: { section: Section; view: RunView }) {
+function Sidebar({ section, view, recorded = false }: { section: Section; view: RunView; recorded?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const counts = autonomyCounts(view);
   const value = (key: string) => counts.find((c) => c.key === key)?.value ?? 0;
@@ -207,7 +229,11 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
   const agent = useAgent();
   const asking = useAskOpen();
   const humans = useHumanActions(view);
-  const items = NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
+  const items = recorded
+    ? NAV.filter((item) => item.id === "dashboard" || item.id === "settings" || item.id === "calendar").map((item) =>
+      item.id === "dashboard" ? { ...item, label: "Recorded demo", hint: "Return to the recorded demo" } : item,
+    )
+    : NAV.filter((item) => (item.when === "agent" ? agent.enabled : item.when === "village" ? Village !== null : true));
   return (
     <nav
       className="fx-side"
@@ -293,7 +319,8 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
         ))}
       </ul>
       </div>
-      <AgentDemoControl />
+      {!recorded && <AgentDemoControl />}
+      {!recorded && (
       <div className="fx-side-foot">
         <span className="fx-hud">On its own</span>
         <dl>
@@ -315,6 +342,7 @@ function Sidebar({ section, view }: { section: Section; view: RunView }) {
           </div>
         </dl>
       </div>
+      )}
     </nav>
   );
 }

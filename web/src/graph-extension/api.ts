@@ -1,10 +1,11 @@
-// REST client of the graph extension. Paths are relative: the API serves the page, or Vite proxies `/graph`.
+// REST client of the graph extension.
 
 import { ApiError } from "../lib/api";
+import { apiUrl } from "../lib/deployment";
 import type { ExtensionState, MetricDefinition, PlacementResult } from "./types";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(apiUrl(path), init);
   if (!res.ok) {
     let detail = res.statusText;
     try {

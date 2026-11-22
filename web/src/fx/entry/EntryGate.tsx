@@ -4,6 +4,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { staticReplay } from "../../lib/deployment";
 import { tokenMs } from "../motion";
 import { go } from "../nav";
 import { entryWanted, readEntered, rememberEntered, searchAfterEntry } from "./gate";
@@ -15,7 +16,7 @@ type Stage = "open" | "leaving" | "gone";
 
 /** Renders the entry screen when this page load wants it; nothing otherwise. */
 export function EntryGate() {
-  const [stage, setStage] = useState<Stage>(() => (entryWanted(window.location.search, readEntered()) ? "open" : "gone"));
+  const [stage, setStage] = useState<Stage>(() => (staticReplay || entryWanted(window.location.search, readEntered()) ? "open" : "gone"));
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -34,6 +35,10 @@ export function EntryGate() {
 
   const enter = useCallback(() => {
     if (stage !== "open") return;
+    if (staticReplay) {
+      window.location.assign("?demo=1");
+      return;
+    }
     rememberEntered();
     const search = searchAfterEntry(window.location.search);
     window.history.replaceState(window.history.state, "", window.location.pathname + search + window.location.hash);
