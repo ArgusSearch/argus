@@ -26,14 +26,19 @@ export function useGraphExtension(onGraphChanged: () => void): GraphExtension {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const seen = useRef<string | null>(null);
+  const requested = useRef(0);
+  const applied = useRef(0);
   const changed = useRef(onGraphChanged);
   changed.current = onGraphChanged;
 
   const refresh = useCallback(async () => {
+    const request = ++requested.current;
     try {
       const next = await extensionApi.state();
+      if (request < applied.current) return;
+      applied.current = request;
       const key = `${next.stream}:${next.version}`;
-      if (seen.current !== null && seen.current !== key) {
+      if (seen.current === null ? next.placements.length > 0 : seen.current !== key) {
         changed.current();
         setPicked(null);
       }

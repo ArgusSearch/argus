@@ -128,7 +128,7 @@ def create_router(source: Source, local: SettingsStore, *, simulator: bool = Fal
     session_lock = threading.Lock()
 
     def store_for(request: Request, bucket: str = "settings", maximum: int = 60) -> SettingsStore:
-        sid = gate.session_id(request)
+        sid = gate.require_session(request)
         limit.check(f"{bucket}:{sid}", maximum)
         if not simulator:
             return local

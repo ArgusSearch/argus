@@ -15,10 +15,15 @@ from starlette.responses import JSONResponse
 
 from argus.api.app import BENCH_OUT, create_app
 from argus.api.sources import LiveSource, ReplaySource
+from argus.graph.extension_api import PUBLIC_METRIC_BODY_LIMIT
+from argus.remediation.api import OperatorGate
 
 WEB_ORIGINS = ("https://argus.caniberk.dev", "https://argus-eye.pages.dev")
 PAGES_ORIGIN = WEB_ORIGINS[1]
 MAX_BODY = 128 * 1024
+OPERATOR_SESSION = "/agent/operator/session"
+SETTINGS_SESSION = "/settings/operator/session"
+SESSION_TTL = 30 * 60
 
 
 def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
@@ -27,8 +32,9 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
         raise RuntimeError("Public demo requires a clean checkout and a credential-free environment")
     replay_source = ReplaySource(loop=world is None)
     live_source = LiveSource(world, agent="off") if world else replay_source
-    replay = create_app(replay_source, bench_out=bench_out, public_settings=True)
-    live = create_app(live_source, bench_out=bench_out, public_settings=True) if world else replay
+    gate = OperatorGate(cookie_path="/", session_ttl=SESSION_TTL, max_sessions=256)
+    replay = create_app(replay_source, bench_out=bench_out, public_settings=True, public_gate=gate)
+    live = create_app(live_source, bench_out=bench_out, public_settings=True, public_gate=gate) if world else replay
     apps = [live, replay] if world else [replay]
     for app in apps:
         app.user_middleware[:] = [entry for entry in app.user_middleware if entry.cls is not CORSMiddleware]
@@ -69,13 +75,12 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
         if sealed:
             path = path.removeprefix("/sealed-run")
             scope = {**scope, "path": path, "raw_path": path.encode()}
-        if method == "POST" and path.rstrip("/") == "/graph/metrics":
-            refusal = JSONResponse({"detail": "Public Argus uses the checked-in metric catalog"}, status_code=403)
-            await refusal(scope, receive, send)
-            return
+        route = path.rstrip("/")
+        metric_write = method == "POST" and route == "/graph/metrics"
+        max_body = PUBLIC_METRIC_BODY_LIMIT if metric_write else MAX_BODY
         content_length = int(headers.get("content-length", "0"))
         too_large = JSONResponse({"detail": "Request body too large"}, status_code=413)
-        if content_length > MAX_BODY:
+        if content_length > max_body:
             await too_large(scope, receive, send)
             return
         if content_length or headers.get("transfer-encoding") or method in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -85,7 +90,7 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
                 if message["type"] == "http.disconnect":
                     return
                 buffer.extend(message.get("body", b""))
-                if len(buffer) > MAX_BODY:
+                if len(buffer) > max_body:
                     await too_large(scope, receive, send)
                     return
                 if not message.get("more_body"):
@@ -105,6 +110,7 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
         query = parse_qs(scope["query_string"].decode("ascii", errors="replace"))
         recorded = (
             sealed
+            or route == OPERATOR_SESSION
             or path in {"/demo", "/openapi.json"}
             or path.startswith("/demo/")
             or (path.startswith("/agent/") and "run_id" in query)
@@ -128,27 +134,27 @@ def origin_app(world: Path | None, *, bench_out: Path = BENCH_OUT):
             )
             await snapshot(scope, receive, send)
             return
-        if path.startswith(("/agent/", "/settings")) and headers.get("origin") in WEB_ORIGINS:
-            # The outer middleware has verified the public demo origin. OperatorGate still requires its
-            # loopback session and CSRF token, and recorded decisions only update the sealed playback.
+        if (path.startswith(("/agent/", "/settings")) or metric_write) and headers.get("origin") in WEB_ORIGINS:
+            # The public origin was checked above. OperatorGate still requires its session and CSRF token
+            # for writes, and proposals still belong to the sealed playback.
             scope = {**scope, "headers": [(key, value) for key, value in scope["headers"] if key != b"origin"]}
 
-        async def secure_cookie(message):
-            if message["type"] == "http.response.start" and path in (
-                "/agent/operator/session",
-                "/settings/operator/session",
-            ):
+        async def private_response(message):
+            if message["type"] == "http.response.start":
                 values = MutableHeaders(scope=message)
-                if cookie := values.get("set-cookie"):
-                    if sealed:
-                        cookie = cookie.replace("Path=/agent", "Path=/sealed-run/agent")
+                if route in (OPERATOR_SESSION, "/graph") or path.startswith(
+                    ("/graph/metrics", "/receipts/", "/settings")
+                ):
+                    values["cache-control"] = "private, no-store"
+                if route in (OPERATOR_SESSION, SETTINGS_SESSION) and (cookie := values.get("set-cookie")):
+                    if sealed and route == SETTINGS_SESSION:
                         cookie = cookie.replace("Path=/settings", "Path=/sealed-run/settings")
                     if headers.get("origin") == PAGES_ORIGIN:
                         cookie = cookie.replace("SameSite=strict", "SameSite=None") + "; Partitioned"
                     values["set-cookie"] = cookie + "; Secure"
             await send(message)
 
-        await (replay if recorded else live)(scope, receive, secure_cookie)
+        await (replay if recorded else live)(scope, receive, private_response)
 
     async def uvicorn_lifespan(scope, receive, send):
         await receive()

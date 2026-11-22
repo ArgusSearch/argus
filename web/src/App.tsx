@@ -78,6 +78,7 @@ export function App() {
   const [digestOpen, setDigestOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; incident?: string; digest?: boolean } | null>(null);
   const announced = useRef(new Set<string>());
+  const graphRequest = useRef(0);
   const { snapshot: operator } = useOperatorSettings();
   const liveNotices = operator?.settings.channels.in_app ?? true;
   const reviewAmbiguous = operator?.settings.autonomy.review_ambiguous_cause !== "off";
@@ -88,12 +89,16 @@ export function App() {
   const mapError = demoRun ? scopedGraph?.error : graphError;
   // a new metric placed itself (POST /graph/metrics): refetch the graph so the node appears everywhere
   const loadGraph = useCallback(() => {
+    const request = ++graphRequest.current;
     void api.graph().then(
       (next) => {
+        if (request !== graphRequest.current) return;
         setGraph(next);
         setGraphError(null);
       },
-      (error: Error) => setGraphError(error.message),
+      (error: Error) => {
+        if (request === graphRequest.current) setGraphError(error.message);
+      },
     );
   }, []);
   const extension = useGraphExtension(loadGraph);
