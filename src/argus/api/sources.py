@@ -229,10 +229,11 @@ class LiveSource:
 
     def stop(self) -> None:
         self._stop.set()
-        self.runtime.runner.cancel()
         self._wake.set()
 
     async def closed(self) -> None:
+        # Stopping ticks leaves published receipts available until the server shuts down.
+        self.runtime.runner.cancel()
         if self._thread is not None:
             await asyncio.to_thread(self._thread.join, 30)
         self.runtime.runner.close()
