@@ -187,7 +187,10 @@ function AskConversation({ agent, incident }: { agent: AgentState; incident: str
   // a question and its answer are two items of the conversation: the jump button counts both
   const tail = useFollowTail(turns.reduce((n, t) => n + (t.answer || t.error || t.stopped ? 2 : 1), 0));
 
-  const stop = () => pending.current?.abort();
+  const stop = () => {
+    pending.current?.abort();
+    input.current?.focus({ preventScroll: true });
+  };
 
   // "/" opens it from anywhere (not while typing); Escape stops a pending answer, else closes
   useEffect(() => {
@@ -273,7 +276,6 @@ function AskConversation({ agent, incident }: { agent: AgentState; incident: str
     stop();
     setTurns([]);
     setConversation(null);
-    input.current?.focus();
   };
 
   const following = conversation !== null && conversation.incident === incident && turns.some((t) => t.answer);
