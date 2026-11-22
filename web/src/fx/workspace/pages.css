@@ -163,6 +163,38 @@
   gap: var(--fx-space-3);
 }
 
+:root[data-fx] .ws-compression {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: var(--fx-hair) solid var(--fx-glass-border);
+  border-radius: var(--fx-radius-2);
+  background: var(--fx-glass-1);
+}
+
+:root[data-fx] .ws-compression div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--fx-space-3);
+  padding: var(--fx-space-2) var(--fx-space-3);
+}
+
+:root[data-fx] .ws-compression div + div {
+  border-inline-start: var(--fx-hair) solid var(--line);
+}
+
+:root[data-fx] .ws-compression dt {
+  color: var(--fx-ink-2);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .ws-compression dd {
+  margin: 0;
+  color: var(--fx-ink-0);
+  font: 600 var(--fx-text-lg) / 1.25 var(--fx-font-mono);
+}
+
 :root[data-fx] .ws-tile {
   --tone: var(--ok);
   --tone-bg: var(--ok-bg);
@@ -842,6 +874,64 @@
   font-size: var(--fx-text-sm);
 }
 
+:root[data-fx] .ip-band-chart {
+  display: grid;
+  gap: var(--fx-space-2);
+  margin: 0;
+  padding: var(--fx-space-3);
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-card);
+}
+
+:root[data-fx] .ip-band-track {
+  position: relative;
+  height: 18px;
+  border-radius: var(--fx-radius-1);
+  background: var(--fx-well);
+}
+
+:root[data-fx] .ip-band-range {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+  border-block: 1px solid var(--probe);
+  background: var(--probe-bg);
+}
+
+:root[data-fx] .ip-band-observed {
+  position: absolute;
+  inset-block: -2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--alarm);
+  transform: translateX(-50%);
+}
+
+:root[data-fx] .ip-band-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--fx-space-4);
+  color: var(--fx-ink-1);
+  font-size: var(--fx-text-sm);
+}
+
+:root[data-fx] .ip-band-key i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 1px;
+}
+
+:root[data-fx] .ip-band-range-key {
+  border: 1px solid var(--probe);
+  background: var(--probe-bg);
+}
+
+:root[data-fx] .ip-band-observed-key {
+  background: var(--alarm);
+}
+
 :root[data-fx] .ip-where {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -1099,8 +1189,9 @@
   background: var(--ok);
 }
 
-:root[data-fx] .ip-timeline li.now i {
-  box-shadow: 0 0 0 4px var(--ok-bg);
+:root[data-fx] .ip-timeline li.evidence i {
+  border-color: var(--probe);
+  background: var(--probe-bg);
 }
 
 :root[data-fx] .ip-timeline li.done b {

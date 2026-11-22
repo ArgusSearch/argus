@@ -9,11 +9,12 @@ import { useAgentDemo } from "../../lib/agentDemo";
 import { api } from "../../lib/api";
 import { dayLabel, eur, hhmm, humanize, pct, quantity } from "../../lib/format";
 import { isRuledOut, type RunView } from "../../lib/store";
-import type { Graph, Incident, IncidentState, Quantity, TrailStep } from "../../lib/types";
+import type { Anomaly, Graph, Incident, Quantity, TrailStep } from "../../lib/types";
 import { GraphStage, sceneAvailable } from "../GraphStage";
 import { back, go } from "../nav";
 import { ActionCard } from "./ActionCard";
 import { proposalFor, useAgent } from "./agent";
+import { incidentTimeline } from "./incidentEvidence";
 import { affectedPath } from "./path";
 import { incidentWhere, metricName, STATE, storyHeadline, VERDICT, wherePhrase, whereCells } from "./plain";
 import { Card, Pill, Term, useIncident } from "./ui";
@@ -24,8 +25,6 @@ interface PathCell {
   volume_share: number;
   rel_change: number;
 }
-
-const LIFECYCLE: IncidentState[] = ["open", "investigating", "explained", "monitoring", "resolved"];
 
 /** A metric's value in its own unit: a share reads as a percentage. */
 function valueText(graph: Graph | null, node: string, q: Quantity): string {
@@ -40,6 +39,36 @@ function series(trail: TrailStep[]): SeriesPoint[] {
     if (Array.isArray(points) && points.length > 1) return points;
   }
   return [];
+}
+
+function DetectionChart({ anomaly, graph }: { anomaly: Anomaly; graph: Graph | null }) {
+  const [low, high] = anomaly.band;
+  const min = Math.min(low, anomaly.observed);
+  const max = Math.max(high, anomaly.observed);
+  const spread = max - min;
+  const position = (value: number) => spread === 0 ? 50 : 8 + ((value - min) / spread) * 84;
+  const metricUnit = graph?.nodes.find((node) => node.id === anomaly.node)?.unit;
+  const unit = metricUnit === "eur" || metricUnit === "eur_per_unit" ? "eur" : "value";
+  const number = (value: number) => {
+    const q: Quantity = { value, unit, receipt: anomaly.receipts[0] ?? null };
+    return <Num q={q} text={valueText(graph, anomaly.node, q)} />;
+  };
+
+  return (
+    <figure className="ip-band-chart">
+      <figcaption className="ip-chart-cap">
+        {metricName(graph, anomaly.node)} for {wherePhrase(anomaly.segment)} · {dayLabel(anomaly.hour)} {hhmm(anomaly.hour)}
+      </figcaption>
+      <div className="ip-band-track" aria-hidden="true">
+        <span className="ip-band-range" style={{ left: `${position(low)}%`, width: `${position(high) - position(low)}%` }} />
+        <span className="ip-band-observed" style={{ left: `${position(anomaly.observed)}%` }} />
+      </div>
+      <div className="ip-band-key">
+        <span><i className="ip-band-range-key" aria-hidden="true" /> Expected range {number(low)} to {number(high)}</span>
+        <span><i className="ip-band-observed-key" aria-hidden="true" /> Observed {number(anomaly.observed)}</span>
+      </div>
+    </figure>
+  );
 }
 
 /** The segment search's path, keyed by the dimension each of its steps added (country, then platform, ...). */
@@ -139,7 +168,8 @@ function Story({
   const verdict = VERDICT[incident.verdict];
   const points = series(f.trail);
   const cells = pathByDim(f.trail);
-  const when = (s: IncidentState) => incident.history.find((h) => h.to_state === s)?.sim_ts;
+  const trigger = view.anomalies.find((anomaly) => anomaly.id === f.anomaly_id);
+  const timeline = incidentTimeline(incident);
   const subject = affectedPath(view);
   const live = Boolean(graph && sceneAvailable() && subject?.incident?.id === incident.id);
   const receipts = [...new Set(f.trail.flatMap((s) => s.receipts))];
@@ -192,6 +222,7 @@ function Story({
                 </>
               )}
             </p>
+            {trigger && <DetectionChart anomaly={trigger} graph={graph} />}
             {points.length > 1 && (
               <div className="ip-chart">
                 <span className="ip-chart-cap">
@@ -360,21 +391,20 @@ function Story({
               </div>
             </Card>
           )}
-          <Card title="Timeline" className="ip-timeline">
-            <ol>
-              {LIFECYCLE.map((s) => {
-                const at = when(s);
-                return (
-                  <li key={s} className={`${at ? "done" : ""}${incident.state === s ? " now" : ""}`}>
+          {timeline.length > 0 && (
+            <Card title="Timeline" className="ip-timeline">
+              <ol>
+                {timeline.map((entry) => (
+                  <li key={entry.key} className={entry.kind === "state" ? "done" : "evidence"}>
                     <i aria-hidden="true" />
-                    <b>{STATE[s].label}</b>
-                    <span className="mono">{at ? `${dayLabel(at)} ${hhmm(at)}` : "–"}</span>
-                    <span className="ip-tl-help">{STATE[s].help}</span>
+                    <b>{entry.label}</b>
+                    <time dateTime={entry.at} className="mono">{dayLabel(entry.at)} {hhmm(entry.at)}</time>
+                    <span className="ip-tl-help">{entry.detail}</span>
                   </li>
-                );
-              })}
-            </ol>
-          </Card>
+                ))}
+              </ol>
+            </Card>
+          )}
           {!live && (
             <Card title="See it on the map" className="ip-map">
               <p className="fx-card-note">
