@@ -92,16 +92,19 @@ class OperatorGate:
         with self._lock:
             now = monotonic()
             self._prune(now)
-            if resume or self.session_ttl is not None:
-                existing = self._sessions.get(request.cookies.get(self.cookie, ""))
-                if existing is not None:
-                    return OperatorSession(principal=self.principal, csrf_token=existing[0])
-            if len(self._sessions) >= self.max_sessions:
+            sid = request.cookies.get(self.cookie, "") if resume or self.session_ttl is not None else ""
+            existing = self._sessions.get(sid)
+            if existing is not None:
+                token = existing[0]
                 if self.session_ttl is not None:
-                    raise HTTPException(429, "Too many operator sessions", headers={"Retry-After": "60"})
-                del self._sessions[next(iter(self._sessions))]
-            sid, token = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
-            self._sessions[sid] = (token, now)
+                    return OperatorSession(principal=self.principal, csrf_token=token)
+            else:
+                if len(self._sessions) >= self.max_sessions:
+                    if self.session_ttl is not None:
+                        raise HTTPException(429, "Too many operator sessions", headers={"Retry-After": "60"})
+                    del self._sessions[next(iter(self._sessions))]
+                sid, token = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+                self._sessions[sid] = (token, now)
         response.set_cookie(
             self.cookie, sid, httponly=True, samesite="strict", path=self.cookie_path, max_age=self.session_ttl
         )
