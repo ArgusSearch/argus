@@ -1,0 +1,19 @@
+{
+  "name": "argus-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "ARGUS_E2E_FX=0 ARGUS_E2E_NEWMETRIC=0 playwright test",
+    "test:demo": "playwright test fx new-metric",
+    "test:fx": "playwright test fx",
+    "test:all": "playwright test",
+    "test:live": "ARGUS_E2E_MODE=live playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
