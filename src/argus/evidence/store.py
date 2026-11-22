@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from math import isfinite
@@ -105,6 +105,7 @@ class _Session:
     incidents: dict[str, Incident]
     config: WorldConfig | None
     events: dict[tuple[str, str], EvidenceRef]
+    source_clocks: dict[str, tuple[datetime, datetime]]
     event_queries: dict[tuple[str, str], Query] = field(default_factory=dict)
     queries: dict[str, Query] = field(default_factory=dict)
     paired: dict[str, _Paired] = field(default_factory=dict)
@@ -132,6 +133,7 @@ class EvidenceStore:
         events: Sequence[EvidenceRef] = (),
         incidents: Sequence[Incident] = (),
         config: WorldConfig | None = None,
+        source_clocks: Mapping[str, tuple[datetime, datetime]] | None = None,
     ) -> None:
         """Register only data already visible in the caller's selected C5 prefix."""
         if (
@@ -155,6 +157,7 @@ class EvidenceStore:
             },
             config,
             {(event.log, event.ref): event.model_copy(deep=True) for event in events if event.ts <= ctx.as_of},
+            dict(source_clocks or {}),
         )
         key = (ctx.stream, ctx.run_id, ctx.world_revision)
         with self._lock:
@@ -220,6 +223,7 @@ class EvidenceStore:
                         as_of=ctx.as_of,
                         latest_hour=session.latest_hour,
                         events=session.events,
+                        source_clocks=session.source_clocks,
                     )
                 elif name in _EXTENSIONS and ctx.kind in _EXTENSIONS[name][1]:
                     data = EXTENSION_MODELS[name].model_validate(args)
@@ -407,7 +411,12 @@ def _run(session: _Session, runner: CaptureRunner | ProofRunner, name: str, args
             outcome=market.verdict,
         )
 
-    output = StageTwoToolbox(session.graph, runner, session.ctx.as_of).run(name, args.model_dump())
+    as_of = session.ctx.as_of
+    if (node_id := getattr(args, "node", None)) and (
+        clock := session.source_clocks.get(session.graph.node(node_id).source)
+    ):
+        as_of = clock[0]
+    output = StageTwoToolbox(session.graph, runner, as_of).run(name, args.model_dump())
     data = output.model_dump(mode="json", exclude={"summary", "receipts"})
     if isinstance(output, HoldoutCheckOutput):
         data["holdout"].pop("where", None)

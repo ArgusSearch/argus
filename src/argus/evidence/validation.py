@@ -73,6 +73,7 @@ def c6_input(
     as_of: datetime,
     latest_hour: datetime,
     events: Mapping[tuple[str, str], EvidenceRef],
+    source_clocks: Mapping[str, tuple[datetime, datetime]] | None = None,
 ) -> BaseModel:
     data = TOOL_MODELS[name][0].model_validate(args)
     if isinstance(data, ListEventsInput):
@@ -86,6 +87,14 @@ def c6_input(
         _check_segment(data.covering or {}, DIMENSIONS)
         return data
 
+    node_id = getattr(data, "node", None)
+    node = graph.node(node_id) if node_id is not None else None
+    imported_clock = source_clocks.get(node.source) if source_clocks and node else None
+    if imported_clock is not None:
+        if name not in ("get_series", "segment_search", "placebo_test"):
+            raise ValueError("This check is unavailable for daily imported metrics.")
+        as_of, latest_hour = imported_clock
+
     raw_window = Window.model_validate(data.model_dump(include={"window"})["window"])
     window = utc_window(raw_window)
     data = data.model_copy(update={"window": window})
@@ -96,11 +105,14 @@ def c6_input(
     ):
         raise ValueError("Use a visible window of 1 to 48 whole data hours.")
 
-    node_id = getattr(data, "node", None)
-    node = graph.node(node_id) if node_id is not None else None
     if node is not None and node.kind is NodeKind.DERIVED:
         raise ValueError("This metric cannot be queried by the toolbox.")
-    _check_segment(getattr(data, "segment", {}), node.dims if node else DIMENSIONS)
+    segment = getattr(data, "segment", {})
+    if imported_clock is not None and node is not None:
+        if any(dim not in node.dims or len(value) > 2048 or not value.isprintable() for dim, value in segment.items()):
+            raise ValueError("Choose a valid provider dimension.")
+    else:
+        _check_segment(segment, node.dims if node else DIMENSIONS)
     if isinstance(data, DecomposeFormulaInput):
         for factor in product_factors(graph, data.node) or ():
             _check_segment(data.segment, graph.node(factor).dims)
