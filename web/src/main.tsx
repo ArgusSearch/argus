@@ -6,6 +6,7 @@ import { StyleProvider } from "./fx";
 import { StaticWorkspace } from "./fx/workspace/Workspace";
 import { staticReplay } from "./lib/deployment";
 import "./styles.css";
+import "./ui/responsive.css";
 
 if (staticReplay && new URLSearchParams(location.search).get("demo") === "1") {
   history.replaceState(null, "", "?challenge=reveal");
