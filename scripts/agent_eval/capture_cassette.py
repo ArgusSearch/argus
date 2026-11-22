@@ -122,6 +122,7 @@ def stage_recording(
     *,
     config: ReplayConfig = V1_REPLAY,
 ) -> Bundle:
+    config.check_session(source)
     summaries = [RunSummary.model_validate(row) for row in json.loads((source / "runs.json").read_bytes())]
     if not summaries or any(
         run.mode != "record" or run.status != "done" or run.fallback or run.llm_calls < 2 for run in summaries

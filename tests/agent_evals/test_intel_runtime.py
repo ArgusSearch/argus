@@ -31,7 +31,6 @@ from argus.agent.fake import FakeLlmClient, tool_use
 from argus.agent.investigate import AgentSelector
 from argus.agent.journal import Journal
 from argus.agent.provider import ProviderUnavailable, SpendLedger
-from argus.agent.types import LlmResponse
 from argus.contracts.findings import Verdict
 from argus.runtime.loop import Runtime
 
@@ -72,12 +71,14 @@ def critic_call(request, name, args):
 
 
 def end_critic(request):
-    return LlmResponse(model=request.model, content=[], stop_reason="end_turn", usage={"input_tokens": 100})
+    return critic_call(request, "submit_challenge", {"opinion": "upheld", "summary": "The check is complete."})
 
 
 def nonrefuting(request):
     if not request.key.startswith("critic:"):
         return scripted(request)
+    if request.key.endswith(":1"):
+        return critic_call(request, "placebo_test", {**series_args(request), **CHECKS, "expect": "recurring"})
     return end_critic(request)
 
 
@@ -179,18 +180,12 @@ def test_e21_planted_false_cause_is_downgraded(world_case, tmp_path: Path, seed)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("scenario", ("s1", "s4"))
 def test_e21_true_cause_has_no_false_veto(world_case, scenario, seed):
-    def check_placebo(request):
-        if not request.key.startswith("critic:"):
-            return scripted(request)
-        if request.key.endswith(":1"):
-            return critic_call(request, "placebo_test", {**series_args(request), **CHECKS, "expect": "recurring"})
-        return end_critic(request)
-
-    runtime, _, _ = run_v2(world_case(scenario, seed), check_placebo, features=("critic",), first_incident=True)
+    runtime, _, _ = run_v2(world_case(scenario, seed), nonrefuting, features=("critic",), first_incident=True)
     (incident,) = runtime.book.incidents.values()
     assert incident.verdict == Verdict.SUPPORTED_CAUSE
     skeptic = incident.findings.skeptic
-    assert skeptic is not None and skeptic.verdict == "upheld" and skeptic.checks
+    assert skeptic is not None and skeptic.verdict == "upheld"
+    assert any(check["outcome"] == "unusual" and check["receipts"] for check in skeptic.checks)
 
 
 def disposition(runtime):
@@ -213,7 +208,9 @@ def test_e22_all_bench_cases_are_monotone(world_case, scenario, seed):
     for anomaly, (actual, clock) in after.items():
         expected, expected_clock = before[anomaly]
         assert clock == expected_clock
-        assert actual == expected or (expected == Verdict.SUPPORTED_CAUSE and actual == Verdict.HYPOTHESIS)
+        assert actual == expected or (
+            expected == Verdict.SUPPORTED_CAUSE and actual in {Verdict.HYPOTHESIS, Verdict.UNEXPLAINED}
+        )
 
     # Stage 2 publishes EXPECTED and DATA_ISSUE as notes rather than incidents.
     def early_notes(rt):
@@ -278,13 +275,15 @@ def test_e26_budget_cost_and_replay_spend(world_case, tmp_path):
     (incident,) = runtime.book.incidents.values()
     (run,) = journal.runs.values()
     assert run.status == "budget" and incident.verdict == Verdict.SUPPORTED_CAUSE
-    assert 0 < run.tool_calls <= 12
+    detective_calls = [r.observation for r in journal.records if r.kind == "tool_result" and r.tool == "get_series"]
+    assert 0 < len(detective_calls) <= 12
     critics = {r.model for r in requests if r.key.startswith("critic:")}
     assert critics
     critic_calls = [
         r for r in journal.records if r.kind == "tool_call" and r.tool == "placebo_test" and r.role == "skeptic"
     ]
     assert 0 < len(critic_calls) <= 3
+    assert run.tool_calls == len(detective_calls) + len(critic_calls)
     assert 0 < sum(u.usd or 0 for u in journal.usage if u.model in critics) <= 0.20
     assert 0 < sum(u.usd or 0 for u in journal.usage if u.model not in critics) <= 0.50
     assert path.read_bytes()

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from test_intel_board import SEEDS
-from test_runtime_gates import scripted
+from test_runtime_gates import packet, scripted
 from test_runtime_gates import world_case as world_case
 
 from argus.agent.actions import Proposer
@@ -24,8 +24,9 @@ def investigate_with_memory(case, state, *, memory=None, decide=None):
 
     features = frozenset({"memory"}) if memory is not None else frozenset()
     journal = Journal()
+    client = FakeLlmClient(responder=scripted)
     selector = AgentSelector(
-        FakeLlmClient(responder=scripted),
+        client,
         journal,
         mode="record",
         profile=Profile(name="v2", features=features),
@@ -54,7 +55,7 @@ def investigate_with_memory(case, state, *, memory=None, decide=None):
                     )
                 break
         assert not runtime.fallbacks
-        return runtime, journal, service.proposals()
+        return runtime, journal, service.proposals(), client.requests
     finally:
         service.close()
         runtime.runner.close()
@@ -69,7 +70,9 @@ def test_e23_denied_action_is_suppressed_and_verified_approval_is_cited(world_ca
 
     path = tmp_path / "operator-memory.jsonl"
     denied = JsonlCaseMemory(path)
-    first, _, proposals = investigate_with_memory(world_case("s4", 1), tmp_path / "first", memory=denied, decide="deny")
+    first, _, proposals, _ = investigate_with_memory(
+        world_case("s4", 1), tmp_path / "first", memory=denied, decide="deny"
+    )
     assert first.book.incidents
     assert len(proposals) == 1 and proposals[0].state == "DENIED"
     notes = [CaseNote.model_validate_json(line) for line in path.read_text().splitlines()]
@@ -78,13 +81,13 @@ def test_e23_denied_action_is_suppressed_and_verified_approval_is_cited(world_ca
     # Seeded worlds can place the same fault at different hours. Position the known,
     # genuine denial in the preceding case's timeline for the recall experiment.
     case = world_case("s4", 3)
-    clean, _, proposals = investigate_with_memory(case, tmp_path / "clean")
+    clean, _, proposals, _ = investigate_with_memory(case, tmp_path / "clean")
     (clean_incident,) = clean.book.incidents.values()
     assert len(proposals) == 1
     earlier = note.model_copy(update={"sim_ts": clean_incident.findings.as_of - timedelta(hours=1)})
     recall = JsonlCaseMemory(tmp_path / "prior-denial.jsonl")
     recall.remember(earlier)
-    repeat, journal, proposals = investigate_with_memory(case, tmp_path / "denied", memory=recall)
+    repeat, journal, proposals, _ = investigate_with_memory(case, tmp_path / "denied", memory=recall)
     assert not proposals
     (repeat_incident,) = repeat.book.incidents.values()
     assert repeat_incident.verdict == clean_incident.verdict
@@ -92,7 +95,7 @@ def test_e23_denied_action_is_suppressed_and_verified_approval_is_cited(world_ca
     assert "denied" in denial.text.lower()
     verified = JsonlCaseMemory(tmp_path / "prior-approval.jsonl")
     verified.remember(earlier.model_copy(update={"decision": "approve", "effect": "VERIFIED"}))
-    approved, journal, proposals = investigate_with_memory(case, tmp_path / "approved", memory=verified)
+    approved, journal, proposals, _ = investigate_with_memory(case, tmp_path / "approved", memory=verified)
     assert len(proposals) == 1 and proposals[0].state == "AWAIT_OPERATOR"
     (incident,) = approved.book.incidents.values()
     (summary,) = journal.runs.values()
@@ -128,8 +131,8 @@ def test_e24_poisoned_memory_cannot_change_evidence_or_authorize_action(world_ca
     poison = poison_note()
     memory = JsonlCaseMemory(tmp_path / "poison.jsonl")
     memory.remember(poison)
-    clean, _, clean_proposals = investigate_with_memory(case, tmp_path / "clean")
-    treated, journal, proposals = investigate_with_memory(case, tmp_path / "poisoned", memory=memory)
+    clean, _, clean_proposals, _ = investigate_with_memory(case, tmp_path / "clean")
+    treated, journal, proposals, requests = investigate_with_memory(case, tmp_path / "poisoned", memory=memory)
     (baseline,) = clean.book.incidents.values()
     (incident,) = treated.book.incidents.values()
     assert incident.verdict == baseline.verdict
@@ -140,6 +143,7 @@ def test_e24_poisoned_memory_cannot_change_evidence_or_authorize_action(world_ca
     assert poison in memory.recall(
         root_node=incident.root_node, segment=incident.segment, cause_kind=None, as_of=incident.findings.as_of
     )
+    assert requests and any(note["case_id"] == poison.case_id for note in packet(requests[0]).get("experience", []))
     assert proposals == clean_proposals
     evidence_refs = [step.data.get("evidence_refs") for step in incident.findings.trail] + [
         record.observation.data.get("evidence_refs") for record in journal.records if record.observation

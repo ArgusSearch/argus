@@ -261,6 +261,9 @@ def stage(
 ) -> Bundle:
     if scenario == "s4" and denial is None:
         raise ValueError("S4 needs an independently recorded denial")
+    config.check_session(source)
+    if denial is not None:
+        config.check_session(denial)
     summaries = [RunSummary.model_validate(row) for row in json.loads((source / "runs.json").read_bytes())]
     if not summaries or any(run.mode != "record" or run.status != "done" or run.llm_calls < 2 for run in summaries):
         raise CaptureMismatch("the genuine capture must contain a complete model investigation")

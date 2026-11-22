@@ -37,6 +37,14 @@ class ReplayConfig:
                 if line.strip():
                     case_note.model_validate(json.loads(line))
 
+    def check_session(self, directory: Path) -> None:
+        path = directory / "session.json"
+        if path.exists():
+            session = json.loads(path.read_bytes())
+            actual = session.get("profile", "v1"), frozenset(session.get("features", []))
+            if actual != (self.profile, self.features):
+                raise ValueError("staging options differ from the exported profile and features")
+
     def metadata(self, output: Path) -> dict[str, Any]:
         if self.profile == "v1":
             return {}
@@ -73,7 +81,7 @@ class ReplayConfig:
             path = state / "memory.jsonl"
             path.write_bytes(self.memory)
             options["memory"] = case_memory(path)
-        options["profile"] = profile(name="v2", features=self.features)
+        options["profile"] = profile.of("v2", sorted(self.features))
         selector = AgentSelector(client, journal, mode="replay", through_seq=through_seq, **options)
         return selector, options.get("memory")
 
