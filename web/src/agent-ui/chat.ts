@@ -1,7 +1,7 @@
 // The chat window's pure parts: saved threads, the streamed reveal of a finished answer, and the composer's
 // model chip. Layout and behaviour follow T3 Code (pingdotgg/t3code, MIT); no code is copied from it.
 
-import type { AgentHealth, AskAnswer } from "../lib/agent";
+import type { AgentHealth, AgentRole, AskAnswer } from "../lib/agent";
 
 export interface ChatTurn {
   id: number;
@@ -20,6 +20,8 @@ export interface ChatTurn {
 export interface ChatThread {
   id: string;
   title: string;
+  /** the agent the thread talks to, or null for Argus as a whole */
+  agent?: AgentRole | null;
   /** the incident the thread is about, or null for the whole shop */
   incident: string | null;
   /** the server's conversation, so a follow-up keeps its context */
@@ -132,4 +134,36 @@ export function modelLabel(health: AgentHealth | null): string {
   const name = Array.isArray(models) ? models[0] : models.ask ?? models.chat ?? models.narrator ?? Object.values(models)[0];
   if (typeof name === "string" && name) return name.replace(/^(anthropic|openai)\//, "");
   return health.mode === "replay" ? "Recorded agent" : "Live agent";
+}
+
+/** What a per-agent thread tells the live agent about who answers: the role, its job and its own latest steps. */
+export interface AgentVoice {
+  acronym: string;
+  title: string;
+  ability: string;
+}
+
+const QUESTION_MAX = 1000;
+const STEP_CHARS = 120;
+const STEPS = 4;
+
+/**
+ * The question as sent for a per-agent thread: the same Ask path, framed so the agent answers in that role from
+ * its latest steps. The reader's words go last and whole; the framing gives way first when the question is long.
+ */
+export function agentQuestion(voice: AgentVoice, steps: string[], question: string): string {
+  const q = question.trim();
+  const lines = steps
+    .slice(-STEPS)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((s) => `- ${s.length > STEP_CHARS ? `${s.slice(0, STEP_CHARS - 1)}…` : s}`);
+  const head = `Answer as ${voice.acronym}, Argus' ${voice.title} (${voice.ability.replace(/[.\s]+$/, "")}), in that role's own words.`;
+  const tail = `Question: ${q}`;
+  for (let n = lines.length; n >= 0; n--) {
+    const context = n ? `\nYour latest steps:\n${lines.slice(lines.length - n).join("\n")}` : "";
+    const text = `${head}${context}\n${tail}`;
+    if (text.length <= QUESTION_MAX) return text;
+  }
+  return q.slice(0, QUESTION_MAX);
 }

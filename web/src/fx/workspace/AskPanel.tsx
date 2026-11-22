@@ -6,10 +6,11 @@
 // incident. Arrow-up recalls an earlier question, Stop (or Escape while waiting) stops waiting for an answer.
 // Layout, composer and timeline follow T3 Code (pingdotgg/t3code, MIT); the patterns are reimplemented here.
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Fragment, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { evidenceChecks, groupRuns, isLive, liveLine, type CheckStep } from "../../agent-ui/activity";
 import {
+  agentQuestion,
   ago,
   loadThreads,
   modelLabel,
@@ -27,57 +28,21 @@ import { Elapsed, JumpToLatest, useFollowTail } from "../../agent-ui/hooks";
 import { caretOnEdge, loadHistory, remember, saveHistory, step, type HistoryPosition } from "../../agent-ui/history";
 import { CheckRow } from "../../agent-ui/RunLog";
 import { useOpenReceipt } from "../../components/Receipts";
-import { agentApi, type ActivityRecord, type AskAnswer, type ReceiptLink } from "../../lib/agent";
+import { AGENT_ROLES, agentApi, roleOf, type ActivityRecord, type AgentRole, type AskAnswer, type ReceiptLink } from "../../lib/agent";
 import { ApiError } from "../../lib/api";
 import { useAgentDemo } from "../../lib/agentDemo";
 import { monitoringText } from "../../lib/format";
 import { AvatarSlot } from "./AvatarSlot";
+import { PERSONAS } from "../../village/avatars/personas";
+import { ROLE } from "../../village/roles";
 import { activityAvatarRole } from "../../village/avatars/state";
 import { useAgent, type AgentState } from "./agent";
+import { isAskOpen, readFlag, setAskOpen, useAgentRequest, useAskOpen, writeFlag } from "./chatStore";
 import "./chat.css";
 
-type Listener = () => void;
-const listeners = new Set<Listener>();
-const OPEN_KEY = "argus.chat.open";
 const RAIL_KEY = "argus.chat.rail";
 
-function readFlag(key: string, fallback: boolean): boolean {
-  try {
-    const v = typeof localStorage === "undefined" ? null : localStorage.getItem(key);
-    return v === null ? fallback : v === "1";
-  } catch {
-    return fallback;
-  }
-}
-
-function writeFlag(key: string, value: boolean) {
-  try {
-    localStorage.setItem(key, value ? "1" : "0");
-  } catch {
-    /* storage blocked: the choice lasts for this page */
-  }
-}
-
-// the window stays open across pages and reloads once opened
-let open = readFlag(OPEN_KEY, false);
-
-export function setAskOpen(next: boolean) {
-  if (next === open) return;
-  open = next;
-  writeFlag(OPEN_KEY, next);
-  for (const l of [...listeners]) l();
-}
-
-export function useAskOpen(): boolean {
-  return useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-    () => open,
-    () => false,
-  );
-}
+export { setAskOpen, useAskOpen } from "./chatStore";
 
 const SUGGESTIONS = [
   { title: "Why did revenue drop?", hint: "Trace the cause through the metric tree" },
@@ -86,8 +51,34 @@ const SUGGESTIONS = [
   { title: "Is anything unusual right now?", hint: "This hour against the last four weeks" },
 ];
 
-const TAG = /\[([a-z]\d+)\]/g;
+/** An agent's name, job and what to ask it first; the names are the village's personas. */
+function voiceOf(role: AgentRole) {
+  const p = PERSONAS[role];
+  return { acronym: p.names[0].acronym, title: p.title, ability: ROLE[role].job };
+}
 
+const AGENT_SUGGESTIONS: Record<AgentRole, string[]> = {
+  watcher: ["Which metrics are outside their band right now?", "What did you check this hour?"],
+  cartographer: ["Do all the formulas still hold?", "How is revenue built from the other metrics?"],
+  detective: ["Which segment explains the change?", "What is your current lead?"],
+  market: ["Is the market moving the same way?", "Could the market explain this change?"],
+  skeptic: ["What did you rule out?", "How sure are you about the cause?"],
+  narrator: ["What happened since I was away?", "What did this incident cost?"],
+  operator: ["What action do you propose?", "What would the fix change?"],
+};
+
+/** The agent's own latest steps, as one line each, for the question's framing. */
+function stepsOf(role: AgentRole, records: ActivityRecord[]): string[] {
+  const out: string[] = [];
+  for (let i = records.length - 1; i >= 0 && out.length < 4; i--) {
+    const r = records[i];
+    if (!r.text || roleOf(r) !== role) continue;
+    out.unshift(r.tool ? `${r.tool}: ${r.text}` : r.text);
+  }
+  return out;
+}
+
+const TAG = /\[([a-z]\d+)\]/g;
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -265,7 +256,7 @@ function Waiting({ turn, records, streaming }: { turn: ChatTurn; records: Activi
   );
 }
 
-function Assistant({ turn, agent, fresh, onStreamed }: { turn: ChatTurn & { answer: AskAnswer }; agent: AgentState; fresh: boolean; onStreamed: (id: number) => void }) {
+function Assistant({ turn, agent, who, fresh, onStreamed }: { turn: ChatTurn & { answer: AskAnswer }; agent: AgentState; who: AgentRole | null; fresh: boolean; onStreamed: (id: number) => void }) {
   const answer = turn.answer;
   const links = useMemo(() => linksOf(answer), [answer]);
   const answered = answer.status === "answered" || answer.status === "ok";
@@ -275,15 +266,17 @@ function Assistant({ turn, agent, fresh, onStreamed }: { turn: ChatTurn & { answ
     setStreaming(false);
     onStreamed(turn.id);
   }, [onStreamed, turn.id]);
-  const narrator = agent.avatars.narrator;
-  const cue = narrator?.runId && narrator.runId === answer.run_id ? narrator : undefined;
+  const role = who ?? "narrator";
+  const current = agent.avatars[role];
+  const cue = current?.runId && current.runId === answer.run_id ? current : undefined;
   const allLinks = [...answer.receipt_links, ...answer.claims.flatMap((c) => c.receipts)];
   return (
     <div className={`cw-assistant${answered ? "" : " unanswered"}`}>
       <Work ms={turn.answeredAt ? turn.answeredAt - turn.askedAt : null} checks={checks} />
       <div className="cw-author">
-        <AvatarSlot role="narrator" size="sm" cue={cue} paused={!cue} />
-        <b>Argus</b>
+        <AvatarSlot role={role} size="sm" cue={cue} paused={!cue} />
+        <b>{who ? voiceOf(who).acronym : "Argus"}</b>
+        {who && <span className="cw-role">{voiceOf(who).title}</span>}
         {!answered && <span className="cw-flag">could not answer</span>}
         {typeof answer.usd === "number" && answer.usd > 0 && <span className="cw-cost">${answer.usd.toFixed(3)}</span>}
       </div>
@@ -331,10 +324,16 @@ export function AskPanel({ incident }: { incident: string | null }) {
 function ChatWindow({ store, agent, incident }: { store: string; agent: AgentState; incident: string | null }) {
   const demo = useAgentDemo();
   const streamingRun = demo !== null;
-  const suggestions = demo ? (demo.snapshot?.questions ?? []).map((title) => ({ title, hint: "From the investigation" })) : SUGGESTIONS;
   const shown = useAskOpen();
+  const requested = useAgentRequest();
   const [threads, setThreads] = useState<ChatThread[]>(() => loadThreads(store));
-  const [thread, setThread] = useState<ChatThread>(() => ({ id: newThreadId(), title: "", incident, conversation: null, turns: [], updatedAt: Date.now() }));
+  const [thread, setThread] = useState<ChatThread>(() => ({ id: newThreadId(), title: "", agent: requested?.agent ?? null, incident, conversation: null, turns: [], updatedAt: Date.now() }));
+  const who = thread.agent ?? null;
+  const suggestions = who
+    ? AGENT_SUGGESTIONS[who].map((title) => ({ title, hint: `Ask ${voiceOf(who).acronym}` }))
+    : demo
+      ? (demo.snapshot?.questions ?? []).map((title) => ({ title, hint: "From the investigation" }))
+      : SUGGESTIONS;
   const [fresh, setFresh] = useState<Set<number>>(() => new Set());
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -367,6 +366,20 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
     input.current?.focus({ preventScroll: true });
   };
 
+  // someone clicked an agent (or the Ask button): show that agent's latest thread, else a new one with it
+  const handled = useRef(requested?.seq ?? 0);
+  useEffect(() => {
+    if (!requested || requested.seq === handled.current) return;
+    handled.current = requested.seq;
+    pending.current?.abort();
+    const agentOf = (t: ChatThread) => t.agent ?? null;
+    setThread((current) => {
+      if (agentOf(current) === requested.agent) return current;
+      const latest = threads.find((t) => agentOf(t) === requested.agent);
+      return latest ?? { id: newThreadId(), title: "", agent: requested.agent, incident, conversation: null, turns: [], updatedAt: Date.now() };
+    });
+  }, [requested, threads, incident]);
+
   // "/" opens it from anywhere (not while typing); Escape stops a pending answer, else closes
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -375,7 +388,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
       if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         setAskOpen(true);
-      } else if (e.key === "Escape" && open && !document.querySelector(".modal[aria-label^='Receipt ']")) {
+      } else if (e.key === "Escape" && isAskOpen() && !document.querySelector(".modal[aria-label^='Receipt ']")) {
         e.preventDefault();
         if (pending.current) pending.current.abort();
         else setAskOpen(false);
@@ -419,7 +432,10 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
     const after = agent.records[agent.records.length - 1]?.seq ?? 0;
     const turn: ChatTurn = { id, question: q, answer: null, error: null, stopped: false, after, askedAt: Date.now(), answeredAt: null };
     // a thread is about one incident: asking from another page starts a new thread
-    const base = thread.turns.length && thread.incident !== incident ? { id: newThreadId(), title: "", incident, conversation: null, turns: [], updatedAt: 0 } : thread;
+    const base = thread.turns.length && thread.incident !== incident ? { id: newThreadId(), title: "", agent: who, incident, conversation: null, turns: [], updatedAt: 0 } : thread;
+    // an agent's thread asks the same live agent, framed to answer in that role from its own latest steps
+    // (a recorded presentation answers its own questions word for word, so there the question goes as typed)
+    const sent = who && !streamingRun ? agentQuestion(voiceOf(who), stepsOf(who, agent.records), q) : q;
     const threadId = base.id;
     setThread({ ...base, incident, title: base.title || threadTitle(q), turns: [...base.turns, turn], updatedAt: Date.now() });
     const update = (patch: Partial<ChatTurn>, conversation?: string | null) =>
@@ -434,12 +450,12 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
       const same = base.conversation;
       let answer: AskAnswer;
       try {
-        answer = await agentApi.ask(q, incident, same, controller.signal);
+        answer = await agentApi.ask(sent, incident, same, controller.signal);
       } catch (e) {
         // the server forgot the conversation (a restarted API): ask again as a new one
         if (!(same && e instanceof ApiError && e.status === 404)) throw e;
         update({}, null);
-        answer = await agentApi.ask(q, incident, null, controller.signal);
+        answer = await agentApi.ask(sent, incident, null, controller.signal);
       }
       setFresh((s) => new Set(s).add(id));
       update({ answer, answeredAt: Date.now() }, answer.conversation_id ?? undefined);
@@ -464,10 +480,17 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
     requestAnimationFrame(() => box.setSelectionRange(next.prompt.length, next.prompt.length));
   };
 
-  const newThread = () => {
+  const newThread = (with_: AgentRole | null = who) => {
     stop();
-    setThread({ id: newThreadId(), title: "", incident, conversation: null, turns: [], updatedAt: Date.now() });
+    setThread({ id: newThreadId(), title: "", agent: with_, incident, conversation: null, turns: [], updatedAt: Date.now() });
     if (window.innerWidth < 1280) setRail(false);
+  };
+
+  const openAgent = (role: AgentRole | null) => {
+    if (role === who && thread.turns.length === 0) return;
+    const latest = threads.find((t) => (t.agent ?? null) === role);
+    if (latest) openThread(latest);
+    else newThread(role);
   };
 
   const openThread = (t: ChatThread) => {
@@ -476,7 +499,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
     if (window.innerWidth < 1280) setRail(false);
   };
 
-  const title = thread.title || "New thread";
+  const title = thread.title || (who ? `Chat with ${voiceOf(who).acronym}` : "New thread");
   const status = offline ? "Offline" : agent.health?.mode === "replay" || streamingRun ? "Replay" : "Live";
 
   return (
@@ -490,12 +513,45 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
             </svg>
           </button>
         </div>
-        <button type="button" className="cw-new" onClick={newThread}>
+        <button type="button" className="cw-new" onClick={() => newThread()}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3.5v9M3.5 8h9" />
           </svg>
           New thread
         </button>
+        <span className="cw-rail-label">Agents</span>
+        <ul className="cw-agents">
+          <li>
+            <button type="button" className={`cw-agent${who === null ? " on" : ""}`} onClick={() => openAgent(null)} aria-current={who === null ? "true" : undefined}>
+              <span className="cw-agent-mark" aria-hidden="true">
+                <svg viewBox="0 0 16 16">
+                  <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />
+                </svg>
+              </span>
+              <span className="cw-agent-text">
+                <b>Argus</b>
+                <span>All agents together</span>
+              </span>
+            </button>
+          </li>
+          {AGENT_ROLES.map((role) => {
+            const cue = agent.avatars[role];
+            const v = voiceOf(role);
+            const state = cue?.status ?? "idle";
+            return (
+              <li key={role}>
+                <button type="button" className={`cw-agent${who === role ? " on" : ""}`} onClick={() => openAgent(role)} aria-current={who === role ? "true" : undefined} title={`Chat with ${v.acronym}, the ${v.title}`}>
+                  <AvatarSlot role={role} size="sm" cue={cue} paused={!cue} />
+                  <span className="cw-agent-text">
+                    <b>{v.acronym}</b>
+                    <span>{cue?.text || v.title}</span>
+                  </span>
+                  <i className={`cw-agent-dot a-${state}`} aria-label={state} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
         <span className="cw-rail-label">Recent</span>
         <ol className="cw-threads">
           {threads.length === 0 && <li className="cw-threads-empty">Your questions appear here.</li>}
@@ -504,6 +560,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
               <button type="button" className={`cw-thread${t.id === thread.id ? " on" : ""}`} onClick={() => openThread(t)} aria-current={t.id === thread.id ? "true" : undefined}>
                 <span className="cw-thread-title">{t.title}</span>
                 <span className="cw-thread-meta">
+                  {t.agent ? `${voiceOf(t.agent).acronym} · ` : ""}
                   {t.incident ? `${t.incident} · ` : ""}
                   {ago(t.updatedAt)}
                 </span>
@@ -522,6 +579,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
             </button>
           )}
           <div className="cw-head-title">
+            {who && <AvatarSlot role={who} size="sm" cue={agent.avatars[who]} paused={!agent.avatars[who]} />}
             <h2 title={title}>{title}</h2>
             <span className="cw-badge">{incident ?? thread.incident ?? "Boreal Outfitters"}</span>
             <span className={`cw-status s-${status.toLowerCase()}`}>
@@ -529,7 +587,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
               {status}
             </span>
           </div>
-          <button type="button" className="cw-icon" onClick={newThread} aria-label="New thread" title="New thread">
+          <button type="button" className="cw-icon" onClick={() => newThread()} aria-label="New thread" title="New thread">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M9.5 2.5h-6v10h10v-6M7 9l.5-2.5L12.5 1.5l2 2-5 5z" />
             </svg>
@@ -544,9 +602,12 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
           <ol className="cw-timeline" ref={tail.ref} tabIndex={0} aria-label="Ask transcript">
             {turns.length === 0 && (
               <li className="cw-empty">
-                <AvatarSlot role="narrator" size="lg" paused />
-                <h3>What do you want to know?</h3>
-                <p>{incident ? `Ask about ${incident}. ` : ""}Read only: a question never changes anything. Every number comes with its receipt.</p>
+                <AvatarSlot role={who ?? "narrator"} size="lg" paused />
+                <h3>{who ? `Ask ${voiceOf(who).acronym}, the ${voiceOf(who).title}` : "What do you want to know?"}</h3>
+                <p>
+                  {who ? `${voiceOf(who).ability} ` : ""}
+                  {incident ? `Ask about ${incident}. ` : ""}Read only: a question never changes anything. Every number comes with its receipt.
+                </p>
                 {suggestions.length > 0 && !offline && (
                   <div className="cw-suggest">
                     {suggestions.map((s) => (
@@ -571,7 +632,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
                     {t.error}
                   </p>
                 )}
-                {t.answer && <Assistant turn={t as ChatTurn & { answer: AskAnswer }} agent={agent} fresh={fresh.has(t.id)} onStreamed={streamed} />}
+                {t.answer && <Assistant turn={t as ChatTurn & { answer: AskAnswer }} agent={agent} who={who} fresh={fresh.has(t.id)} onStreamed={streamed} />}
               </li>
             ))}
           </ol>
@@ -597,7 +658,7 @@ function ChatWindow({ store, agent, incident }: { store: string; agent: AgentSta
               rows={2}
               value={text}
               disabled={offline}
-              placeholder={incident ? `Ask about ${incident}…` : "Ask about the shop, an incident or a number…"}
+              placeholder={who ? `Message ${voiceOf(who).acronym}` : incident ? `Ask about ${incident}…` : "Ask about the shop, an incident or a number…"}
               aria-label="Question for Argus"
               aria-describedby="cw-keys"
               onChange={(e) => setText(e.target.value)}

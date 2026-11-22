@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ago, loadThreads, modelLabel, revealed, revealStep, revealTokens, saveThreads, threadTitle, upsertThread, workedFor, type ChatThread } from "./chat";
+import { agentQuestion, ago, loadThreads, modelLabel, revealed, revealStep, revealTokens, saveThreads, threadTitle, upsertThread, workedFor, type ChatThread } from "./chat";
 import type { AgentHealth } from "../lib/agent";
 
 const thread = (id: string, updatedAt: number, turns = 1): ChatThread => ({
@@ -81,5 +81,24 @@ describe("labels", () => {
     expect(modelLabel({ ...base, models: { ask: "anthropic/claude-sonnet-5-5" } } as AgentHealth)).toBe("claude-sonnet-5-5");
     expect(modelLabel({ ...base, models: [] } as AgentHealth)).toBe("Live agent");
     expect(modelLabel({ ...base, mode: "replay", models: {} } as AgentHealth)).toBe("Recorded agent");
+  });
+});
+
+describe("per-agent questions", () => {
+  const voice = { acronym: "D.O.U.B.T.", title: "Skeptic", ability: "Tests every suspect against a placebo." };
+
+  it("frames the question in the agent's role with its latest steps, question last", () => {
+    const text = agentQuestion(voice, ["a", "placebo_test: no effect on the control group", "holdout_check: consistent"], "What did you rule out?");
+    expect(text.startsWith("Answer as D.O.U.B.T., Argus' Skeptic (Tests every suspect against a placebo)")).toBe(true);
+    expect(text).toContain("- placebo_test: no effect on the control group");
+    expect(text.endsWith("Question: What did you rule out?")).toBe(true);
+  });
+
+  it("stays inside the API's 1000 characters, dropping context before the question", () => {
+    const long = "x".repeat(900);
+    const text = agentQuestion(voice, ["y".repeat(500), "z".repeat(500)], long);
+    expect(text.length).toBeLessThanOrEqual(1000);
+    expect(text).toContain(long);
+    expect(text).not.toContain("Your latest steps");
   });
 });

@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AgentReceiptChips, ReceiptChips } from "../components/Receipts";
+import { openAgentChat } from "../fx/workspace/chatStore";
 import { hhmm } from "../lib/format";
 import { AgentAvatar } from "./avatars/AgentAvatar";
 import { agentName, PERSONAS } from "./avatars/personas";
@@ -243,6 +244,9 @@ export function RolePanel({ role, state, cue = IDLE_AVATAR, onClose }: { role: R
         <span>{status === "working" ? "Now" : status === "waiting" ? "Needs you" : status === "sleeping" ? "Resting" : r.beats ? "Last" : "Idle"}</span>
         <b>{cue.text ?? r.bubble}</b>
       </div>
+      <button type="button" className="vl-chat" onClick={() => openAgentChat(role)}>
+        Chat with {agentName(role)}
+      </button>
       <h3>
         Tool log <small>{r.log.length ? `${r.log.length} entr${r.log.length === 1 ? "y" : "ies"}, newest first` : ""}</small>
       </h3>

@@ -9,6 +9,7 @@ import { AGENT_ROLES, type AgentRole } from "../../lib/agent";
 import type { AgentAvatarProps } from "../../village/avatars/AgentAvatar";
 import type { AvatarCue } from "../../village/avatars/state";
 import { useAgent } from "./agent";
+import { openAgentChat } from "./chatStore";
 
 export interface AvatarProps {
   role: AgentRole;
@@ -90,7 +91,9 @@ export function AgentTeam({ compact = false }: { compact?: boolean }) {
     <div className={compact ? "fx-demo ws-side-team" : "ws-agent-team"} role="group" aria-label="Agent team">
       <div className="ws-agent-team-faces">
         {AGENT_ROLES.map((role) => (
-          <AvatarSlot key={role} role={role} size={compact ? "sm" : "lg"} cue={monitor.avatars[role]} showThought />
+          <button key={role} type="button" className="ws-agent-chat" onClick={() => openAgentChat(role)} aria-label={`Chat with the ${ROLE_TEXT[role].name}`} title={`Chat with the ${ROLE_TEXT[role].name}`}>
+            <AvatarSlot role={role} size={compact ? "sm" : "lg"} cue={monitor.avatars[role]} showThought />
+          </button>
         ))}
       </div>
     </div>
