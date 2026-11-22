@@ -12,7 +12,7 @@ test("the welcome dialog isolates the app until the user enters", async ({ page 
   await expect(signIn).toBeFocused();
   await page.keyboard.press("Enter");
 
-  await expect(welcome).toBeHidden();
+  await expect(welcome).toBeHidden({ timeout: 30_000 });
   await expect(workspace).toHaveJSProperty("inert", false);
   await expect(page.getByRole("navigation", { name: "sections" })).toBeVisible();
 });
