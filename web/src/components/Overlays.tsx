@@ -5,21 +5,24 @@ import { api, type Digest } from "../lib/api";
 import type { RunView } from "../lib/store";
 import type { Graph } from "../lib/types";
 import { ReceiptChips } from "./Receipts";
+import { ErrorState, Skeleton } from "../ui";
 
 export function DigestModal({ version, onClose }: { version: number; onClose: () => void }) {
   const [digest, setDigest] = useState<Digest | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
+    setError(null);
     api.digest().then(
       (d) => live && setDigest(d),
-      (e: Error) => live && setError(e.message),
+      (e: unknown) => live && setError(e),
     );
     return () => {
       live = false;
     };
-  }, [version]);
+  }, [version, attempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -63,7 +66,7 @@ export function DigestModal({ version, onClose }: { version: number; onClose: ()
               ))}
             </div>
           ) : (
-            <div className="muted">{error ?? "Loading…"}</div>
+            error ? <ErrorState error={error} route="/digest" onRetry={() => setAttempt((n) => n + 1)} /> : <Skeleton lines={6} label="Loading the report" />
           )}
         </div>
         <div className="modal-foot">

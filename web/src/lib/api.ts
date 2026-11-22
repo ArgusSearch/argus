@@ -107,18 +107,25 @@ export function follow(handlers: {
     const es = new EventSource("/events?include_stream=true");
     source = es;
     es.onopen = () => {
-      if (source !== es) return;
+      if (source !== es || closed) return;
       clearTimeout(offlineTimer);
       offlineTimer = undefined;
       offline = false;
       handlers.onState("open");
     };
     es.onerror = () => {
-      if (source !== es) return;
+      if (source !== es || closed) return;
+      const disconnected = es.readyState === EventSource.CLOSED;
       es.close();
       source = null;
       retry = setTimeout(open, RECONNECT_AFTER_MS);
-      if (!offline && offlineTimer === undefined) {
+      if (offline) return;
+      if (disconnected) {
+        clearTimeout(offlineTimer);
+        offlineTimer = undefined;
+        offline = true;
+        handlers.onState("offline");
+      } else if (offlineTimer === undefined) {
         handlers.onState("connecting");
         offlineTimer = setTimeout(() => {
           offlineTimer = undefined;
@@ -140,6 +147,7 @@ export function follow(handlers: {
     }
   };
 
+  handlers.onState("connecting");
   open();
   return () => {
     closed = true;
