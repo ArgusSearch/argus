@@ -34,8 +34,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
+import sqlglot
 from pydantic import BaseModel, ConfigDict, Field
 
+from argus.connectors.data import SOURCE_PREFIX, Snapshot
 from argus.contracts.events import Event
 from argus.contracts.findings import Receipt
 from argus.contracts.graph import Certificate, Edge, EdgeTestResult, Graph, GraphChange, Node
@@ -133,8 +135,16 @@ class ExtensionState(_Strict):
 
 
 def _same_metric(a: MetricDefinition, b: MetricDefinition) -> bool:
-    def norm(sql: str) -> str:
-        return re.sub(r"\s+", " ", sql).strip().rstrip(";").lower()
+    def norm(sql: str) -> tuple[str, ...]:
+        # Normalize SQL syntax, not literal values: 'DE' and 'de' can select different data.
+        try:
+            return tuple(
+                statement.sql(dialect="duckdb", normalize=True, comments=False)
+                for statement in sqlglot.parse(sql, read="duckdb")
+                if statement is not None and not isinstance(statement, sqlglot.exp.Semicolon)
+            )
+        except sqlglot.errors.SqlglotError:
+            return (sql.strip(),)  # malformed SQL still reaches the classifier's rejection path
 
     return a.name == b.name and norm(a.sql) == norm(b.sql)
 
@@ -370,18 +380,64 @@ class GraphExtension:
             self._version += 1
             return result, True
 
+    def place_source(self, snapshot: Snapshot) -> None:
+        """Register a provider schema using measured snapshot receipts and the live graph extension."""
+        from argus.connectors.graph import prepare
+
+        rt = self.runtime
+        if rt is None:
+            raise PlacementError("A live runtime is required to place provider metrics.")
+        with self._lock, rt.lock:
+            current = self._current()
+            placements = prepare(snapshot, rt.graph, rt.runner)
+            sim_ts = rt.as_of or first_tick(rt.world)
+            existing = {node.id for node in rt.graph.nodes}
+            refreshed = {p.metric.name for p in placements}
+            replacement = []
+            for placement in placements:
+                name = placement.metric.name
+                kind = "test_run" if name in existing else "node_added"
+                placement.changes.append(
+                    rt.changelog.append(
+                        sim_ts=sim_ts,
+                        kind=kind,
+                        node=name,
+                        reason=placement.certificate.summary,
+                        receipts=placement.certificate.receipts,
+                    )
+                )
+                replacement.append(build_result(placement, rt.runner.receipts, mode="live", world=snapshot.provider))
+
+            self._adopt_graph(placements[-1].graph)
+            rt.runner.source_snapshots[snapshot.provider] = snapshot
+            # Keep older receipt SQL in the runner while presenting one current placement per node.
+            current[:] = [p for p in current if p.metric.name not in refreshed] + replacement
+            self._version += 1
+            for placement in placements:
+                for kind, payload in to_events(placement):
+                    self.hub.publish(Event(seq=self.hub.next_seq(), type=kind, sim_ts=sim_ts, payload=payload))
+
+    def _adopt_graph(self, graph: Graph) -> None:
+        rt = self.runtime
+        assert rt is not None
+        rt.tester.graph = graph
+        rt.book.graph = rt.detector.graph = rt.graph
+        rt.plan_watch.update_graph(rt.graph)
+
     def _place_live(self, metric: MetricDefinition) -> PlacementResult:
         rt = self.runtime
         assert rt is not None
         with rt.lock:  # the runtime ticks under this lock: no tick sees half a placement
             as_of = rt.as_of or first_tick(rt.world)
             placed_before = [n.id for n in rt.graph.nodes if n.source != "seed"]
-            p = classify(metric, rt.graph, rt.runner, as_of, source="api: POST /graph/metrics", changelog=rt.changelog)
+            imported = [node for node in rt.graph.nodes if node.source.startswith(SOURCE_PREFIX)]
+            if any(node.id == metric.name for node in imported):
+                raise PlacementError("This metric belongs to a connection.")
+            # Cartographer tests the hourly simulator schema. Provider series use their own reporting dates.
+            graph = rt.graph.model_copy(update={"nodes": [node for node in rt.graph.nodes if node not in imported]})
+            p = classify(metric, graph, rt.runner, as_of, source="api: POST /graph/metrics", changelog=rt.changelog)
             if p.node is not None or p.added_edges():
-                # exactly what the runtime does after its daily re-test
-                rt.tester.graph = p.graph
-                rt.book.graph = rt.detector.graph = rt.graph
-                rt.plan_watch.update_graph(rt.graph)
+                self._adopt_graph(p.graph.model_copy(update={"nodes": [*p.graph.nodes, *imported]}))
             for kind, payload in to_events(p):
                 self.hub.publish(Event(seq=self.hub.next_seq(), type=kind, sim_ts=as_of, payload=payload))
             return build_result(

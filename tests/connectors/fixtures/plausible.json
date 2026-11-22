@@ -1,0 +1,18 @@
+{
+  "report_day": "2026-11-22",
+  "visitors": [
+    {"dimensions": ["2026-11-20"], "metrics": [74]},
+    {"dimensions": ["2026-11-21"], "metrics": [93]}
+  ],
+  "visits": [
+    {"dimensions": ["2026-11-21", "Direct / None"], "metrics": [58]},
+    {"dimensions": ["2026-11-21", "Search"], "metrics": [48]}
+  ],
+  "pageviews": [
+    {"dimensions": ["2026-11-21", "/"], "metrics": [95]},
+    {"dimensions": ["2026-11-21", "/pricing"], "metrics": [17]}
+  ],
+  "events": [
+    {"dimensions": ["2026-11-21", "Sign up"], "metrics": [7]}
+  ]
+}

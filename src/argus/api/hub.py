@@ -152,9 +152,13 @@ class EventHub(EventBus):
                 pending += [StreamItem(stream, e) for e in history[sent:]]
                 sent = len(history)
             for item in pending:
+                if item.stream != self.stream:
+                    break  # a restart invalidated the rest of this batch while the client was reading it
                 yield item
                 if live and self.pace_steps and item.event is not None and item.event.type in PACED:
                     await asyncio.sleep(self.pace_steps())
+            if current != self.stream:
+                continue  # announce the replacement stream before yielding any more events
             live = True
             if changed is None or self.closed:
                 return
