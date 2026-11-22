@@ -4,6 +4,7 @@
 
 import { withRun } from "./agentDemo";
 import { ApiError } from "./api";
+import { apiUrl } from "./deployment";
 import type { Receipt } from "./types";
 
 export type AgentMode = "live" | "record" | "replay" | "off";
@@ -175,7 +176,7 @@ export interface AskAnswer {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(apiUrl(path), { credentials: "include", ...init });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -201,15 +202,16 @@ const post = (body: unknown, headers: Record<string, string> = {}): RequestInit 
  * demo playback) takes decisions without one.
  */
 const CSRF_HEADER = "X-Argus-CSRF";
-let operator: { token: string | null } | null = null;
+let operator: { path: string; token: string | null } | null = null;
 
 async function operatorToken(fresh = false): Promise<string | null> {
-  if (operator && !fresh) return operator.token;
+  const path = withRun("/agent/operator/session");
+  if (operator?.path === path && !fresh) return operator.token;
   try {
-    const session = await call<{ principal: string; csrf_token: string }>("/agent/operator/session", post({}));
-    operator = { token: session.csrf_token };
+    const session = await call<{ principal: string; csrf_token: string }>(path, post({}));
+    operator = { path, token: session.csrf_token };
   } catch (e) {
-    if (e instanceof ApiError && (e.status === 404 || e.status === 405)) operator = { token: null };
+    if (e instanceof ApiError && (e.status === 404 || e.status === 405)) operator = { path, token: null };
     else throw e;
   }
   return operator.token;

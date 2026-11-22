@@ -1,5 +1,6 @@
-// REST and SSE client for the C5 API. All paths are relative: the API serves this page, or Vite proxies.
+// REST and SSE client for the C5 API, served directly, proxied by Vite, or hosted on its own origin.
 
+import { apiUrl } from "./deployment";
 import { EVENT_TYPES, type ArgusEvent, type Graph, type Health, type Incident, type Receipt, type ReplayStatus, type RerunResult } from "./types";
 
 /** A non-2xx answer; the message is the API's own `detail`. */
@@ -13,7 +14,7 @@ export class ApiError extends Error {
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(apiUrl(path), init);
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -32,7 +33,7 @@ export const api = {
   incident: (id: string) => json<Incident>(`/incidents/${encodeURIComponent(id)}`),
   report: async (id: string, demoRun?: string) => {
     const path = `/incidents/${encodeURIComponent(id)}/report`;
-    const res = await fetch(demoRun ? `/demo${path}?run_id=${encodeURIComponent(demoRun)}` : path);
+    const res = await fetch(apiUrl(demoRun ? `/demo${path}?run_id=${encodeURIComponent(demoRun)}` : path));
     if (!res.ok) throw new ApiError(res.status, `The incident report could not be loaded (${res.status}).`);
     return res.text();
   },
@@ -107,7 +108,7 @@ export function follow(handlers: {
 
   const open = () => {
     if (closed) return;
-    const es = new EventSource("/events?include_stream=true");
+    const es = new EventSource(apiUrl("/events?include_stream=true"));
     source = es;
     es.onopen = () => {
       if (source !== es || closed) return;
